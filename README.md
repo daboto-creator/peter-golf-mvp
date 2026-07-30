@@ -8,7 +8,7 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 
 El repositorio contiene el scaffold técnico inicial y la documentación base del MVP. La interfaz aún corresponde a la plantilla de Next.js.
 
-Todavía no están implementados el catálogo, la autenticación, el carrito, el checkout, el panel administrativo, los pagos ni la conexión con un proyecto remoto de Supabase. El MVP se validará primero sin pagos reales.
+Todavía no están implementados el catálogo, la autenticación, el carrito, el checkout, el panel administrativo ni los pagos. La CLI está vinculada con el proyecto remoto de staging de Supabase, pero la aplicación todavía no usa esa conexión. El MVP se validará primero sin pagos reales.
 
 ## Stack previsto
 
@@ -17,7 +17,7 @@ Todavía no están implementados el catálogo, la autenticación, el carrito, el
 - TypeScript en modo estricto
 - Tailwind CSS 4
 - ESLint
-- Supabase en una fase posterior para persistencia, autenticación y almacenamiento, sujeto al diseño final
+- Supabase con base técnica local y staging vinculado; la persistencia, autenticación y almacenamiento funcionales quedan sujetos al diseño final
 - Plataforma de despliegue por decidir; Vercel es compatible con el scaffold actual, pero no está formalmente adoptado
 
 No se ha seleccionado ni integrado un proveedor de pagos.
@@ -39,12 +39,12 @@ Las reglas completas están en [AGENTS.md](./AGENTS.md).
 
 Staging y producción tendrán recursos, secretos y datos separados.
 
-| Ambiente   | Uso                                                       | Supabase previsto                                                     |
-| ---------- | --------------------------------------------------------- | --------------------------------------------------------------------- |
-| Staging    | Desarrollo, pruebas y validación del MVP sin pagos reales | Organización `daboto-creator's Org`, proyecto `peter-golf-staging`    |
-| Producción | Operación real futura                                     | Organización `daboto-creator's Org`, proyecto `peter-golf-production` |
+| Ambiente   | Uso                                                       | Supabase previsto                                                                                     |
+| ---------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Staging    | Desarrollo, pruebas y validación del MVP sin pagos reales | Organización `daboto-creator's Org`, proyecto `peter-golf-staging`, referencia `xdulakstgsgdujjylhox` |
+| Producción | Operación real futura                                     | Todavía no existe y no debe vincularse en esta etapa                                                  |
 
-Estos proyectos son nombres planeados: la estructura local no crea ni vincula ningún proyecto remoto. Staging nunca debe usar llaves live, secretos ni datos de producción.
+Staging ya está creado y vinculado mediante la CLI. La primera migración técnica está aplicada y el historial local coincide con el remoto. El vínculo no agregó secretos al repositorio. Staging nunca debe usar llaves live, secretos ni datos de producción; los pagos continúan deshabilitados.
 
 ## Comandos actuales
 
