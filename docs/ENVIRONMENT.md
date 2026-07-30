@@ -35,8 +35,8 @@ sujetas a RLS y políticas explícitas. Aunque su exposición en el navegador es
 intencional, no debe registrarse ni devolverse desde endpoints.
 
 `SUPABASE_SERVICE_ROLE_KEY` omite RLS y por eso no se carga en ningún cliente de
-esta integración. Sólo podría habilitarse en una tarea futura para una operación
-server-side concreta, autorizada y auditada.
+esta integración. La gestión operativa de catálogo usa la llave pública, la
+sesión autenticada y políticas RLS específicas para `operator`/`admin`.
 
 ## Separación y despliegue
 

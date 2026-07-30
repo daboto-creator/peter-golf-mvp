@@ -46,8 +46,10 @@ Una persona autenticada puede:
 - crear, leer, actualizar y eliminar únicamente sus carritos y partidas;
 - leer únicamente sus pedidos, partidas e historial.
 
-El cliente no puede asignar roles, modificar direcciones, crear pedidos, cambiar
-estados, ajustar inventario ni escribir asesorías o configuración directamente.
+El cliente no puede asignar roles, modificar direcciones, crear pedidos, ajustar
+inventario ni escribir asesorías o configuración directamente. La única
+excepción operativa actual son las mutaciones acotadas de `products`, protegidas
+por Server Actions, RLS, función de autorización y privilegios de columna.
 
 ## 4. Matriz de acceso por tabla
 
@@ -57,39 +59,42 @@ significa que no hay política cliente y la operación requiere un proceso
 server-side autorizado. Las columnas de operador y administrador describen el
 canal permitido, no un permiso implícito por poseer el rol.
 
-| Tabla                      | Lectura anónima | Lectura autenticada | Creación cliente  | Actualización cliente | Eliminación cliente | Operator                | Admin                  |
-| -------------------------- | --------------- | ------------------- | ----------------- | --------------------- | ------------------- | ----------------------- | ---------------------- |
-| `profiles`                 | No              | Propio              | Propio            | Propio                | No                  | Backend, alcance mínimo | Backend, auditado      |
-| `roles`                    | No              | No                  | No                | No                    | No                  | Backend, sólo lectura   | Backend, auditado      |
-| `user_roles`               | No              | No                  | No                | No                    | No                  | No                      | Backend, auditado      |
-| `addresses`                | No              | Propias             | No                | No                    | No                  | Backend, soporte        | Backend, auditado      |
-| `brands`                   | Catálogo        | Catálogo            | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `categories`               | Catálogo        | Catálogo            | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `products`                 | Catálogo        | Catálogo            | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `product_variants`         | Catálogo        | Catálogo            | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `product_images`           | Catálogo        | Catálogo            | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `inventory`                | No              | No                  | No                | No                    | No                  | Backend transaccional   | Backend, auditado      |
-| `inventory_movements`      | No              | No                  | No                | No                    | No                  | Backend; sólo insertar  | Backend; sólo insertar |
-| `shipping_methods`         | No              | No                  | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `carts`                    | No              | Propios             | Propio            | Propio                | Propio              | Backend, soporte        | Backend, auditado      |
-| `cart_items`               | No              | De carrito propio   | De carrito propio | De carrito propio     | De carrito propio   | Backend, soporte        | Backend, auditado      |
-| `orders`                   | No              | Propios             | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `order_items`              | No              | De pedido propio    | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `order_status_history`     | No              | De pedido propio    | No                | No                    | No                  | Backend; sólo insertar  | Backend; sólo insertar |
-| `advisory_sessions`        | No              | No                  | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `advisory_answers`         | No              | No                  | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `advisory_recommendations` | No              | No                  | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `advisory_requests`        | No              | No                  | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `pages`                    | No              | No                  | No                | No                    | No                  | Backend, autorizado     | Backend, auditado      |
-| `site_settings`            | No              | No                  | No                | No                    | No                  | Backend, sólo lectura   | Backend, auditado      |
-| `audit_logs`               | No              | No                  | No                | No                    | No                  | Backend; sólo insertar  | Backend; sólo insertar |
+| Tabla                      | Lectura anónima | Lectura autenticada           | Creación cliente    | Actualización cliente | Eliminación cliente | Operator                 | Admin                    |
+| -------------------------- | --------------- | ----------------------------- | ------------------- | --------------------- | ------------------- | ------------------------ | ------------------------ |
+| `profiles`                 | No              | Propio                        | Propio              | Propio                | No                  | Backend, alcance mínimo  | Backend, auditado        |
+| `roles`                    | No              | No                            | No                  | No                    | No                  | Backend, sólo lectura    | Backend, auditado        |
+| `user_roles`               | No              | No                            | No                  | No                    | No                  | No                       | Backend, auditado        |
+| `addresses`                | No              | Propias                       | No                  | No                    | No                  | Backend, soporte         | Backend, auditado        |
+| `brands`                   | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `categories`               | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `products`                 | Catálogo        | Catálogo o gestión autorizada | Server Action + RLS | Server Action + RLS   | No                  | Catálogo base autorizado | Catálogo base autorizado |
+| `product_variants`         | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `product_images`           | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `inventory`                | No              | No                            | No                  | No                    | No                  | Backend transaccional    | Backend, auditado        |
+| `inventory_movements`      | No              | No                            | No                  | No                    | No                  | Backend; sólo insertar   | Backend; sólo insertar   |
+| `shipping_methods`         | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `carts`                    | No              | Propios                       | Propio              | Propio                | Propio              | Backend, soporte         | Backend, auditado        |
+| `cart_items`               | No              | De carrito propio             | De carrito propio   | De carrito propio     | De carrito propio   | Backend, soporte         | Backend, auditado        |
+| `orders`                   | No              | Propios                       | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `order_items`              | No              | De pedido propio              | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `order_status_history`     | No              | De pedido propio              | No                  | No                    | No                  | Backend; sólo insertar   | Backend; sólo insertar   |
+| `advisory_sessions`        | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `advisory_answers`         | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `advisory_recommendations` | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `advisory_requests`        | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `pages`                    | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `site_settings`            | No              | No                            | No                  | No                    | No                  | Backend, sólo lectura    | Backend, auditado        |
+| `audit_logs`               | No              | No                            | No                  | No                    | No                  | Backend; sólo insertar   | Backend; sólo insertar   |
 
 ## 5. Operaciones administrativas server-side
 
-Los roles `operator` y `admin` están modelados en `roles` y `user_roles`, pero
-no reciben políticas RLS elevadas. Esto evita que una sesión del navegador
-obtenga privilegios administrativos sólo por consultar el JWT o manipular la
-interfaz.
+Los roles `operator` y `admin` están modelados en `roles` y `user_roles`. Para la
+gestión base de productos reciben políticas RLS estrictamente acotadas y
+privilegios de columna que excluyen `cost`. La función
+`public.can_manage_catalog()` es `security definer`, fija `search_path` vacío,
+no acepta parámetros controlados por el cliente y sólo devuelve un booleano
+calculado con `auth.uid()`. Así evita recursión de RLS y no expone la lista de
+roles.
 
 Un backend que realice una operación privilegiada debe:
 
@@ -98,11 +103,23 @@ Un backend que realice una operación privilegiada debe:
 3. validar entradas y recalcular importes en servidor;
 4. ejecutar cambios relacionados en una transacción;
 5. escribir auditoría sin datos sensibles;
-6. usar `service_role` sólo durante esa operación y sólo en servidor.
+6. usar el canal de credenciales mínimo previsto para esa operación.
 
-Requieren obligatoriamente este canal: asignación de roles, administración de
-direcciones, catálogo, precios, costos, inventario, movimientos, métodos de
-envío, creación/cambio de pedidos, asesorías, páginas, settings y audit logs.
+La gestión base de productos implementada usa la llave pública con la sesión del
+usuario y permanece sujeta a RLS; no usa `service_role`. Asignación de roles,
+administración de direcciones, costos, inventario, movimientos, métodos de
+envío, creación/cambio de pedidos, asesorías, páginas, settings y audit logs
+siguen requiriendo un backend futuro específico y auditado.
+
+Las políticas operativas permiten:
+
+- leer productos de cualquier estado a `operator` y `admin`;
+- leer únicamente marcas y categorías activas;
+- insertar y actualizar las columnas comerciales revisadas de `products`;
+- publicar, despublicar, archivar y restaurar sin eliminación física.
+
+No conceden `DELETE`, acceso a `cost`, ni mutaciones de marcas, categorías,
+variantes o imágenes. La lectura pública conserva sus filtros previos.
 
 ## 6. Entradas, precios e inventario
 
@@ -129,6 +146,10 @@ no acepta argumentos controlados por el cliente.
 y sólo se ejecuta mediante el trigger de `auth.users`. Valida la metadata de
 nombre, crea el perfil del mismo UUID y asigna exclusivamente el rol `customer`.
 No acepta roles desde metadata ni concede `operator` o `admin`.
+
+`can_manage_catalog_references()` también fija `search_path` vacío, devuelve
+siempre `false` a quien no tenga permiso operativo y sólo permite que las
+políticas acepten una marca y categoría activas. No concede ejecución a `anon`.
 
 `inventory_movements`, `order_status_history` y `audit_logs` rechazan `UPDATE` y
 `DELETE`. La corrección de un evento debe representarse con otro evento, no

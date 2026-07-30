@@ -20,6 +20,7 @@ migraciones posteriores crean, en orden:
 7. RLS y políticas;
 8. base de autenticación, nombres de perfil y alta automática de clientes.
 9. privilegios de columna mínimos para las relaciones públicas del catálogo.
+10. autorización y privilegios mínimos para gestión operativa de productos.
 
 `supabase/seed.sql` agrega únicamente datos ficticios de desarrollo.
 
@@ -57,7 +58,8 @@ categorías e imágenes que requieren las políticas RLS ya existentes.
 
 Un trigger sobre `auth.users` crea automáticamente el perfil y asigna únicamente
 el rol `customer`. Los cambios de roles no están disponibles mediante políticas
-cliente. El backend deberá validar al actor y registrar la operación privilegiada.
+cliente. La gestión de catálogo valida el permiso contra `user_roles` y `roles`
+mediante una función booleana protegida; no obtiene roles desde metadata.
 
 ## 4. Catálogo
 
@@ -184,9 +186,10 @@ El detalle por tabla está en `docs/SECURITY_REQUIREMENTS.md`. En resumen:
   activos, publicados y no archivados;
 - usuario autenticado: perfil propio, lectura de direcciones propias, carrito
   propio y lectura de pedidos propios;
-- operador y administrador: sin acceso privilegiado directo desde el cliente;
-  las operaciones elevadas requieren backend server-side, validación de rol,
-  mínimo privilegio y auditoría;
+- operador y administrador: la base de catálogo usa Server Components y Server
+  Actions con una sesión autenticada, validación de rol en base de datos, RLS y
+  privilegios de columna; las demás operaciones elevadas continúan requiriendo
+  un backend específico, mínimo privilegio y auditoría;
 - `service_role`: sólo en un entorno seguro de servidor, nunca en el navegador.
 
 ## 10. Decisiones pendientes
@@ -201,3 +204,5 @@ El detalle por tabla está en `docs/SECURITY_REQUIREMENTS.md`. En resumen:
   desde la aplicación.
 - Pruebas automatizadas positivas y negativas de RLS con usuarios reales de
   prueba.
+- Auditoría persistente de cambios de catálogo; esta primera base conserva
+  `updated_at`, pero `products` no tiene `created_by` ni `updated_by`.

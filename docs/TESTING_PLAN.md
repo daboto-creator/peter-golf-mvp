@@ -19,7 +19,10 @@ Las pruebas unitarias usan Vitest y Testing Library. Las pruebas E2E usan Playwr
 
 El catálogo incorpora pruebas unitarias deterministas para formateo de importes
 en unidades menores, condición, mensajes de disponibilidad y validación de rutas
-de imagen. No dependen de Supabase remoto.
+de imagen. La gestión operativa agrega pruebas de validación de producto,
+conversión exacta de precio, generación/validación de slug, reglas de
+publicación y resolución reutilizable de autorización. No dependen de Supabase
+remoto.
 
 ## 3. Pirámide de pruebas
 
@@ -54,6 +57,8 @@ de imagen. No dependen de Supabase remoto.
 - Registrar intención de compra sin solicitar pago.
 - Intentar manipular precio, producto, cantidad o estado desde el cliente.
 - Confirmar que borradores y recursos ajenos no sean accesibles.
+- Confirmar que un cliente reciba 403 en `/operacion` y que un operador pueda
+  crear, editar, publicar, despublicar, archivar y restaurar.
 
 ### Manuales
 

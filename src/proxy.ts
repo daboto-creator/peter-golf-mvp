@@ -32,7 +32,11 @@ export async function proxy(request: NextRequest) {
     isAuthenticated = false;
   }
 
-  if (request.nextUrl.pathname.startsWith("/cuenta") && !isAuthenticated) {
+  if (
+    (request.nextUrl.pathname.startsWith("/cuenta") ||
+      request.nextUrl.pathname.startsWith("/operacion")) &&
+    !isAuthenticated
+  ) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/iniciar-sesion";
     loginUrl.search = "";
@@ -40,7 +44,9 @@ export async function proxy(request: NextRequest) {
       "next",
       getSafeInternalPath(
         `${request.nextUrl.pathname}${request.nextUrl.search}`,
-        "/cuenta",
+        request.nextUrl.pathname.startsWith("/operacion")
+          ? "/operacion"
+          : "/cuenta",
       ),
     );
     return NextResponse.redirect(loginUrl);

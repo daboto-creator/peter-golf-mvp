@@ -2,14 +2,17 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/lib/auth/actions";
+import { canCurrentUserManageCatalog } from "@/lib/auth/catalog-authorization";
 
 export const dynamic = "force-dynamic";
 
-export default function AccountLayout({
+export default async function AccountLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const canManageCatalog = await canCurrentUserManageCatalog();
+
   return (
     <div className="bg-muted/30 min-h-screen">
       <header className="bg-background border-b">
@@ -27,6 +30,11 @@ export default function AccountLayout({
             <Button asChild variant="ghost">
               <Link href="/cuenta/perfil">Perfil</Link>
             </Button>
+            {canManageCatalog ? (
+              <Button asChild variant="ghost">
+                <Link href="/operacion">Operación</Link>
+              </Button>
+            ) : null}
             <form action={logoutAction}>
               <Button type="submit" variant="outline">
                 Cerrar sesión
