@@ -3,14 +3,14 @@
 ## 1. Estado
 
 El repositorio usa Supabase CLI `2.110.0`, Postgres 17, migraciones versionadas y
-una semilla local. API y Studio están habilitados para inspección; Auth,
-Storage, Realtime, Edge Runtime y Analytics continúan deshabilitados como
-servicios locales.
+una semilla local. API, Studio, Auth y Mailpit están habilitados para probar
+registro, confirmación y recuperación; Storage, Realtime, Edge Runtime y
+Analytics continúan deshabilitados como servicios locales.
 
 El esquema v1 incluye las 24 tablas públicas descritas en
 `docs/DATABASE_MODEL.md`, y todas tienen RLS. La referencia a `auth.users` en
-`profiles` prepara el modelo para habilitar Auth más adelante; todavía no existe
-un flujo de autenticación en la aplicación.
+`profiles` se integra con Supabase Auth mediante una migración que crea
+automáticamente el perfil y el rol `customer`.
 
 La CLI sigue vinculada con:
 
@@ -35,6 +35,7 @@ existe y no debe crearse ni vincularse en esta fase.
 | `20260730000500_carts_and_orders.sql`              | Métodos de envío, carritos y pedidos de prueba.      |
 | `20260730000600_advisory_and_configuration.sql`    | Asesoría, páginas, settings y audit logs.            |
 | `20260730000700_rls_and_policies.sql`              | RLS, políticas mínimas y permisos de funciones.      |
+| `20260730000800_authentication_foundation.sql`     | Perfil automático y rol `customer` para Auth.        |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.
@@ -62,6 +63,7 @@ Servicios locales:
 | API           | `http://127.0.0.1:54321` |
 | Base de datos | `127.0.0.1:54322`        |
 | Studio        | `http://127.0.0.1:54323` |
+| Mailpit       | `http://127.0.0.1:54324` |
 
 Para detener únicamente esta pila:
 
@@ -118,9 +120,9 @@ positivas y negativas con:
 - operator;
 - admin.
 
-Auth está deshabilitado localmente y no se implementa en la aplicación. Al
-habilitarlo se deberá definir el alta controlada de `profiles`, agregar el
-middleware de sesión correspondiente y ejecutar la matriz completa.
+Auth está habilitado localmente con confirmación de correo. La aplicación usa
+`proxy.ts` para renovar cookies y vuelve a validar al usuario en páginas y
+acciones privadas. La matriz completa de RLS sigue pendiente.
 
 ## 6. Staging vinculado
 
@@ -171,6 +173,15 @@ operaciones administrativas y su uso omitiría RLS.
 Staging nunca debe usar valores live ni datos de producción. Los pagos reales
 permanecen deshabilitados y no se configuró proveedor alguno.
 
+Antes de probar autenticación en `peter-golf-staging`, configurar manualmente en
+Supabase Auth:
+
+- **Site URL:** el valor HTTPS de `NEXT_PUBLIC_APP_URL` del despliegue de staging;
+- **Redirect URLs:** ese mismo origen seguido de `/auth/callback`.
+
+Esta tarea no modifica el proyecto remoto. Producción deberá usar URLs, secretos
+y proyecto separados.
+
 Para regenerar los tipos mediante una lectura del proyecto ya vinculado:
 
 ```bash
@@ -193,6 +204,10 @@ curl --fail-with-body http://127.0.0.1:3000/api/health/supabase
 visible por las políticas públicas. Devuelve `200` cuando la lectura está
 disponible o `503` en caso contrario. Nunca devuelve llaves, URLs, tokens,
 filas, detalles de base de datos, mensajes internos ni stack traces.
+
+Los correos locales de confirmación y recuperación se consultan en Mailpit. La
+aplicación construye sus callbacks desde `NEXT_PUBLIC_APP_URL`; no acepta
+destinos externos proporcionados por el usuario.
 
 ## 9. Reversión
 

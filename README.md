@@ -7,11 +7,11 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 ## Estado actual
 
 El repositorio contiene el scaffold técnico inicial, la documentación base del
-MVP y la integración tipada con Supabase de staging. La interfaz aún corresponde
-a la plantilla de Next.js.
+MVP, la integración tipada con Supabase de staging y la base de autenticación.
 
-Todavía no están implementados el catálogo, la autenticación, el carrito, el
-checkout, el panel administrativo ni los pagos. La CLI y los clientes tipados
+Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
+perfil básico y protección inicial de `/cuenta`. Todavía no están implementados
+el catálogo, el carrito, el checkout, el panel administrativo ni los pagos. La CLI y los clientes tipados
 apuntan al proyecto remoto de staging de Supabase; el único uso funcional actual
 es el diagnóstico de lectura. El MVP se validará primero sin pagos reales.
 La aplicación sólo usa la llave pública `anon`/publishable y RLS; no existe un
@@ -79,8 +79,9 @@ Las variables disponibles y el proceso para endurecer su validación al conectar
 - `src/lib/supabase/client.ts` crea el cliente singleton del navegador. Sólo
   puede usar variables `NEXT_PUBLIC_*` y queda limitado por RLS.
 - `src/lib/supabase/server.ts` crea un cliente nuevo por solicitud, integra las
-  cookies asíncronas de Next.js 16 y usa la misma llave pública. No implementa
-  autenticación ni middleware de sesión.
+  cookies asíncronas de Next.js 16 y usa la misma llave pública.
+- `src/proxy.ts` renueva las cookies de Supabase y protege las rutas iniciales de
+  cuenta; páginas y acciones vuelven a validar la sesión en servidor.
 - `src/types/database.types.ts` contiene los tipos generados desde el esquema
   remoto de staging.
 
