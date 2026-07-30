@@ -1,61 +1,61 @@
 # Configuración de Supabase local y staging
 
-## Alcance
+## 1. Estado
 
-Esta base técnica permite ejecutar Supabase y comprobar migraciones únicamente
-en la computadora de desarrollo. También existe un vínculo verificado con el
-proyecto remoto de staging. Se configuró:
+El repositorio usa Supabase CLI `2.110.0`, Postgres 17, migraciones versionadas y
+una semilla local. API y Studio están habilitados para inspección; Auth,
+Storage, Realtime, Edge Runtime y Analytics continúan deshabilitados como
+servicios locales.
 
-- Supabase CLI `2.110.0` como dependencia de desarrollo del proyecto;
-- `supabase/config.toml` con Postgres 17, migraciones y semilla habilitadas;
-- API y Studio locales para inspección;
-- Auth, Storage, Realtime, Edge Runtime y Analytics deshabilitados;
-- una migración técnica que habilita `pgcrypto`;
-- un archivo de semilla intencionalmente vacío;
-- el vínculo de la CLI con `peter-golf-staging`.
+El esquema v1 incluye las 24 tablas públicas descritas en
+`docs/DATABASE_MODEL.md`, y todas tienen RLS. La referencia a `auth.users` en
+`profiles` prepara el modelo para habilitar Auth más adelante; todavía no existe
+un flujo de autenticación en la aplicación.
 
-El estado remoto verificado es:
+La CLI sigue vinculada con:
 
 - organización: `daboto-creator's Org`;
-- staging: `peter-golf-staging`;
-- project reference: `xdulakstgsgdujjylhox`;
-- migración aplicada: `20260730000000_enable_pgcrypto.sql`;
-- historial local y remoto con la misma versión.
+- proyecto: `peter-golf-staging`;
+- project reference: `xdulakstgsgdujjylhox`.
 
-No se agregaron secretos al repositorio, no se crearon tablas de negocio y no se
-implementaron autenticación ni RLS. Los pagos continúan deshabilitados.
-Producción todavía no existe y no debe crearse ni vincularse en esta etapa.
+Sólo `20260730000000_enable_pgcrypto.sql` está confirmada como aplicada
+remotamente. Las migraciones v1 nuevas se validaron de forma local y no se han
+enviado a staging. Producción no existe y no debe crearse ni vincularse en esta
+fase.
 
-## Instalar y ejecutar la CLI
+## 2. Migraciones
 
-La CLI no se instala globalmente y no requiere `sudo`. Se instala junto con las
-demás dependencias:
+| Archivo                                            | Contenido                                            |
+| -------------------------------------------------- | ---------------------------------------------------- |
+| `20260730000000_enable_pgcrypto.sql`               | Extensión técnica ya aplicada; no modificar.         |
+| `20260730000100_types_functions_and_utilities.sql` | Dominios, enums y trigger de `updated_at`.           |
+| `20260730000200_users_and_roles.sql`               | Perfiles, roles, asignaciones y direcciones.         |
+| `20260730000300_catalog.sql`                       | Marcas, categorías, productos, variantes e imágenes. |
+| `20260730000400_inventory.sql`                     | Inventario y movimientos inmutables.                 |
+| `20260730000500_carts_and_orders.sql`              | Métodos de envío, carritos y pedidos de prueba.      |
+| `20260730000600_advisory_and_configuration.sql`    | Asesoría, páginas, settings y audit logs.            |
+| `20260730000700_rls_and_policies.sql`              | RLS, políticas mínimas y permisos de funciones.      |
+
+No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
+corrección posterior debe ser una migración nueva y compatible hacia adelante.
+
+## 3. Instalar y ejecutar
+
+La CLI se instala como dependencia del proyecto, nunca con `sudo`:
 
 ```bash
 npm ci
-```
-
-Los scripts npm usan automáticamente el binario local. Para consultar la versión
-directamente:
-
-```bash
 npx --no-install supabase --version
 ```
 
-`--no-install` evita que `npx` descargue una versión distinta de la fijada en
-`package-lock.json`.
-
-## Entorno local
-
-Iniciar la pila local requiere que Docker ya esté instalado y en ejecución. Este
-repositorio no instala ni configura Docker.
+Docker debe estar instalado y en ejecución. Iniciar la pila:
 
 ```bash
 npm run supabase:start
 npm run supabase:status
 ```
 
-La configuración usa estos puertos locales:
+Servicios locales:
 
 | Servicio      | Dirección                |
 | ------------- | ------------------------ |
@@ -63,141 +63,114 @@ La configuración usa estos puertos locales:
 | Base de datos | `127.0.0.1:54322`        |
 | Studio        | `http://127.0.0.1:54323` |
 
-Para detener únicamente la pila asociada con este proyecto:
+Para detener únicamente esta pila:
 
 ```bash
 npm run supabase:stop
 ```
 
-Los archivos internos generados en `supabase/.temp/` y `supabase/.branches/`
-están ignorados y no deben versionarse. Pueden contener estado local del vínculo
-que no forma parte de la configuración compartida del repositorio.
+`supabase/.temp/` y `supabase/.branches/` están ignorados y no deben
+versionarse.
 
-## Migraciones locales
+## 4. Reconstrucción y validación local
 
-`npm run supabase:start` aplica las migraciones pendientes al crear la base
-local. Para reconstruir únicamente la base local desde cero y ejecutar de nuevo
-todas las migraciones y `supabase/seed.sql`:
+Reconstruir la base local desde cero aplica todas las migraciones y después
+`supabase/seed.sql`:
 
 ```bash
 npm run supabase:reset
-```
-
-Este script incluye `--local`; no reinicia staging ni producción. Aun así,
-elimina todos los datos de la base local.
-
-Para revisar errores de SQL y tipos contra la base local en ejecución:
-
-```bash
 npm run supabase:lint
 ```
 
-La validación de base de datos necesita la pila local activa. La CLI no ofrece
-en esta versión un lint estático de migraciones que funcione sin una base.
+`supabase:reset` incluye `--local`: elimina sólo los datos de la base local y no
+reinicia staging o producción. `supabase:lint` necesita la pila activa y falla
+ante errores SQL o de tipos.
 
-Para crear una nueva migración vacía:
+La semilla es idempotente y contiene únicamente:
+
+- roles `customer`, `operator` y `admin`;
+- tres marcas ficticias;
+- tres categorías ficticias;
+- dos métodos de envío ficticios;
+- settings no secretos para staging, pagos deshabilitados y MXN.
+
+No crea usuarios, correos, teléfonos, direcciones ni productos comerciales.
+
+Para crear una migración futura:
 
 ```bash
 npx --no-install supabase migration new nombre_descriptivo
 ```
 
-Después se debe revisar el SQL generado, comprobar que es compatible hacia
-adelante y documentar una estrategia de rollback. No se deben editar
-migraciones que ya hayan sido aplicadas en un ambiente compartido.
+Se debe revisar el SQL, probar una reconstrucción completa y documentar
+compatibilidad y reversión antes de enviarla a un ambiente compartido.
 
-La migración inicial sólo habilita `pgcrypto`. Su rollback manual es:
+## 5. Comprobaciones RLS pendientes
 
-```sql
-drop extension if exists pgcrypto;
-```
+La migración activa RLS y crea las políticas descritas en
+`docs/SECURITY_REQUIREMENTS.md`. Antes de integrar un cliente de Supabase se
+deben agregar pruebas positivas y negativas con:
 
-Debe ejecutarse únicamente si se confirmó que ningún objeto depende de la
-extensión. No existe un script automático de rollback porque eliminar una
-extensión con dependencias puede ser destructivo.
+- `anon`;
+- usuario autenticado propietario;
+- otro usuario autenticado;
+- operator;
+- admin.
 
-## Staging vinculado
+Auth está deshabilitado localmente, por lo que esta tarea valida creación del
+esquema y lint SQL, no un flujo de sesión real. Al habilitar Auth se deberá
+definir el alta controlada de `profiles` y ejecutar la matriz completa.
 
-La CLI ya inició sesión y el repositorio quedó vinculado correctamente con:
+## 6. Staging vinculado
 
-- organización: `daboto-creator's Org`;
-- proyecto: `peter-golf-staging`;
-- project reference: `xdulakstgsgdujjylhox`.
+Antes de cualquier cambio remoto, confirmar rama, diff, respaldo, estrategia de
+reversión y que la referencia continúa siendo `xdulakstgsgdujjylhox`.
 
-La migración `20260730000000_enable_pgcrypto.sql` ya fue aplicada correctamente.
-La salida de este comando muestra la misma versión local y remota:
-
-```bash
-npx supabase migration list
-```
-
-## Aplicar migraciones a staging en el futuro
-
-Antes de aplicar cualquier migración futura, revisar obligatoriamente el plan:
+El plan remoto se inspecciona con:
 
 ```bash
-npx supabase db push --dry-run
+npx --no-install supabase db push --dry-run
 ```
 
-Después de revisar el SQL, el plan de reversión y un respaldo apropiado, la
-aplicación real requiere una aprobación separada:
+La aplicación real requiere revisión y autorización separada:
 
 ```bash
-npx supabase db push
+npx --no-install supabase db push
+npx --no-install supabase migration list
 ```
 
-Después se debe verificar que el historial local y remoto coincida:
+Esta fase no ejecuta esos comandos. Nunca usar `supabase db reset --linked`, ya
+que elimina y reconstruye una base remota.
 
-```bash
-npx supabase migration list
-```
+## 7. Separación de ambientes
 
-`db push` ejecuta SQL remoto y puede contener cambios destructivos. Antes de
-cada aplicación se debe confirmar que el vínculo continúa apuntando al project
-reference de staging `xdulakstgsgdujjylhox`.
+| Ambiente   | Propósito             | Datos y credenciales                            | Migraciones                    |
+| ---------- | --------------------- | ----------------------------------------------- | ------------------------------ |
+| Local      | Desarrollo individual | Datos ficticios y valores locales               | Scripts npm con `--local`      |
+| Staging    | Integración y pruebas | Recursos exclusivos de `peter-golf-staging`     | Dry run, revisión y aprobación |
+| Producción | Operación futura      | No existe; deberá tener recursos independientes | Fuera del alcance de esta fase |
 
-## Separación de ambientes
+No copiar datos, secretos ni archivos internos de vínculo entre ambientes.
 
-| Ambiente   | Propósito             | Datos y credenciales                                                           | Aplicación de migraciones                                    |
-| ---------- | --------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| Local      | Desarrollo individual | Valores locales y datos ficticios                                              | Scripts npm con `--local`                                    |
-| Staging    | Integración y pruebas | Proyecto existente `peter-golf-staging`; secretos y datos ficticios exclusivos | Vínculo activo, dry run, revisión, aprobación y verificación |
-| Producción | Operación real futura | No existe todavía                                                              | No crear ni vincular en esta etapa                           |
+## 8. Variables y secretos
 
-Producción todavía no existe y no debe vincularse desde este repositorio en esta
-etapa. Cuando sea autorizada deberá usar un contexto operativo separado. No se
-deben copiar archivos de vínculo, secretos ni datos entre ambientes.
-
-## Variables y secretos
-
-El vínculo con staging no modificó `.env.example` ni agregó secretos al
-repositorio. Las variables actuales permanecen vacías hasta que exista una
-integración funcional aprobada:
+Las variables siguen vacías hasta que exista una integración funcional:
 
 - `NEXT_PUBLIC_SUPABASE_URL`;
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`;
 - `SUPABASE_SERVICE_ROLE_KEY`.
 
-Si más adelante se usan valores locales, deben ir en `.env.local`, nunca en Git.
-Sólo la URL y la llave pública correspondiente pueden llegar al navegador. Una
-llave `service_role` nunca debe incluirse en código cliente, documentación,
-logs ni respuestas públicas; esta tarea no la usa.
+Los valores locales deben ir en `.env.local`, nunca en Git. Sólo URL y llave
+pública pueden llegar al navegador. `service_role` se reserva para operaciones
+server-side concretas, con validación de rol, mínimo privilegio y auditoría.
 
-Staging y producción deben tener variables administradas por separado en cada
-plataforma. Nunca se deben usar endpoints, secretos o datos de producción en
-staging. Los pagos siguen deshabilitados y no se configuraron credenciales de
-ningún proveedor de pagos.
+Staging nunca debe usar valores live ni datos de producción. Los pagos reales
+permanecen deshabilitados y no se configuró proveedor alguno.
 
-## Comandos seguros y advertencias
+## 9. Reversión
 
-- Usar los scripts `supabase:*` para operaciones locales.
-- Mantener `--local` en `db reset` y `db lint`.
-- Revisar rama, diff de migraciones y ambiente antes de aplicar cambios.
-- Ejecutar `npx supabase db push --dry-run` antes de futuras migraciones.
-- Ejecutar `npx supabase migration list` después de aplicarlas.
-- No versionar archivos de `supabase/.temp/` ni `supabase/.branches/`.
-- No ejecutar `supabase db reset --linked`: borra y reconstruye una base remota.
-- No ejecutar `supabase db push` sin `--dry-run`, revisión y aprobación.
-- No vincular producción: todavía no existe y está fuera del alcance actual.
-- No usar `--db-url` con una URL que contenga credenciales en historial, logs o
-  mensajes.
-- No editar datos o esquema de producción desde Studio de forma improvisada.
+No existe rollback destructivo automático. Antes de aplicar a staging se debe
+preparar una migración compensatoria o una estrategia de restauración probada.
+Eliminar tablas, tipos o `pgcrypto` puede perder datos o romper dependencias y
+requiere aprobación explícita. La alternativa segura durante desarrollo es
+corregir con una migración nueva y reconstruir exclusivamente la base local.
