@@ -34,6 +34,11 @@ Esta apertura está justificada porque esos registros forman el catálogo mínim
 que necesita el visitante. Borradores, productos archivados, costos, inventario
 y cualquier dato personal continúan fuera del acceso anónimo.
 
+Además de RLS, los privilegios SQL de `products`, `product_variants`, `brands`,
+`categories` y `product_images` se conceden por columnas revisadas. Esto permite
+las relaciones públicas de PostgREST sin habilitar `SELECT` amplio ni exponer
+`cost`.
+
 Una persona autenticada puede:
 
 - crear, leer y actualizar sólo su `profile`;

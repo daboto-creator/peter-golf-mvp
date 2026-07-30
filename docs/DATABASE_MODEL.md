@@ -19,8 +19,14 @@ migraciones posteriores crean, en orden:
 6. asesoría, contenido, configuración y auditoría;
 7. RLS y políticas;
 8. base de autenticación, nombres de perfil y alta automática de clientes.
+9. privilegios de columna mínimos para las relaciones públicas del catálogo.
 
 `supabase/seed.sql` agrega únicamente datos ficticios de desarrollo.
+
+El catálogo público de la aplicación consume este mismo esquema desde
+`/productos` y `/productos/[slug]`. No existe una vista ni tabla paralela. La
+migración de privilegios públicos completa los `GRANT SELECT` mínimos de marcas,
+categorías e imágenes que requieren las políticas RLS ya existentes.
 
 ## 2. Convenciones
 
@@ -81,6 +87,13 @@ Reglas relevantes:
 - `compare_at_price`, cuando existe, no puede ser menor que el precio;
 - productos fuera de stock inmediato requieren plazo o explicación;
 - marcas y categorías referenciadas no se eliminan en cascada.
+
+Las consultas públicas seleccionan únicamente los campos de presentación
+necesarios y dependen de las políticas RLS existentes. El estado básico de
+disponibilidad se deriva de `fulfillment_type` y de los plazos; `inventory` y sus
+cantidades no se exponen al visitante. Los precios de variantes pueden
+sobrescribir el precio base y, cuando son nulos, la interfaz usa el precio del
+producto.
 
 ## 5. Inventario
 
@@ -183,5 +196,8 @@ El detalle por tabla está en `docs/SECURITY_REQUIREMENTS.md`. En resumen:
 - IVA, facturación, descuentos y política final de envíos/devoluciones.
 - Aviso de privacidad, retención, anonimización y derechos ARCO.
 - Buckets y políticas de Storage para imágenes.
+- Resolución pública definitiva de `product_images.storage_path`; hasta aprobar
+  el bucket y sus políticas, el catálogo usa fallback para rutas no accesibles
+  desde la aplicación.
 - Pruebas automatizadas positivas y negativas de RLS con usuarios reales de
   prueba.

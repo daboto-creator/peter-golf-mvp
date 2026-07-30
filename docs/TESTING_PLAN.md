@@ -17,6 +17,10 @@ El repositorio dispone de:
 
 Las pruebas unitarias usan Vitest y Testing Library. Las pruebas E2E usan Playwright y se ejecutan localmente; todavía no forman parte del workflow de CI para evitar descargar navegadores en esta fase.
 
+El catálogo incorpora pruebas unitarias deterministas para formateo de importes
+en unidades menores, condición, mensajes de disponibilidad y validación de rutas
+de imagen. No dependen de Supabase remoto.
+
 ## 3. Pirámide de pruebas
 
 ### Estáticas
