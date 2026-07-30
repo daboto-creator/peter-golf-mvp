@@ -2,7 +2,9 @@
 
 ## 1. Estado y alcance
 
-Este documento propone un modelo conceptual para una fase posterior. No existe todavía una base de datos ni se ha creado o configurado Supabase.
+Este documento propone un modelo conceptual para una fase posterior. Existe una
+estructura local de Supabase para probar migraciones, pero no hay tablas de
+negocio ni se ha creado o vinculado un proyecto remoto.
 
 Recursos previstos:
 

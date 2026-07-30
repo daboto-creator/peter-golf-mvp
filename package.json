@@ -12,7 +12,12 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "supabase:reset": "supabase db reset --local",
+    "supabase:lint": "supabase db lint --local --level error --fail-on error"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
@@ -48,6 +53,7 @@
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "supabase": "2.110.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

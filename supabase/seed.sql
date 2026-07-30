@@ -1,0 +1,2 @@
+-- Intentionally empty.
+-- Business, authentication, and personal data are outside this task's scope.
