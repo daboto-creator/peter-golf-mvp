@@ -8,13 +8,16 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 
 El repositorio contiene el scaffold técnico inicial, la documentación base del
 MVP, la integración tipada con Supabase de staging, la base de autenticación y
-la primera base funcional del catálogo público.
+la primera base funcional del catálogo público y la base local de gestión
+operativa del catálogo.
 
 Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
 perfil básico, protección inicial de `/cuenta`, listado público en `/productos`
-y detalle público en `/productos/[slug]`. Todavía no están implementados el
-carrito, el checkout, la búsqueda avanzada, el panel administrativo ni los
-pagos. La CLI y los clientes tipados
+y detalle público en `/productos/[slug]`. Los usuarios con rol `operator` o
+`admin` pueden entrar a `/operacion` para crear, editar, publicar, despublicar,
+archivar y restaurar productos base. Todavía no están implementados el carrito,
+el checkout, la búsqueda avanzada, la gestión de imágenes, variantes o
+inventario, ni los pagos. La CLI y los clientes tipados
 apuntan al proyecto remoto de staging de Supabase; el único uso funcional actual
 adicional es el catálogo público sujeto a RLS. El MVP se validará primero sin pagos reales.
 La aplicación sólo usa la llave pública `anon`/publishable y RLS; no existe un
@@ -133,6 +136,36 @@ curl --fail-with-body http://127.0.0.1:3000/api/health/supabase
 El endpoint devuelve `200` cuando puede leer el catálogo público y `503` cuando
 Supabase o la configuración no están disponibles. Su respuesta se limita a
 estado, ambiente, timestamp y nombre lógico del servicio.
+
+## Catálogo operativo
+
+Las rutas protegidas son:
+
+- `/operacion`: entrada al área operativa;
+- `/operacion/catalogo`: listado de productos activos, borradores y archivados;
+- `/operacion/catalogo/nuevo`: creación del producto base;
+- `/operacion/catalogo/[id]/editar`: edición y cambios de estado.
+
+Cada página y cada Server Action vuelve a comprobar la sesión y el permiso
+mediante `public.can_manage_catalog()`. La función consulta `user_roles` y
+`roles` con `auth.uid()`, devuelve únicamente un booleano y no confía en
+`user_metadata`. Las escrituras usan el cliente público autenticado y RLS; no
+usan `service_role`. Los privilegios SQL excluyen `cost` y no existe permiso de
+eliminación.
+
+Para probar un operador local:
+
+1. iniciar Supabase y ejecutar `npm run supabase:reset`;
+2. configurar `.env.local` con los valores públicos locales;
+3. crear y confirmar una cuenta ficticia desde `/registro`;
+4. en Studio local (`http://127.0.0.1:54323`), ejecutar el SQL de asignación
+   documentado en [docs/SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md);
+5. cerrar sesión, iniciar nuevamente y abrir `/operacion`.
+
+La migración `20260730001000_catalog_operator_access.sql` permanece únicamente
+local hasta revisión y autorización explícita. Esta base no administra marcas,
+categorías, variantes, imágenes, Storage, costos, inventario, carrito, checkout
+ni pagos.
 
 ## Documentación
 

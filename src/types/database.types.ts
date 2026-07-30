@@ -1236,7 +1236,17 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      can_manage_catalog: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      can_manage_catalog_references: {
+        Args: {
+          requested_brand_id: string;
+          requested_category_id: string;
+        };
+        Returns: boolean;
+      };
     };
     Enums: {
       advisory_request_status: "new" | "in_contact" | "resolved" | "closed";

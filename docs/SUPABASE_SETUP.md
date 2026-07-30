@@ -36,6 +36,8 @@ existe y no debe crearse ni vincularse en esta fase.
 | `20260730000600_advisory_and_configuration.sql`    | Asesoría, páginas, settings y audit logs.            |
 | `20260730000700_rls_and_policies.sql`              | RLS, políticas mínimas y permisos de funciones.      |
 | `20260730000800_authentication_foundation.sql`     | Perfil automático y rol `customer` para Auth.        |
+| `20260730000900_public_catalog_column_grants.sql`  | Columnas públicas mínimas del catálogo.              |
+| `20260730001000_catalog_operator_access.sql`       | Gestión base de productos para operator/admin.       |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.
@@ -93,10 +95,12 @@ La semilla es idempotente y contiene únicamente:
 - roles `customer`, `operator` y `admin`;
 - tres marcas ficticias;
 - tres categorías ficticias;
+- cuatro productos ficticios y tres variantes de presentación;
 - dos métodos de envío ficticios;
 - settings no secretos para staging, pagos deshabilitados y MXN.
 
-No crea usuarios, correos, teléfonos, direcciones ni productos comerciales.
+No crea usuarios, correos, teléfonos, direcciones ni productos comerciales
+reales.
 
 Para crear una migración futura:
 
@@ -107,12 +111,48 @@ npx --no-install supabase migration new nombre_descriptivo
 Se debe revisar el SQL, probar una reconstrucción completa y documentar
 compatibilidad y reversión antes de enviarla a un ambiente compartido.
 
-## 5. Comprobaciones RLS pendientes
+## 5. Asignar un operador local
 
-La migración activa RLS y crea las políticas descritas en
-`docs/SECURITY_REQUIREMENTS.md`. La integración actual sólo realiza una lectura
-anónima mínima de `brands`; la matriz completa todavía requiere pruebas
-positivas y negativas con:
+El seed no fuerza registros en `auth.users` ni guarda contraseñas. Para probar
+el flujo de forma segura:
+
+1. iniciar la pila y reconstruirla con `npm run supabase:reset`;
+2. crear una cuenta ficticia desde `/registro` y confirmarla en Mailpit;
+3. abrir SQL Editor en Studio local (`http://127.0.0.1:54323`);
+4. reemplazar el correo de ejemplo y ejecutar únicamente contra la base local:
+
+```sql
+insert into public.user_roles (user_id, role_id)
+select auth_user.id, role.id
+from auth.users as auth_user
+cross join public.roles as role
+where lower(auth_user.email) = lower('operador.local@example.test')
+  and role.name = 'operator'
+on conflict (user_id, role_id) do nothing;
+```
+
+Cerrar sesión y volver a iniciarla antes de abrir `/operacion`. Para retirar el
+permiso local:
+
+```sql
+delete from public.user_roles as assignment
+using public.roles as role, auth.users as auth_user
+where assignment.role_id = role.id
+  and assignment.user_id = auth_user.id
+  and role.name = 'operator'
+  and lower(auth_user.email) = lower('operador.local@example.test');
+```
+
+Este procedimiento es de bootstrap local, no una interfaz de administración de
+roles. No debe ejecutarse contra staging o producción. La migración operativa
+queda sólo local hasta revisión explícita.
+
+## 6. Comprobaciones RLS pendientes
+
+Las migraciones activan RLS y crean las políticas descritas en
+`docs/SECURITY_REQUIREMENTS.md`. El reset y lint validan estructura local; la
+matriz completa todavía requiere pruebas positivas y negativas automatizadas
+con:
 
 - `anon`;
 - usuario autenticado propietario;
@@ -121,10 +161,11 @@ positivas y negativas con:
 - admin.
 
 Auth está habilitado localmente con confirmación de correo. La aplicación usa
-`proxy.ts` para renovar cookies y vuelve a validar al usuario en páginas y
-acciones privadas. La matriz completa de RLS sigue pendiente.
+`proxy.ts` como comprobación optimista y vuelve a validar al usuario y
+`public.can_manage_catalog()` en páginas y acciones privadas. La matriz completa
+de RLS sigue pendiente.
 
-## 6. Staging vinculado
+## 7. Staging vinculado
 
 Antes de cualquier cambio remoto, confirmar rama, diff, respaldo, estrategia de
 reversión y que la referencia continúa siendo `xdulakstgsgdujjylhox`.
@@ -145,7 +186,7 @@ npx --no-install supabase migration list
 Esta fase no ejecuta esos comandos. Nunca usar `supabase db reset --linked`, ya
 que elimina y reconstruye una base remota.
 
-## 7. Separación de ambientes
+## 8. Separación de ambientes
 
 | Ambiente   | Propósito             | Datos y credenciales                            | Migraciones                    |
 | ---------- | --------------------- | ----------------------------------------------- | ------------------------------ |
@@ -155,7 +196,7 @@ que elimina y reconstruye una base remota.
 
 No copiar datos, secretos ni archivos internos de vínculo entre ambientes.
 
-## 8. Clientes, tipos y health check
+## 9. Clientes, tipos y health check
 
 La integración usa:
 
@@ -167,8 +208,8 @@ La integración usa:
 
 Ambos clientes usan exclusivamente `NEXT_PUBLIC_SUPABASE_URL` y
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Los valores locales deben ir en `.env.local`,
-nunca en Git. `SUPABASE_SERVICE_ROLE_KEY` permanece vacía porque no hay
-operaciones administrativas y su uso omitiría RLS.
+nunca en Git. `SUPABASE_SERVICE_ROLE_KEY` permanece vacía; la gestión operativa
+usa la sesión autenticada, RLS y privilegios de columna.
 
 Staging nunca debe usar valores live ni datos de producción. Los pagos reales
 permanecen deshabilitados y no se configuró proveedor alguno.
@@ -209,7 +250,7 @@ Los correos locales de confirmación y recuperación se consultan en Mailpit. La
 aplicación construye sus callbacks desde `NEXT_PUBLIC_APP_URL`; no acepta
 destinos externos proporcionados por el usuario.
 
-## 9. Reversión
+## 10. Reversión
 
 No existe rollback destructivo automático. Antes de aplicar a staging se debe
 preparar una migración compensatoria o una estrategia de restauración probada.
