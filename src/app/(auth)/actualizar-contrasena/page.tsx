@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   title: "Nueva contraseña | Peter Golf",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function UpdatePasswordPage() {
   const cookieStore = await cookies();
   const isRecovery = cookieStore.get("pg-password-recovery")?.value === "1";

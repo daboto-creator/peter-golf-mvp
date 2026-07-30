@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/lib/auth/actions";
 
+export const dynamic = "force-dynamic";
+
 export default function AccountLayout({
   children,
 }: {
