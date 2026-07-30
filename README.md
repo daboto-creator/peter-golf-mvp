@@ -39,10 +39,10 @@ Las reglas completas están en [AGENTS.md](./AGENTS.md).
 
 Staging y producción tendrán recursos, secretos y datos separados.
 
-| Ambiente | Uso | Supabase previsto |
-| --- | --- | --- |
-| Staging | Desarrollo, pruebas y validación del MVP sin pagos reales | Organización `daboto-creator's Org`, proyecto `peter-golf-staging` |
-| Producción | Operación real futura | Organización `daboto-creator's Org`, proyecto `peter-golf-production` |
+| Ambiente   | Uso                                                       | Supabase previsto                                                     |
+| ---------- | --------------------------------------------------------- | --------------------------------------------------------------------- |
+| Staging    | Desarrollo, pruebas y validación del MVP sin pagos reales | Organización `daboto-creator's Org`, proyecto `peter-golf-staging`    |
+| Producción | Operación real futura                                     | Organización `daboto-creator's Org`, proyecto `peter-golf-production` |
 
 Estos proyectos son nombres planeados: esta etapa no crea ni configura Supabase. Staging nunca debe usar llaves live, secretos ni datos de producción.
 
@@ -54,13 +54,18 @@ Requisitos: una versión de Node.js compatible con Next.js 16 y npm.
 npm install
 npm run dev
 npm run lint
+npm run typecheck
+npm run test
+npm run test:e2e
 npm run build
 npm run start
 ```
 
 `npm run dev` inicia el servidor de desarrollo en [http://localhost:3000](http://localhost:3000). `npm run start` requiere haber ejecutado antes `npm run build`.
 
-El proyecto todavía no define scripts `typecheck` ni `test`. Deben agregarse en una tarea posterior antes de considerarlos controles obligatorios automatizados; mientras tanto puede comprobarse TypeScript con `npx tsc --noEmit`.
+Las pruebas unitarias usan Vitest y Testing Library. Las pruebas E2E usan Playwright y requieren instalar Chromium una vez con `npx playwright install chromium`.
+
+Las variables disponibles y el proceso para endurecer su validación al conectar Supabase están documentados en [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md). Para desarrollo local, copiar `.env.example` a `.env.local` y mantener cualquier valor real fuera de Git.
 
 ## Documentación
 
@@ -71,4 +76,5 @@ El proyecto todavía no define scripts `typecheck` ni `test`. Deben agregarse en
 - [Requisitos de seguridad](./docs/SECURITY_REQUIREMENTS.md)
 - [Criterios de aceptación](./docs/MVP_ACCEPTANCE_CRITERIA.md)
 - [Plan de pruebas](./docs/TESTING_PLAN.md)
+- [Variables de entorno](./docs/ENVIRONMENT.md)
 - [Runbook de despliegue](./docs/DEPLOYMENT_RUNBOOK.md)

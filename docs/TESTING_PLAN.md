@@ -9,9 +9,13 @@ Verificar que Peter Golf cumpla requisitos funcionales futuros, proteja datos y 
 El repositorio dispone de:
 
 - `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run test:watch`
+- `npm run test:e2e`
 - `npm run build`
 
-No dispone todavía de scripts `typecheck` ni `test`. TypeScript puede comprobarse temporalmente con `npx tsc --noEmit`. La selección de runner y la creación de scripts deben realizarse en una tarea posterior, sin asumir una herramienta antes de evaluar la arquitectura.
+Las pruebas unitarias usan Vitest y Testing Library. Las pruebas E2E usan Playwright y se ejecutan localmente; todavía no forman parte del workflow de CI para evitar descargar navegadores en esta fase.
 
 ## 3. Pirámide de pruebas
 
@@ -57,16 +61,16 @@ No dispone todavía de scripts `typecheck` ni `test`. TypeScript puede comprobar
 
 ## 4. Matriz mínima de datos
 
-| Dimensión | Casos |
-| --- | --- |
-| Condición | nuevo, seminuevo con desgaste |
-| Disponibilidad | en stock, agotado, sobre pedido |
-| Estado | borrador, publicado, pausado, archivado |
-| Precio | válido, cero no permitido según regla, límite, manipulado |
-| Cantidad | 1, máximo permitido, 0, negativa, no entera, superior a stock |
-| Contacto | válido, campos vacíos, formato inválido, longitud excesiva, contenido malicioso |
-| Acceso | público, cliente propietario, otro cliente, staff, admin |
-| Envío | Querétaro, otra entidad con cobertura, código postal inválido/no cubierto |
+| Dimensión      | Casos                                                                           |
+| -------------- | ------------------------------------------------------------------------------- |
+| Condición      | nuevo, seminuevo con desgaste                                                   |
+| Disponibilidad | en stock, agotado, sobre pedido                                                 |
+| Estado         | borrador, publicado, pausado, archivado                                         |
+| Precio         | válido, cero no permitido según regla, límite, manipulado                       |
+| Cantidad       | 1, máximo permitido, 0, negativa, no entera, superior a stock                   |
+| Contacto       | válido, campos vacíos, formato inválido, longitud excesiva, contenido malicioso |
+| Acceso         | público, cliente propietario, otro cliente, staff, admin                        |
+| Envío          | Querétaro, otra entidad con cobertura, código postal inválido/no cubierto       |
 
 ## 5. Seguridad
 
@@ -96,15 +100,11 @@ npm run test
 npm run build
 ```
 
-Para el estado actual:
+Playwright requiere instalar el navegador local una vez con:
 
 ```bash
-npm run lint
-npx tsc --noEmit
-npm run build
+npx playwright install chromium
 ```
-
-La ausencia de `npm run test` y `npm run typecheck` debe reportarse hasta que se creen explícitamente.
 
 ## 8. Evidencia y salida
 
