@@ -7,13 +7,16 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 ## Estado actual
 
 El repositorio contiene el scaffold técnico inicial, la documentación base del
-MVP, la integración tipada con Supabase de staging y la base de autenticación.
+MVP, la integración tipada con Supabase de staging, la base de autenticación y
+la primera base funcional del catálogo público.
 
 Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
-perfil básico y protección inicial de `/cuenta`. Todavía no están implementados
-el catálogo, el carrito, el checkout, el panel administrativo ni los pagos. La CLI y los clientes tipados
+perfil básico, protección inicial de `/cuenta`, listado público en `/productos`
+y detalle público en `/productos/[slug]`. Todavía no están implementados el
+carrito, el checkout, la búsqueda avanzada, el panel administrativo ni los
+pagos. La CLI y los clientes tipados
 apuntan al proyecto remoto de staging de Supabase; el único uso funcional actual
-es el diagnóstico de lectura. El MVP se validará primero sin pagos reales.
+adicional es el catálogo público sujeto a RLS. El MVP se validará primero sin pagos reales.
 La aplicación sólo usa la llave pública `anon`/publishable y RLS; no existe un
 cliente administrativo ni se usa `service_role`.
 
@@ -89,6 +92,37 @@ La configuración se valida al crear un cliente, de modo que los comandos de
 calidad pueden ejecutarse sin credenciales; cualquier flujo que use Supabase
 requiere `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 `SUPABASE_SERVICE_ROLE_KEY` debe permanecer vacía en esta fase.
+
+## Catálogo público
+
+- `/productos` lista hasta 48 productos activos, publicados y no archivados.
+- `/productos/[slug]` muestra descripción, condición, precio, disponibilidad
+  comercial, variantes e imágenes accesibles del producto.
+- Las consultas se ejecutan en Server Components con el cliente público de
+  Supabase y columnas seleccionadas explícitamente. RLS sigue siendo la barrera
+  de acceso, complementada por privilegios SQL de columna; no se consulta
+  inventario ni se usa `service_role`.
+- Un slug inexistente, en borrador o archivado responde con la página 404 del
+  catálogo. Las fallas temporales muestran un mensaje seguro sin detalles
+  internos.
+- La disponibilidad expuesta describe la modalidad de entrega y el plazo. Las
+  cantidades exactas de inventario no son públicas y quedan sujetas a
+  confirmación.
+- `product_images.storage_path` ya existe, pero todavía no hay bucket ni
+  políticas de Storage aprobados. La interfaz muestra rutas web locales
+  resolubles y usa un fallback cuando no hay imagen accesible.
+
+Para probar el catálogo con datos demostrativos locales:
+
+```bash
+npm run supabase:start
+npm run supabase:reset
+npm run dev
+```
+
+Después, abrir [http://localhost:3000/productos](http://localhost:3000/productos).
+El seed crea tres productos públicos, variantes y un borrador que no debe ser
+visible. No agrega imágenes binarias ni depende de una base remota.
 
 Con el servidor local activo, la conexión de solo lectura se comprueba con:
 
