@@ -17,7 +17,8 @@ migraciones posteriores crean, en orden:
 4. inventario y movimientos;
 5. carrito y pedidos;
 6. asesoría, contenido, configuración y auditoría;
-7. RLS y políticas.
+7. RLS y políticas;
+8. base de autenticación, nombres de perfil y alta automática de clientes.
 
 `supabase/seed.sql` agrega únicamente datos ficticios de desarrollo.
 
@@ -41,15 +42,16 @@ migraciones posteriores crean, en orden:
 
 ## 3. Usuarios y permisos
 
-| Tabla        | Propósito y relaciones clave                                                                   |
-| ------------ | ---------------------------------------------------------------------------------------------- |
-| `profiles`   | Extiende `auth.users`; nombre visible, teléfono opcional, locale y archivado.                  |
-| `roles`      | Roles controlados `customer`, `operator` y `admin`.                                            |
-| `user_roles` | Relación N:M entre perfiles y roles; conserva quién asignó el rol.                             |
-| `addresses`  | Direcciones mexicanas de un perfil; CP de cinco dígitos, dirección predeterminada y archivado. |
+| Tabla        | Propósito y relaciones clave                                                                    |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| `profiles`   | Extiende `auth.users`; nombre, apellido, nombre visible, teléfono opcional, locale y archivado. |
+| `roles`      | Roles controlados `customer`, `operator` y `admin`.                                             |
+| `user_roles` | Relación N:M entre perfiles y roles; conserva quién asignó el rol.                              |
+| `addresses`  | Direcciones mexicanas de un perfil; CP de cinco dígitos, dirección predeterminada y archivado.  |
 
-Los cambios de roles no están disponibles mediante políticas cliente. El
-backend deberá validar al actor y registrar la operación privilegiada.
+Un trigger sobre `auth.users` crea automáticamente el perfil y asigna únicamente
+el rol `customer`. Los cambios de roles no están disponibles mediante políticas
+cliente. El backend deberá validar al actor y registrar la operación privilegiada.
 
 ## 4. Catálogo
 
@@ -176,7 +178,6 @@ El detalle por tabla está en `docs/SECURITY_REQUIREMENTS.md`. En resumen:
 
 ## 10. Decisiones pendientes
 
-- Flujo de alta de `profiles` al habilitar Auth.
 - Transiciones de estado permitidas y autorización por transición.
 - Procedimiento transaccional de reservas y concurrencia de inventario.
 - IVA, facturación, descuentos y política final de envíos/devoluciones.

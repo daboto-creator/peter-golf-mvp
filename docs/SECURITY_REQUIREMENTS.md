@@ -120,6 +120,11 @@ revocada a `public`, `anon` y `authenticated`. `record_order_status_change()` es
 `security definer` únicamente para que el trigger pueda escribir el historial;
 no acepta argumentos controlados por el cliente.
 
+`handle_new_auth_user()` también es `security definer`, fija `search_path` vacío
+y sólo se ejecuta mediante el trigger de `auth.users`. Valida la metadata de
+nombre, crea el perfil del mismo UUID y asigna exclusivamente el rol `customer`.
+No acepta roles desde metadata ni concede `operator` o `admin`.
+
 `inventory_movements`, `order_status_history` y `audit_logs` rechazan `UPDATE` y
 `DELETE`. La corrección de un evento debe representarse con otro evento, no
 reescribiendo el historial.
@@ -147,3 +152,5 @@ derechos ARCO conforme a la normativa aplicable.
   habilitar Storage.
 - No desplegar operación real hasta aprobar RLS, privacidad, recuperación,
   monitoreo, control de acceso y hallazgos críticos/altos.
+- El rate limiting adicional a los límites nativos de Supabase permanece como
+  decisión pendiente antes de producción.

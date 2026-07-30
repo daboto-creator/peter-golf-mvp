@@ -1061,7 +1061,9 @@ export type Database = {
           archived_at: string | null;
           created_at: string;
           display_name: string | null;
+          first_name: string | null;
           id: string;
+          last_name: string | null;
           locale: string;
           phone: string | null;
           updated_at: string;
@@ -1070,7 +1072,9 @@ export type Database = {
           archived_at?: string | null;
           created_at?: string;
           display_name?: string | null;
+          first_name?: string | null;
           id: string;
+          last_name?: string | null;
           locale?: string;
           phone?: string | null;
           updated_at?: string;
@@ -1079,7 +1083,9 @@ export type Database = {
           archived_at?: string | null;
           created_at?: string;
           display_name?: string | null;
+          first_name?: string | null;
           id?: string;
+          last_name?: string | null;
           locale?: string;
           phone?: string | null;
           updated_at?: string;

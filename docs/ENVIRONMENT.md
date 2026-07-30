@@ -22,6 +22,7 @@ incluye accesos dinámicos como `process.env[nombre]` en el bundle cliente.
 | ------------------------------- | ----------- | -------------------------------------------------------- |
 | `NEXT_PUBLIC_SUPABASE_URL`      | Público     | URL del proyecto usada por ambos clientes.               |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Público     | Llave `anon`/publishable sujeta a RLS.                   |
+| `NEXT_PUBLIC_APP_URL`           | Público     | Origen canónico para callbacks de Auth.                  |
 | `SUPABASE_SERVICE_ROLE_KEY`     | Sólo server | Debe permanecer vacía; no existe cliente administrativo. |
 
 La URL y la llave pública son obligatorias al crear cualquiera de los clientes
@@ -47,3 +48,5 @@ server-side concreta, autorizada y auditada.
    respuestas públicas.
 5. Recordar que Next.js inserta las variables `NEXT_PUBLIC_*` en el bundle
    durante el build; deben corresponder al destino final del artefacto.
+6. Configurar `NEXT_PUBLIC_APP_URL=http://localhost:3000` en desarrollo. Cada
+   ambiente desplegado debe usar su propio origen HTTPS.
