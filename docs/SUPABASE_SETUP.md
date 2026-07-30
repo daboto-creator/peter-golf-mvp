@@ -18,10 +18,10 @@ La CLI sigue vinculada con:
 - proyecto: `peter-golf-staging`;
 - project reference: `xdulakstgsgdujjylhox`.
 
-Sólo `20260730000000_enable_pgcrypto.sql` está confirmada como aplicada
-remotamente. Las migraciones v1 nuevas se validaron de forma local y no se han
-enviado a staging. Producción no existe y no debe crearse ni vincularse en esta
-fase.
+El esquema remoto expuesto por staging contiene las 24 tablas públicas
+versionadas. Esto se verificó mediante generación de tipos de solo lectura; esta
+integración no ejecutó migraciones ni modificó recursos remotos. Producción no
+existe y no debe crearse ni vincularse en esta fase.
 
 ## 2. Migraciones
 
@@ -108,8 +108,9 @@ compatibilidad y reversión antes de enviarla a un ambiente compartido.
 ## 5. Comprobaciones RLS pendientes
 
 La migración activa RLS y crea las políticas descritas en
-`docs/SECURITY_REQUIREMENTS.md`. Antes de integrar un cliente de Supabase se
-deben agregar pruebas positivas y negativas con:
+`docs/SECURITY_REQUIREMENTS.md`. La integración actual sólo realiza una lectura
+anónima mínima de `brands`; la matriz completa todavía requiere pruebas
+positivas y negativas con:
 
 - `anon`;
 - usuario autenticado propietario;
@@ -117,9 +118,9 @@ deben agregar pruebas positivas y negativas con:
 - operator;
 - admin.
 
-Auth está deshabilitado localmente, por lo que esta tarea valida creación del
-esquema y lint SQL, no un flujo de sesión real. Al habilitar Auth se deberá
-definir el alta controlada de `profiles` y ejecutar la matriz completa.
+Auth está deshabilitado localmente y no se implementa en la aplicación. Al
+habilitarlo se deberá definir el alta controlada de `profiles`, agregar el
+middleware de sesión correspondiente y ejecutar la matriz completa.
 
 ## 6. Staging vinculado
 
@@ -152,20 +153,46 @@ que elimina y reconstruye una base remota.
 
 No copiar datos, secretos ni archivos internos de vínculo entre ambientes.
 
-## 8. Variables y secretos
+## 8. Clientes, tipos y health check
 
-Las variables siguen vacías hasta que exista una integración funcional:
+La integración usa:
 
-- `NEXT_PUBLIC_SUPABASE_URL`;
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`;
-- `SUPABASE_SERVICE_ROLE_KEY`.
+- `src/lib/supabase/client.ts`: cliente del navegador, singleton y sujeto a RLS;
+- `src/lib/supabase/server.ts`: cliente nuevo por solicitud con cookies SSR de
+  Next.js 16;
+- `src/types/database.types.ts`: tipos TypeScript generados desde staging;
+- `src/lib/supabase/health.ts`: lectura mínima y reutilizable de `brands`.
 
-Los valores locales deben ir en `.env.local`, nunca en Git. Sólo URL y llave
-pública pueden llegar al navegador. `service_role` se reserva para operaciones
-server-side concretas, con validación de rol, mínimo privilegio y auditoría.
+Ambos clientes usan exclusivamente `NEXT_PUBLIC_SUPABASE_URL` y
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`. Los valores locales deben ir en `.env.local`,
+nunca en Git. `SUPABASE_SERVICE_ROLE_KEY` permanece vacía porque no hay
+operaciones administrativas y su uso omitiría RLS.
 
 Staging nunca debe usar valores live ni datos de producción. Los pagos reales
 permanecen deshabilitados y no se configuró proveedor alguno.
+
+Para regenerar los tipos mediante una lectura del proyecto ya vinculado:
+
+```bash
+npx --no-install supabase gen types typescript \
+  --project-id xdulakstgsgdujjylhox \
+  --schema public
+```
+
+Revisar el diff generado antes de reemplazar
+`src/types/database.types.ts`. El comando no debe combinarse con `db push`,
+`link`, migraciones ni cambios remotos.
+
+Con la aplicación activa:
+
+```bash
+curl --fail-with-body http://127.0.0.1:3000/api/health/supabase
+```
+
+`GET /api/health/supabase` consulta únicamente `id` de como máximo una marca
+visible por las políticas públicas. Devuelve `200` cuando la lectura está
+disponible o `503` en caso contrario. Nunca devuelve llaves, URLs, tokens,
+filas, detalles de base de datos, mensajes internos ni stack traces.
 
 ## 9. Reversión
 

@@ -6,9 +6,16 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 
 ## Estado actual
 
-El repositorio contiene el scaffold técnico inicial y la documentación base del MVP. La interfaz aún corresponde a la plantilla de Next.js.
+El repositorio contiene el scaffold técnico inicial, la documentación base del
+MVP y la integración tipada con Supabase de staging. La interfaz aún corresponde
+a la plantilla de Next.js.
 
-Todavía no están implementados el catálogo, la autenticación, el carrito, el checkout, el panel administrativo ni los pagos. La CLI está vinculada con el proyecto remoto de staging de Supabase, pero la aplicación todavía no usa esa conexión. El MVP se validará primero sin pagos reales.
+Todavía no están implementados el catálogo, la autenticación, el carrito, el
+checkout, el panel administrativo ni los pagos. La CLI y los clientes tipados
+apuntan al proyecto remoto de staging de Supabase; el único uso funcional actual
+es el diagnóstico de lectura. El MVP se validará primero sin pagos reales.
+La aplicación sólo usa la llave pública `anon`/publishable y RLS; no existe un
+cliente administrativo ni se usa `service_role`.
 
 ## Stack previsto
 
@@ -66,6 +73,31 @@ npm run start
 Las pruebas unitarias usan Vitest y Testing Library. Las pruebas E2E usan Playwright y requieren instalar Chromium una vez con `npx playwright install chromium`.
 
 Las variables disponibles y el proceso para endurecer su validación al conectar Supabase están documentados en [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md). Para desarrollo local, copiar `.env.example` a `.env.local` y mantener cualquier valor real fuera de Git.
+
+## Clientes de Supabase
+
+- `src/lib/supabase/client.ts` crea el cliente singleton del navegador. Sólo
+  puede usar variables `NEXT_PUBLIC_*` y queda limitado por RLS.
+- `src/lib/supabase/server.ts` crea un cliente nuevo por solicitud, integra las
+  cookies asíncronas de Next.js 16 y usa la misma llave pública. No implementa
+  autenticación ni middleware de sesión.
+- `src/types/database.types.ts` contiene los tipos generados desde el esquema
+  remoto de staging.
+
+La configuración se valida al crear un cliente, de modo que los comandos de
+calidad pueden ejecutarse sin credenciales; cualquier flujo que use Supabase
+requiere `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+`SUPABASE_SERVICE_ROLE_KEY` debe permanecer vacía en esta fase.
+
+Con el servidor local activo, la conexión de solo lectura se comprueba con:
+
+```bash
+curl --fail-with-body http://127.0.0.1:3000/api/health/supabase
+```
+
+El endpoint devuelve `200` cuando puede leer el catálogo público y `503` cuando
+Supabase o la configuración no están disponibles. Su respuesta se limita a
+estado, ambiente, timestamp y nombre lógico del servicio.
 
 ## Documentación
 
