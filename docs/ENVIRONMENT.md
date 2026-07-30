@@ -3,8 +3,7 @@
 ## Uso actual
 
 Copiar `.env.example` a `.env.local` para desarrollo. El archivo de ejemplo no
-contiene secretos y las credenciales de Supabase son opcionales mientras no
-exista una integración.
+contiene secretos. Los valores reales nunca se versionan.
 
 - `src/env/public.ts` valida exclusivamente variables `NEXT_PUBLIC_*`, que Next.js
   puede incluir en el bundle del navegador.
@@ -17,18 +16,34 @@ exista una integración.
 Los módulos usan referencias estáticas a cada variable pública porque Next.js no
 incluye accesos dinámicos como `process.env[nombre]` en el bundle cliente.
 
-## Endurecimiento al conectar Supabase
+## Variables de Supabase
 
-Antes de crear clientes de Supabase:
+| Variable                        | Alcance     | Uso en esta fase                                         |
+| ------------------------------- | ----------- | -------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Público     | URL del proyecto usada por ambos clientes.               |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Público     | Llave `anon`/publishable sujeta a RLS.                   |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Sólo server | Debe permanecer vacía; no existe cliente administrativo. |
 
-1. Hacer obligatorias `NEXT_PUBLIC_SUPABASE_URL` y
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY` cuando el flujo las necesite.
-2. Hacer obligatoria `SUPABASE_SERVICE_ROLE_KEY` sólo para procesos concretos del
-   servidor que realmente la requieran; nunca importarla desde componentes
-   cliente.
-3. Añadir una validación cruzada que exija credenciales en `staging` y
-   `production`, manteniendo proyectos y secretos separados.
-4. Mantener RLS y políticas explícitas de mínimo privilegio en toda tabla
-   expuesta antes de usarla desde la aplicación.
-5. Configurar secretos en la plataforma de cada ambiente; no guardarlos en Git,
-   documentación, logs ni archivos públicos.
+La URL y la llave pública son obligatorias al crear cualquiera de los clientes
+de `src/lib/supabase/`. Permanecen opcionales durante lint, pruebas unitarias y
+build para que esos procesos no dependan de credenciales ni de red. Una llamada
+sin configuración al endpoint de health responde `503` sin revelar detalles.
+
+La llave pública no sustituye controles de acceso: todas las consultas siguen
+sujetas a RLS y políticas explícitas. Aunque su exposición en el navegador es
+intencional, no debe registrarse ni devolverse desde endpoints.
+
+`SUPABASE_SERVICE_ROLE_KEY` omite RLS y por eso no se carga en ningún cliente de
+esta integración. Sólo podría habilitarse en una tarea futura para una operación
+server-side concreta, autorizada y auditada.
+
+## Separación y despliegue
+
+1. Configurar URL y llave pública en el ambiente correspondiente; no reutilizar
+   staging en producción.
+2. Mantener `APP_ENV=development` y `PAYMENTS_MODE=disabled` localmente.
+3. Mantener RLS y mínimo privilegio en cada tabla expuesta.
+4. No guardar valores en Git, documentación, logs, bundles no previstos ni
+   respuestas públicas.
+5. Recordar que Next.js inserta las variables `NEXT_PUBLIC_*` en el bundle
+   durante el build; deben corresponder al destino final del artefacto.
