@@ -6,11 +6,11 @@ Procedimiento base para despliegues futuros de Peter Golf. No selecciona proveed
 
 ## 2. Ambientes
 
-| Ambiente | Propósito | Datos y secretos |
-| --- | --- | --- |
-| Local | Desarrollo individual | Valores locales no reales |
-| Staging | Integración y prueba del MVP sin pagos | Datos ficticios; nunca llaves live |
-| Producción | Operación real futura | Secretos exclusivos de producción |
+| Ambiente   | Propósito                              | Datos y secretos                   |
+| ---------- | -------------------------------------- | ---------------------------------- |
+| Local      | Desarrollo individual                  | Valores locales no reales          |
+| Staging    | Integración y prueba del MVP sin pagos | Datos ficticios; nunca llaves live |
+| Producción | Operación real futura                  | Secretos exclusivos de producción  |
 
 Supabase previsto, aún no creado:
 
@@ -44,7 +44,7 @@ npm run test
 npm run build
 ```
 
-En el estado actual no existen `typecheck` ni `test`; se debe usar `npx tsc --noEmit`, reportar la falta y no afirmar que hubo pruebas automatizadas.
+El workflow de GitHub Actions ejecuta estos mismos controles en cada pull request y en pushes a `main`. Playwright permanece configurado para ejecución local durante esta fase.
 
 ## 5. Despliegue a staging
 

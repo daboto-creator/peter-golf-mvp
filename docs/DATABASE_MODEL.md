@@ -28,59 +28,59 @@ Los ambientes deberán ser proyectos separados, sin compartir secretos ni datos 
 
 Extensión mínima del usuario autenticado futuro.
 
-| Campo | Tipo conceptual | Notas |
-| --- | --- | --- |
-| `id` | uuid | Referencia al usuario de autenticación |
-| `display_name` | text | Opcional |
-| `role` | enum | `customer`, `staff`, `admin` |
-| `created_at`, `updated_at` | timestamptz | Auditoría |
+| Campo                      | Tipo conceptual | Notas                                  |
+| -------------------------- | --------------- | -------------------------------------- |
+| `id`                       | uuid            | Referencia al usuario de autenticación |
+| `display_name`             | text            | Opcional                               |
+| `role`                     | enum            | `customer`, `staff`, `admin`           |
+| `created_at`, `updated_at` | timestamptz     | Auditoría                              |
 
 ### `categories`
 
-| Campo | Tipo conceptual | Notas |
-| --- | --- | --- |
-| `id` | uuid | PK |
-| `name`, `slug` | text | `slug` único |
-| `status` | enum | `active`, `archived` |
-| `sort_order` | integer | No negativo |
+| Campo          | Tipo conceptual | Notas                |
+| -------------- | --------------- | -------------------- |
+| `id`           | uuid            | PK                   |
+| `name`, `slug` | text            | `slug` único         |
+| `status`       | enum            | `active`, `archived` |
+| `sort_order`   | integer         | No negativo          |
 
 ### `products`
 
-| Campo | Tipo conceptual | Notas |
-| --- | --- | --- |
-| `id` | uuid | PK |
-| `category_id` | uuid | FK |
-| `name`, `slug`, `description` | text | `slug` único |
-| `condition` | enum | `new`, `used` |
-| `availability_mode` | enum | `in_stock`, `special_order` |
-| `status` | enum | `draft`, `published`, `paused`, `archived` |
-| `price_amount` | bigint | Centavos; no negativo |
-| `currency` | char(3) | `MXN` |
-| `price_is_estimate` | boolean | Relevante para sobre pedido |
-| `condition_notes` | text | Obligatorio para seminuevos |
-| `lead_time_min_days`, `lead_time_max_days` | integer | Para sobre pedido |
-| `created_at`, `updated_at` | timestamptz | Auditoría |
+| Campo                                      | Tipo conceptual | Notas                                      |
+| ------------------------------------------ | --------------- | ------------------------------------------ |
+| `id`                                       | uuid            | PK                                         |
+| `category_id`                              | uuid            | FK                                         |
+| `name`, `slug`, `description`              | text            | `slug` único                               |
+| `condition`                                | enum            | `new`, `used`                              |
+| `availability_mode`                        | enum            | `in_stock`, `special_order`                |
+| `status`                                   | enum            | `draft`, `published`, `paused`, `archived` |
+| `price_amount`                             | bigint          | Centavos; no negativo                      |
+| `currency`                                 | char(3)         | `MXN`                                      |
+| `price_is_estimate`                        | boolean         | Relevante para sobre pedido                |
+| `condition_notes`                          | text            | Obligatorio para seminuevos                |
+| `lead_time_min_days`, `lead_time_max_days` | integer         | Para sobre pedido                          |
+| `created_at`, `updated_at`                 | timestamptz     | Auditoría                                  |
 
 Restricciones: seminuevos requieren notas de condición; productos sobre pedido requieren rango de plazo o una nota explícita; sólo `published` es público.
 
 ### `product_images`
 
-| Campo | Tipo conceptual | Notas |
-| --- | --- | --- |
-| `id`, `product_id` | uuid | PK y FK |
-| `storage_path` | text | No URL privilegiada persistente |
-| `alt_text` | text | Accesibilidad |
-| `sort_order` | integer | Orden estable |
-| `is_condition_evidence` | boolean | Evidencia para seminuevos |
+| Campo                   | Tipo conceptual | Notas                           |
+| ----------------------- | --------------- | ------------------------------- |
+| `id`, `product_id`      | uuid            | PK y FK                         |
+| `storage_path`          | text            | No URL privilegiada persistente |
+| `alt_text`              | text            | Accesibilidad                   |
+| `sort_order`            | integer         | Orden estable                   |
+| `is_condition_evidence` | boolean         | Evidencia para seminuevos       |
 
 ### `inventory`
 
-| Campo | Tipo conceptual | Notas |
-| --- | --- | --- |
-| `product_id` | uuid | PK/FK |
-| `on_hand` | integer | No negativo |
-| `reserved` | integer | No negativo y no mayor que `on_hand` |
-| `updated_at` | timestamptz | Última actualización |
+| Campo        | Tipo conceptual | Notas                                |
+| ------------ | --------------- | ------------------------------------ |
+| `product_id` | uuid            | PK/FK                                |
+| `on_hand`    | integer         | No negativo                          |
+| `reserved`   | integer         | No negativo y no mayor que `on_hand` |
+| `updated_at` | timestamptz     | Última actualización                 |
 
 Aplica principalmente a `in_stock`. La disponibilidad calculada es `on_hand - reserved`.
 
@@ -90,16 +90,16 @@ Registro inmutable de ajustes, reservas y liberaciones con cantidad, motivo, ref
 
 ### `advice_requests`
 
-| Campo | Tipo conceptual | Notas |
-| --- | --- | --- |
-| `id` | uuid | PK |
-| `product_id`, `customer_id` | uuid | Opcionales |
-| `name`, `email`, `phone` | text | Recopilación mínima |
-| `preferred_channel` | enum | Canales aprobados |
-| `message` | text | Contexto del cliente |
-| `consent_at` | timestamptz | Evidencia de consentimiento |
-| `status`, `assigned_to` | enum, uuid | Seguimiento |
-| `created_at`, `updated_at` | timestamptz | Auditoría |
+| Campo                       | Tipo conceptual | Notas                       |
+| --------------------------- | --------------- | --------------------------- |
+| `id`                        | uuid            | PK                          |
+| `product_id`, `customer_id` | uuid            | Opcionales                  |
+| `name`, `email`, `phone`    | text            | Recopilación mínima         |
+| `preferred_channel`         | enum            | Canales aprobados           |
+| `message`                   | text            | Contexto del cliente        |
+| `consent_at`                | timestamptz     | Evidencia de consentimiento |
+| `status`, `assigned_to`     | enum, uuid      | Seguimiento                 |
+| `created_at`, `updated_at`  | timestamptz     | Auditoría                   |
 
 ### `test_orders` y `test_order_items`
 
