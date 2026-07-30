@@ -8,7 +8,7 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 
 El repositorio contiene el scaffold técnico inicial y la documentación base del MVP. La interfaz aún corresponde a la plantilla de Next.js.
 
-Todavía no están implementados el catálogo, la autenticación, el carrito, el checkout, el panel administrativo, los pagos ni la conexión con Supabase. El MVP se validará primero sin pagos reales.
+Todavía no están implementados el catálogo, la autenticación, el carrito, el checkout, el panel administrativo, los pagos ni la conexión con un proyecto remoto de Supabase. El MVP se validará primero sin pagos reales.
 
 ## Stack previsto
 
@@ -44,7 +44,7 @@ Staging y producción tendrán recursos, secretos y datos separados.
 | Staging    | Desarrollo, pruebas y validación del MVP sin pagos reales | Organización `daboto-creator's Org`, proyecto `peter-golf-staging`    |
 | Producción | Operación real futura                                     | Organización `daboto-creator's Org`, proyecto `peter-golf-production` |
 
-Estos proyectos son nombres planeados: esta etapa no crea ni configura Supabase. Staging nunca debe usar llaves live, secretos ni datos de producción.
+Estos proyectos son nombres planeados: la estructura local no crea ni vincula ningún proyecto remoto. Staging nunca debe usar llaves live, secretos ni datos de producción.
 
 ## Comandos actuales
 
@@ -77,4 +77,5 @@ Las variables disponibles y el proceso para endurecer su validación al conectar
 - [Criterios de aceptación](./docs/MVP_ACCEPTANCE_CRITERIA.md)
 - [Plan de pruebas](./docs/TESTING_PLAN.md)
 - [Variables de entorno](./docs/ENVIRONMENT.md)
+- [Configuración local de Supabase](./docs/SUPABASE_SETUP.md)
 - [Runbook de despliegue](./docs/DEPLOYMENT_RUNBOOK.md)
