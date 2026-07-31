@@ -1247,6 +1247,58 @@ export type Database = {
         };
         Returns: boolean;
       };
+      register_product_image: {
+        Args: {
+          requested_alt_text: string;
+          requested_is_condition_evidence: boolean;
+          requested_product_id: string;
+          requested_storage_path: string;
+        };
+        Returns: string;
+      };
+      remove_product_image: {
+        Args: {
+          requested_image_id: string;
+          requested_product_id: string;
+        };
+        Returns: {
+          alt_text: string;
+          id: string;
+          is_condition_evidence: boolean;
+          is_primary: boolean;
+          sort_order: number;
+          storage_path: string;
+        }[];
+      };
+      reorder_product_images: {
+        Args: {
+          requested_image_ids: string[];
+          requested_product_id: string;
+        };
+        Returns: boolean;
+      };
+      restore_product_image: {
+        Args: {
+          requested_alt_text: string;
+          requested_image_id: string;
+          requested_is_condition_evidence: boolean;
+          requested_is_primary: boolean;
+          requested_product_id: string;
+          requested_sort_order: number;
+          requested_storage_path: string;
+        };
+        Returns: boolean;
+      };
+      update_product_image: {
+        Args: {
+          requested_alt_text: string;
+          requested_image_id: string;
+          requested_is_condition_evidence: boolean;
+          requested_is_primary: boolean;
+          requested_product_id: string;
+        };
+        Returns: boolean;
+      };
     };
     Enums: {
       advisory_request_status: "new" | "in_contact" | "resolved" | "closed";

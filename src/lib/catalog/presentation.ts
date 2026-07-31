@@ -81,6 +81,30 @@ export function getAvailabilityPresentation({
 export function resolvePublicImagePath(
   storagePath: string | null,
 ): string | null {
+  const productStoragePathPattern =
+    /^products\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|webp)$/;
+
+  if (storagePath && productStoragePathPattern.test(storagePath)) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) {
+      return null;
+    }
+
+    try {
+      const baseUrl = new URL(supabaseUrl);
+      const encodedPath = storagePath
+        .split("/")
+        .map((segment) => encodeURIComponent(segment))
+        .join("/");
+      return new URL(
+        `/storage/v1/object/public/product-images/${encodedPath}`,
+        baseUrl,
+      ).toString();
+    } catch {
+      return null;
+    }
+  }
+
   if (
     !storagePath ||
     !storagePath.startsWith("/") ||

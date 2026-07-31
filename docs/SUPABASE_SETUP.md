@@ -4,8 +4,8 @@
 
 El repositorio usa Supabase CLI `2.110.0`, Postgres 17, migraciones versionadas y
 una semilla local. API, Studio, Auth y Mailpit están habilitados para probar
-registro, confirmación y recuperación; Storage, Realtime, Edge Runtime y
-Analytics continúan deshabilitados como servicios locales.
+registro, confirmación y recuperación. Storage está habilitado para imágenes de
+producto; Realtime, Edge Runtime y Analytics continúan deshabilitados.
 
 El esquema v1 incluye las 24 tablas públicas descritas en
 `docs/DATABASE_MODEL.md`, y todas tienen RLS. La referencia a `auth.users` en
@@ -38,6 +38,7 @@ existe y no debe crearse ni vincularse en esta fase.
 | `20260730000800_authentication_foundation.sql`     | Perfil automático y rol `customer` para Auth.        |
 | `20260730000900_public_catalog_column_grants.sql`  | Columnas públicas mínimas del catálogo.              |
 | `20260730001000_catalog_operator_access.sql`       | Gestión base de productos para operator/admin.       |
+| `20260730001100_product_images_foundation.sql`     | Bucket, políticas y funciones para imágenes.         |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.
@@ -101,6 +102,12 @@ La semilla es idempotente y contiene únicamente:
 
 No crea usuarios, correos, teléfonos, direcciones ni productos comerciales
 reales.
+
+El reset crea también el bucket público `product-images`, limitado a 5 MiB por
+objeto y MIME JPEG/PNG/WebP. La semilla no agrega binarios ni filas de imágenes.
+Para probar el flujo, asigna un operador local, inicia la aplicación y abre
+`/operacion/catalogo/{uuid}/editar`. La migración queda sólo local hasta revisión
+y no debe aplicarse con `db push`.
 
 Para crear una migración futura:
 

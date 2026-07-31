@@ -370,7 +370,7 @@ export function ProductForm({
               : "Guardar cambios"}
         </Button>
         <p className="text-muted-foreground text-sm">
-          No se administran costos, inventario, variantes ni imágenes aquí.
+          Costos, inventario y variantes permanecen fuera de este formulario.
         </p>
       </div>
     </form>

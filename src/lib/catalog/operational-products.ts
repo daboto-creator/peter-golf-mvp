@@ -48,6 +48,15 @@ export type OperationalProduct = OperationalProductSummary & {
   featured: boolean;
 };
 
+export type OperationalProductImage = {
+  id: string;
+  storagePath: string;
+  altText: string;
+  sortOrder: number;
+  isPrimary: boolean;
+  isConditionEvidence: boolean;
+};
+
 export type OperationalCatalogResult<T> =
   { data: T; error: null } | { data: null; error: "unavailable" };
 
@@ -113,6 +122,19 @@ async function queryOperationalProductById(id: string) {
     .select(operationalProductDetailColumns)
     .eq("id", id)
     .maybeSingle();
+}
+
+async function queryOperationalProductImages(productId: string) {
+  const client = await createClient();
+
+  return client
+    .from("product_images")
+    .select(
+      "id, storage_path, alt_text, sort_order, is_primary, is_condition_evidence",
+    )
+    .eq("product_id", productId)
+    .order("sort_order")
+    .order("id");
 }
 
 type OperationalProductListRow = NonNullable<
@@ -190,6 +212,31 @@ export async function getOperationalProductById(
 
     return {
       data: data ? normalizeProduct(data) : null,
+      error: null,
+    };
+  } catch {
+    return { data: null, error: "unavailable" };
+  }
+}
+
+export async function listOperationalProductImages(
+  productId: string,
+): Promise<OperationalCatalogResult<OperationalProductImage[]>> {
+  try {
+    const { data, error } = await queryOperationalProductImages(productId);
+    if (error) {
+      return { data: null, error: "unavailable" };
+    }
+
+    return {
+      data: data.map((image) => ({
+        id: image.id,
+        storagePath: image.storage_path,
+        altText: image.alt_text,
+        sortOrder: image.sort_order,
+        isPrimary: image.is_primary,
+        isConditionEvidence: image.is_condition_evidence,
+      })),
       error: null,
     };
   } catch {

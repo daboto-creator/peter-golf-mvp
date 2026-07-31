@@ -21,6 +21,7 @@ migraciones posteriores crean, en orden:
 8. base de autenticación, nombres de perfil y alta automática de clientes.
 9. privilegios de columna mínimos para las relaciones públicas del catálogo.
 10. autorización y privilegios mínimos para gestión operativa de productos.
+11. bucket, políticas y funciones para imágenes de producto.
 
 `supabase/seed.sql` agrega únicamente datos ficticios de desarrollo.
 
@@ -89,6 +90,12 @@ Reglas relevantes:
 - `compare_at_price`, cuando existe, no puede ser menor que el precio;
 - productos fuera de stock inmediato requieren plazo o explicación;
 - marcas y categorías referenciadas no se eliminan en cascada.
+- `product_images.storage_path` sólo admite
+  `products/{product_id}/{uuid}.{jpg|png|webp}` y nunca URLs;
+- existe como máximo una imagen principal por producto;
+- las funciones de imágenes bloquean el producto para serializar cambios de
+  principal, orden, alta y promoción tras eliminar;
+- `is_condition_evidence` sólo puede activarse en productos `used`.
 
 Las consultas públicas seleccionan únicamente los campos de presentación
 necesarios y dependen de las políticas RLS existentes. El estado básico de
@@ -192,16 +199,27 @@ El detalle por tabla está en `docs/SECURITY_REQUIREMENTS.md`. En resumen:
   un backend específico, mínimo privilegio y auditoría;
 - `service_role`: sólo en un entorno seguro de servidor, nunca en el navegador.
 
-## 10. Decisiones pendientes
+## 10. Storage de imágenes
+
+El bucket público exclusivo `product-images` limita cada objeto a 5 MiB y
+acepta sólo JPEG, PNG y WebP. La ruta usa UUID aleatorios y nunca el nombre
+original. La lectura directa es pública porque forma parte del catálogo; las
+altas y bajas exigen una sesión operator/admin validada con
+`can_manage_catalog()`.
+
+Storage y Postgres no comparten una transacción distribuida. Al subir, la
+aplicación elimina el objeto si falla el registro. Al borrar, conserva un
+snapshot, elimina el registro y promueve la siguiente principal dentro de una
+transacción SQL, elimina Storage y restaura el registro si Storage falla.
+
+## 11. Decisiones pendientes
 
 - Transiciones de estado permitidas y autorización por transición.
 - Procedimiento transaccional de reservas y concurrencia de inventario.
 - IVA, facturación, descuentos y política final de envíos/devoluciones.
 - Aviso de privacidad, retención, anonimización y derechos ARCO.
-- Buckets y políticas de Storage para imágenes.
-- Resolución pública definitiva de `product_images.storage_path`; hasta aprobar
-  el bucket y sus políticas, el catálogo usa fallback para rutas no accesibles
-  desde la aplicación.
+- Redimensionado, recorte, compresión, moderación y optimización avanzada de
+  imágenes.
 - Pruebas automatizadas positivas y negativas de RLS con usuarios reales de
   prueba.
 - Auditoría persistente de cambios de catálogo; esta primera base conserva
