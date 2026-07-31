@@ -5,6 +5,7 @@ import {
   minorUnitsToPriceInput,
   type ProductFormValues,
 } from "@/lib/catalog/product-validation";
+import { selectAssignableTaxonomies } from "@/lib/catalog/taxonomy-validation";
 import type { Database } from "@/types/database.types";
 
 type ProductCondition = Database["public"]["Enums"]["product_condition"];
@@ -16,6 +17,7 @@ type FulfillmentType = Database["public"]["Enums"]["fulfillment_type"];
 export type CatalogReference = {
   id: string;
   name: string;
+  status: Database["public"]["Enums"]["catalog_record_status"];
 };
 
 export type OperationalProductSummary = {
@@ -244,7 +246,10 @@ export async function listOperationalProductImages(
   }
 }
 
-export async function listActiveCatalogReferences(): Promise<
+export async function listActiveCatalogReferences(current?: {
+  brandId: string;
+  categoryId: string;
+}): Promise<
   OperationalCatalogResult<{
     brands: CatalogReference[];
     categories: CatalogReference[];
@@ -253,15 +258,10 @@ export async function listActiveCatalogReferences(): Promise<
   try {
     const client = await createClient();
     const [brandsResult, categoriesResult] = await Promise.all([
-      client
-        .from("brands")
-        .select("id, name")
-        .eq("status", "active")
-        .order("name"),
+      client.from("brands").select("id, name, status").order("name"),
       client
         .from("categories")
-        .select("id, name")
-        .eq("status", "active")
+        .select("id, name, status")
         .order("sort_order")
         .order("name"),
     ]);
@@ -272,8 +272,11 @@ export async function listActiveCatalogReferences(): Promise<
 
     return {
       data: {
-        brands: brandsResult.data,
-        categories: categoriesResult.data,
+        brands: selectAssignableTaxonomies(brandsResult.data, current?.brandId),
+        categories: selectAssignableTaxonomies(
+          categoriesResult.data,
+          current?.categoryId,
+        ),
       },
       error: null,
     };

@@ -174,7 +174,8 @@ secretos ni copias innecesarias de datos personales.
 - `profiles` se relaciona 1:1 con `auth.users`.
 - Un perfil tiene roles, direcciones, carritos, pedidos y opcionalmente sesiones
   o solicitudes de asesoría.
-- Una categoría puede tener categoría padre y muchos productos.
+- Una categoría puede tener categoría padre y muchos productos. La jerarquía no
+  admite autorreferencias ni ciclos; un padre nuevo debe estar activo.
 - Un producto pertenece a marca y categoría; tiene variantes e imágenes.
 - Cada registro de inventario pertenece a una variante.
 - Un carrito contiene variantes; un pedido conserva partidas y un historial.
@@ -184,6 +185,14 @@ secretos ni copias innecesarias de datos personales.
 Los borrados en cascada se limitan a datos subordinados que carecen de valor
 independiente, como partidas de carrito e imágenes. Pedidos, partidas, movimientos
 y logs se conservan o son inmutables para proteger trazabilidad.
+
+Marcas y categorías usan `active`/`archived`; no existe borrado físico
+operativo. La migración `20260731000000_catalog_taxonomy_management.sql` impide
+archivar una taxonomía con productos activos o publicados, e impide archivar
+categorías con hijas activas. Los productos históricos conservan sus FKs. Una
+referencia archivada actual puede conservarse al editar, pero cambiar, publicar,
+activar o restaurar un producto exige referencias activas. `sort_order` es un
+entero no negativo y no representa una interfaz drag-and-drop.
 
 ## 9. Acceso
 

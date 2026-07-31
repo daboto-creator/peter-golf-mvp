@@ -10,50 +10,51 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export const metadata: Metadata = {
-  title: "Operación | Peter Golf",
-};
+export const metadata: Metadata = { title: "Taxonomías | Peter Golf" };
 
-export default function OperationsPage() {
+export default function TaxonomiesPage() {
   return (
     <div className="space-y-8">
       <div>
         <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
-          Área protegida
+          Gestión de catálogo
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Operación
+          Marcas y categorías
         </h1>
         <p className="text-muted-foreground mt-3 max-w-2xl leading-7">
-          Administra la información comercial base del catálogo. Los cambios
-          requieren una sesión con permiso de operador o administrador.
+          Administra las referencias del catálogo sin eliminar relaciones
+          históricas.
         </p>
       </div>
       <div className="grid gap-5 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Gestión de catálogo</CardTitle>
+            <CardTitle>Marcas</CardTitle>
             <CardDescription>
-              Crea, edita, publica, despublica, archiva y restaura productos
-              base.
+              Nombres comerciales y estado disponible para productos.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild size="lg">
-              <Link href="/operacion/catalogo">Abrir catálogo operativo</Link>
+            <Button asChild>
+              <Link href="/operacion/taxonomias/marcas">
+                Administrar marcas
+              </Link>
             </Button>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Marcas y categorías</CardTitle>
+            <CardTitle>Categorías</CardTitle>
             <CardDescription>
-              Administra las referencias disponibles para clasificar productos.
+              Jerarquía, orden y clasificación operativa.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/operacion/taxonomias">Administrar taxonomías</Link>
+            <Button asChild>
+              <Link href="/operacion/taxonomias/categorias">
+                Administrar categorías
+              </Link>
             </Button>
           </CardContent>
         </Card>

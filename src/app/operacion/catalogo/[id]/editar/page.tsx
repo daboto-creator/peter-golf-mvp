@@ -35,11 +35,7 @@ export default async function EditProductPage({
     notFound();
   }
 
-  const [productResult, references, imagesResult] = await Promise.all([
-    getOperationalProductById(id),
-    listActiveCatalogReferences(),
-    listOperationalProductImages(id),
-  ]);
+  const productResult = await getOperationalProductById(id);
 
   if (!productResult.error && !productResult.data) {
     notFound();
@@ -56,6 +52,13 @@ export default async function EditProductPage({
   }
 
   const product = productResult.data;
+  const [references, imagesResult] = await Promise.all([
+    listActiveCatalogReferences({
+      brandId: product.brandId,
+      categoryId: product.categoryId,
+    }),
+    listOperationalProductImages(id),
+  ]);
 
   return (
     <div className="space-y-8">

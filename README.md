@@ -155,6 +155,36 @@ mediante `public.can_manage_catalog()`. La función consulta `user_roles` y
 usan `service_role`. Los privilegios SQL excluyen `cost` y no existe permiso de
 eliminación.
 
+### Taxonomías
+
+La sección `/operacion/taxonomias` permite administrar marcas y categorías. Sus
+listados, altas y ediciones viven bajo `/operacion/taxonomias/marcas` y
+`/operacion/taxonomias/categorias`. Las categorías admiten padre y `sort_order`
+numérico; no existe drag-and-drop.
+
+Rutas disponibles:
+
+- `/operacion/taxonomias`;
+- `/operacion/taxonomias/marcas` y
+  `/operacion/taxonomias/marcas/nueva`;
+- `/operacion/taxonomias/marcas/[id]/editar`;
+- `/operacion/taxonomias/categorias` y
+  `/operacion/taxonomias/categorias/nueva`;
+- `/operacion/taxonomias/categorias/[id]/editar`.
+
+Los registros usan exclusivamente `catalog_record_status` (`active` o
+`archived`) y no se eliminan físicamente. Archivar conserva productos y
+relaciones históricas, pero se rechaza si existen productos activos/publicados;
+una categoría tampoco puede archivarse mientras tenga hijas activas. Los padres
+nuevos deben estar activos y la base impide autorreferencias y ciclos.
+
+Los formularios de producto ofrecen sólo referencias activas para asignaciones
+nuevas. Durante una edición muestran y permiten conservar la relación histórica
+actual aunque esté archivada, sin ofrecer otras referencias archivadas.
+
+Quedan fuera de esta base el borrado físico, drag-and-drop, traducciones, SEO
+avanzado de taxonomías y administración o importación masiva.
+
 Para probar un operador local:
 
 1. iniciar Supabase y ejecutar `npm run supabase:reset`;
@@ -164,10 +194,12 @@ Para probar un operador local:
    documentado en [docs/SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md);
 5. cerrar sesión, iniciar nuevamente y abrir `/operacion`.
 
-Las migraciones operativas `20260730001000_catalog_operator_access.sql` y
-`20260730001100_product_images_foundation.sql` permanecen únicamente locales
-hasta revisión y autorización explícita. Esta base no administra marcas,
-categorías, variantes, costos, inventario, carrito, checkout ni pagos.
+Las migraciones operativas `20260730001000_catalog_operator_access.sql`,
+`20260730001100_product_images_foundation.sql` y
+`20260731000000_catalog_taxonomy_management.sql` permanecen únicamente locales
+hasta revisión y autorización explícita. Esta base no administra variantes,
+costos, inventario, carrito, checkout ni pagos. Esta tarea no ejecuta `db push`
+ni modifica staging.
 
 ### Imágenes de producto
 
