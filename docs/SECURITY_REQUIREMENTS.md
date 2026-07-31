@@ -141,6 +141,13 @@ se serializan bloqueando la fila del producto.
 - No existe escritura general para `authenticated`, actualización de objetos,
   `service_role`, SVG, URLs firmadas ni nombres originales en la ruta.
 
+La migración correctiva `20260730001200_fix_product_image_storage_policies.sql`
+califica la ruta como `storage.objects.name` dentro del subquery que comprueba
+la existencia del producto. Sin esa calificación, PostgreSQL resolvía `name`
+como `products.name` y evaluaba `foldername` sobre el nombre comercial en vez de
+sobre la ruta del objeto. La corrección reemplaza sólo las políticas de `INSERT`
+y `DELETE` de objetos y conserva todos sus controles anteriores.
+
 ## 6. Entradas, precios e inventario
 
 - Validar en servidor tipo, formato, tamaño, rango, pertenencia y transición.

@@ -25,20 +25,21 @@ existe y no debe crearse ni vincularse en esta fase.
 
 ## 2. Migraciones
 
-| Archivo                                            | Contenido                                            |
-| -------------------------------------------------- | ---------------------------------------------------- |
-| `20260730000000_enable_pgcrypto.sql`               | Extensión técnica ya aplicada; no modificar.         |
-| `20260730000100_types_functions_and_utilities.sql` | Dominios, enums y trigger de `updated_at`.           |
-| `20260730000200_users_and_roles.sql`               | Perfiles, roles, asignaciones y direcciones.         |
-| `20260730000300_catalog.sql`                       | Marcas, categorías, productos, variantes e imágenes. |
-| `20260730000400_inventory.sql`                     | Inventario y movimientos inmutables.                 |
-| `20260730000500_carts_and_orders.sql`              | Métodos de envío, carritos y pedidos de prueba.      |
-| `20260730000600_advisory_and_configuration.sql`    | Asesoría, páginas, settings y audit logs.            |
-| `20260730000700_rls_and_policies.sql`              | RLS, políticas mínimas y permisos de funciones.      |
-| `20260730000800_authentication_foundation.sql`     | Perfil automático y rol `customer` para Auth.        |
-| `20260730000900_public_catalog_column_grants.sql`  | Columnas públicas mínimas del catálogo.              |
-| `20260730001000_catalog_operator_access.sql`       | Gestión base de productos para operator/admin.       |
-| `20260730001100_product_images_foundation.sql`     | Bucket, políticas y funciones para imágenes.         |
+| Archivo                                                 | Contenido                                                   |
+| ------------------------------------------------------- | ----------------------------------------------------------- |
+| `20260730000000_enable_pgcrypto.sql`                    | Extensión técnica ya aplicada; no modificar.                |
+| `20260730000100_types_functions_and_utilities.sql`      | Dominios, enums y trigger de `updated_at`.                  |
+| `20260730000200_users_and_roles.sql`                    | Perfiles, roles, asignaciones y direcciones.                |
+| `20260730000300_catalog.sql`                            | Marcas, categorías, productos, variantes e imágenes.        |
+| `20260730000400_inventory.sql`                          | Inventario y movimientos inmutables.                        |
+| `20260730000500_carts_and_orders.sql`                   | Métodos de envío, carritos y pedidos de prueba.             |
+| `20260730000600_advisory_and_configuration.sql`         | Asesoría, páginas, settings y audit logs.                   |
+| `20260730000700_rls_and_policies.sql`                   | RLS, políticas mínimas y permisos de funciones.             |
+| `20260730000800_authentication_foundation.sql`          | Perfil automático y rol `customer` para Auth.               |
+| `20260730000900_public_catalog_column_grants.sql`       | Columnas públicas mínimas del catálogo.                     |
+| `20260730001000_catalog_operator_access.sql`            | Gestión base de productos para operator/admin.              |
+| `20260730001100_product_images_foundation.sql`          | Bucket, políticas y funciones para imágenes.                |
+| `20260730001200_fix_product_image_storage_policies.sql` | Calificación inequívoca de la ruta en políticas de Storage. |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.
@@ -108,6 +109,25 @@ objeto y MIME JPEG/PNG/WebP. La semilla no agrega binarios ni filas de imágenes
 Para probar el flujo, asigna un operador local, inicia la aplicación y abre
 `/operacion/catalogo/{uuid}/editar`. La migración queda sólo local hasta revisión
 y no debe aplicarse con `db push`.
+
+Después del reset, esta consulta local permite inspeccionar las expresiones que
+PostgreSQL almacenó para las dos políticas de escritura de Storage:
+
+```sql
+select policyname, cmd, qual, with_check
+from pg_policies
+where schemaname = 'storage'
+  and tablename = 'objects'
+  and policyname in (
+    'catalog staff can upload valid product image objects',
+    'catalog staff can delete valid product image objects'
+  )
+order by policyname;
+```
+
+La expresión de `foldername` debe referirse a la columna `objects.name`; no debe
+contener `products.name`. La política de subida debe mostrar el predicado en
+`with_check` y la de eliminación en `qual`.
 
 Para crear una migración futura:
 
