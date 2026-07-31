@@ -1,5 +1,6 @@
 import "server-only";
 
+import { countEmbeddedProducts } from "@/lib/catalog/taxonomy-counts";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
 
@@ -25,14 +26,24 @@ export type OperationalCategory = OperationalBrand & {
 export type TaxonomyResult<T> =
   { data: T; error: null } | { data: null; error: "unavailable" };
 
-const brandColumns =
-  "id, name, slug, description, status, products(count)" as const;
-const categoryColumns =
-  "id, parent_id, name, slug, description, status, sort_order, products(count)" as const;
-
-function productCount(products: { count: number }[]): number {
-  return products[0]?.count ?? 0;
-}
+const brandColumns = `
+  id,
+  name,
+  slug,
+  description,
+  status,
+  products:products!products_brand_id_fkey(id)
+` as const;
+const categoryColumns = `
+    id,
+    parent_id,
+    name,
+    slug,
+    description,
+    status,
+    sort_order,
+    products:products!products_category_id_fkey(id)
+  ` as const;
 
 function normalizeBrand(row: {
   id: string;
@@ -40,7 +51,7 @@ function normalizeBrand(row: {
   slug: string;
   description: string | null;
   status: CatalogRecordStatus;
-  products: { count: number }[];
+  products: { id: string }[];
 }): OperationalBrand {
   return {
     id: row.id,
@@ -48,7 +59,7 @@ function normalizeBrand(row: {
     slug: row.slug,
     description: row.description,
     status: row.status,
-    productCount: productCount(row.products),
+    productCount: countEmbeddedProducts(row.products),
   };
 }
 
@@ -61,7 +72,7 @@ function normalizeCategories(
     description: string | null;
     status: CatalogRecordStatus;
     sort_order: number;
-    products: { count: number }[];
+    products: { id: string }[];
   }>,
 ): OperationalCategory[] {
   const byId = new Map(rows.map((row) => [row.id, row]));
@@ -109,7 +120,10 @@ export async function listOperationalBrands(): Promise<
       .select(brandColumns)
       .order("name");
     if (error) return { data: null, error: "unavailable" };
-    return { data: data.map(normalizeBrand), error: null };
+    return {
+      data: data.map(normalizeBrand),
+      error: null,
+    };
   } catch {
     return { data: null, error: "unavailable" };
   }
@@ -126,7 +140,10 @@ export async function getOperationalBrand(
       .eq("id", id)
       .maybeSingle();
     if (error) return { data: null, error: "unavailable" };
-    return { data: data ? normalizeBrand(data) : null, error: null };
+    return {
+      data: data ? normalizeBrand(data) : null,
+      error: null,
+    };
   } catch {
     return { data: null, error: "unavailable" };
   }
@@ -143,19 +160,18 @@ export async function listOperationalCategories(): Promise<
       .order("sort_order")
       .order("name");
     if (error) return { data: null, error: "unavailable" };
-    return { data: normalizeCategories(data), error: null };
+    return {
+      data: normalizeCategories(data),
+      error: null,
+    };
   } catch {
     return { data: null, error: "unavailable" };
   }
 }
 
-export async function getOperationalCategory(
+export function findOperationalCategory(
+  categories: OperationalCategory[],
   id: string,
-): Promise<TaxonomyResult<OperationalCategory | null>> {
-  const result = await listOperationalCategories();
-  if (result.error) return result;
-  return {
-    data: result.data.find((category) => category.id === id) ?? null,
-    error: null,
-  };
+): OperationalCategory | null {
+  return categories.find((category) => category.id === id) ?? null;
 }
