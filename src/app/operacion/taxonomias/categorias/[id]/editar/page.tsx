@@ -9,7 +9,7 @@ import { TaxonomyStateActions } from "@/components/operations/taxonomy-state-act
 import { TaxonomyStatusBadge } from "@/components/operations/taxonomy-status-badge";
 import { Button } from "@/components/ui/button";
 import {
-  getOperationalCategory,
+  findOperationalCategory,
   listOperationalCategories,
 } from "@/lib/catalog/operational-taxonomies";
 import { wouldCreateCategoryCycle } from "@/lib/catalog/taxonomy-validation";
@@ -25,12 +25,8 @@ export default async function EditCategoryPage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   if (!z.uuid().safeParse(id).success) notFound();
-  const [result, categories] = await Promise.all([
-    getOperationalCategory(id),
-    listOperationalCategories(),
-  ]);
-  if (!result.error && !result.data) notFound();
-  if (result.error || !result.data)
+  const categories = await listOperationalCategories();
+  if (categories.error)
     return (
       <CatalogFeedback
         tone="error"
@@ -38,7 +34,8 @@ export default async function EditCategoryPage({
         message="Inténtalo nuevamente desde el listado."
       />
     );
-  const category = result.data;
+  const category = findOperationalCategory(categories.data, id);
+  if (!category) notFound();
   const parentOptions =
     categories.data
       ?.filter(
@@ -77,12 +74,6 @@ export default async function EditCategoryPage({
           message="La categoría se creó correctamente."
         />
       ) : null}
-      {categories.error ? (
-        <CatalogFeedback
-          tone="error"
-          message="No pudimos cargar la jerarquía. Evita cambiar el padre hasta actualizar la página."
-        />
-      ) : null}
       <TaxonomyStateActions
         kind="category"
         id={category.id}
@@ -100,7 +91,6 @@ export default async function EditCategoryPage({
           sortOrder: String(category.sortOrder),
         }}
         parentOptions={parentOptions}
-        disabled={Boolean(categories.error)}
       />
     </div>
   );
