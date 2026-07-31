@@ -29,6 +29,7 @@ export function ProductImage({
           alt={alt}
           fill
           sizes={sizes}
+          unoptimized={src.startsWith("http")}
           className="object-cover"
         />
       ) : (

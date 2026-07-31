@@ -4,13 +4,16 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { CatalogFeedback } from "@/components/operations/catalog-feedback";
+import { OperationalProductImageGallery } from "@/components/operations/operational-product-image-gallery";
 import { ProductForm } from "@/components/operations/product-form";
+import { ProductImageUploader } from "@/components/operations/product-image-uploader";
 import { ProductStateActions } from "@/components/operations/product-state-actions";
 import { ProductStatusBadge } from "@/components/operations/product-status-badge";
 import { Button } from "@/components/ui/button";
 import {
   getOperationalProductById,
   listActiveCatalogReferences,
+  listOperationalProductImages,
   productToFormValues,
 } from "@/lib/catalog/operational-products";
 
@@ -32,9 +35,10 @@ export default async function EditProductPage({
     notFound();
   }
 
-  const [productResult, references] = await Promise.all([
+  const [productResult, references, imagesResult] = await Promise.all([
     getOperationalProductById(id),
     listActiveCatalogReferences(),
+    listOperationalProductImages(id),
   ]);
 
   if (!productResult.error && !productResult.data) {
@@ -102,6 +106,28 @@ export default async function EditProductPage({
         categories={references.data?.categories ?? []}
         disabled={product.status === "archived" || Boolean(references.error)}
       />
+
+      {imagesResult.error ? (
+        <CatalogFeedback
+          tone="error"
+          title="No pudimos cargar las imágenes"
+          message="La gestión de imágenes está deshabilitada temporalmente."
+        />
+      ) : (
+        <>
+          <ProductImageUploader
+            productId={product.id}
+            isUsed={product.condition === "used"}
+            disabled={product.status === "archived"}
+          />
+          <OperationalProductImageGallery
+            productId={product.id}
+            images={imagesResult.data}
+            isUsed={product.condition === "used"}
+            disabled={product.status === "archived"}
+          />
+        </>
+      )}
     </div>
   );
 }

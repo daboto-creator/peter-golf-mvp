@@ -22,7 +22,8 @@ schema_paths = []
 enabled = true
 sql_paths = ["./seed.sql"]
 
-# Services outside authentication and the database foundation remain disabled.
+# Services outside authentication, the database, and product-image Storage
+# remain disabled.
 [realtime]
 enabled = false
 
@@ -36,7 +37,8 @@ enabled = true
 port = 54324
 
 [storage]
-enabled = false
+enabled = true
+file_size_limit = "5MiB"
 
 [auth]
 enabled = true

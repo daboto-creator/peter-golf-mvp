@@ -8,8 +8,8 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 
 El repositorio contiene el scaffold técnico inicial, la documentación base del
 MVP, la integración tipada con Supabase de staging, la base de autenticación y
-la primera base funcional del catálogo público y la base local de gestión
-operativa del catálogo.
+la primera base funcional del catálogo público, la gestión operativa del
+catálogo y las imágenes de producto con Supabase Storage.
 
 Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
 perfil básico, protección inicial de `/cuenta`, listado público en `/productos`
@@ -111,9 +111,11 @@ requiere `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 - La disponibilidad expuesta describe la modalidad de entrega y el plazo. Las
   cantidades exactas de inventario no son públicas y quedan sujetas a
   confirmación.
-- `product_images.storage_path` ya existe, pero todavía no hay bucket ni
-  políticas de Storage aprobados. La interfaz muestra rutas web locales
-  resolubles y usa un fallback cuando no hay imagen accesible.
+- `product_images.storage_path` guarda sólo
+  `products/{product_id}/{uuid}.{jpg|png|webp}`. La aplicación resuelve la ruta
+  contra el bucket público `product-images`; no guarda URLs externas.
+- `ProductCard` usa la imagen principal y el detalle muestra la galería ordenada.
+  Ambos mantienen fallback si no hay imágenes.
 
 Para probar el catálogo con datos demostrativos locales:
 
@@ -162,10 +164,29 @@ Para probar un operador local:
    documentado en [docs/SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md);
 5. cerrar sesión, iniciar nuevamente y abrir `/operacion`.
 
-La migración `20260730001000_catalog_operator_access.sql` permanece únicamente
-local hasta revisión y autorización explícita. Esta base no administra marcas,
-categorías, variantes, imágenes, Storage, costos, inventario, carrito, checkout
-ni pagos.
+Las migraciones operativas `20260730001000_catalog_operator_access.sql` y
+`20260730001100_product_images_foundation.sql` permanecen únicamente locales
+hasta revisión y autorización explícita. Esta base no administra marcas,
+categorías, variantes, costos, inventario, carrito, checkout ni pagos.
+
+### Imágenes de producto
+
+En `/operacion/catalogo/[id]/editar`, operator/admin puede subir hasta 4 imágenes
+por operación y 24 por producto. Cada archivo admite máximo 5 MiB y debe ser
+JPEG, PNG o WebP; el servidor valida MIME, extensión, firma binaria básica,
+tamaño y ruta. SVG no está permitido.
+
+Cada Server Action revalida la sesión con `public.can_manage_catalog()` y RLS
+vuelve a aplicarse sobre `product_images` y `storage.objects`. Las mutaciones de
+principal, orden y metadatos usan funciones SQL que bloquean el producto para
+serializar concurrencia. No se usa `service_role`.
+
+Para probar localmente, ejecuta `npm run supabase:start`,
+`npm run supabase:reset` y `npm run dev`; asigna un operador ficticio con el
+procedimiento de `docs/SUPABASE_SETUP.md` y abre la edición de un producto. El
+reset crea el bucket, pero no agrega binarios ni filas ficticias de imágenes.
+No se implementan transformación, recorte, compresión, moderación ni
+optimización avanzada de imágenes.
 
 ## Documentación
 

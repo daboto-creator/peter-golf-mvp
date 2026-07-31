@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   formatMoneyMinorUnits,
@@ -8,6 +8,8 @@ import {
 } from "@/lib/catalog/presentation";
 
 describe("catalog presentation", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it("formats minor currency units as Mexican pesos", () => {
     expect(formatMoneyMinorUnits(125000, "MXN")).toBe("$1,250.00");
   });
@@ -42,12 +44,26 @@ describe("catalog presentation", () => {
     );
   });
 
-  it("accepts only site-relative image paths", () => {
+  it("accepts safe local paths and rejects arbitrary remote-looking paths", () => {
     expect(resolvePublicImagePath("/catalog/demo-product.webp")).toBe(
       "/catalog/demo-product.webp",
     );
     expect(resolvePublicImagePath("catalog/demo-product.webp")).toBeNull();
     expect(resolvePublicImagePath("//example.com/product.webp")).toBeNull();
     expect(resolvePublicImagePath("/catalog/../secret")).toBeNull();
+  });
+
+  it("resolves only valid product Storage paths against Supabase", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+    expect(
+      resolvePublicImagePath(
+        "products/7f1a86ef-ae15-4f8a-8bb2-0cf5f414bf4b/5445b0de-cdb8-4864-a755-aa6715d289a0.webp",
+      ),
+    ).toBe(
+      "http://127.0.0.1:54321/storage/v1/object/public/product-images/products/7f1a86ef-ae15-4f8a-8bb2-0cf5f414bf4b/5445b0de-cdb8-4864-a755-aa6715d289a0.webp",
+    );
+    expect(
+      resolvePublicImagePath("products/not-a-uuid/external.webp"),
+    ).toBeNull();
   });
 });

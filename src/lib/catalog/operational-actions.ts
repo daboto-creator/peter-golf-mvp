@@ -258,6 +258,26 @@ export async function updateProductAction(
     };
   }
 
+  if (
+    existing.data.condition === "used" &&
+    validated.data.condition === "new"
+  ) {
+    const client = await createClient();
+    const evidence = await client
+      .from("product_images")
+      .select("id")
+      .eq("product_id", parsedId.data)
+      .eq("is_condition_evidence", true)
+      .limit(1);
+    if (evidence.error || evidence.data.length > 0) {
+      return validationFailure({
+        condition: [
+          "Desmarca primero todas las imágenes de evidencia de condición.",
+        ],
+      });
+    }
+  }
+
   const conflicts = await findIdentityConflicts({
     slug: validated.data.slug,
     sku: validated.data.sku,

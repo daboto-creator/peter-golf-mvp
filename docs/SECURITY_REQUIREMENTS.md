@@ -69,7 +69,7 @@ canal permitido, no un permiso implícito por poseer el rol.
 | `categories`               | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `products`                 | Catálogo        | Catálogo o gestión autorizada | Server Action + RLS | Server Action + RLS   | No                  | Catálogo base autorizado | Catálogo base autorizado |
 | `product_variants`         | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
-| `product_images`           | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `product_images`           | Catálogo        | Catálogo                      | No                  | No                    | No                  | Server Action + RLS      | Server Action + RLS      |
 | `inventory`                | No              | No                            | No                  | No                    | No                  | Backend transaccional    | Backend, auditado        |
 | `inventory_movements`      | No              | No                            | No                  | No                    | No                  | Backend; sólo insertar   | Backend; sólo insertar   |
 | `shipping_methods`         | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
@@ -118,8 +118,28 @@ Las políticas operativas permiten:
 - insertar y actualizar las columnas comerciales revisadas de `products`;
 - publicar, despublicar, archivar y restaurar sin eliminación física.
 
-No conceden `DELETE`, acceso a `cost`, ni mutaciones de marcas, categorías,
-variantes o imágenes. La lectura pública conserva sus filtros previos.
+No conceden `DELETE` de productos, acceso a `cost`, ni mutaciones de marcas,
+categorías o variantes. La lectura pública conserva sus filtros previos.
+
+La migración de imágenes amplía únicamente `product_images`: operator/admin
+recibe privilegios de columna mínimos y políticas RLS para alta, edición y
+baja. Las funciones `register_product_image`, `update_product_image`,
+`reorder_product_images`, `remove_product_image` y `restore_product_image` son
+`security invoker`, fijan `search_path` vacío, comprueban
+`can_manage_catalog()` y validan pertenencia al producto. Principal y promoción
+se serializan bloqueando la fila del producto.
+
+### Storage público de producto
+
+- Bucket exclusivo `product-images`, público para lectura directa del catálogo.
+- Sólo rutas
+  `products/{product_id}/{uuid}.{jpg|png|webp}` validadas por aplicación,
+  constraint y políticas.
+- Límite 5 MiB y allowlist exacta `image/jpeg`, `image/png`, `image/webp`.
+- Subida y eliminación requieren `authenticated`, `can_manage_catalog()`, un
+  producto existente y el prefijo de ese producto.
+- No existe escritura general para `authenticated`, actualización de objetos,
+  `service_role`, SVG, URLs firmadas ni nombres originales en la ruta.
 
 ## 6. Entradas, precios e inventario
 

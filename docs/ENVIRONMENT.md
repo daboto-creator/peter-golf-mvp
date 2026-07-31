@@ -38,6 +38,10 @@ intencional, no debe registrarse ni devolverse desde endpoints.
 esta integración. La gestión operativa de catálogo usa la llave pública, la
 sesión autenticada y políticas RLS específicas para `operator`/`admin`.
 
+El bucket público `product-images` se resuelve desde
+`NEXT_PUBLIC_SUPABASE_URL`; no requiere otra variable ni permite persistir un
+dominio proporcionado por formularios.
+
 ## Separación y despliegue
 
 1. Configurar URL y llave pública en el ambiente correspondiente; no reutilizar

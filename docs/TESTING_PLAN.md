@@ -24,6 +24,10 @@ conversión exacta de precio, generación/validación de slug, reglas de
 publicación y resolución reutilizable de autorización. No dependen de Supabase
 remoto.
 
+La base de imágenes agrega pruebas unitarias para MIME, extensión, tamaño,
+firma binaria básica, cantidad, rutas seguras, texto alternativo, evidencia de
+condición, orden, promoción de principal y compensación de borrado.
+
 ## 3. Pirámide de pruebas
 
 ### Estáticas
@@ -40,6 +44,7 @@ remoto.
 - Conversión y redondeo de centavos.
 - Validadores de formularios y transiciones de estado.
 - Plazos y mensajes para productos sobre pedido.
+- Validación y consistencia de imágenes de producto.
 
 ### Integración
 
@@ -59,6 +64,8 @@ remoto.
 - Confirmar que borradores y recursos ajenos no sean accesibles.
 - Confirmar que un cliente reciba 403 en `/operacion` y que un operador pueda
   crear, editar, publicar, despublicar, archivar y restaurar.
+- Confirmar que sólo operator/admin puede gestionar imágenes y que IDs de otro
+  producto son rechazados.
 
 ### Manuales
 
