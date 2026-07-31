@@ -47,9 +47,10 @@ Una persona autenticada puede:
 - leer únicamente sus pedidos, partidas e historial.
 
 El cliente no puede asignar roles, modificar direcciones, crear pedidos, ajustar
-inventario ni escribir asesorías o configuración directamente. La única
-excepción operativa actual son las mutaciones acotadas de `products`, protegidas
-por Server Actions, RLS, función de autorización y privilegios de columna.
+inventario ni escribir asesorías o configuración directamente. Las excepciones
+operativas actuales son las mutaciones acotadas de `products`, `brands` y
+`categories`, protegidas por Server Actions, RLS, función de autorización y
+privilegios de columna.
 
 ## 4. Matriz de acceso por tabla
 
@@ -65,8 +66,8 @@ canal permitido, no un permiso implícito por poseer el rol.
 | `roles`                    | No              | No                            | No                  | No                    | No                  | Backend, sólo lectura    | Backend, auditado        |
 | `user_roles`               | No              | No                            | No                  | No                    | No                  | No                       | Backend, auditado        |
 | `addresses`                | No              | Propias                       | No                  | No                    | No                  | Backend, soporte         | Backend, auditado        |
-| `brands`                   | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
-| `categories`               | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
+| `brands`                   | Catálogo        | Catálogo o gestión autorizada | Server Action + RLS | Server Action + RLS   | No                  | Catálogo autorizado      | Catálogo autorizado      |
+| `categories`               | Catálogo        | Catálogo o gestión autorizada | Server Action + RLS | Server Action + RLS   | No                  | Catálogo autorizado      | Catálogo autorizado      |
 | `products`                 | Catálogo        | Catálogo o gestión autorizada | Server Action + RLS | Server Action + RLS   | No                  | Catálogo base autorizado | Catálogo base autorizado |
 | `product_variants`         | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `product_images`           | Catálogo        | Catálogo                      | No                  | No                    | No                  | Server Action + RLS      | Server Action + RLS      |
@@ -105,7 +106,7 @@ Un backend que realice una operación privilegiada debe:
 5. escribir auditoría sin datos sensibles;
 6. usar el canal de credenciales mínimo previsto para esa operación.
 
-La gestión base de productos implementada usa la llave pública con la sesión del
+La gestión base de productos y taxonomías usa la llave pública con la sesión del
 usuario y permanece sujeta a RLS; no usa `service_role`. Asignación de roles,
 administración de direcciones, costos, inventario, movimientos, métodos de
 envío, creación/cambio de pedidos, asesorías, páginas, settings y audit logs
@@ -114,12 +115,25 @@ siguen requiriendo un backend futuro específico y auditado.
 Las políticas operativas permiten:
 
 - leer productos de cualquier estado a `operator` y `admin`;
-- leer únicamente marcas y categorías activas;
+- leer todas las marcas y categorías sólo a `operator` y `admin`;
+- insertar y actualizar las columnas revisadas de marcas y categorías;
 - insertar y actualizar las columnas comerciales revisadas de `products`;
 - publicar, despublicar, archivar y restaurar sin eliminación física.
 
-No conceden `DELETE` de productos, acceso a `cost`, ni mutaciones de marcas,
-categorías o variantes. La lectura pública conserva sus filtros previos.
+No conceden `DELETE` de productos, marcas o categorías, acceso a `cost`, ni
+mutaciones de variantes. La lectura pública conserva sus filtros previos.
+
+La migración de taxonomías agrega triggers `security invoker` con `search_path`
+vacío. Rechazan ciclos, padres archivados nuevos, archivado con productos
+activos/publicados y categorías archivadas con hijas activas. Un trigger de
+producto permite conservar una FK histórica archivada, pero exige referencias
+activas al cambiarla, publicar, activar o restaurar. Sus funciones no pueden
+ejecutarse directamente por `anon` ni `authenticated`.
+
+La detección de ciclos recorre con un CTE recursivo los ancestros del padre
+solicitado y rechaza la operación si encuentra la categoría editada. La función
+se ejecuta sólo como trigger, conserva los permisos del usuario (`security
+invoker`), fija `search_path` vacío y tiene `EXECUTE` revocado para clientes.
 
 La migración de imágenes amplía únicamente `product_images`: operator/admin
 recibe privilegios de columna mínimos y políticas RLS para alta, edición y

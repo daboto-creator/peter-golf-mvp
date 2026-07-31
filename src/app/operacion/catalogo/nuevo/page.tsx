@@ -42,7 +42,7 @@ export default async function NewProductPage() {
         <CatalogFeedback
           tone="info"
           title="Faltan referencias activas"
-          message="Debe existir al menos una marca y una categoría activas antes de crear productos. Su administración todavía no forma parte de este bloque."
+          message="Debe existir al menos una marca y una categoría activas antes de crear productos. Puedes administrarlas desde Taxonomías."
         />
       ) : null}
 

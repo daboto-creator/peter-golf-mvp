@@ -159,6 +159,9 @@ export function ProductForm({
                 {brands.map((brand) => (
                   <option key={brand.id} value={brand.id}>
                     {brand.name}
+                    {brand.status === "archived"
+                      ? " (archivada · relación actual)"
+                      : ""}
                   </option>
                 ))}
               </select>
@@ -177,6 +180,9 @@ export function ProductForm({
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
+                    {category.status === "archived"
+                      ? " (archivada · relación actual)"
+                      : ""}
                   </option>
                 ))}
               </select>

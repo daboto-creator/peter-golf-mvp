@@ -36,6 +36,9 @@ export default async function OperationsLayout({
               <Link href="/operacion/catalogo">Catálogo</Link>
             </Button>
             <Button asChild variant="ghost">
+              <Link href="/operacion/taxonomias">Taxonomías</Link>
+            </Button>
+            <Button asChild variant="ghost">
               <Link href="/productos">Catálogo público</Link>
             </Button>
             <Button asChild variant="ghost">

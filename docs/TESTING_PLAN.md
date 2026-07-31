@@ -28,6 +28,11 @@ La base de imágenes agrega pruebas unitarias para MIME, extensión, tamaño,
 firma binaria básica, cantidad, rutas seguras, texto alternativo, evidencia de
 condición, orden, promoción de principal y compensación de borrado.
 
+La gestión de taxonomías agrega pruebas deterministas para nombre, slug, estados,
+orden, UUID de padre, autorreferencia, ciclos, selección de referencias activas,
+conservación de relaciones archivadas actuales y mensajes de conflicto. No usa
+staging ni servicios remotos.
+
 ## 3. Pirámide de pruebas
 
 ### Estáticas
@@ -43,6 +48,7 @@ condición, orden, promoción de principal y compensación de borrado.
 - Cálculo server-side de subtotales y totales.
 - Conversión y redondeo de centavos.
 - Validadores de formularios y transiciones de estado.
+- Jerarquía acíclica de categorías y selección segura de taxonomías.
 - Plazos y mensajes para productos sobre pedido.
 - Validación y consistencia de imágenes de producto.
 

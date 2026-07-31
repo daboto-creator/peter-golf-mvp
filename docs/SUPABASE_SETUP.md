@@ -40,6 +40,7 @@ existe y no debe crearse ni vincularse en esta fase.
 | `20260730001000_catalog_operator_access.sql`            | Gestión base de productos para operator/admin.              |
 | `20260730001100_product_images_foundation.sql`          | Bucket, políticas y funciones para imágenes.                |
 | `20260730001200_fix_product_image_storage_policies.sql` | Calificación inequívoca de la ruta en políticas de Storage. |
+| `20260731000000_catalog_taxonomy_management.sql`        | Gestión segura de marcas, categorías y jerarquía.           |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.
@@ -173,6 +174,12 @@ where assignment.role_id = role.id
 Este procedimiento es de bootstrap local, no una interfaz de administración de
 roles. No debe ejecutarse contra staging o producción. La migración operativa
 queda sólo local hasta revisión explícita.
+
+Con el operador autenticado, `/operacion/taxonomias` reemplaza el uso del SQL
+Editor para altas, ediciones y cambios de estado de marcas y categorías. El SQL
+Editor continúa usándose sólo para el bootstrap local del rol, fuera del alcance
+de esta interfaz. La migración de taxonomías queda local hasta revisión y no debe
+aplicarse a staging con `db push` en esta tarea.
 
 ## 6. Comprobaciones RLS pendientes
 

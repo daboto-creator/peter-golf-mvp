@@ -85,20 +85,15 @@ function toProductInsertPayload(values: ProductMutationInput): ProductInsert {
 async function referencesAreActive(
   brandId: string,
   categoryId: string,
+  current?: { brandId: string; categoryId: string },
 ): Promise<boolean> {
   const client = await createClient();
   const [brand, category] = await Promise.all([
-    client
-      .from("brands")
-      .select("id")
-      .eq("id", brandId)
-      .eq("status", "active")
-      .maybeSingle(),
+    client.from("brands").select("id, status").eq("id", brandId).maybeSingle(),
     client
       .from("categories")
-      .select("id")
+      .select("id, status")
       .eq("id", categoryId)
-      .eq("status", "active")
       .maybeSingle(),
   ]);
 
@@ -106,7 +101,9 @@ async function referencesAreActive(
     !brand.error &&
     !category.error &&
     brand.data !== null &&
-    category.data !== null
+    category.data !== null &&
+    (brand.data.status === "active" || current?.brandId === brandId) &&
+    (category.data.status === "active" || current?.categoryId === categoryId)
   );
 }
 
@@ -227,22 +224,6 @@ export async function updateProductAction(
     return validationFailure(validated.errors);
   }
 
-  if (
-    !(await referencesAreActive(
-      validated.data.brandId,
-      validated.data.categoryId,
-    ))
-  ) {
-    return validationFailure({
-      brandId: [
-        "La marca o categoría seleccionada ya no está disponible. Actualiza la página.",
-      ],
-      categoryId: [
-        "La marca o categoría seleccionada ya no está disponible. Actualiza la página.",
-      ],
-    });
-  }
-
   const existing = await getOperationalProductById(parsedId.data);
   if (existing.error || !existing.data) {
     return {
@@ -256,6 +237,26 @@ export async function updateProductAction(
       status: "error",
       message: "Restaura el producto antes de editarlo.",
     };
+  }
+
+  if (
+    !(await referencesAreActive(
+      validated.data.brandId,
+      validated.data.categoryId,
+      {
+        brandId: existing.data.brandId,
+        categoryId: existing.data.categoryId,
+      },
+    ))
+  ) {
+    return validationFailure({
+      brandId: [
+        "Sólo puedes conservar la relación archivada actual o elegir una marca activa.",
+      ],
+      categoryId: [
+        "Sólo puedes conservar la relación archivada actual o elegir una categoría activa.",
+      ],
+    });
   }
 
   if (
