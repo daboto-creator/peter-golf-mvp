@@ -22,6 +22,7 @@ migraciones posteriores crean, en orden:
 9. privilegios de columna mínimos para las relaciones públicas del catálogo.
 10. autorización y privilegios mínimos para gestión operativa de productos.
 11. bucket, políticas y funciones para imágenes de producto.
+12. gestión operativa transaccional e idempotente del inventario existente.
 
 `supabase/seed.sql` agrega únicamente datos ficticios de desarrollo.
 
@@ -97,6 +98,43 @@ Reglas relevantes:
   principal, orden, alta y promoción tras eliminar;
 - `is_condition_evidence` sólo puede activarse en productos `used`.
 
+El flujo operativo actual no ofrece variantes configurables. La migración
+`20260731000200_catalog_base_variant_foundation.sql` agrega la RPC `security
+invoker` `create_product_with_base_variant`: inserta el producto y una única
+variante base en una transacción. El SKU de ambos es `upper(btrim(sku))`, cumple
+`^[A-Z0-9][A-Z0-9._-]*$` y tiene de 1 a 80 caracteres; el nombre de la variante
+es el nombre normalizado del producto, sin introducir una etiqueta comercial
+nueva. La variante usa `attributes = {}`, `active = true`, `archived_at = null`,
+`sort_order = 0` y no copia precio ni costo.
+
+La unicidad global existente de `product_variants.sku` se conserva: impide que
+dos variantes compartan identidad comercial y una colisión revierte el alta
+completa. Reenviar el alta tropieza con las restricciones únicas del producto y
+nunca crea otra variante; editar sigue actualizando sólo `products`.
+
+La migración `20260731000300_catalog_base_variant_updates.sql` reemplaza esa
+última regla para el flujo base: `update_product_with_base_variant` bloquea el
+producto, valida el snapshot esperado de `status` y `published`, exige una sola
+variante canónica y sincroniza producto/variante en la misma transacción. La
+variante conserva `active = true`, `archived_at = null`, `attributes = {}` y
+`sort_order = 0`. La RPC sólo actualiza `sku` y `name`; `price`,
+`compare_at_price` y `cost` permanecen exactamente como estaban, incluidos sus
+valores `NULL`, y nunca se selecciona ni expone `cost`.
+
+El SKU se normaliza con la misma regla del alta. Las restricciones únicas de
+`products.sku` y `product_variants.sku` detectan colisiones; si la segunda
+actualización falla, PostgreSQL revierte también la primera. Un contexto local
+de transacción exigido por RLS y un trigger impiden modificar directamente la
+identidad de producto o variante fuera de la RPC. Huérfanos deben repararse
+explícitamente antes de editar. Archivados, múltiples variantes o una única
+variante no canónica se rechazan.
+
+No se reparan filas históricas durante la migración. La RPC explícita
+`repair_product_base_variant` bloquea un producto no archivado, sólo inserta si
+no existe ninguna variante y trata como reintento la única variante canónica ya
+creada. Rechaza productos archivados, múltiples variantes y variantes existentes
+no canónicas. Esta reparación pertenece al catálogo, no a inventario.
+
 Las consultas públicas seleccionan únicamente los campos de presentación
 necesarios y dependen de las políticas RLS existentes. El estado básico de
 disponibilidad se deriva de `fulfillment_type` y de los plazos; `inventory` y sus
@@ -114,8 +152,34 @@ producto.
 `quantity_on_hand`, `quantity_reserved` y `reorder_point` nunca pueden ser
 negativos. La cantidad reservada no puede superar la existencia. Cada movimiento
 conserva cantidades posteriores, motivo, actor y referencia opcional completa.
-Las mutaciones operativas deberán actualizar inventario y crear su movimiento
-en una misma transacción server-side.
+La cantidad disponible se define como
+`quantity_on_hand - quantity_reserved`; esta fase sólo la lee y no implementa
+reservas.
+
+La migración `20260731000100_inventory_management_foundation.sql` implementa
+las RPC `initialize_inventory` y `adjust_inventory`. Sólo opera un producto que
+tenga exactamente una variante activa y no archivada, porque la interfaz aún no
+administra variantes. La inicialización explícita crea saldo cero; los ajustes
+posteriores bloquean filas, recalculan el saldo, actualizan `inventory` e
+insertan `inventory_movements` en la misma transacción. `idempotency_key` tiene
+un índice único parcial global y protege contra doble envío. Un replay sólo se
+acepta para el mismo inventario, actor, tipo, cantidad, motivo normalizado y
+referencia; cualquier reutilización distinta devuelve conflicto `23505`.
+
+Las Server Actions resuelven además el par `productId`/`variantId` mediante una
+consulta explícita y sólo invocan las RPC cuando la variante pertenece al
+producto y es su única variante operativa. Las RPC no reciben `productId`
+porque derivan y bloquean el producto real desde `variant_id`, y vuelven a
+validar producto no archivado y exactamente una variante activa. Así el enlace
+de la ruta se verifica en la capa web sin duplicar un parámetro confiable en la
+frontera transaccional.
+
+Los movimientos operativos habilitados son `receipt` con delta positivo y
+`adjustment` con delta entero distinto de cero. Los demás valores existentes
+del enum se reservan para flujos futuros que no están implementados. Ningún
+ajuste puede dejar el saldo físico por debajo de cero o de la cantidad reservada
+existente. Los productos archivados conservan inventario e historial pero no
+reciben nuevos ajustes.
 
 ## 6. Carrito y pedidos
 
@@ -224,7 +288,7 @@ transacción SQL, elimina Storage y restaura el registro si Storage falla.
 ## 11. Decisiones pendientes
 
 - Transiciones de estado permitidas y autorización por transición.
-- Procedimiento transaccional de reservas y concurrencia de inventario.
+- Procedimiento transaccional de reservas, ventas y devoluciones de inventario.
 - IVA, facturación, descuentos y política final de envíos/devoluciones.
 - Aviso de privacidad, retención, anonimización y derechos ARCO.
 - Redimensionado, recorte, compresión, moderación y optimización avanzada de
