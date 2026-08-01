@@ -538,6 +538,7 @@ export type Database = {
           actor_id: string | null;
           created_at: string;
           id: string;
+          idempotency_key: string | null;
           inventory_id: string;
           movement_type: Database["public"]["Enums"]["inventory_movement_type"];
           quantity_delta: number;
@@ -551,6 +552,7 @@ export type Database = {
           actor_id?: string | null;
           created_at?: string;
           id?: string;
+          idempotency_key?: string | null;
           inventory_id: string;
           movement_type: Database["public"]["Enums"]["inventory_movement_type"];
           quantity_delta: number;
@@ -564,6 +566,7 @@ export type Database = {
           actor_id?: string | null;
           created_at?: string;
           id?: string;
+          idempotency_key?: string | null;
           inventory_id?: string;
           movement_type?: Database["public"]["Enums"]["inventory_movement_type"];
           quantity_delta?: number;
@@ -1236,6 +1239,34 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      adjust_inventory: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_movement_type: Database["public"]["Enums"]["inventory_movement_type"];
+          requested_quantity_delta: number;
+          requested_reason: string;
+          requested_reference_id?: string | null;
+          requested_reference_type?: string | null;
+          requested_variant_id: string;
+        };
+        Returns: {
+          available_after: number;
+          inventory_id: string;
+          movement_id: string;
+          quantity_on_hand_after: number;
+          quantity_on_hand_before: number;
+          quantity_reserved_after: number;
+          replayed: boolean;
+        }[];
+      };
+      can_create_catalog_base_variant: {
+        Args: {
+          requested_name: string;
+          requested_product_id: string;
+          requested_sku: string;
+        };
+        Returns: boolean;
+      };
       can_manage_catalog: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
@@ -1246,6 +1277,84 @@ export type Database = {
           requested_category_id: string;
         };
         Returns: boolean;
+      };
+      create_product_with_base_variant: {
+        Args: {
+          requested_brand_id: string;
+          requested_category_id: string;
+          requested_compare_at_price: number | null;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_currency: string;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_name: string;
+          requested_price: number;
+          requested_price_is_estimate: boolean;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+        };
+        Returns: {
+          product_id: string;
+          variant_id: string;
+        }[];
+      };
+      initialize_inventory: {
+        Args: { requested_variant_id: string };
+        Returns: {
+          available: number;
+          initialized: boolean;
+          inventory_id: string;
+          quantity_on_hand: number;
+          quantity_reserved: number;
+          reorder_point: number;
+        }[];
+      };
+      repair_product_base_variant: {
+        Args: { requested_product_id: string };
+        Returns: {
+          created: boolean;
+          product_id: string;
+          variant_id: string;
+        }[];
+      };
+      update_product_with_base_variant: {
+        Args: {
+          expected_published: boolean;
+          expected_status: Database["public"]["Enums"]["product_status"];
+          requested_brand_id: string;
+          requested_category_id: string;
+          requested_compare_at_price: number | null;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_currency: string;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_name: string;
+          requested_price: number;
+          requested_price_is_estimate: boolean;
+          requested_product_id: string;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+        };
+        Returns: {
+          product_id: string;
+          variant_id: string;
+        }[];
       };
       register_product_image: {
         Args: {

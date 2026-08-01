@@ -47,10 +47,10 @@ Una persona autenticada puede:
 - leer únicamente sus pedidos, partidas e historial.
 
 El cliente no puede asignar roles, modificar direcciones, crear pedidos, ajustar
-inventario ni escribir asesorías o configuración directamente. Las excepciones
-operativas actuales son las mutaciones acotadas de `products`, `brands` y
-`categories`, protegidas por Server Actions, RLS, función de autorización y
-privilegios de columna.
+inventario directamente ni escribir asesorías o configuración. Las excepciones
+operativas actuales son las mutaciones acotadas de `products`, `brands`,
+`categories`, `product_images` e inventario mediante RPC, protegidas por Server
+Actions, RLS, función de autorización y privilegios mínimos.
 
 ## 4. Matriz de acceso por tabla
 
@@ -71,8 +71,8 @@ canal permitido, no un permiso implícito por poseer el rol.
 | `products`                 | Catálogo        | Catálogo o gestión autorizada | Server Action + RLS | Server Action + RLS   | No                  | Catálogo base autorizado | Catálogo base autorizado |
 | `product_variants`         | Catálogo        | Catálogo                      | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `product_images`           | Catálogo        | Catálogo                      | No                  | No                    | No                  | Server Action + RLS      | Server Action + RLS      |
-| `inventory`                | No              | No                            | No                  | No                    | No                  | Backend transaccional    | Backend, auditado        |
-| `inventory_movements`      | No              | No                            | No                  | No                    | No                  | Backend; sólo insertar   | Backend; sólo insertar   |
+| `inventory`                | No              | Sólo gestión autorizada       | No                  | No                    | No                  | RPC transaccional        | RPC transaccional        |
+| `inventory_movements`      | No              | Sólo gestión autorizada       | No                  | No                    | No                  | RPC; sólo insertar       | RPC; sólo insertar       |
 | `shipping_methods`         | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `carts`                    | No              | Propios                       | Propio              | Propio                | Propio              | Backend, soporte         | Backend, auditado        |
 | `cart_items`               | No              | De carrito propio             | De carrito propio   | De carrito propio     | De carrito propio   | Backend, soporte         | Backend, auditado        |
@@ -106,9 +106,9 @@ Un backend que realice una operación privilegiada debe:
 5. escribir auditoría sin datos sensibles;
 6. usar el canal de credenciales mínimo previsto para esa operación.
 
-La gestión base de productos y taxonomías usa la llave pública con la sesión del
+La gestión base de catálogo e inventario usa la llave pública con la sesión del
 usuario y permanece sujeta a RLS; no usa `service_role`. Asignación de roles,
-administración de direcciones, costos, inventario, movimientos, métodos de
+administración de direcciones, costos, métodos de
 envío, creación/cambio de pedidos, asesorías, páginas, settings y audit logs
 siguen requiriendo un backend futuro específico y auditado.
 
@@ -118,10 +118,32 @@ Las políticas operativas permiten:
 - leer todas las marcas y categorías sólo a `operator` y `admin`;
 - insertar y actualizar las columnas revisadas de marcas y categorías;
 - insertar y actualizar las columnas comerciales revisadas de `products`;
+- crear atómicamente el producto y su variante base;
+- reparar explícitamente un producto histórico sin ninguna variante;
 - publicar, despublicar, archivar y restaurar sin eliminación física.
 
 No conceden `DELETE` de productos, marcas o categorías, acceso a `cost`, ni
-mutaciones de variantes. La lectura pública conserva sus filtros previos.
+gestión general de variantes. `authenticated` sólo recibe `INSERT` de
+`product_id`, `sku` y `name` en `product_variants`; RLS exige operator/admin,
+producto no archivado, ausencia total de variantes y coincidencia exacta de SKU
+y nombre con el producto. Los demás campos permanecen en valores base seguros y
+`cost` no puede enviarse ni leerse. La lectura pública conserva sus filtros.
+
+`create_product_with_base_variant` y `repair_product_base_variant` son
+`security invoker`, fijan `search_path` vacío y vuelven a comprobar
+`can_manage_catalog()`. La primera queda sujeta a RLS en ambos inserts, de modo
+que un error intermedio revierte la operación completa. La segunda bloquea la
+fila de producto, no acepta archivados y sólo es idempotente para la variante
+canónica. No usa `service_role`, `user_metadata`, backfill ni campos ocultos como
+autoridad.
+
+`update_product_with_base_variant` conserva el modelo `security invoker`.
+Bloquea `products` con `FOR UPDATE`, compara `status` y `published` con el
+snapshot esperado y exige exactamente una variante canónica antes de escribir.
+RLS sólo permite actualizar `sku` y `name` de `product_variants` mientras la RPC
+mantiene un contexto local privado; un trigger aplica el mismo requisito a
+cambios directos de `products.sku` o `products.name`. La función no selecciona,
+devuelve ni modifica `cost`, y una colisión revierte ambas actualizaciones.
 
 La migración de taxonomías agrega triggers `security invoker` con `search_path`
 vacío. Rechazan ciclos, padres archivados nuevos, archivado con productos
@@ -175,6 +197,20 @@ y `DELETE` de objetos y conserva todos sus controles anteriores.
 
 Los constraints protegen importes no negativos, consistencia de totales,
 cantidades de inventario y snapshots, pero no sustituyen las reglas del backend.
+
+La gestión de inventario usa Server Actions que ejecutan
+`requireCatalogManager()` y RPC `security invoker` con `search_path` vacío. RLS
+valida nuevamente `can_manage_catalog()`. `adjust_inventory` bloquea el producto
+y la fila de inventario, revalida el saldo y escribe saldo y movimiento de forma
+atómica. Los grants de escritura por columna existen sólo para soportar
+`security invoker`; triggers exigen un contexto transaccional privado que sólo
+establecen las RPC. Por eso se rechazan tanto un `UPDATE inventory` como un
+`INSERT inventory_movements` directo. El contexto se desactiva antes de devolver
+el resultado.
+
+Cada ajuste exige UUID de idempotencia único, actor `auth.uid()`, cantidad
+entera no nula y motivo de 3 a 500 caracteres. No se devuelve texto SQL interno
+a la interfaz. No existe permiso `DELETE` ni `UPDATE` de movimientos.
 
 ## 7. Funciones y trazabilidad
 

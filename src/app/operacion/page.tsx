@@ -29,7 +29,7 @@ export default function OperationsPage() {
           requieren una sesión con permiso de operador o administrador.
         </p>
       </div>
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Gestión de catálogo</CardTitle>
@@ -41,6 +41,20 @@ export default function OperationsPage() {
           <CardContent>
             <Button asChild size="lg">
               <Link href="/operacion/catalogo">Abrir catálogo operativo</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Inventario</CardTitle>
+            <CardDescription>
+              Consulta saldos y registra incrementos o correcciones con un
+              historial inmutable.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="lg" variant="outline">
+              <Link href="/operacion/inventario">Administrar inventario</Link>
             </Button>
           </CardContent>
         </Card>

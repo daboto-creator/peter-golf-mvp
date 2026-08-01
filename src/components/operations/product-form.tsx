@@ -376,7 +376,9 @@ export function ProductForm({
               : "Guardar cambios"}
         </Button>
         <p className="text-muted-foreground text-sm">
-          Costos, inventario y variantes permanecen fuera de este formulario.
+          {mode === "create"
+            ? "Se creará una variante base con el mismo SKU. Costos e inventario permanecen fuera de este formulario."
+            : "Nombre y SKU se sincronizan con la variante base; no se crean variantes ni se modifican costos o inventario."}
         </p>
       </div>
     </form>

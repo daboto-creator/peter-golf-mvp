@@ -12,7 +12,6 @@ import {
 import {
   validateProductForm,
   type ProductFormValues,
-  type ProductMutationInput,
 } from "@/lib/catalog/product-validation";
 import {
   getProductMutationCondition,
@@ -21,7 +20,6 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
 
-type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];
 type ProductUpdate = Database["public"]["Tables"]["products"]["Update"];
 
 export type CatalogActionResult = {
@@ -39,46 +37,6 @@ function validationFailure(
     status: "error",
     message: "Revisa los campos marcados.",
     errors,
-  };
-}
-
-function toProductMutationPayload(values: ProductMutationInput): ProductUpdate {
-  return {
-    name: values.name,
-    slug: values.slug,
-    sku: values.sku,
-    brand_id: values.brandId,
-    category_id: values.categoryId,
-    short_description: values.shortDescription,
-    description: values.description,
-    condition: values.condition,
-    condition_grade: values.conditionGrade,
-    condition_notes: values.conditionNotes,
-    fulfillment_type: values.fulfillmentType,
-    price: values.price,
-    compare_at_price: values.compareAtPrice,
-    currency: values.currency,
-    price_is_estimate: values.priceIsEstimate,
-    lead_time_min_days: values.leadTimeMinDays,
-    lead_time_max_days: values.leadTimeMaxDays,
-    featured: values.featured,
-    published: values.published,
-    status: values.published ? "active" : "draft",
-  };
-}
-
-function toProductInsertPayload(values: ProductMutationInput): ProductInsert {
-  return {
-    ...toProductMutationPayload(values),
-    brand_id: values.brandId,
-    category_id: values.categoryId,
-    condition: values.condition,
-    fulfillment_type: values.fulfillmentType,
-    name: values.name,
-    price: values.price,
-    sku: values.sku,
-    slug: values.slug,
-    archived_at: null,
   };
 }
 
@@ -119,23 +77,32 @@ async function findIdentityConflicts({
   const client = await createClient();
   let slugQuery = client.from("products").select("id").eq("slug", slug);
   let skuQuery = client.from("products").select("id").eq("sku", sku);
+  let variantSkuQuery = client
+    .from("product_variants")
+    .select("id, product_id")
+    .eq("sku", sku);
 
   if (excludeId) {
     slugQuery = slugQuery.neq("id", excludeId);
     skuQuery = skuQuery.neq("id", excludeId);
+    variantSkuQuery = variantSkuQuery.neq("product_id", excludeId);
   }
 
-  const [slugResult, skuResult] = await Promise.all([
+  const [slugResult, skuResult, variantSkuResult] = await Promise.all([
     slugQuery.limit(1),
     skuQuery.limit(1),
+    variantSkuQuery.limit(1),
   ]);
   const errors: Record<string, string[] | undefined> = {};
 
   if (!slugResult.error && slugResult.data.length > 0) {
     errors.slug = ["Ya existe un producto con este slug."];
   }
-  if (!skuResult.error && skuResult.data.length > 0) {
-    errors.sku = ["Ya existe un producto con este SKU."];
+  if (
+    (!skuResult.error && skuResult.data.length > 0) ||
+    (!variantSkuResult.error && variantSkuResult.data.length > 0)
+  ) {
+    errors.sku = ["Ya existe un producto o variante con este SKU."];
   }
 
   return errors;
@@ -146,7 +113,7 @@ function databaseMutationFailure(code?: string): CatalogActionResult {
     status: "error",
     message:
       code === "23505"
-        ? "Ya existe un producto con ese slug o SKU. Revísalos e inténtalo de nuevo."
+        ? "Ya existe otro producto o variante con ese slug o SKU. Revísalos e inténtalo de nuevo."
         : "No pudimos guardar el producto. Inténtalo de nuevo.",
   };
 }
@@ -195,9 +162,27 @@ export async function createProductAction(
 
   const client = await createClient();
   const { data, error } = await client
-    .from("products")
-    .insert(toProductInsertPayload(validated.data))
-    .select("id")
+    .rpc("create_product_with_base_variant", {
+      requested_brand_id: validated.data.brandId,
+      requested_category_id: validated.data.categoryId,
+      requested_compare_at_price: validated.data.compareAtPrice,
+      requested_condition: validated.data.condition,
+      requested_condition_grade: validated.data.conditionGrade,
+      requested_condition_notes: validated.data.conditionNotes,
+      requested_currency: validated.data.currency,
+      requested_description: validated.data.description,
+      requested_featured: validated.data.featured,
+      requested_fulfillment_type: validated.data.fulfillmentType,
+      requested_lead_time_max_days: validated.data.leadTimeMaxDays,
+      requested_lead_time_min_days: validated.data.leadTimeMinDays,
+      requested_name: validated.data.name,
+      requested_price: validated.data.price,
+      requested_price_is_estimate: validated.data.priceIsEstimate,
+      requested_published: validated.data.published,
+      requested_short_description: validated.data.shortDescription,
+      requested_sku: validated.data.sku,
+      requested_slug: validated.data.slug,
+    })
     .single();
 
   if (error || !data) {
@@ -205,8 +190,51 @@ export async function createProductAction(
   }
 
   revalidatePath("/operacion/catalogo");
+  revalidatePath("/operacion/inventario");
   revalidatePath("/productos");
-  redirect(`/operacion/catalogo/${data.id}/editar?creado=1`);
+  redirect(`/operacion/catalogo/${data.product_id}/editar?creado=1`);
+}
+
+export async function repairProductBaseVariantAction(
+  productId: string,
+): Promise<CatalogActionResult> {
+  await requireCatalogManager(`/operacion/inventario/${productId}`);
+  const parsedId = productIdSchema.safeParse(productId);
+  if (!parsedId.success) {
+    return { status: "error", message: "El producto solicitado no es válido." };
+  }
+
+  const client = await createClient();
+  const { data, error } = await client
+    .rpc("repair_product_base_variant", {
+      requested_product_id: parsedId.data,
+    })
+    .single();
+
+  if (error || !data) {
+    return {
+      status: "error",
+      message:
+        error?.code === "23505"
+          ? "El producto ya tiene variantes y requiere revisión antes de continuar."
+          : error?.code === "22023"
+            ? "Este producto no se puede reparar como variante base. Verifica su estado y SKU."
+            : "No pudimos crear la variante base. Inténtalo de nuevo.",
+    };
+  }
+
+  revalidatePath("/operacion/catalogo");
+  revalidatePath(`/operacion/catalogo/${parsedId.data}/editar`);
+  revalidatePath("/operacion/inventario");
+  revalidatePath(`/operacion/inventario/${parsedId.data}`);
+  revalidatePath("/productos");
+
+  return {
+    status: "success",
+    message: data.created
+      ? "La variante base quedó creada. Ya puedes inicializar el inventario."
+      : "La variante base ya existía; no se creó un duplicado.",
+  };
 }
 
 export async function updateProductAction(
@@ -290,17 +318,41 @@ export async function updateProductAction(
 
   const client = await createClient();
   const { data, error } = await client
-    .from("products")
-    .update(toProductMutationPayload(validated.data))
-    .eq("id", parsedId.data)
-    .is("archived_at", null)
-    .eq("status", expectedState.status)
-    .neq("status", "archived")
-    .eq("published", expectedState.published)
-    .select("id")
-    .maybeSingle();
+    .rpc("update_product_with_base_variant", {
+      expected_published: expectedState.published,
+      expected_status: expectedState.status,
+      requested_brand_id: validated.data.brandId,
+      requested_category_id: validated.data.categoryId,
+      requested_compare_at_price: validated.data.compareAtPrice,
+      requested_condition: validated.data.condition,
+      requested_condition_grade: validated.data.conditionGrade,
+      requested_condition_notes: validated.data.conditionNotes,
+      requested_currency: validated.data.currency,
+      requested_description: validated.data.description,
+      requested_featured: validated.data.featured,
+      requested_fulfillment_type: validated.data.fulfillmentType,
+      requested_lead_time_max_days: validated.data.leadTimeMaxDays,
+      requested_lead_time_min_days: validated.data.leadTimeMinDays,
+      requested_name: validated.data.name,
+      requested_price: validated.data.price,
+      requested_price_is_estimate: validated.data.priceIsEstimate,
+      requested_product_id: parsedId.data,
+      requested_published: validated.data.published,
+      requested_short_description: validated.data.shortDescription,
+      requested_sku: validated.data.sku,
+      requested_slug: validated.data.slug,
+    })
+    .single();
 
   if (error) {
+    if (error.code === "40001") return productStateChangedFailure();
+    if (error.code === "22023") {
+      return {
+        status: "error",
+        message:
+          "Este producto necesita una variante base canónica antes de editarse. Repara los productos sin variante o revisa su configuración de variantes.",
+      };
+    }
     return databaseMutationFailure(error?.code);
   }
   if (!data) {
@@ -309,8 +361,11 @@ export async function updateProductAction(
 
   revalidatePath("/operacion/catalogo");
   revalidatePath(`/operacion/catalogo/${parsedId.data}/editar`);
+  revalidatePath("/operacion/inventario");
+  revalidatePath(`/operacion/inventario/${parsedId.data}`);
   revalidatePath("/productos");
   revalidatePath(`/productos/${existing.data.slug}`);
+  revalidatePath(`/productos/${validated.data.slug}`);
 
   return {
     status: "success",

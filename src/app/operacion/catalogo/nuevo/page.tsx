@@ -26,8 +26,9 @@ export default async function NewProductPage() {
           Crear producto
         </h1>
         <p className="text-muted-foreground mt-3 max-w-2xl leading-7">
-          Captura la información comercial base. Variantes, imágenes, inventario
-          y costos permanecen fuera de este flujo.
+          Captura la información comercial base. Al guardar se crea una variante
+          base con el mismo SKU; imágenes, inventario, costos y variantes
+          configurables permanecen fuera de este flujo.
         </p>
       </div>
 

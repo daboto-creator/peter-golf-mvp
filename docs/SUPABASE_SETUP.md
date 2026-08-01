@@ -41,6 +41,9 @@ existe y no debe crearse ni vincularse en esta fase.
 | `20260730001100_product_images_foundation.sql`          | Bucket, políticas y funciones para imágenes.                |
 | `20260730001200_fix_product_image_storage_policies.sql` | Calificación inequívoca de la ruta en políticas de Storage. |
 | `20260731000000_catalog_taxonomy_management.sql`        | Gestión segura de marcas, categorías y jerarquía.           |
+| `20260731000100_inventory_management_foundation.sql`    | Ajustes de inventario transaccionales, RLS e idempotencia.  |
+| `20260731000200_catalog_base_variant_foundation.sql`    | Alta atómica y reparación explícita de variante base.       |
+| `20260731000300_catalog_base_variant_updates.sql`       | Sincronización atómica de producto y variante base.         |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.
@@ -180,6 +183,48 @@ Editor para altas, ediciones y cambios de estado de marcas y categorías. El SQL
 Editor continúa usándose sólo para el bootstrap local del rol, fuera del alcance
 de esta interfaz. La migración de taxonomías queda local hasta revisión y no debe
 aplicarse a staging con `db push` en esta tarea.
+
+### Probar inventario local
+
+Después de aplicar las migraciones a la pila local, ejecutar:
+
+```bash
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/inventory_management_foundation.sql
+```
+
+La prueba crea usuarios ficticios customer/operator/admin, inicializa saldo,
+prueba incremento, decremento, idempotencia, saldo negativo, escritura directa,
+inmutabilidad y autorización. Todo ocurre en una transacción que finaliza con
+`ROLLBACK`. La migración `20260731000100_inventory_management_foundation.sql`
+permanece local hasta revisión y no debe aplicarse a staging en esta tarea.
+
+### Probar variantes base locales
+
+Después del reset, ejecutar:
+
+```bash
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/catalog_base_variant_foundation.sql
+```
+
+La prueba cubre alta atómica de producto y variante, SKU canónico, rollback por
+colisión, reintento sin duplicado, edición sin variantes nuevas, reparación
+explícita e idempotente de un huérfano, rechazo de archivados y autorización de
+customer/operator/admin. Finaliza con `ROLLBACK`. La migración no repara datos
+existentes silenciosamente y permanece sólo local hasta revisión.
+
+Para verificar la edición sincronizada:
+
+```bash
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/catalog_base_variant_updates.sql
+```
+
+Esta prueba cubre cambios de nombre y SKU, conservación de una sola variante,
+rollback por colisión global, snapshot concurrente, huérfanos, archivados,
+variantes múltiples/no canónicas, escrituras directas y autorización de
+customer/operator/admin. También finaliza con `ROLLBACK`.
 
 ## 6. Comprobaciones RLS pendientes
 

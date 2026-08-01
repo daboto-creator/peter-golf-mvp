@@ -33,6 +33,26 @@ orden, UUID de padre, autorreferencia, ciclos, selección de referencias activas
 conservación de relaciones archivadas actuales y mensajes de conflicto. No usa
 staging ni servicios remotos.
 
+La gestión de inventario agrega pruebas unitarias de cantidades enteras,
+movimientos permitidos, notas, cálculo de saldo, prevención de disponible
+negativo, niveles de stock y transformación del historial. La prueba SQL local
+`supabase/tests/inventory_management_foundation.sql` cubre inicialización,
+incremento, decremento, idempotencia, inmutabilidad y RLS para customer,
+operator y admin dentro de una transacción con `ROLLBACK`.
+
+La prueba SQL local
+`supabase/tests/catalog_base_variant_foundation.sql` verifica que la creación
+operativa produzca exactamente una variante base en la misma transacción, que
+normalice y respete la unicidad del SKU, que un conflicto revierta también el
+producto y que reintentos o ediciones no creen duplicados. También cubre la
+reparación explícita de huérfanos, el rechazo de archivados y la matriz
+customer/operator/admin, siempre con `ROLLBACK` y sin staging.
+
+`supabase/tests/catalog_base_variant_updates.sql` añade cambios sincronizados de
+nombre/SKU, atomicidad ante colisiones, edición sin duplicados, bloqueo de
+escritura directa, rechazo de huérfanos/archivados/variantes no canónicas o
+múltiples, snapshot de estado concurrente y autorización customer/operator/admin.
+
 ## 3. Pirámide de pruebas
 
 ### Estáticas
@@ -51,6 +71,7 @@ staging ni servicios remotos.
 - Jerarquía acíclica de categorías y selección segura de taxonomías.
 - Plazos y mensajes para productos sobre pedido.
 - Validación y consistencia de imágenes de producto.
+- Creación atómica y reparación idempotente de variantes base.
 
 ### Integración
 

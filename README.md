@@ -9,17 +9,18 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 El repositorio contiene el scaffold técnico inicial, la documentación base del
 MVP, la integración tipada con Supabase de staging, la base de autenticación y
 la primera base funcional del catálogo público, la gestión operativa del
-catálogo y las imágenes de producto con Supabase Storage.
+catálogo, las imágenes de producto con Supabase Storage y una base auditable de
+inventario operativo.
 
 Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
 perfil básico, protección inicial de `/cuenta`, listado público en `/productos`
 y detalle público en `/productos/[slug]`. Los usuarios con rol `operator` o
 `admin` pueden entrar a `/operacion` para crear, editar, publicar, despublicar,
 archivar y restaurar productos base. Todavía no están implementados el carrito,
-el checkout, la búsqueda avanzada, la gestión de imágenes, variantes o
-inventario, ni los pagos. La CLI y los clientes tipados
-apuntan al proyecto remoto de staging de Supabase; el único uso funcional actual
-adicional es el catálogo público sujeto a RLS. El MVP se validará primero sin pagos reales.
+el checkout, la búsqueda avanzada, la gestión operativa de variantes o
+reservas de inventario, ni los pagos. La CLI y los clientes tipados
+apuntan al proyecto remoto de staging de Supabase; el acceso funcional usa RLS.
+El MVP se validará primero sin pagos reales.
 La aplicación sólo usa la llave pública `anon`/publishable y RLS; no existe un
 cliente administrativo ni se usa `service_role`.
 
@@ -147,6 +148,8 @@ Las rutas protegidas son:
 - `/operacion/catalogo`: listado de productos activos, borradores y archivados;
 - `/operacion/catalogo/nuevo`: creación del producto base;
 - `/operacion/catalogo/[id]/editar`: edición y cambios de estado.
+- `/operacion/inventario`: búsqueda, filtros y saldos de inventario;
+- `/operacion/inventario/[id]`: inicialización, ajuste e historial reciente.
 
 Cada página y cada Server Action vuelve a comprobar la sesión y el permiso
 mediante `public.can_manage_catalog()`. La función consulta `user_roles` y
@@ -154,6 +157,22 @@ mediante `public.can_manage_catalog()`. La función consulta `user_roles` y
 `user_metadata`. Las escrituras usan el cliente público autenticado y RLS; no
 usan `service_role`. Los privilegios SQL excluyen `cost` y no existe permiso de
 eliminación.
+
+El alta actual representa productos sin variantes configurables.
+`create_product_with_base_variant` crea el producto y exactamente una variante
+base en la misma transacción. La variante queda activa, no archivada, sin
+atributos ni importes propios, y usa el SKU normalizado y el nombre del producto.
+Una colisión del SKU global de variantes revierte también el producto. Editar un
+producto base sincroniza atómicamente el nombre y SKU de su única variante; no
+crea variantes ni altera atributos, orden, estado operativo o importes propios.
+Huérfanos, variantes no canónicas, múltiples variantes y archivados se rechazan
+sin cambios parciales.
+
+Los productos históricos sin ninguna variante muestran en el detalle de
+inventario la acción explícita **Crear variante base**.
+`repair_product_base_variant` bloquea el producto, rechaza archivados o productos
+con variantes no canónicas y devuelve la variante existente ante un reintento
+canónico. No existe backfill masivo y el inventario nunca crea variantes.
 
 ### Taxonomías
 
@@ -196,9 +215,13 @@ Para probar un operador local:
 
 Las migraciones operativas `20260730001000_catalog_operator_access.sql`,
 `20260730001100_product_images_foundation.sql` y
-`20260731000000_catalog_taxonomy_management.sql` permanecen únicamente locales
-hasta revisión y autorización explícita. Esta base no administra variantes,
-costos, inventario, carrito, checkout ni pagos. Esta tarea no ejecuta `db push`
+`20260731000000_catalog_taxonomy_management.sql`, junto con
+`20260731000100_inventory_management_foundation.sql` y
+`20260731000200_catalog_base_variant_foundation.sql`, junto con
+`20260731000300_catalog_base_variant_updates.sql`, permanecen únicamente
+locales hasta revisión y autorización explícita. Esta base sólo crea o repara la
+variante canónica; no administra variantes configurables, costos, carrito,
+checkout ni pagos. Esta tarea no ejecuta `db push`
 ni modifica staging.
 
 ### Imágenes de producto
@@ -219,6 +242,55 @@ procedimiento de `docs/SUPABASE_SETUP.md` y abre la edición de un producto. El
 reset crea el bucket, pero no agrega binarios ni filas ficticias de imágenes.
 No se implementan transformación, recorte, compresión, moderación ni
 optimización avanzada de imágenes.
+
+### Inventario operativo
+
+El inventario reutiliza `inventory` e `inventory_movements`, ambas ligadas a
+`product_variants`; no existe un modelo paralelo por producto. Como todavía no
+hay gestión operativa de variantes, sólo puede inicializarse o ajustarse un
+producto con exactamente una variante activa y no archivada. Los productos sin
+variante o con varias variantes permanecen visibles con una explicación, pero
+no son ajustables en esta fase.
+
+El flujo nuevo de catálogo evita el caso sin variante. La reparación sólo se
+ofrece cuando el producto no está archivado y no tiene ninguna variante; después
+de crearla, el operador todavía inicializa inventario de forma explícita.
+
+`quantity_on_hand` es el saldo físico. La interfaz también muestra disponible
+como `quantity_on_hand - quantity_reserved`, pero no implementa reservas ni
+permite modificarlas. La inicialización explícita crea saldo cero sin inventar
+un movimiento de cantidad cero. Los cambios posteriores admiten recepciones
+positivas y ajustes/correcciones enteros positivos o negativos, siempre con
+motivo. El saldo nunca puede quedar por debajo de cero ni de la cantidad
+reservada ya existente.
+
+Las RPC `initialize_inventory` y `adjust_inventory` son `security invoker`,
+validan `can_manage_catalog()`, fijan `search_path` vacío y trabajan bajo RLS.
+El ajuste bloquea el producto y la fila de inventario, recalcula el saldo dentro
+de la transacción, actualiza el saldo e inserta un movimiento atómicamente. Una
+llave UUID de idempotencia evita duplicados; triggers adicionales bloquean
+escrituras directas fuera de las RPC. Los movimientos no pueden actualizarse ni
+eliminarse.
+
+Los productos archivados conservan saldo e historial, pero no admiten nuevos
+ajustes. Ningún movimiento publica, despublica, archiva, restaura o elimina un
+producto, y el catálogo público continúa sin consultar ni exponer cantidades.
+
+Prueba local reproducible:
+
+```bash
+npm run supabase:start
+npm run supabase:reset
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/inventory_management_foundation.sql
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/catalog_base_variant_foundation.sql
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/catalog_base_variant_updates.sql
+```
+
+La prueba usa datos ficticios dentro de una transacción y finaliza con
+`ROLLBACK`. No prueba ni modifica staging.
 
 ## Documentación
 
