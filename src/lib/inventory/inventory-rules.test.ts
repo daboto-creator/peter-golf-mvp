@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   calculateInventoryBalance,
   getInventoryLevel,
+  isOperationalInventoryVariant,
+  normalizeInventorySearchTerm,
   resolveInventoryMutationTarget,
   transformInventoryHistory,
   validateInventoryAdjustment,
@@ -117,6 +119,27 @@ describe("inventory adjustment rules", () => {
 });
 
 describe("inventory mutation target resolution", () => {
+  it("identifies one or several active operational variants", () => {
+    const variants = [
+      manageableProduct.variants[0]!,
+      {
+        id: "51000000-0000-4000-8000-000000000002",
+        active: true,
+        archivedAt: null,
+      },
+      {
+        id: "51000000-0000-4000-8000-000000000003",
+        active: false,
+        archivedAt: null,
+      },
+    ];
+
+    expect(variants.filter(isOperationalInventoryVariant)).toHaveLength(2);
+    expect(
+      manageableProduct.variants.filter(isOperationalInventoryVariant),
+    ).toHaveLength(1);
+  });
+
   it("accepts the sole operational variant belonging to the product", () => {
     expect(
       resolveInventoryMutationTarget(
@@ -150,24 +173,50 @@ describe("inventory mutation target resolution", () => {
     ).toEqual({ success: false, reason: "variant_mismatch" });
   });
 
-  it("rejects a product with more than one operational variant", () => {
+  it("accepts either operational variant of a multi-variant product", () => {
+    const secondVariant = {
+      id: "51000000-0000-4000-8000-000000000002",
+      active: true,
+      archivedAt: null,
+    };
+    const multiVariantProduct = {
+      ...manageableProduct,
+      variants: [...manageableProduct.variants, secondVariant],
+    };
     expect(
       resolveInventoryMutationTarget(
         manageableProduct.id,
         manageableProduct.variants[0]!.id,
-        {
-          ...manageableProduct,
-          variants: [
-            ...manageableProduct.variants,
-            {
-              id: "51000000-0000-4000-8000-000000000002",
-              active: true,
-              archivedAt: null,
-            },
-          ],
-        },
+        multiVariantProduct,
       ),
-    ).toEqual({ success: false, reason: "product_not_manageable" });
+    ).toEqual({
+      success: true,
+      variantId: manageableProduct.variants[0]!.id,
+    });
+    expect(
+      resolveInventoryMutationTarget(
+        manageableProduct.id,
+        secondVariant.id,
+        multiVariantProduct,
+      ),
+    ).toEqual({ success: true, variantId: secondVariant.id });
+  });
+
+  it("rejects inactive and archived variants", () => {
+    for (const variant of [
+      { ...manageableProduct.variants[0]!, active: false },
+      {
+        ...manageableProduct.variants[0]!,
+        archivedAt: "2026-08-01T00:00:00Z",
+      },
+    ]) {
+      expect(
+        resolveInventoryMutationTarget(manageableProduct.id, variant.id, {
+          ...manageableProduct,
+          variants: [variant],
+        }),
+      ).toEqual({ success: false, reason: "variant_mismatch" });
+    }
   });
 
   it("rejects archived or unavailable products", () => {
@@ -186,5 +235,15 @@ describe("inventory mutation target resolution", () => {
         null,
       ),
     ).toEqual({ success: false, reason: "product_unavailable" });
+  });
+});
+
+describe("inventory search", () => {
+  it("preserves variant SKUs and normalizes unsafe input", () => {
+    expect(normalizeInventorySearchTerm(" PG-DEMO-BOLSA-001-GRIS ")).toBe(
+      "PG-DEMO-BOLSA-001-GRIS",
+    );
+    expect(normalizeInventorySearchTerm("  Gris demo,()  ")).toBe("Gris demo");
+    expect(normalizeInventorySearchTerm("***")).toBeNull();
   });
 });

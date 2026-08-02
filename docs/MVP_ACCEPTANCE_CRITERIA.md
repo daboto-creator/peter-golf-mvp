@@ -25,6 +25,11 @@ Estos criterios describen el MVP funcional futuro. La etapa actual sólo entrega
 
 ## 4. Intención de compra sin pago
 
+- [x] Un operador o administrador puede registrar, editar y consultar pedidos
+      manuales preliminares sin pago integrado.
+- [x] Confirmar descuenta inventario de forma atómica y cancelar devuelve las
+      unidades una sola vez.
+
 - [ ] El usuario puede registrar una intención o pedido de prueba con productos válidos.
 - [ ] La interfaz declara antes de confirmar que no se realizará ningún cargo.
 - [ ] No se solicitan datos de tarjeta, CVV ni credenciales financieras.

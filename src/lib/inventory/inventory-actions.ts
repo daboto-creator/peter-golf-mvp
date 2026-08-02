@@ -53,12 +53,13 @@ export async function initializeInventoryAction(
   formData: FormData,
 ): Promise<InventoryActionResult> {
   const productId = formString(formData, "productId");
-  await requireCatalogManager(`/operacion/inventario/${productId}`);
+  const variantId = formString(formData, "variantId");
+  await requireCatalogManager(
+    `/operacion/inventario/${productId}/${variantId}`,
+  );
 
   const parsedProductId = uuidSchema.safeParse(productId);
-  const parsedVariantId = uuidSchema.safeParse(
-    formString(formData, "variantId"),
-  );
+  const parsedVariantId = uuidSchema.safeParse(variantId);
   if (!parsedProductId.success || !parsedVariantId.success) {
     return { status: "error", message: "El ítem de inventario no es válido." };
   }
@@ -83,7 +84,9 @@ export async function initializeInventoryAction(
   if (error || !data[0]) return safeInventoryFailure(error?.code);
 
   revalidatePath("/operacion/inventario");
-  revalidatePath(`/operacion/inventario/${parsedProductId.data}`);
+  revalidatePath(
+    `/operacion/inventario/${parsedProductId.data}/${parsedVariantId.data}`,
+  );
   return {
     status: "success",
     message: data[0].initialized
@@ -97,12 +100,13 @@ export async function adjustInventoryAction(
   formData: FormData,
 ): Promise<InventoryActionResult> {
   const productId = formString(formData, "productId");
-  await requireCatalogManager(`/operacion/inventario/${productId}`);
+  const variantId = formString(formData, "variantId");
+  await requireCatalogManager(
+    `/operacion/inventario/${productId}/${variantId}`,
+  );
 
   const parsedProductId = uuidSchema.safeParse(productId);
-  const parsedVariantId = uuidSchema.safeParse(
-    formString(formData, "variantId"),
-  );
+  const parsedVariantId = uuidSchema.safeParse(variantId);
   const quantity = Number(formString(formData, "quantityDelta"));
   const validated = validateInventoryAdjustment({
     movementType: formString(formData, "movementType"),
@@ -150,7 +154,9 @@ export async function adjustInventoryAction(
   if (error || !data[0]) return safeInventoryFailure(error?.code);
 
   revalidatePath("/operacion/inventario");
-  revalidatePath(`/operacion/inventario/${parsedProductId.data}`);
+  revalidatePath(
+    `/operacion/inventario/${parsedProductId.data}/${parsedVariantId.data}`,
+  );
   revalidatePath("/productos");
 
   return {
@@ -169,11 +175,18 @@ export async function adjustInventoryAction(
 
 export async function loadInventoryDetailAction(
   productId: string,
+  variantId: string,
 ): Promise<OperationalInventoryDetail | null> {
-  await requireCatalogManager(`/operacion/inventario/${productId}`);
-  const parsedId = uuidSchema.safeParse(productId);
-  if (!parsedId.success) return null;
+  await requireCatalogManager(
+    `/operacion/inventario/${productId}/${variantId}`,
+  );
+  const parsedProductId = uuidSchema.safeParse(productId);
+  const parsedVariantId = uuidSchema.safeParse(variantId);
+  if (!parsedProductId.success || !parsedVariantId.success) return null;
 
-  const result = await getOperationalInventoryDetail(parsedId.data);
+  const result = await getOperationalInventoryDetail(
+    parsedProductId.data,
+    parsedVariantId.data,
+  );
   return result.error ? null : result.data;
 }

@@ -33,6 +33,9 @@ export default async function OperationsLayout({
             className="flex flex-wrap items-center gap-2"
           >
             <Button asChild variant="ghost">
+              <Link href="/operacion/pedidos">Pedidos</Link>
+            </Button>
+            <Button asChild variant="ghost">
               <Link href="/operacion/catalogo">Catálogo</Link>
             </Button>
             <Button asChild variant="ghost">

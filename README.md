@@ -9,8 +9,8 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 El repositorio contiene el scaffold técnico inicial, la documentación base del
 MVP, la integración tipada con Supabase de staging, la base de autenticación y
 la primera base funcional del catálogo público, la gestión operativa del
-catálogo, las imágenes de producto con Supabase Storage y una base auditable de
-inventario operativo.
+catálogo, las imágenes de producto con Supabase Storage, una base auditable de
+inventario operativo y la gestión transaccional de pedidos manuales.
 
 Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
 perfil básico, protección inicial de `/cuenta`, listado público en `/productos`
@@ -149,7 +149,12 @@ Las rutas protegidas son:
 - `/operacion/catalogo/nuevo`: creación del producto base;
 - `/operacion/catalogo/[id]/editar`: edición y cambios de estado.
 - `/operacion/inventario`: búsqueda, filtros y saldos de inventario;
-- `/operacion/inventario/[id]`: inicialización, ajuste e historial reciente.
+- `/operacion/inventario/[productId]`: compatibilidad y selección de variante;
+- `/operacion/inventario/[productId]/[variantId]`: inicialización, ajuste e
+  historial de una variante explícita.
+- `/operacion/pedidos`: listado y filtros de pedidos manuales;
+- `/operacion/pedidos/nuevo`: creación de un preliminar;
+- `/operacion/pedidos/[id]`: detalle, edición preliminar, confirmación y cancelación.
 
 Cada página y cada Server Action vuelve a comprobar la sesión y el permiso
 mediante `public.can_manage_catalog()`. La función consulta `user_roles` y
@@ -246,11 +251,11 @@ optimización avanzada de imágenes.
 ### Inventario operativo
 
 El inventario reutiliza `inventory` e `inventory_movements`, ambas ligadas a
-`product_variants`; no existe un modelo paralelo por producto. Como todavía no
-hay gestión operativa de variantes, sólo puede inicializarse o ajustarse un
-producto con exactamente una variante activa y no archivada. Los productos sin
-variante o con varias variantes permanecen visibles con una explicación, pero
-no son ajustables en esta fase.
+`product_variants`; no existe un modelo paralelo por producto. El listado
+muestra una fila por variante activa y no archivada, y cada ajuste identifica
+explícitamente `productId` y `variantId`. Los productos de una sola variante
+conservan el mismo flujo; los de varias variantes administran saldos separados.
+La creación y edición de variantes configurables sigue fuera de este módulo.
 
 El flujo nuevo de catálogo evita el caso sin variante. La reparación sólo se
 ofrece cuando el producto no está archivado y no tiene ninguna variante; después
@@ -266,8 +271,8 @@ reservada ya existente.
 
 Las RPC `initialize_inventory` y `adjust_inventory` son `security invoker`,
 validan `can_manage_catalog()`, fijan `search_path` vacío y trabajan bajo RLS.
-El ajuste bloquea el producto y la fila de inventario, recalcula el saldo dentro
-de la transacción, actualiza el saldo e inserta un movimiento atómicamente. Una
+El ajuste bloquea el producto y la fila de inventario de la variante elegida,
+recalcula ese saldo dentro de la transacción, lo actualiza e inserta un movimiento atómicamente. Una
 llave UUID de idempotencia evita duplicados; triggers adicionales bloquean
 escrituras directas fuera de las RPC. Los movimientos no pueden actualizarse ni
 eliminarse.

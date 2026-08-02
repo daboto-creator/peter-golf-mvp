@@ -669,6 +669,48 @@ export type Database = {
           },
         ];
       };
+      order_idempotency_keys: {
+        Row: {
+          actor_id: string;
+          created_at: string;
+          idempotency_key: string;
+          operation: string;
+          order_id: string | null;
+          payload_hash: string;
+        };
+        Insert: {
+          actor_id: string;
+          created_at?: string;
+          idempotency_key: string;
+          operation: string;
+          order_id?: string | null;
+          payload_hash: string;
+        };
+        Update: {
+          actor_id?: string;
+          created_at?: string;
+          idempotency_key?: string;
+          operation?: string;
+          order_id?: string | null;
+          payload_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_idempotency_keys_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_idempotency_keys_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       order_status_history: {
         Row: {
           changed_by: string | null;
@@ -717,14 +759,28 @@ export type Database = {
       orders: {
         Row: {
           cancelled_at: string | null;
+          cancelled_by: string | null;
+          cancellation_reason: string | null;
           confirmed_at: string | null;
+          confirmed_by: string | null;
           created_at: string;
+          created_by: string | null;
           currency: string;
+          customer_email: string | null;
+          customer_name: string | null;
           customer_note: string | null;
+          customer_phone: string | null;
+          delivery_type: string;
+          discount_reason: string | null;
           discount_total: number;
           id: string;
           internal_note: string | null;
           order_number: string;
+          origin_channel:
+            Database["public"]["Enums"]["manual_order_channel"] | null;
+          origin_channel_detail: string | null;
+          payment_method: Database["public"]["Enums"]["manual_payment_method"];
+          payment_status: Database["public"]["Enums"]["manual_payment_status"];
           shipping_address_id: string | null;
           shipping_address_snapshot: Json;
           shipping_method_id: string | null;
@@ -734,18 +790,34 @@ export type Database = {
           tax_total: number;
           total: number;
           updated_at: string;
-          user_id: string;
+          updated_by: string | null;
+          user_id: string | null;
+          version: number;
         };
         Insert: {
           cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          cancellation_reason?: string | null;
           confirmed_at?: string | null;
+          confirmed_by?: string | null;
           created_at?: string;
+          created_by?: string | null;
           currency?: string;
+          customer_email?: string | null;
+          customer_name?: string | null;
           customer_note?: string | null;
+          customer_phone?: string | null;
+          delivery_type?: string;
+          discount_reason?: string | null;
           discount_total?: number;
           id?: string;
           internal_note?: string | null;
           order_number: string;
+          origin_channel?:
+            Database["public"]["Enums"]["manual_order_channel"] | null;
+          origin_channel_detail?: string | null;
+          payment_method?: Database["public"]["Enums"]["manual_payment_method"];
+          payment_status?: Database["public"]["Enums"]["manual_payment_status"];
           shipping_address_id?: string | null;
           shipping_address_snapshot: Json;
           shipping_method_id?: string | null;
@@ -755,18 +827,34 @@ export type Database = {
           tax_total?: number;
           total: number;
           updated_at?: string;
-          user_id: string;
+          updated_by?: string | null;
+          user_id?: string | null;
+          version?: number;
         };
         Update: {
           cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          cancellation_reason?: string | null;
           confirmed_at?: string | null;
+          confirmed_by?: string | null;
           created_at?: string;
+          created_by?: string | null;
           currency?: string;
+          customer_email?: string | null;
+          customer_name?: string | null;
           customer_note?: string | null;
+          customer_phone?: string | null;
+          delivery_type?: string;
+          discount_reason?: string | null;
           discount_total?: number;
           id?: string;
           internal_note?: string | null;
           order_number?: string;
+          origin_channel?:
+            Database["public"]["Enums"]["manual_order_channel"] | null;
+          origin_channel_detail?: string | null;
+          payment_method?: Database["public"]["Enums"]["manual_payment_method"];
+          payment_status?: Database["public"]["Enums"]["manual_payment_status"];
           shipping_address_id?: string | null;
           shipping_address_snapshot?: Json;
           shipping_method_id?: string | null;
@@ -776,9 +864,32 @@ export type Database = {
           tax_total?: number;
           total?: number;
           updated_at?: string;
-          user_id?: string;
+          updated_by?: string | null;
+          user_id?: string | null;
+          version?: number;
         };
         Relationships: [
+          {
+            foreignKeyName: "orders_cancelled_by_fkey";
+            columns: ["cancelled_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_confirmed_by_fkey";
+            columns: ["confirmed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "orders_shipping_address_id_fkey";
             columns: ["shipping_address_id"];
@@ -796,6 +907,13 @@ export type Database = {
           {
             foreignKeyName: "orders_user_id_fkey";
             columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_updated_by_fkey";
+            columns: ["updated_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -1278,6 +1396,43 @@ export type Database = {
         };
         Returns: boolean;
       };
+      can_manage_orders: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      cancel_manual_order: {
+        Args: {
+          expected_version: number;
+          requested_idempotency_key: string;
+          requested_order_id: string;
+          requested_reason: string;
+        };
+        Returns: {
+          order_id: string;
+          replayed: boolean;
+          status: Database["public"]["Enums"]["order_status"];
+        }[];
+      };
+      confirm_manual_order: {
+        Args: {
+          expected_version: number;
+          requested_idempotency_key: string;
+          requested_order_id: string;
+        };
+        Returns: {
+          order_id: string;
+          replayed: boolean;
+          status: Database["public"]["Enums"]["order_status"];
+        }[];
+      };
+      create_manual_order: {
+        Args: { requested_idempotency_key: string; requested_payload: Json };
+        Returns: {
+          order_id: string;
+          order_number: string;
+          replayed: boolean;
+        }[];
+      };
       create_product_with_base_variant: {
         Args: {
           requested_brand_id: string;
@@ -1316,6 +1471,23 @@ export type Database = {
           quantity_reserved: number;
           reorder_point: number;
         }[];
+      };
+      update_manual_order_draft: {
+        Args: {
+          expected_version: number;
+          requested_order_id: string;
+          requested_payload: Json;
+        };
+        Returns: { order_id: string; version: number }[];
+      };
+      update_manual_order_payment: {
+        Args: {
+          expected_version: number;
+          requested_method: Database["public"]["Enums"]["manual_payment_method"];
+          requested_order_id: string;
+          requested_status: Database["public"]["Enums"]["manual_payment_status"];
+        };
+        Returns: { order_id: string; version: number }[];
       };
       repair_product_base_variant: {
         Args: { requested_product_id: string };
@@ -1423,6 +1595,21 @@ export type Database = {
         | "release"
         | "sale"
         | "return";
+      manual_order_channel:
+        | "whatsapp"
+        | "instagram"
+        | "phone"
+        | "in_person"
+        | "bank_transfer"
+        | "other";
+      manual_payment_method:
+        "none" | "bank_transfer" | "cash" | "external_terminal";
+      manual_payment_status:
+        | "pending"
+        | "transfer_pending"
+        | "transfer_verified"
+        | "cash_received"
+        | "external_terminal_received";
       order_status:
         | "created"
         | "pending_confirmation"
@@ -1578,6 +1765,27 @@ export const Constants = {
         "release",
         "sale",
         "return",
+      ],
+      manual_order_channel: [
+        "whatsapp",
+        "instagram",
+        "phone",
+        "in_person",
+        "bank_transfer",
+        "other",
+      ],
+      manual_payment_method: [
+        "none",
+        "bank_transfer",
+        "cash",
+        "external_terminal",
+      ],
+      manual_payment_status: [
+        "pending",
+        "transfer_pending",
+        "transfer_verified",
+        "cash_received",
+        "external_terminal_received",
       ],
       order_status: [
         "created",

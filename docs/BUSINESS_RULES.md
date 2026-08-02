@@ -23,6 +23,9 @@
 - Una solicitud de asesoría o intención de compra no reserva inventario por sí sola.
 - La política de reservación, duración y liberación queda pendiente antes de habilitar pedidos reales.
 - Los cambios de inventario deben ser atómicos y auditables cuando exista persistencia.
+- Un pedido manual preliminar no reserva ni descuenta inventario. Confirmarlo
+  descuenta existencias atómicamente y cancelarlo devuelve exactamente lo
+  descontado; un cancelado no puede volver a confirmarse.
 
 ## 4. Precios
 

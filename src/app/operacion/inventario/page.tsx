@@ -60,18 +60,18 @@ export default async function OperationalInventoryPage({
         </h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-7">
           Consulta saldo físico y disponible. Todo cambio se registra como un
-          movimiento inmutable; esta vista carga como máximo 200 productos.
+          movimiento inmutable; esta vista carga como máximo 200 variantes.
         </p>
       </div>
 
       <form className="grid gap-4 rounded-xl border bg-white p-5 md:grid-cols-2 lg:grid-cols-5">
         <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="q">Nombre o SKU</Label>
+          <Label htmlFor="q">Producto o variante</Label>
           <Input
             id="q"
             name="q"
             defaultValue={filters.q}
-            placeholder="Buscar producto"
+            placeholder="Nombre o SKU de producto o variante"
           />
         </div>
         <div className="space-y-2">
