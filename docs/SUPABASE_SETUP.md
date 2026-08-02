@@ -44,6 +44,8 @@ existe y no debe crearse ni vincularse en esta fase.
 | `20260731000100_inventory_management_foundation.sql`    | Ajustes de inventario transaccionales, RLS e idempotencia.  |
 | `20260731000200_catalog_base_variant_foundation.sql`    | Alta atómica y reparación explícita de variante base.       |
 | `20260731000300_catalog_base_variant_updates.sql`       | Sincronización atómica de producto y variante base.         |
+| `20260801000000_order_management_foundation.sql`        | Pedidos manuales, transiciones, RLS e inventario.           |
+| `20260801000100_inventory_variant_management.sql`       | Inventario independiente por variante operativa.            |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.
@@ -198,6 +200,23 @@ prueba incremento, decremento, idempotencia, saldo negativo, escritura directa,
 inmutabilidad y autorización. Todo ocurre en una transacción que finaliza con
 `ROLLBACK`. La migración `20260731000100_inventory_management_foundation.sql`
 permanece local hasta revisión y no debe aplicarse a staging en esta tarea.
+
+Para validar productos con una o varias variantes y saldos independientes:
+
+```bash
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/inventory_variant_management.sql
+```
+
+### Probar pedidos manuales localmente
+
+```bash
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/order_management_foundation.sql
+```
+
+La prueba usa datos ficticios dentro de una transacción con `ROLLBACK`, cubre
+customer/operator/admin y no depende de staging ni conserva pedidos o saldos.
 
 ### Probar variantes base locales
 

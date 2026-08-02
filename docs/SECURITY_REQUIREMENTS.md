@@ -186,6 +186,12 @@ y `DELETE` de objetos y conserva todos sus controles anteriores.
 
 ## 6. Entradas, precios e inventario
 
+La gestión manual de pedidos usa `can_manage_orders()` y
+`requireOrdersManager()` para operator/admin, RPC `security invoker`, RLS,
+triggers de contexto, versión optimista e idempotencia ligada a actor y payload.
+Los precios, snapshots y totales se resuelven en SQL; el navegador no es
+autoridad. Véase [ORDER_MANAGEMENT.md](./ORDER_MANAGEMENT.md).
+
 - Validar en servidor tipo, formato, tamaño, rango, pertenencia y transición.
 - Normalizar entradas y codificar salidas según contexto.
 - Aplicar límites de tamaño, frecuencia, idempotencia y mitigación de abuso.

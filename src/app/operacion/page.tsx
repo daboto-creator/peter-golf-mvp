@@ -32,6 +32,20 @@ export default function OperationsPage() {
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader>
+            <CardTitle>Pedidos manuales</CardTitle>
+            <CardDescription>
+              Registra ventas asistidas, confirma existencias y conserva su
+              historial operativo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="lg">
+              <Link href="/operacion/pedidos">Administrar pedidos</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardTitle>Gestión de catálogo</CardTitle>
             <CardDescription>
               Crea, edita, publica, despublica, archiva y restaura productos

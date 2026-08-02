@@ -157,9 +157,10 @@ La cantidad disponible se define como
 reservas.
 
 La migración `20260731000100_inventory_management_foundation.sql` implementa
-las RPC `initialize_inventory` y `adjust_inventory`. Sólo opera un producto que
-tenga exactamente una variante activa y no archivada, porque la interfaz aún no
-administra variantes. La inicialización explícita crea saldo cero; los ajustes
+las RPC `initialize_inventory` y `adjust_inventory`, y
+`20260801000100_inventory_variant_management.sql` elimina únicamente el supuesto
+de variante única. Cada variante activa y no archivada se inicializa y ajusta
+de forma independiente. La inicialización explícita crea saldo cero; los ajustes
 posteriores bloquean filas, recalculan el saldo, actualizan `inventory` e
 insertan `inventory_movements` en la misma transacción. `idempotency_key` tiene
 un índice único parcial global y protege contra doble envío. Un replay sólo se
@@ -168,9 +169,9 @@ referencia; cualquier reutilización distinta devuelve conflicto `23505`.
 
 Las Server Actions resuelven además el par `productId`/`variantId` mediante una
 consulta explícita y sólo invocan las RPC cuando la variante pertenece al
-producto y es su única variante operativa. Las RPC no reciben `productId`
+producto, está activa y no está archivada. Las RPC no reciben `productId`
 porque derivan y bloquean el producto real desde `variant_id`, y vuelven a
-validar producto no archivado y exactamente una variante activa. Así el enlace
+validar producto y variante. Así el enlace
 de la ruta se verifica en la capa web sin duplicar un parámetro confiable en la
 frontera transaccional.
 
@@ -182,6 +183,9 @@ existente. Los productos archivados conservan inventario e historial pero no
 reciben nuevos ajustes.
 
 ## 6. Carrito y pedidos
+
+La base operativa de pedidos manuales, sus snapshots, transacciones e
+idempotencia se documenta en [ORDER_MANAGEMENT.md](./ORDER_MANAGEMENT.md).
 
 | Tabla                  | Propósito y reglas principales                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------- |

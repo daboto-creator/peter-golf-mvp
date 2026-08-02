@@ -39,6 +39,19 @@ negativo, niveles de stock y transformación del historial. La prueba SQL local
 `supabase/tests/inventory_management_foundation.sql` cubre inicialización,
 incremento, decremento, idempotencia, inmutabilidad y RLS para customer,
 operator y admin dentro de una transacción con `ROLLBACK`.
+`supabase/tests/inventory_variant_management.sql` agrega productos de una y dos
+variantes, inicialización y ajustes independientes, búsqueda normalizada por SKU
+de variante, validación del par producto-variante y rechazo de variantes
+inactivas o archivadas.
+
+La gestión de pedidos agrega pruebas unitarias de dinero, normalización,
+dirección, relación producto-variante y transiciones. La prueba SQL
+`supabase/tests/order_management_foundation.sql` cubre autorización,
+snapshots, totales, confirmación/cancelación atómicas, falta de stock,
+inmutabilidad e idempotencia dentro de una transacción con `ROLLBACK`. También
+comprueba que el trigger existente `orders_record_status_change` genere una sola
+entrada por transición efectiva, que los replays no dupliquen el historial y
+que `order_status_history_is_immutable` rechace actualización y borrado físico.
 
 La prueba SQL local
 `supabase/tests/catalog_base_variant_foundation.sql` verifica que la creación

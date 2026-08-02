@@ -23,8 +23,9 @@ export function InventoryList({
 }) {
   return (
     <div className="overflow-hidden rounded-xl border bg-white">
-      <div className="hidden grid-cols-[minmax(0,2fr)_1fr_0.8fr_0.9fr_1fr_auto] gap-4 border-b bg-zinc-50 px-5 py-3 text-xs font-medium tracking-wide text-zinc-600 uppercase lg:grid">
+      <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_0.8fr_0.8fr_0.9fr_1fr_auto] gap-4 border-b bg-zinc-50 px-5 py-3 text-xs font-medium tracking-wide text-zinc-600 uppercase lg:grid">
         <span>Producto</span>
+        <span>Variante</span>
         <span>Condición</span>
         <span>Estado</span>
         <span>Existencias</span>
@@ -34,19 +35,20 @@ export function InventoryList({
       <ul className="divide-y">
         {items.map((item) => (
           <li
-            key={item.productId}
-            className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,2fr)_1fr_0.8fr_0.9fr_1fr_auto] lg:items-center"
+            key={`${item.productId}:${item.variantId}`}
+            className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_0.8fr_0.8fr_0.9fr_1fr_auto] lg:items-center"
           >
             <div className="min-w-0">
               <p className="font-medium">{item.productName}</p>
               <p className="text-muted-foreground mt-1 truncate text-sm">
                 SKU {item.productSku}
               </p>
-              {item.variantSku && item.variantSku !== item.productSku ? (
-                <p className="text-muted-foreground mt-1 truncate text-xs">
-                  Variante {item.variantSku}
-                </p>
-              ) : null}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{item.variantName}</p>
+              <p className="text-muted-foreground mt-1 truncate text-xs">
+                SKU {item.variantSku}
+              </p>
             </div>
             <p className="text-sm">{getConditionLabel(item.condition, null)}</p>
             <ProductStatusBadge
@@ -75,7 +77,9 @@ export function InventoryList({
               </p>
             </div>
             <Button asChild variant="outline">
-              <Link href={`/operacion/inventario/${item.productId}`}>
+              <Link
+                href={`/operacion/inventario/${item.productId}/${item.variantId}`}
+              >
                 Ver detalle
               </Link>
             </Button>

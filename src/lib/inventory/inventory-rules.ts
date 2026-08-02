@@ -26,6 +26,13 @@ export type InventoryMutationTargetResolution =
         "product_unavailable" | "variant_mismatch" | "product_not_manageable";
     };
 
+export function isOperationalInventoryVariant(variant: {
+  active: boolean;
+  archivedAt: string | null;
+}): boolean {
+  return variant.active && variant.archivedAt === null;
+}
+
 export function resolveInventoryMutationTarget(
   requestedProductId: string,
   requestedVariantId: string,
@@ -39,20 +46,22 @@ export function resolveInventoryMutationTarget(
     return { success: false, reason: "product_not_manageable" };
   }
 
-  const operationalVariants = product.variants.filter(
-    (variant) => variant.active && variant.archivedAt === null,
+  const variant = product.variants.find(
+    (candidate) => candidate.id === requestedVariantId,
   );
-
-  if (operationalVariants.length !== 1) {
-    return { success: false, reason: "product_not_manageable" };
-  }
-
-  const variant = operationalVariants[0];
-  if (!variant || variant.id !== requestedVariantId) {
+  if (!variant || !isOperationalInventoryVariant(variant)) {
     return { success: false, reason: "variant_mismatch" };
   }
 
   return { success: true, variantId: variant.id };
+}
+
+export function normalizeInventorySearchTerm(value?: string): string | null {
+  const normalized = value
+    ?.trim()
+    .replace(/[^\p{L}\p{N}\s._-]/gu, "")
+    .slice(0, 100);
+  return normalized || null;
 }
 
 const adjustmentSchema = z

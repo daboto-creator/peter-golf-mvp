@@ -9,7 +9,6 @@ import {
   InventoryAdjustmentForm,
   InventoryInitializer,
 } from "@/components/operations/inventory-adjustment-form";
-import { BaseVariantRepair } from "@/components/operations/base-variant-repair";
 import { CatalogFeedback } from "@/components/operations/catalog-feedback";
 import { ProductStatusBadge } from "@/components/operations/product-status-badge";
 import { Button } from "@/components/ui/button";
@@ -28,19 +27,20 @@ export const metadata: Metadata = {
   title: "Detalle de inventario | Peter Golf",
 };
 
-export default async function InventoryDetailPage({
+export default async function InventoryVariantDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ productId: string; variantId: string }>;
 }) {
-  const { id } = await params;
-  const parsedId = z.uuid().safeParse(id);
-  if (!parsedId.success) notFound();
-
-  const result = await getOperationalInventoryDetail(parsedId.data);
+  const { productId, variantId } = await params;
+  if (
+    !z.uuid().safeParse(productId).success ||
+    !z.uuid().safeParse(variantId).success
+  )
+    notFound();
+  const result = await getOperationalInventoryDetail(productId, variantId);
   if (!result.error && !result.data) notFound();
-
-  if (result.error || !result.data) {
+  if (result.error || !result.data)
     return (
       <CatalogFeedback
         tone="error"
@@ -48,86 +48,47 @@ export default async function InventoryDetailPage({
         message="Inténtalo nuevamente. No se expusieron detalles internos del error."
       />
     );
-  }
-
   const item = result.data;
 
   return (
     <div className="space-y-8">
-      <div>
+      <header>
         <Button asChild variant="ghost">
           <Link href="/operacion/inventario">← Volver al inventario</Link>
         </Button>
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
-              Detalle de inventario
+              Detalle por variante
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-              {item.productName}
-            </h1>
-            <p className="text-muted-foreground mt-2">SKU {item.productSku}</p>
+            <h1 className="mt-2 text-3xl font-semibold">{item.productName}</h1>
+            <p className="text-muted-foreground mt-2">
+              Producto: {item.productSku}
+            </p>
+            <p className="mt-2 font-medium">
+              {item.variantName} · SKU {item.variantSku}
+            </p>
           </div>
           <ProductStatusBadge status={item.status} published={item.published} />
         </div>
-      </div>
-
+      </header>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardDescription>Condición</CardDescription>
-          </CardHeader>
-          <CardContent className="text-lg font-semibold">
-            {getConditionLabel(item.condition, null)}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Existencia física</CardDescription>
-          </CardHeader>
-          <CardContent className="text-3xl font-semibold">
-            {item.quantityOnHand ?? "—"}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Disponible</CardDescription>
-          </CardHeader>
-          <CardContent className="text-3xl font-semibold">
-            {item.available ?? "—"}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Nivel</CardDescription>
-          </CardHeader>
-          <CardContent className="text-lg font-semibold">
-            {getInventoryLevelLabel(item.level)}
-          </CardContent>
-        </Card>
+        <Metric
+          label="Condición"
+          value={getConditionLabel(item.condition, null)}
+        />
+        <Metric
+          label="Existencia física"
+          value={item.quantityOnHand ?? "—"}
+          large
+        />
+        <Metric label="Disponible" value={item.available ?? "—"} large />
+        <Metric label="Nivel" value={getInventoryLevelLabel(item.level)} />
       </div>
-
       {item.managementMessage ? (
         <CatalogFeedback tone="info" message={item.managementMessage} />
       ) : null}
-
-      {item.canRepairBaseVariant ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Crear variante base</CardTitle>
-            <CardDescription>
-              Este producto proviene del flujo anterior. La reparación crea una
-              única variante activa con el mismo SKU y nombre del producto; no
-              inicializa ni modifica el inventario.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BaseVariantRepair productId={item.productId} />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {item.manageable && item.variantId ? (
+      {item.manageable ? (
         <Card>
           <CardHeader>
             <CardTitle>
@@ -136,8 +97,8 @@ export default async function InventoryDetailPage({
                 : "Inicializar inventario"}
             </CardTitle>
             <CardDescription>
-              El saldo nunca se edita directamente y un ajuste no cambia la
-              publicación ni el estado comercial del producto.
+              El movimiento afecta únicamente a {item.variantSku}; no modifica
+              otras variantes.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -157,12 +118,11 @@ export default async function InventoryDetailPage({
           </CardContent>
         </Card>
       ) : null}
-
       <Card>
         <CardHeader>
           <CardTitle>Historial reciente</CardTitle>
           <CardDescription>
-            Últimos 50 movimientos, del más reciente al más antiguo.
+            Últimos 50 movimientos de esta variante.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -220,5 +180,28 @@ export default async function InventoryDetailPage({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  large = false,
+}: {
+  label: string;
+  value: string | number;
+  large?: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+      </CardHeader>
+      <CardContent
+        className={large ? "text-3xl font-semibold" : "text-lg font-semibold"}
+      >
+        {value}
+      </CardContent>
+    </Card>
   );
 }

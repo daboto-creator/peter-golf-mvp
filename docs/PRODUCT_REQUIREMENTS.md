@@ -32,6 +32,8 @@ Validar que clientes potenciales pueden descubrir productos, entender su condici
 - Capturar únicamente los datos necesarios de contacto y contexto.
 - Permitir al equipo dar seguimiento manual.
 - Registrar una intención de compra o pedido de prueba sin cobro real.
+- Permitir al equipo operativo registrar ventas manuales de canales controlados,
+  confirmar existencias y cancelar con devolución auditable, sin pagos reales.
 - Mostrar de forma inequívoca que el flujo de staging/MVP no realiza cargos.
 
 ### Operación
