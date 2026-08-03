@@ -20,6 +20,7 @@ export type Database = {
           city: string;
           country_code: string;
           created_at: string;
+          exterior_number: string | null;
           id: string;
           is_default: boolean;
           label: string;
@@ -28,16 +29,19 @@ export type Database = {
           neighborhood: string | null;
           phone: string | null;
           postal_code: string;
+          delivery_references: string | null;
           recipient_name: string;
           state: string;
           updated_at: string;
           user_id: string;
+          version: number;
         };
         Insert: {
           archived_at?: string | null;
           city: string;
           country_code?: string;
           created_at?: string;
+          exterior_number?: string | null;
           id?: string;
           is_default?: boolean;
           label: string;
@@ -46,16 +50,19 @@ export type Database = {
           neighborhood?: string | null;
           phone?: string | null;
           postal_code: string;
+          delivery_references?: string | null;
           recipient_name: string;
           state: string;
           updated_at?: string;
           user_id: string;
+          version?: number;
         };
         Update: {
           archived_at?: string | null;
           city?: string;
           country_code?: string;
           created_at?: string;
+          exterior_number?: string | null;
           id?: string;
           is_default?: boolean;
           label?: string;
@@ -64,10 +71,12 @@ export type Database = {
           neighborhood?: string | null;
           phone?: string | null;
           postal_code?: string;
+          delivery_references?: string | null;
           recipient_name?: string;
           state?: string;
           updated_at?: string;
           user_id?: string;
+          version?: number;
         };
         Relationships: [
           {
@@ -1525,6 +1534,7 @@ export type Database = {
           requested_cart_id: string;
           requested_idempotency_key: string;
           requested_save_address: boolean;
+          requested_saved_address_id: string | null;
           requested_shipping_method_id: string;
         };
         Returns: {
@@ -1532,6 +1542,24 @@ export type Database = {
           order_number: string;
           replayed: boolean;
         }[];
+      };
+      manage_customer_address: {
+        Args: {
+          expected_version: number | null;
+          requested_address: Json;
+          requested_address_id: string | null;
+          requested_operation: string;
+        };
+        Returns: { address_id: string; version: number }[];
+      };
+      normalize_customer_address: { Args: { requested: Json }; Returns: Json };
+      update_customer_profile: {
+        Args: {
+          requested_first_name: string;
+          requested_last_name: string;
+          requested_phone: string;
+        };
+        Returns: undefined;
       };
       cancel_manual_order: {
         Args: {

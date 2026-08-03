@@ -41,18 +41,20 @@ const emptyAddress: AddressFields = {
 };
 
 function fromSaved(address: CustomerAddress): AddressFields {
-  const match = address.line1.match(/^(.*)\s+(\S+)$/);
+  const match = address.exteriorNumber
+    ? null
+    : address.line1.match(/^(.*)\s+(\S+)$/);
   return {
     recipientName: address.recipientName,
     phone: address.phone ?? "",
     street: match?.[1] ?? address.line1,
-    exteriorNumber: match?.[2] ?? "",
+    exteriorNumber: address.exteriorNumber ?? match?.[2] ?? "",
     interiorNumber: address.line2 ?? "",
     neighborhood: address.neighborhood ?? "",
     city: address.city,
     state: address.state,
     postalCode: address.postalCode,
-    references: "",
+    references: address.references ?? "",
   };
 }
 
@@ -74,18 +76,22 @@ export function CheckoutForm({
   const [address, setAddress] = useState<AddressFields>(
     addresses[0] ? fromSaved(addresses[0]) : emptyAddress,
   );
+  const [savedAddressId, setSavedAddressId] = useState(addresses[0]?.id ?? "");
   const totals = calculateCheckoutTotal(
     cart.subtotal,
     shippingMethod.basePrice,
   );
-  const update = (field: keyof AddressFields, value: string) =>
+  const update = (field: keyof AddressFields, value: string) => {
+    setSavedAddressId("");
     setAddress((current) => ({ ...current, [field]: value }));
+  };
   return (
     <form action={action} className="grid gap-8 lg:grid-cols-[1fr_22rem]">
       <input type="hidden" name="cartId" value={cart.cart_id} />
       <input type="hidden" name="version" value={cart.version} />
       <input type="hidden" name="shippingMethodId" value={shippingMethod.id} />
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+      <input type="hidden" name="savedAddressId" value={savedAddressId} />
       <section className="space-y-6 rounded-xl border bg-white p-5 sm:p-7">
         <div>
           <h2 className="text-xl font-semibold">Dirección de envío</h2>
@@ -97,12 +103,13 @@ export function CheckoutForm({
           <label className="block space-y-2 text-sm font-medium">
             <span>Usar dirección guardada</span>
             <select
-              defaultValue={addresses[0]?.id}
+              value={savedAddressId}
               className="border-input h-11 w-full rounded-md border px-3"
               onChange={(event) => {
                 const saved = addresses.find(
                   (item) => item.id === event.target.value,
                 );
+                setSavedAddressId(saved?.id ?? "");
                 setAddress(saved ? fromSaved(saved) : emptyAddress);
               }}
             >
@@ -184,10 +191,17 @@ export function CheckoutForm({
             />
           </label>
         </div>
-        <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" name="saveAddress" className="mt-1" />
-          <span>Guardar esta dirección para futuras compras.</span>
-        </label>
+        {!savedAddressId ? (
+          <label className="flex items-start gap-3 text-sm">
+            <input type="checkbox" name="saveAddress" className="mt-1" />
+            <span>Guardar esta dirección para futuras compras.</span>
+          </label>
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            Usaremos la versión vigente de esta dirección guardada al generar el
+            pedido.
+          </p>
+        )}
         <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-950">
           <strong>Pago informativo:</strong> transferencia bancaria pendiente de
           verificación. No se realizará ningún cargo ni se solicitarán datos

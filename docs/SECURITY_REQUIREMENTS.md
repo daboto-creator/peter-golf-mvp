@@ -47,7 +47,7 @@ Una persona autenticada puede:
 - listar y consultar únicamente la proyección segura de sus pedidos mediante
   RPC; no tiene lectura directa de las tablas de pedidos.
 
-El cliente no puede asignar roles, modificar direcciones, crear pedidos, ajustar
+El cliente no puede asignar roles, escribir directamente direcciones, crear pedidos, ajustar
 inventario directamente ni escribir asesorías o configuración. Las excepciones
 operativas actuales son las mutaciones acotadas de `products`, `brands`,
 `categories`, `product_images` e inventario mediante RPC, protegidas por Server
@@ -63,10 +63,10 @@ canal permitido, no un permiso implícito por poseer el rol.
 
 | Tabla                      | Lectura anónima | Lectura autenticada           | Creación cliente    | Actualización cliente | Eliminación cliente | Operator                 | Admin                    |
 | -------------------------- | --------------- | ----------------------------- | ------------------- | --------------------- | ------------------- | ------------------------ | ------------------------ |
-| `profiles`                 | No              | Propio                        | Propio              | Propio                | No                  | Backend, alcance mínimo  | Backend, auditado        |
+| `profiles`                 | No              | Propio                        | No                  | RPC de campos propios | No                  | Backend, alcance mínimo  | Backend, auditado        |
 | `roles`                    | No              | No                            | No                  | No                    | No                  | Backend, sólo lectura    | Backend, auditado        |
 | `user_roles`               | No              | No                            | No                  | No                    | No                  | No                       | Backend, auditado        |
-| `addresses`                | No              | Propias                       | No                  | No                    | No                  | Backend, soporte         | Backend, auditado        |
+| `addresses`                | No              | Propias                       | RPC propia          | RPC propia            | RPC propia          | Sin acceso adicional     | Sin acceso adicional     |
 | `brands`                   | Catálogo        | Catálogo o gestión autorizada | Server Action + RLS | Server Action + RLS   | No                  | Catálogo autorizado      | Catálogo autorizado      |
 | `categories`               | Catálogo        | Catálogo o gestión autorizada | Server Action + RLS | Server Action + RLS   | No                  | Catálogo autorizado      | Catálogo autorizado      |
 | `products`                 | Catálogo        | Catálogo o gestión autorizada | Server Action + RLS | Server Action + RLS   | No                  | Catálogo base autorizado | Catálogo base autorizado |

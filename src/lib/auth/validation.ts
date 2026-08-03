@@ -61,6 +61,15 @@ export const updatePasswordSchema = z
 export const profileSchema = z.object({
   firstName: nameField,
   lastName: nameField,
+  phone: z
+    .string()
+    .transform((value) => value.trim().replace(/\s+/g, " "))
+    .pipe(
+      z
+        .string()
+        .min(7, "Usa entre 7 y 30 caracteres.")
+        .max(30, "Usa entre 7 y 30 caracteres."),
+    ),
 });
 
 export type RegisterValues = z.input<typeof registerSchema>;

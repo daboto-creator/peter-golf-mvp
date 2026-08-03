@@ -14,10 +14,12 @@ export function ProfileForm({
   firstName,
   lastName,
   email,
+  phone,
 }: {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
 }) {
   const [result, setResult] = useState<FormResult>({ status: "idle" });
   const [pending, startTransition] = useTransition();
@@ -27,7 +29,7 @@ export function ProfileForm({
     formState: { errors },
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { firstName, lastName },
+    defaultValues: { firstName, lastName, phone },
   });
 
   function onSubmit(values: ProfileValues) {
@@ -59,6 +61,16 @@ export function ProfileForm({
       </Field>
       <Field id="email" label="Correo electrónico">
         <Input id="email" type="email" value={email} disabled readOnly />
+      </Field>
+      <Field id="phone" label="Teléfono" error={errors.phone}>
+        <Input
+          id="phone"
+          type="tel"
+          autoComplete="tel"
+          aria-invalid={Boolean(errors.phone)}
+          aria-describedby={errors.phone ? "phone-error" : undefined}
+          {...register("phone")}
+        />
       </Field>
       <p className="text-muted-foreground text-sm">
         El correo electrónico no puede cambiarse en esta etapa.
