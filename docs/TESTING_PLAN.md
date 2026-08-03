@@ -53,6 +53,20 @@ comprueba que el trigger existente `orders_record_status_change` genere una sola
 entrada por transición efectiva, que los replays no dupliquen el historial y
 que `order_status_history_is_immutable` rechace actualización y borrado físico.
 
+El checkout autenticado agrega pruebas unitarias para cantidad, cálculo de
+carrito/checkout y dirección mexicana. La prueba SQL local
+`supabase/tests/customer_checkout_foundation.sql` cubre RLS entre clientes,
+carrito único, mutaciones idempotentes, precios vigentes, disponibilidad,
+checkout atómico, snapshots, envío servidor, pedido web, no descuento al crear,
+confirmación/cancelación operativa e historial, siempre con `ROLLBACK`.
+
+`supabase/tests/customer_order_read_privacy.sql` prueba con `ROLLBACK` que cada
+cliente lista y consulta sólo su proyección, que un pedido ajeno devuelve nulo,
+que las lecturas directas no revelan notas, actores, historial ni idempotencia,
+y que operator/admin conservan el detalle completo. También ejecuta confirmar,
+actualizar el pago informativo y cancelar para detectar regresiones en las rutas
+operativas.
+
 La prueba SQL local
 `supabase/tests/catalog_base_variant_foundation.sql` verifica que la creación
 operativa produzca exactamente una variante base en la misma transacción, que

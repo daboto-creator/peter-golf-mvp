@@ -55,6 +55,9 @@ export default async function AccountPage({
           <Button asChild>
             <Link href="/cuenta/perfil">Editar perfil</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/cuenta/pedidos">Ver mis pedidos</Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

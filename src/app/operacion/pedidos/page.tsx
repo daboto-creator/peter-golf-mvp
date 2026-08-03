@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listManualOrders } from "@/lib/orders/operational-orders";
 
-export const metadata: Metadata = { title: "Pedidos manuales | Peter Golf" };
+export const metadata: Metadata = { title: "Pedidos | Peter Golf" };
 
 export default async function OrdersPage({
   searchParams,
@@ -21,6 +21,7 @@ export default async function OrdersPage({
     status: scalar(params.status),
     channel: scalar(params.channel),
     payment: scalar(params.payment),
+    origin: scalar(params.origin),
   };
   const result = await listManualOrders(filters);
   return (
@@ -28,7 +29,7 @@ export default async function OrdersPage({
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
-            Operación manual
+            Operación de pedidos
           </p>
           <h1 className="mt-2 text-3xl font-semibold">Pedidos</h1>
           <p className="text-muted-foreground mt-3">
@@ -39,7 +40,7 @@ export default async function OrdersPage({
           <Link href="/operacion/pedidos/nuevo">Nuevo pedido</Link>
         </Button>
       </header>
-      <form className="grid gap-3 rounded-xl border bg-white p-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+      <form className="grid gap-3 rounded-xl border bg-white p-4 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
         <Input
           name="q"
           defaultValue={filters.search}
@@ -54,6 +55,15 @@ export default async function OrdersPage({
             ["pending_confirmation", "Preliminar"],
             ["preparing", "Confirmado"],
             ["cancelled", "Cancelado"],
+          ]}
+        />
+        <Select
+          name="origin"
+          value={filters.origin}
+          label="Todos los orígenes"
+          options={[
+            ["web", "Tienda en línea"],
+            ["manual", "Manual"],
           ]}
         />
         <Select

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { ProductGrid } from "@/components/catalog/product-grid";
+import { PublicHeader } from "@/components/catalog/public-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { listPublicProducts } from "@/lib/catalog/public-products";
 
@@ -16,19 +16,7 @@ export default async function ProductsPage() {
 
   return (
     <main className="bg-muted/30 min-h-screen">
-      <header className="border-b bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="rounded-sm text-lg font-semibold focus-visible:ring-2 focus-visible:outline-none"
-          >
-            Peter Golf
-          </Link>
-          <span className="text-muted-foreground text-sm">
-            Catálogo público
-          </span>
-        </div>
-      </header>
+      <PublicHeader />
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
         <div className="mb-10 max-w-2xl">

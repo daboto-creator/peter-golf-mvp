@@ -34,7 +34,10 @@ export async function proxy(request: NextRequest) {
 
   if (
     (request.nextUrl.pathname.startsWith("/cuenta") ||
-      request.nextUrl.pathname.startsWith("/operacion")) &&
+      request.nextUrl.pathname.startsWith("/operacion") ||
+      request.nextUrl.pathname.startsWith("/carrito") ||
+      request.nextUrl.pathname.startsWith("/checkout") ||
+      request.nextUrl.pathname.startsWith("/pedido-confirmado")) &&
     !isAuthenticated
   ) {
     const loginUrl = request.nextUrl.clone();
@@ -46,7 +49,9 @@ export async function proxy(request: NextRequest) {
         `${request.nextUrl.pathname}${request.nextUrl.search}`,
         request.nextUrl.pathname.startsWith("/operacion")
           ? "/operacion"
-          : "/cuenta",
+          : request.nextUrl.pathname.startsWith("/cuenta")
+            ? "/cuenta"
+            : "/productos",
       ),
     );
     return NextResponse.redirect(loginUrl);

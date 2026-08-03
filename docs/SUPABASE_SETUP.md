@@ -46,6 +46,7 @@ existe y no debe crearse ni vincularse en esta fase.
 | `20260731000300_catalog_base_variant_updates.sql`       | Sincronización atómica de producto y variante base.         |
 | `20260801000000_order_management_foundation.sql`        | Pedidos manuales, transiciones, RLS e inventario.           |
 | `20260801000100_inventory_variant_management.sql`       | Inventario independiente por variante operativa.            |
+| `20260801000200_customer_checkout_foundation.sql`       | Carrito y checkout autenticado sin pago real.               |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.
@@ -217,6 +218,16 @@ docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
 
 La prueba usa datos ficticios dentro de una transacción con `ROLLBACK`, cubre
 customer/operator/admin y no depende de staging ni conserva pedidos o saldos.
+
+### Probar carrito y checkout localmente
+
+```bash
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/customer_checkout_foundation.sql
+```
+
+La prueba no depende de staging, usa sólo datos ficticios y termina con
+`ROLLBACK`.
 
 ### Probar variantes base locales
 

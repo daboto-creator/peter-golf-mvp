@@ -13,6 +13,7 @@ const record: ManualOrderListRecord = {
   customer_email: null,
   customer_phone: "4421234567",
   origin_channel: "whatsapp",
+  origin: "manual",
   status: "pending_confirmation",
   payment_status: "pending",
   total: 25_000,

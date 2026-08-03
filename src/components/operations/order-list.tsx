@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import {
-  channelLabel,
+  orderOriginLabel,
   paymentLabel,
   statusLabel,
 } from "@/lib/orders/presentation";
@@ -34,7 +34,7 @@ export function OrderList({ orders }: { orders: ManualOrderSummary[] }) {
             </p>
           </div>
           <div className="text-sm">
-            <p>{channelLabel(order.channel)}</p>
+            <p>{orderOriginLabel(order.origin, order.channel)}</p>
             <p className="text-muted-foreground mt-1">
               {statusLabel(order.status)} · {paymentLabel(order.paymentStatus)}
             </p>

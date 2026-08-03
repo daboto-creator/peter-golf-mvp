@@ -30,6 +30,9 @@ export default async function AccountLayout({
             <Button asChild variant="ghost">
               <Link href="/cuenta/perfil">Perfil</Link>
             </Button>
+            <Button asChild variant="ghost">
+              <Link href="/cuenta/pedidos">Pedidos</Link>
+            </Button>
             {canManageCatalog ? (
               <Button asChild variant="ghost">
                 <Link href="/operacion">Operación</Link>

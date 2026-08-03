@@ -126,12 +126,12 @@ async function transition(
   const client = await createClient();
   const result =
     operation === "confirm"
-      ? await client.rpc("confirm_manual_order", {
+      ? await client.rpc("confirm_operational_order", {
           requested_order_id: parsedId.data,
           expected_version: parsedVersion.data,
           requested_idempotency_key: key.data,
         })
-      : await client.rpc("cancel_manual_order", {
+      : await client.rpc("cancel_operational_order", {
           requested_order_id: parsedId.data,
           expected_version: parsedVersion.data,
           requested_idempotency_key: key.data,
@@ -172,7 +172,7 @@ export async function updateOrderPaymentAction(
     return { status: "error", message: "El estado informativo no es válido." };
   }
   const client = await createClient();
-  const { error } = await client.rpc("update_manual_order_payment", {
+  const { error } = await client.rpc("update_operational_order_payment", {
     requested_order_id: parsedId.data,
     expected_version: parsedVersion.data,
     requested_status: status,

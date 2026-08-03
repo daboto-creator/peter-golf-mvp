@@ -21,6 +21,7 @@ export type PublicProductImage = {
 export type PublicProductVariant = {
   id: string;
   name: string;
+  sku: string;
   price: number | null;
   compareAtPrice: number | null;
 };
@@ -94,7 +95,7 @@ const publicProductDetailColumns = `
   brand:brands!products_brand_id_fkey(name),
   category:categories!products_category_id_fkey(name),
   images:product_images(id, storage_path, alt_text, is_primary, sort_order),
-  variants:product_variants(id, name, price, compare_at_price)
+  variants:product_variants(id, name, sku, price, compare_at_price)
 `;
 
 type PublicProductListQueryRow = NonNullable<
@@ -159,6 +160,7 @@ function normalizeProductDetail(
       .map((variant) => ({
         id: variant.id,
         name: variant.name,
+        sku: variant.sku,
         price: variant.price,
         compareAtPrice: variant.compare_at_price,
       }))

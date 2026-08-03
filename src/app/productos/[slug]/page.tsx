@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ProductAvailability } from "@/components/catalog/product-availability";
 import { ProductImage } from "@/components/catalog/product-image";
 import { ProductPrice } from "@/components/catalog/product-price";
+import { AddToCartForm } from "@/components/cart/add-to-cart-form";
+import { PublicHeader } from "@/components/catalog/public-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getConditionLabel } from "@/lib/catalog/presentation";
 import { getPublicProductBySlug } from "@/lib/catalog/public-products";
@@ -72,22 +75,7 @@ export default async function ProductDetailPage({
 
   return (
     <main className="min-h-screen bg-white">
-      <header className="border-b">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="rounded-sm text-lg font-semibold focus-visible:ring-2 focus-visible:outline-none"
-          >
-            Peter Golf
-          </Link>
-          <Link
-            href="/productos"
-            className="rounded-sm text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
-          >
-            Volver a productos
-          </Link>
-        </div>
-      </header>
+      <PublicHeader />
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14">
@@ -134,6 +122,17 @@ export default async function ProductDetailPage({
                 showDetail
               />
             </div>
+
+            <AddToCartForm
+              productId={product.id}
+              slug={product.slug}
+              variants={product.variants.map(({ id, name, sku }) => ({
+                id,
+                name,
+                sku,
+              }))}
+              idempotencyKey={randomUUID()}
+            />
 
             <div className="mt-8 space-y-4">
               <h2 className="text-lg font-semibold">Descripción</h2>
