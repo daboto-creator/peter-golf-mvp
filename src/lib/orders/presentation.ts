@@ -27,14 +27,3 @@ export function orderOriginLabel(
   if (origin === "web") return "Tienda en línea";
   return channel ? channelLabel(channel) : "Pedido manual";
 }
-export function paymentLabel(
-  status: Database["public"]["Enums"]["manual_payment_status"],
-) {
-  return {
-    pending: "Pago pendiente",
-    transfer_pending: "Transferencia pendiente",
-    transfer_verified: "Transferencia verificada",
-    cash_received: "Efectivo",
-    external_terminal_received: "Terminal externa",
-  }[status];
-}

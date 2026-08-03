@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,8 +9,9 @@ import { CustomerOrderDetail } from "@/components/orders/customer-order-detail";
 import { Button } from "@/components/ui/button";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { getCustomerOrder } from "@/lib/orders/customer-orders";
+import { serverEnv } from "@/env/server";
 
-export const metadata: Metadata = { title: "Pedido confirmado | Peter Golf" };
+export const metadata: Metadata = { title: "Pedido recibido | Peter Golf" };
 export const dynamic = "force-dynamic";
 
 export default async function ConfirmedOrderPage({
@@ -29,14 +31,20 @@ export default async function ConfirmedOrderPage({
         <section className="mb-8 rounded-xl bg-emerald-50 p-6 text-emerald-950">
           <h1 className="text-2xl font-semibold">Recibimos tu pedido</h1>
           <p className="mt-2">
-            Está pendiente de revisión. Peter Golf confirmará disponibilidad,
-            transferencia y próximos pasos; todavía no se realizó ningún cargo.
+            Está pendiente de revisión operativa. No se realizó ningún cargo y
+            no debes enviar dinero real desde este flujo de prueba.
           </p>
           <Button asChild variant="outline" className="mt-4">
             <Link href="/cuenta/pedidos">Ir a mis pedidos</Link>
           </Button>
         </section>
-        <CustomerOrderDetail order={order} />
+        <CustomerOrderDetail
+          order={order}
+          paymentControls={{
+            mode: serverEnv.PAYMENTS_MODE,
+            idempotencyKey: randomUUID(),
+          }}
+        />
       </main>
     </div>
   );

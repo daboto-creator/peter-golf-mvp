@@ -10,16 +10,7 @@ export const manualOrderChannels = [
   "bank_transfer",
   "other",
 ] as const;
-export const manualPaymentStatuses = [
-  "pending",
-  "transfer_pending",
-  "transfer_verified",
-  "cash_received",
-  "external_terminal_received",
-] as const;
-
 export type ManualOrderChannel = (typeof manualOrderChannels)[number];
-export type ManualPaymentStatus = (typeof manualPaymentStatuses)[number];
 export type ManualOrderState =
   "pending_confirmation" | "preparing" | "cancelled";
 

@@ -49,6 +49,11 @@
 - Toda confirmación debe indicar que se trata de una prueba o intención de compra.
 - Un pedido de prueba no crea obligación de surtir, facturar o enviar hasta validación manual.
 - No deben solicitarse ni almacenarse números de tarjeta, CVV, cuentas bancarias u otras credenciales de pago.
+- La referencia, fecha y nombre/banco declarados en una transferencia simulada
+  no constituyen un cobro. Sólo se aceptan después de confirmar operativamente
+  el pedido. Un pago `paid` exige `refunded` antes de cancelar el pedido.
+- Confirmación, revisión de pago y movimientos de inventario son procesos
+  independientes; ninguno implica automáticamente los otros.
 
 ## 7. Envíos, cambios y devoluciones
 

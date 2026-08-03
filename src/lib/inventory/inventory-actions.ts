@@ -147,8 +147,8 @@ export async function adjustInventoryAction(
     requested_quantity_delta: validated.data.quantityDelta,
     requested_reason: validated.data.reason,
     requested_idempotency_key: validated.data.idempotencyKey,
-    requested_reference_type: validated.data.referenceType || null,
-    requested_reference_id: validated.data.referenceId || null,
+    requested_reference_type: validated.data.referenceType || undefined,
+    requested_reference_id: validated.data.referenceId || undefined,
   });
 
   if (error || !data[0]) return safeInventoryFailure(error?.code);

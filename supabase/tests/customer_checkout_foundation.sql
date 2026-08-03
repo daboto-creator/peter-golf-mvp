@@ -202,14 +202,17 @@ begin
   order_id := result.order_id;
   detail := public.get_customer_order(order_id);
   if detail is null or detail->>'status' <> 'pending_confirmation'
-    or detail->>'payment_status' <> 'transfer_pending'
-    or detail->>'payment_method' <> 'bank_transfer'
+    or detail->'payment'->>'status' <> 'pending'
+    or detail->'payment'->>'method' <> 'bank_transfer'
+    or (detail->'payment'->>'expected_amount')::integer <> 76900
     or (detail->>'subtotal')::integer <> 62000
     or (detail->>'shipping_total')::integer <> 14900
     or (detail->>'discount_total')::integer <> 0
     or (detail->>'tax_total')::integer <> 0
     or (detail->>'total')::integer <> 76900
   then raise exception 'Checkout order fields or totals invalid: %', detail; end if;
+  if jsonb_array_length(detail->'payment'->'history') <> 1
+  then raise exception 'Checkout payment was not created atomically'; end if;
   if detail->'shipping_address_snapshot'->>'street' <> 'Reforma'
   then raise exception 'Saved address was not resolved on the server: %', detail; end if;
   if jsonb_array_length(detail->'order_items') <> 2
@@ -257,7 +260,7 @@ do $$ begin
   then raise exception 'Foreign order is visible'; end if;
 end $$;
 
--- Operator sees, confirms, updates payment and cancels the web order. Stock is
+-- Operator sees, confirms and cancels the unpaid web order. Stock is
 -- deducted exactly on confirmation and returned exactly on cancellation.
 reset role;
 select set_config('request.jwt.claim.sub','13000000-0000-4000-8000-000000000003',true);
@@ -277,8 +280,6 @@ begin
     or (select quantity_on_hand from public.inventory where variant_id='53000000-0000-4000-8000-000000000002') <> before_two-1
     or (select count(*) from public.inventory_movements where reference_id=selected.id and movement_type='sale') <> 2
   then raise exception 'Operational confirmation failed'; end if;
-  perform public.update_operational_order_payment(selected.id,selected.version,'transfer_verified','bank_transfer');
-  select * into selected from public.orders where id=selected.id;
   perform public.cancel_operational_order(selected.id,selected.version,'Cancelación local','73000000-0000-4000-8000-000000000051');
   if (select quantity_on_hand from public.inventory where variant_id='53000000-0000-4000-8000-000000000001') <> before_one
     or (select quantity_on_hand from public.inventory where variant_id='53000000-0000-4000-8000-000000000002') <> before_two

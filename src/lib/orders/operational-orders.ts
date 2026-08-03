@@ -9,7 +9,7 @@ import type { Database } from "@/types/database.types";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 type Channel = Database["public"]["Enums"]["manual_order_channel"];
-type PaymentStatus = Database["public"]["Enums"]["manual_payment_status"];
+type PaymentStatus = Database["public"]["Enums"]["payment_status"];
 type OrderOrigin = Database["public"]["Enums"]["order_origin"];
 
 export type OrderCatalogOption = {
@@ -32,7 +32,7 @@ export type ManualOrderSummary = {
   channel: Channel | null;
   origin: OrderOrigin;
   status: OrderStatus;
-  paymentStatus: PaymentStatus;
+  paymentStatus: PaymentStatus | null;
   total: number;
   currency: string;
   itemCount: number;
@@ -61,7 +61,35 @@ export type ManualOrderDetail = ManualOrderSummary & {
   subtotal: number;
   internalNote: string | null;
   originChannelDetail: string | null;
-  paymentMethod: Database["public"]["Enums"]["manual_payment_method"];
+  payment: {
+    id: string;
+    method: Database["public"]["Enums"]["payment_method"];
+    status: PaymentStatus;
+    expectedAmount: number;
+    currency: string;
+    version: number;
+    submittedAt: string | null;
+    underReviewAt: string | null;
+    paidAt: string | null;
+    rejectedAt: string | null;
+    refundedAt: string | null;
+    submissions: {
+      id: string;
+      attemptNumber: number;
+      transferReference: string;
+      transferredAt: string;
+      senderName: string | null;
+      senderBank: string | null;
+      createdAt: string;
+    }[];
+    history: {
+      id: string;
+      fromStatus: PaymentStatus | null;
+      toStatus: PaymentStatus;
+      note: string | null;
+      createdAt: string;
+    }[];
+  } | null;
   confirmedAt: string | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
@@ -138,7 +166,7 @@ export async function listManualOrders(filters: {
     let query = client
       .from("orders")
       .select(
-        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, status, payment_status, total, currency, created_at, updated_at, order_items(quantity)",
+        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, status, total, currency, created_at, updated_at, order_items(quantity), order_payments(status)",
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -171,13 +199,17 @@ export async function listManualOrders(filters: {
     if (
       [
         "pending",
-        "transfer_pending",
-        "transfer_verified",
-        "cash_received",
-        "external_terminal_received",
+        "submitted",
+        "under_review",
+        "paid",
+        "rejected",
+        "refunded",
       ].includes(filters.payment ?? "")
     ) {
-      query = query.eq("payment_status", filters.payment as PaymentStatus);
+      query = query.eq(
+        "order_payments.status",
+        filters.payment as PaymentStatus,
+      );
     }
     if (filters.origin === "manual" || filters.origin === "web") {
       query = query.eq("origin", filters.origin);
@@ -204,7 +236,7 @@ export async function getManualOrder(
     const { data, error } = await client
       .from("orders")
       .select(
-        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, origin_channel_detail, status, payment_status, payment_method, subtotal, discount_total, discount_reason, shipping_total, total, currency, internal_note, shipping_address_snapshot, confirmed_at, cancelled_at, cancellation_reason, version, created_at, updated_at, order_items(id, product_id, variant_id, sku_snapshot, product_name_snapshot, variant_name_snapshot, unit_price_snapshot, quantity, line_total), order_status_history(id, from_status, to_status, created_at)",
+        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, origin_channel_detail, status, subtotal, discount_total, discount_reason, shipping_total, total, currency, internal_note, shipping_address_snapshot, confirmed_at, cancelled_at, cancellation_reason, version, created_at, updated_at, order_items(id, product_id, variant_id, sku_snapshot, product_name_snapshot, variant_name_snapshot, unit_price_snapshot, quantity, line_total), order_status_history(id, from_status, to_status, created_at), order_payments(id, method, status, expected_amount, currency, version, submitted_at, under_review_at, paid_at, rejected_at, refunded_at, payment_submissions(id, attempt_number, transfer_reference, transferred_at, sender_name, sender_bank, created_at), payment_status_history(id, from_status, to_status, note, created_at))",
       )
       .eq("id", id)
       .maybeSingle();
@@ -222,8 +254,42 @@ export async function getManualOrder(
         channel: data.origin_channel,
         origin: data.origin,
         status: data.status,
-        paymentStatus: data.payment_status,
-        paymentMethod: data.payment_method,
+        paymentStatus: data.order_payments?.status ?? null,
+        payment: data.order_payments
+          ? {
+              id: data.order_payments.id,
+              method: data.order_payments.method,
+              status: data.order_payments.status,
+              expectedAmount: data.order_payments.expected_amount,
+              currency: data.order_payments.currency,
+              version: data.order_payments.version,
+              submittedAt: data.order_payments.submitted_at,
+              underReviewAt: data.order_payments.under_review_at,
+              paidAt: data.order_payments.paid_at,
+              rejectedAt: data.order_payments.rejected_at,
+              refundedAt: data.order_payments.refunded_at,
+              submissions: data.order_payments.payment_submissions
+                .map((submission) => ({
+                  id: submission.id,
+                  attemptNumber: submission.attempt_number,
+                  transferReference: submission.transfer_reference,
+                  transferredAt: submission.transferred_at,
+                  senderName: submission.sender_name,
+                  senderBank: submission.sender_bank,
+                  createdAt: submission.created_at,
+                }))
+                .sort((a, b) => a.attemptNumber - b.attemptNumber),
+              history: data.order_payments.payment_status_history
+                .map((entry) => ({
+                  id: entry.id,
+                  fromStatus: entry.from_status,
+                  toStatus: entry.to_status,
+                  note: entry.note,
+                  createdAt: entry.created_at,
+                }))
+                .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+            }
+          : null,
         total: data.total,
         subtotal: data.subtotal,
         discountTotal: data.discount_total,

@@ -205,6 +205,7 @@ export async function checkoutAction(
   const parsedVersion = version.safeParse(text(formData, "version"));
   const key = uuid.safeParse(text(formData, "idempotencyKey"));
   const savedAddressValue = text(formData, "savedAddressId");
+  const paymentMethod = text(formData, "paymentMethod");
   const savedAddressId = savedAddressValue
     ? uuid.safeParse(savedAddressValue)
     : null;
@@ -225,6 +226,7 @@ export async function checkoutAction(
     !shippingMethodId.success ||
     !parsedVersion.success ||
     !key.success ||
+    paymentMethod !== "bank_transfer" ||
     (savedAddressId !== null && !savedAddressId.success) ||
     (savedAddressId === null && !address.success)
   ) {

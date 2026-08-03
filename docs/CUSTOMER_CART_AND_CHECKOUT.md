@@ -41,7 +41,7 @@ archivado; variante activa y no archivada; inventario inicializado; y
 `quantity_on_hand - quantity_reserved >= cantidad`. El cliente sólo recibe
 `available`, `low`, `insufficient` o `unavailable`, nunca el saldo exacto.
 
-## Envío, dirección y pago informativo
+## Envío, dirección y pago simulado
 
 La dirección incluye destinatario, teléfono, calle, números, colonia, ciudad,
 estado, CP, referencias y país fijo `MX`. Se puede usar una dirección propia y
@@ -56,9 +56,11 @@ opcional permanecen dentro de la transacción e idempotencia del pedido.
 
 El método único es `envio_nacional_temporal`, configurado en
 `shipping_methods` con `14900` centavos MXN ($149.00). SQL lo resuelve nuevamente
-y Peter Golf confirma después la logística. El pago es sólo `bank_transfer` con
-estado `transfer_pending`: no se cobra, no se marca pagado y no se guardan ni
-muestran credenciales financieras.
+y Peter Golf confirma después la logística. El pago web es sólo `bank_transfer`;
+el checkout crea atómicamente `order_payments` con importe y moneda derivados.
+El cliente registra una transferencia simulada únicamente cuando el pedido pasa
+a `preparing`. No existe cobro real ni comprobante. Las reglas completas están
+en [ORDER_PAYMENTS.md](./ORDER_PAYMENTS.md).
 
 ## Pedido, inventario y totales
 

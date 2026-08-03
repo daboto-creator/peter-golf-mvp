@@ -59,6 +59,14 @@ insert into public.orders (
    'otra nota operativa','transfer_pending','bank_transfer','web',null,
    '14000000-0000-4000-8000-000000000003');
 
+insert into public.order_payments (
+  id, order_id, method, status, expected_amount, currency
+) values
+  ('75000000-0000-4000-8000-000000000001',
+   '74000000-0000-4000-8000-000000000001','bank_transfer','pending',24800,'MXN'),
+  ('75000000-0000-4000-8000-000000000002',
+   '74000000-0000-4000-8000-000000000002','bank_transfer','pending',24800,'MXN');
+
 insert into public.order_items (
   id, order_id, product_id, variant_id, sku_snapshot, product_name_snapshot,
   variant_name_snapshot, condition_snapshot, unit_price_snapshot, currency,
@@ -124,6 +132,8 @@ begin
     or (select count(*) from public.order_status_history
         where changed_by is not null or note is not null) <> 0
     or (select count(*) from public.order_idempotency_keys) <> 0
+    or (select count(*) from public.order_payments) <> 0
+    or (select count(*) from public.payment_status_history) <> 0
   then raise exception 'Direct customer read exposed operational data'; end if;
 end $$;
 
@@ -158,14 +168,11 @@ begin
   perform public.confirm_operational_order(selected.id, selected.version,
     'a4000000-0000-4000-8000-000000000010');
   select * into selected from public.orders where id = selected.id;
-  perform public.update_operational_order_payment(selected.id, selected.version,
-    'transfer_verified','bank_transfer');
-  select * into selected from public.orders where id = selected.id;
   perform public.cancel_operational_order(selected.id, selected.version,
     'Cancelación de prueba','a4000000-0000-4000-8000-000000000011');
   select * into selected from public.orders where id = selected.id;
   if selected.status <> 'cancelled'
-    or selected.payment_status <> 'transfer_verified'
+    or (select status from public.order_payments where order_id=selected.id) <> 'pending'
     or selected.cancelled_by <> auth.uid()
     or selected.cancellation_reason <> 'Cancelación de prueba'
   then raise exception 'Operational routes failed'; end if;

@@ -7,10 +7,30 @@ export type Json =
   | Json[];
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15";
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
   public: {
     Tables: {
@@ -20,6 +40,7 @@ export type Database = {
           city: string;
           country_code: string;
           created_at: string;
+          delivery_references: string | null;
           exterior_number: string | null;
           id: string;
           is_default: boolean;
@@ -29,7 +50,6 @@ export type Database = {
           neighborhood: string | null;
           phone: string | null;
           postal_code: string;
-          delivery_references: string | null;
           recipient_name: string;
           state: string;
           updated_at: string;
@@ -41,6 +61,7 @@ export type Database = {
           city: string;
           country_code?: string;
           created_at?: string;
+          delivery_references?: string | null;
           exterior_number?: string | null;
           id?: string;
           is_default?: boolean;
@@ -50,7 +71,6 @@ export type Database = {
           neighborhood?: string | null;
           phone?: string | null;
           postal_code: string;
-          delivery_references?: string | null;
           recipient_name: string;
           state: string;
           updated_at?: string;
@@ -62,6 +82,7 @@ export type Database = {
           city?: string;
           country_code?: string;
           created_at?: string;
+          delivery_references?: string | null;
           exterior_number?: string | null;
           id?: string;
           is_default?: boolean;
@@ -71,7 +92,6 @@ export type Database = {
           neighborhood?: string | null;
           phone?: string | null;
           postal_code?: string;
-          delivery_references?: string | null;
           recipient_name?: string;
           state?: string;
           updated_at?: string;
@@ -380,6 +400,58 @@ export type Database = {
         };
         Relationships: [];
       };
+      cart_idempotency_keys: {
+        Row: {
+          actor_id: string;
+          cart_id: string | null;
+          cart_item_id: string | null;
+          created_at: string;
+          idempotency_key: string;
+          operation: string;
+          payload_hash: string;
+        };
+        Insert: {
+          actor_id: string;
+          cart_id?: string | null;
+          cart_item_id?: string | null;
+          created_at?: string;
+          idempotency_key: string;
+          operation: string;
+          payload_hash: string;
+        };
+        Update: {
+          actor_id?: string;
+          cart_id?: string | null;
+          cart_item_id?: string | null;
+          created_at?: string;
+          idempotency_key?: string;
+          operation?: string;
+          payload_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cart_idempotency_keys_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_idempotency_keys_cart_id_fkey";
+            columns: ["cart_id"];
+            isOneToOne: false;
+            referencedRelation: "carts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_idempotency_keys_cart_item_id_fkey";
+            columns: ["cart_item_id"];
+            isOneToOne: false;
+            referencedRelation: "cart_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       cart_items: {
         Row: {
           cart_id: string;
@@ -465,58 +537,6 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      cart_idempotency_keys: {
-        Row: {
-          actor_id: string;
-          cart_id: string | null;
-          cart_item_id: string | null;
-          created_at: string;
-          idempotency_key: string;
-          operation: string;
-          payload_hash: string;
-        };
-        Insert: {
-          actor_id: string;
-          cart_id?: string | null;
-          cart_item_id?: string | null;
-          created_at?: string;
-          idempotency_key: string;
-          operation: string;
-          payload_hash: string;
-        };
-        Update: {
-          actor_id?: string;
-          cart_id?: string | null;
-          cart_item_id?: string | null;
-          created_at?: string;
-          idempotency_key?: string;
-          operation?: string;
-          payload_hash?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "cart_idempotency_keys_actor_id_fkey";
-            columns: ["actor_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "cart_idempotency_keys_cart_id_fkey";
-            columns: ["cart_id"];
-            isOneToOne: false;
-            referencedRelation: "carts";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "cart_idempotency_keys_cart_item_id_fkey";
-            columns: ["cart_item_id"];
-            isOneToOne: false;
-            referencedRelation: "cart_items";
             referencedColumns: ["id"];
           },
         ];
@@ -663,6 +683,48 @@ export type Database = {
           },
         ];
       };
+      order_idempotency_keys: {
+        Row: {
+          actor_id: string;
+          created_at: string;
+          idempotency_key: string;
+          operation: string;
+          order_id: string | null;
+          payload_hash: string;
+        };
+        Insert: {
+          actor_id: string;
+          created_at?: string;
+          idempotency_key: string;
+          operation: string;
+          order_id?: string | null;
+          payload_hash: string;
+        };
+        Update: {
+          actor_id?: string;
+          created_at?: string;
+          idempotency_key?: string;
+          operation?: string;
+          order_id?: string | null;
+          payload_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_idempotency_keys_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_idempotency_keys_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       order_items: {
         Row: {
           condition_grade_snapshot:
@@ -739,44 +801,71 @@ export type Database = {
           },
         ];
       };
-      order_idempotency_keys: {
+      order_payments: {
         Row: {
-          actor_id: string;
           created_at: string;
-          idempotency_key: string;
-          operation: string;
-          order_id: string | null;
-          payload_hash: string;
+          currency: string;
+          expected_amount: number;
+          id: string;
+          method: Database["public"]["Enums"]["payment_method"];
+          order_id: string;
+          paid_at: string | null;
+          refunded_at: string | null;
+          rejected_at: string | null;
+          reviewed_by: string | null;
+          status: Database["public"]["Enums"]["payment_status"];
+          submitted_at: string | null;
+          under_review_at: string | null;
+          updated_at: string;
+          version: number;
         };
         Insert: {
-          actor_id: string;
           created_at?: string;
-          idempotency_key: string;
-          operation: string;
-          order_id?: string | null;
-          payload_hash: string;
+          currency: string;
+          expected_amount: number;
+          id?: string;
+          method: Database["public"]["Enums"]["payment_method"];
+          order_id: string;
+          paid_at?: string | null;
+          refunded_at?: string | null;
+          rejected_at?: string | null;
+          reviewed_by?: string | null;
+          status?: Database["public"]["Enums"]["payment_status"];
+          submitted_at?: string | null;
+          under_review_at?: string | null;
+          updated_at?: string;
+          version?: number;
         };
         Update: {
-          actor_id?: string;
           created_at?: string;
-          idempotency_key?: string;
-          operation?: string;
-          order_id?: string | null;
-          payload_hash?: string;
+          currency?: string;
+          expected_amount?: number;
+          id?: string;
+          method?: Database["public"]["Enums"]["payment_method"];
+          order_id?: string;
+          paid_at?: string | null;
+          refunded_at?: string | null;
+          rejected_at?: string | null;
+          reviewed_by?: string | null;
+          status?: Database["public"]["Enums"]["payment_status"];
+          submitted_at?: string | null;
+          under_review_at?: string | null;
+          updated_at?: string;
+          version?: number;
         };
         Relationships: [
           {
-            foreignKeyName: "order_idempotency_keys_actor_id_fkey";
-            columns: ["actor_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
+            foreignKeyName: "order_payments_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: true;
+            referencedRelation: "orders";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "order_idempotency_keys_order_id_fkey";
-            columns: ["order_id"];
+            foreignKeyName: "order_payments_reviewed_by_fkey";
+            columns: ["reviewed_by"];
             isOneToOne: false;
-            referencedRelation: "orders";
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -828,9 +917,9 @@ export type Database = {
       };
       orders: {
         Row: {
+          cancellation_reason: string | null;
           cancelled_at: string | null;
           cancelled_by: string | null;
-          cancellation_reason: string | null;
           confirmed_at: string | null;
           confirmed_by: string | null;
           created_at: string;
@@ -866,9 +955,9 @@ export type Database = {
           version: number;
         };
         Insert: {
+          cancellation_reason?: string | null;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
-          cancellation_reason?: string | null;
           confirmed_at?: string | null;
           confirmed_by?: string | null;
           created_at?: string;
@@ -904,9 +993,9 @@ export type Database = {
           version?: number;
         };
         Update: {
+          cancellation_reason?: string | null;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
-          cancellation_reason?: string | null;
           confirmed_at?: string | null;
           confirmed_by?: string | null;
           created_at?: string;
@@ -978,15 +1067,15 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "orders_user_id_fkey";
-            columns: ["user_id"];
+            foreignKeyName: "orders_updated_by_fkey";
+            columns: ["updated_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "orders_updated_by_fkey";
-            columns: ["updated_by"];
+            foreignKeyName: "orders_user_id_fkey";
+            columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -1031,6 +1120,164 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      payment_idempotency_keys: {
+        Row: {
+          actor_id: string;
+          created_at: string;
+          idempotency_key: string;
+          operation: string;
+          payload_hash: string;
+          payment_id: string;
+          submission_id: string | null;
+        };
+        Insert: {
+          actor_id: string;
+          created_at?: string;
+          idempotency_key: string;
+          operation: string;
+          payload_hash: string;
+          payment_id: string;
+          submission_id?: string | null;
+        };
+        Update: {
+          actor_id?: string;
+          created_at?: string;
+          idempotency_key?: string;
+          operation?: string;
+          payload_hash?: string;
+          payment_id?: string;
+          submission_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_idempotency_keys_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_idempotency_keys_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "order_payments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_idempotency_keys_submission_id_fkey";
+            columns: ["submission_id"];
+            isOneToOne: false;
+            referencedRelation: "payment_submissions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payment_status_history: {
+        Row: {
+          changed_by: string | null;
+          created_at: string;
+          from_status: Database["public"]["Enums"]["payment_status"] | null;
+          id: string;
+          note: string | null;
+          payment_id: string;
+          submission_id: string | null;
+          to_status: Database["public"]["Enums"]["payment_status"];
+        };
+        Insert: {
+          changed_by?: string | null;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["payment_status"] | null;
+          id?: string;
+          note?: string | null;
+          payment_id: string;
+          submission_id?: string | null;
+          to_status: Database["public"]["Enums"]["payment_status"];
+        };
+        Update: {
+          changed_by?: string | null;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["payment_status"] | null;
+          id?: string;
+          note?: string | null;
+          payment_id?: string;
+          submission_id?: string | null;
+          to_status?: Database["public"]["Enums"]["payment_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_status_history_changed_by_fkey";
+            columns: ["changed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_status_history_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "order_payments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_status_history_submission_id_fkey";
+            columns: ["submission_id"];
+            isOneToOne: false;
+            referencedRelation: "payment_submissions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payment_submissions: {
+        Row: {
+          attempt_number: number;
+          created_at: string;
+          id: string;
+          payment_id: string;
+          sender_bank: string | null;
+          sender_name: string | null;
+          submitted_by: string;
+          transfer_reference: string;
+          transferred_at: string;
+        };
+        Insert: {
+          attempt_number: number;
+          created_at?: string;
+          id?: string;
+          payment_id: string;
+          sender_bank?: string | null;
+          sender_name?: string | null;
+          submitted_by: string;
+          transfer_reference: string;
+          transferred_at: string;
+        };
+        Update: {
+          attempt_number?: number;
+          created_at?: string;
+          id?: string;
+          payment_id?: string;
+          sender_bank?: string | null;
+          sender_name?: string | null;
+          submitted_by?: string;
+          transfer_reference?: string;
+          transferred_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_submissions_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "order_payments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_submissions_submitted_by_fkey";
+            columns: ["submitted_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       product_images: {
         Row: {
@@ -1451,8 +1698,8 @@ export type Database = {
           requested_movement_type: Database["public"]["Enums"]["inventory_movement_type"];
           requested_quantity_delta: number;
           requested_reason: string;
-          requested_reference_id?: string | null;
-          requested_reference_type?: string | null;
+          requested_reference_id?: string;
+          requested_reference_type?: string;
           requested_variant_id: string;
         };
         Returns: {
@@ -1465,6 +1712,7 @@ export type Database = {
           replayed: boolean;
         }[];
       };
+      backfill_legacy_order_payments: { Args: never; Returns: undefined };
       can_create_catalog_base_variant: {
         Args: {
           requested_name: string;
@@ -1473,20 +1721,24 @@ export type Database = {
         };
         Returns: boolean;
       };
-      can_manage_catalog: {
-        Args: Record<PropertyKey, never>;
-        Returns: boolean;
-      };
+      can_manage_catalog: { Args: never; Returns: boolean };
       can_manage_catalog_references: {
-        Args: {
-          requested_brand_id: string;
-          requested_category_id: string;
-        };
+        Args: { requested_brand_id: string; requested_category_id: string };
         Returns: boolean;
       };
-      can_manage_orders: {
-        Args: Record<PropertyKey, never>;
-        Returns: boolean;
+      can_manage_orders: { Args: never; Returns: boolean };
+      cancel_manual_order: {
+        Args: {
+          expected_version: number;
+          requested_idempotency_key: string;
+          requested_order_id: string;
+          requested_reason: string;
+        };
+        Returns: {
+          order_id: string;
+          replayed: boolean;
+          status: Database["public"]["Enums"]["order_status"];
+        }[];
       };
       cancel_operational_order: {
         Args: {
@@ -1501,6 +1753,7 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"];
         }[];
       };
+      cart_payload_hash: { Args: { payload: Json }; Returns: string };
       change_customer_cart: {
         Args: {
           expected_version: number;
@@ -1509,69 +1762,18 @@ export type Database = {
           requested_operation: string;
           requested_quantity: number;
         };
-        Returns: { cart_id: string; replayed: boolean; version: number }[];
+        Returns: {
+          cart_id: string;
+          replayed: boolean;
+          version: number;
+        }[];
       };
       clear_customer_cart: {
         Args: { expected_version: number; requested_idempotency_key: string };
-        Returns: { cart_id: string; replayed: boolean; version: number }[];
-      };
-      confirm_operational_order: {
-        Args: {
-          expected_version: number;
-          requested_idempotency_key: string;
-          requested_order_id: string;
-        };
         Returns: {
-          order_id: string;
+          cart_id: string;
           replayed: boolean;
-          status: Database["public"]["Enums"]["order_status"];
-        }[];
-      };
-      create_customer_checkout_order: {
-        Args: {
-          expected_version: number;
-          requested_address: Json;
-          requested_cart_id: string;
-          requested_idempotency_key: string;
-          requested_save_address: boolean;
-          requested_saved_address_id: string | null;
-          requested_shipping_method_id: string;
-        };
-        Returns: {
-          order_id: string;
-          order_number: string;
-          replayed: boolean;
-        }[];
-      };
-      manage_customer_address: {
-        Args: {
-          expected_version: number | null;
-          requested_address: Json;
-          requested_address_id: string | null;
-          requested_operation: string;
-        };
-        Returns: { address_id: string; version: number }[];
-      };
-      normalize_customer_address: { Args: { requested: Json }; Returns: Json };
-      update_customer_profile: {
-        Args: {
-          requested_first_name: string;
-          requested_last_name: string;
-          requested_phone: string;
-        };
-        Returns: undefined;
-      };
-      cancel_manual_order: {
-        Args: {
-          expected_version: number;
-          requested_idempotency_key: string;
-          requested_order_id: string;
-          requested_reason: string;
-        };
-        Returns: {
-          order_id: string;
-          replayed: boolean;
-          status: Database["public"]["Enums"]["order_status"];
+          version: number;
         }[];
       };
       confirm_manual_order: {
@@ -1586,6 +1788,50 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"];
         }[];
       };
+      confirm_operational_order: {
+        Args: {
+          expected_version: number;
+          requested_idempotency_key: string;
+          requested_order_id: string;
+        };
+        Returns: {
+          order_id: string;
+          replayed: boolean;
+          status: Database["public"]["Enums"]["order_status"];
+        }[];
+      };
+      create_customer_checkout_order:
+        | {
+            Args: {
+              expected_version: number;
+              requested_address: Json;
+              requested_cart_id: string;
+              requested_idempotency_key: string;
+              requested_save_address: boolean;
+              requested_shipping_method_id: string;
+            };
+            Returns: {
+              order_id: string;
+              order_number: string;
+              replayed: boolean;
+            }[];
+          }
+        | {
+            Args: {
+              expected_version: number;
+              requested_address: Json;
+              requested_cart_id: string;
+              requested_idempotency_key: string;
+              requested_save_address: boolean;
+              requested_saved_address_id: string;
+              requested_shipping_method_id: string;
+            };
+            Returns: {
+              order_id: string;
+              order_number: string;
+              replayed: boolean;
+            }[];
+          };
       create_manual_order: {
         Args: { requested_idempotency_key: string; requested_payload: Json };
         Returns: {
@@ -1598,19 +1844,19 @@ export type Database = {
         Args: {
           requested_brand_id: string;
           requested_category_id: string;
-          requested_compare_at_price: number | null;
+          requested_compare_at_price: unknown;
           requested_condition: Database["public"]["Enums"]["product_condition"];
           requested_condition_grade:
             Database["public"]["Enums"]["product_condition_grade"] | null;
           requested_condition_notes: string | null;
-          requested_currency: string;
+          requested_currency: unknown;
           requested_description: string | null;
           requested_featured: boolean;
           requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
           requested_lead_time_max_days: number | null;
           requested_lead_time_min_days: number | null;
           requested_name: string;
-          requested_price: number;
+          requested_price: unknown;
           requested_price_is_estimate: boolean;
           requested_published: boolean;
           requested_short_description: string | null;
@@ -1622,39 +1868,39 @@ export type Database = {
           variant_id: string;
         }[];
       };
-      get_customer_cart: { Args: Record<PropertyKey, never>; Returns: Json };
+      get_customer_cart: { Args: never; Returns: Json };
       get_customer_order: {
         Args: { requested_order_id: string };
         Returns: Json;
       };
       get_customer_shipping_method: {
-        Args: Record<PropertyKey, never>;
+        Args: never;
         Returns: {
           base_price: number;
           currency: string;
-          description: string | null;
+          description: string;
           name: string;
           shipping_method_id: string;
         }[];
       };
-      list_customer_orders: {
-        Args: Record<PropertyKey, never>;
+      get_or_create_active_cart: {
+        Args: never;
         Returns: {
           created_at: string;
           currency: string;
-          discount_total: number;
+          expires_at: string | null;
           id: string;
-          order_number: string;
-          payment_method: Database["public"]["Enums"]["manual_payment_method"];
-          payment_status: Database["public"]["Enums"]["manual_payment_status"];
-          shipping_address_snapshot: Json;
-          shipping_total: number;
-          status: Database["public"]["Enums"]["order_status"];
-          subtotal: number;
-          tax_total: number;
-          total: number;
+          status: Database["public"]["Enums"]["cart_status"];
           updated_at: string;
-        }[];
+          user_id: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "carts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       initialize_inventory: {
         Args: { requested_variant_id: string };
@@ -1667,70 +1913,55 @@ export type Database = {
           reorder_point: number;
         }[];
       };
-      update_manual_order_draft: {
-        Args: {
-          expected_version: number;
-          requested_order_id: string;
-          requested_payload: Json;
-        };
-        Returns: { order_id: string; version: number }[];
-      };
-      update_manual_order_payment: {
-        Args: {
-          expected_version: number;
-          requested_method: Database["public"]["Enums"]["manual_payment_method"];
-          requested_order_id: string;
-          requested_status: Database["public"]["Enums"]["manual_payment_status"];
-        };
-        Returns: { order_id: string; version: number }[];
-      };
-      update_operational_order_payment: {
-        Args: {
-          expected_version: number;
-          requested_method: Database["public"]["Enums"]["manual_payment_method"];
-          requested_order_id: string;
-          requested_status: Database["public"]["Enums"]["manual_payment_status"];
-        };
-        Returns: { order_id: string; version: number }[];
-      };
-      repair_product_base_variant: {
-        Args: { requested_product_id: string };
+      list_customer_orders: {
+        Args: never;
         Returns: {
-          created: boolean;
-          product_id: string;
-          variant_id: string;
+          created_at: string;
+          currency: string;
+          discount_total: number;
+          id: string;
+          order_number: string;
+          payment_method: Database["public"]["Enums"]["payment_method"];
+          payment_status: Database["public"]["Enums"]["payment_status"];
+          shipping_address_snapshot: Json;
+          shipping_total: number;
+          status: Database["public"]["Enums"]["order_status"];
+          subtotal: number;
+          tax_total: number;
+          total: number;
+          updated_at: string;
         }[];
       };
-      update_product_with_base_variant: {
+      lock_customer_order_for_payment: {
+        Args: { requested_order_id: string };
+        Returns: undefined;
+      };
+      manage_customer_address: {
         Args: {
-          expected_published: boolean;
-          expected_status: Database["public"]["Enums"]["product_status"];
-          requested_brand_id: string;
-          requested_category_id: string;
-          requested_compare_at_price: number | null;
-          requested_condition: Database["public"]["Enums"]["product_condition"];
-          requested_condition_grade:
-            Database["public"]["Enums"]["product_condition_grade"] | null;
-          requested_condition_notes: string | null;
-          requested_currency: string;
-          requested_description: string | null;
-          requested_featured: boolean;
-          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
-          requested_lead_time_max_days: number | null;
-          requested_lead_time_min_days: number | null;
-          requested_name: string;
-          requested_price: number;
-          requested_price_is_estimate: boolean;
-          requested_product_id: string;
-          requested_published: boolean;
-          requested_short_description: string | null;
-          requested_sku: string;
-          requested_slug: string;
+          expected_version: number | null;
+          requested_address: Json;
+          requested_address_id: string | null;
+          requested_operation: string;
         };
         Returns: {
-          product_id: string;
-          variant_id: string;
+          address_id: string;
+          version: number;
         }[];
+      };
+      normalize_checkout_address: { Args: { requested: Json }; Returns: Json };
+      normalize_customer_address: { Args: { requested: Json }; Returns: Json };
+      normalize_manual_order_payload: {
+        Args: { requested_payload: Json };
+        Returns: Json;
+      };
+      payments_test_mode_enabled: { Args: never; Returns: boolean };
+      populate_manual_order: {
+        Args: {
+          normalized_payload: Json;
+          replacing: boolean;
+          requested_order_id: string;
+        };
+        Returns: undefined;
       };
       register_product_image: {
         Args: {
@@ -1742,10 +1973,7 @@ export type Database = {
         Returns: string;
       };
       remove_product_image: {
-        Args: {
-          requested_image_id: string;
-          requested_product_id: string;
-        };
+        Args: { requested_image_id: string; requested_product_id: string };
         Returns: {
           alt_text: string;
           id: string;
@@ -1756,11 +1984,16 @@ export type Database = {
         }[];
       };
       reorder_product_images: {
-        Args: {
-          requested_image_ids: string[];
-          requested_product_id: string;
-        };
+        Args: { requested_image_ids: string[]; requested_product_id: string };
         Returns: boolean;
+      };
+      repair_product_base_variant: {
+        Args: { requested_product_id: string };
+        Returns: {
+          created: boolean;
+          product_id: string;
+          variant_id: string;
+        }[];
       };
       restore_product_image: {
         Args: {
@@ -1774,6 +2007,82 @@ export type Database = {
         };
         Returns: boolean;
       };
+      review_order_payment: {
+        Args: {
+          expected_payment_version: number;
+          requested_idempotency_key: string;
+          requested_order_id: string;
+          requested_reason: string;
+          requested_status: Database["public"]["Enums"]["payment_status"];
+        };
+        Returns: {
+          payment_id: string;
+          replayed: boolean;
+          status: Database["public"]["Enums"]["payment_status"];
+          version: number;
+        }[];
+      };
+      submit_bank_transfer: {
+        Args: {
+          expected_payment_version: number;
+          requested_idempotency_key: string;
+          requested_order_id: string;
+          requested_sender_bank: string;
+          requested_sender_name: string;
+          requested_transfer_reference: string;
+          requested_transferred_at: string;
+        };
+        Returns: {
+          payment_id: string;
+          replayed: boolean;
+          status: Database["public"]["Enums"]["payment_status"];
+          submission_id: string;
+          version: number;
+        }[];
+      };
+      update_customer_profile: {
+        Args: {
+          requested_first_name: string;
+          requested_last_name: string;
+          requested_phone: string;
+        };
+        Returns: undefined;
+      };
+      update_manual_order_draft: {
+        Args: {
+          expected_version: number;
+          requested_order_id: string;
+          requested_payload: Json;
+        };
+        Returns: {
+          order_id: string;
+          version: number;
+        }[];
+      };
+      update_manual_order_payment: {
+        Args: {
+          expected_version: number;
+          requested_method: Database["public"]["Enums"]["manual_payment_method"];
+          requested_order_id: string;
+          requested_status: Database["public"]["Enums"]["manual_payment_status"];
+        };
+        Returns: {
+          order_id: string;
+          version: number;
+        }[];
+      };
+      update_operational_order_payment: {
+        Args: {
+          expected_version: number;
+          requested_method: Database["public"]["Enums"]["manual_payment_method"];
+          requested_order_id: string;
+          requested_status: Database["public"]["Enums"]["manual_payment_status"];
+        };
+        Returns: {
+          order_id: string;
+          version: number;
+        }[];
+      };
       update_product_image: {
         Args: {
           requested_alt_text: string;
@@ -1783,6 +2092,37 @@ export type Database = {
           requested_product_id: string;
         };
         Returns: boolean;
+      };
+      update_product_with_base_variant: {
+        Args: {
+          expected_published: boolean;
+          expected_status: Database["public"]["Enums"]["product_status"];
+          requested_brand_id: string;
+          requested_category_id: string;
+          requested_compare_at_price: unknown;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_currency: unknown;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_name: string;
+          requested_price: unknown;
+          requested_price_is_estimate: boolean;
+          requested_product_id: string;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+        };
+        Returns: {
+          product_id: string;
+          variant_id: string;
+        }[];
       };
     };
     Enums: {
@@ -1814,6 +2154,7 @@ export type Database = {
         | "transfer_verified"
         | "cash_received"
         | "external_terminal_received";
+      order_origin: "manual" | "web";
       order_status:
         | "created"
         | "pending_confirmation"
@@ -1824,8 +2165,15 @@ export type Database = {
         | "delivered"
         | "cancelled"
         | "returned";
-      order_origin: "manual" | "web";
       page_status: "draft" | "published" | "archived";
+      payment_method: "bank_transfer" | "cash" | "external_terminal";
+      payment_status:
+        | "pending"
+        | "submitted"
+        | "under_review"
+        | "paid"
+        | "rejected"
+        | "refunded";
       product_condition: "new" | "used";
       product_condition_grade:
         "like_new" | "excellent" | "very_good" | "good" | "fair";
@@ -1955,6 +2303,9 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       advisory_request_status: ["new", "in_contact", "resolved", "closed"],
@@ -1992,6 +2343,7 @@ export const Constants = {
         "cash_received",
         "external_terminal_received",
       ],
+      order_origin: ["manual", "web"],
       order_status: [
         "created",
         "pending_confirmation",
@@ -2004,6 +2356,15 @@ export const Constants = {
         "returned",
       ],
       page_status: ["draft", "published", "archived"],
+      payment_method: ["bank_transfer", "cash", "external_terminal"],
+      payment_status: [
+        "pending",
+        "submitted",
+        "under_review",
+        "paid",
+        "rejected",
+        "refunded",
+      ],
       product_condition: ["new", "used"],
       product_condition_grade: [
         "like_new",

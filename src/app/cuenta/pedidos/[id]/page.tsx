@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -5,6 +6,7 @@ import { z } from "zod";
 
 import { CustomerOrderDetail } from "@/components/orders/customer-order-detail";
 import { getCustomerOrder } from "@/lib/orders/customer-orders";
+import { serverEnv } from "@/env/server";
 
 export const metadata: Metadata = { title: "Detalle de pedido | Peter Golf" };
 
@@ -25,7 +27,13 @@ export default async function CustomerOrderPage({
       >
         ← Volver a mis pedidos
       </Link>
-      <CustomerOrderDetail order={order} />
+      <CustomerOrderDetail
+        order={order}
+        paymentControls={{
+          mode: serverEnv.PAYMENTS_MODE,
+          idempotencyKey: randomUUID(),
+        }}
+      />
     </div>
   );
 }

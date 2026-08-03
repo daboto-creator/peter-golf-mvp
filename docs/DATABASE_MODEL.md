@@ -213,6 +213,10 @@ Estados de pedido:
 - `cancelled`;
 - `returned`.
 
+`simulated_payment_approved` permanece en el enum de pedido sólo por
+compatibilidad histórica y no se usa en los flujos nuevos. La aprobación vive en
+`order_payments.status = paid`; no cambia `orders.status`.
+
 Los totales son consistentes por constraint:
 `total = subtotal - discount_total + shipping_total + tax_total`. La base no
 autoriza al cliente a crear o modificar pedidos; el backend debe recalcular
@@ -224,6 +228,17 @@ cambios posteriores del catálogo.
 No existen columnas de tarjeta, CVV, cuenta bancaria, token de pago ni
 transacción real. `simulated_payment_approved` representa únicamente el flujo de
 prueba y no un cargo.
+
+### Agregado de pagos de pedido
+
+La migración `20260803000000_order_payments_foundation.sql` agrega
+`order_payments`, `payment_submissions`, `payment_status_history` y
+`payment_idempotency_keys`. Sus estados son `pending`, `submitted`,
+`under_review`, `paid`, `rejected` y `refunded`; no son estados de pedido.
+Importe y moneda se copian desde `orders` dentro de SQL. Las columnas
+`orders.payment_status/payment_method` y sus enums permanecen temporalmente como
+legacy compatible, pero las lecturas y acciones nuevas usan el agregado. El
+detalle completo está en [ORDER_PAYMENTS.md](./ORDER_PAYMENTS.md).
 
 ## 7. Asesoría, configuración y auditoría
 

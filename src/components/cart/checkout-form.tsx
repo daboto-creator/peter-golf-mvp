@@ -63,11 +63,13 @@ export function CheckoutForm({
   addresses,
   shippingMethod,
   idempotencyKey,
+  paymentsMode,
 }: {
   cart: CustomerCart & { cart_id: string; version: number };
   addresses: CustomerAddress[];
   shippingMethod: CustomerShippingMethod;
   idempotencyKey: string;
+  paymentsMode: "disabled" | "test";
 }) {
   const [state, action, pending] = useActionState(
     checkoutAction,
@@ -203,9 +205,24 @@ export function CheckoutForm({
           </p>
         )}
         <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-950">
-          <strong>Pago informativo:</strong> transferencia bancaria pendiente de
-          verificación. No se realizará ningún cargo ni se solicitarán datos
-          bancarios en este sitio. Peter Golf revisará y confirmará el pedido.
+          <fieldset className="space-y-2">
+            <legend className="font-semibold">Método de pago</legend>
+            <label className="flex items-start gap-3">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="bank_transfer"
+                defaultChecked
+                className="mt-1"
+              />
+              <span>Transferencia bancaria simulada</span>
+            </label>
+          </fieldset>
+          <p className="mt-3">
+            {paymentsMode === "test"
+              ? "Flujo de prueba: no realizar una transferencia real. Operaciones confirmará primero el pedido."
+              : "El registro de transferencias está deshabilitado. No se realizará ningún cargo."}
+          </p>
         </div>
       </section>
       <aside className="h-fit space-y-5 rounded-xl border bg-white p-5 lg:sticky lg:top-5">

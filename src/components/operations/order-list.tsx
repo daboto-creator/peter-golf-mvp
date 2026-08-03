@@ -2,11 +2,8 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
-import {
-  orderOriginLabel,
-  paymentLabel,
-  statusLabel,
-} from "@/lib/orders/presentation";
+import { orderOriginLabel, statusLabel } from "@/lib/orders/presentation";
+import { paymentStatusLabel } from "@/lib/payments/payment-rules";
 import type { ManualOrderSummary } from "@/lib/orders/operational-orders";
 
 export function OrderList({ orders }: { orders: ManualOrderSummary[] }) {
@@ -36,7 +33,10 @@ export function OrderList({ orders }: { orders: ManualOrderSummary[] }) {
           <div className="text-sm">
             <p>{orderOriginLabel(order.origin, order.channel)}</p>
             <p className="text-muted-foreground mt-1">
-              {statusLabel(order.status)} · {paymentLabel(order.paymentStatus)}
+              {statusLabel(order.status)} ·{" "}
+              {order.paymentStatus
+                ? paymentStatusLabel(order.paymentStatus)
+                : "Sin pago asociado"}
             </p>
           </div>
           <div>

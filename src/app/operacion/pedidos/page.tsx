@@ -85,10 +85,11 @@ export default async function OrdersPage({
           label="Todos los pagos"
           options={[
             ["pending", "Pendiente"],
-            ["transfer_pending", "Transferencia pendiente"],
-            ["transfer_verified", "Transferencia verificada"],
-            ["cash_received", "Efectivo"],
-            ["external_terminal_received", "Terminal externa"],
+            ["submitted", "Registrada"],
+            ["under_review", "En revisión"],
+            ["paid", "Aprobada"],
+            ["rejected", "Rechazada"],
+            ["refunded", "Reembolsada"],
           ]}
         />
         <Button type="submit">Filtrar</Button>

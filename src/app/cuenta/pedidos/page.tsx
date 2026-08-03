@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import { listCustomerOrders } from "@/lib/orders/customer-orders";
-import { paymentLabel, statusLabel } from "@/lib/orders/presentation";
+import { statusLabel } from "@/lib/orders/presentation";
+import { paymentStatusLabel } from "@/lib/payments/payment-rules";
 
 export const metadata: Metadata = { title: "Mis pedidos | Peter Golf" };
 
@@ -33,7 +34,7 @@ export default async function CustomerOrdersPage() {
                 <p className="font-semibold">{order.orderNumber}</p>
                 <p className="text-muted-foreground mt-1 text-sm">
                   {statusLabel(order.status)} ·{" "}
-                  {paymentLabel(order.paymentStatus)} ·{" "}
+                  {paymentStatusLabel(order.paymentStatus)} ·{" "}
                   {new Intl.DateTimeFormat("es-MX", {
                     dateStyle: "medium",
                   }).format(new Date(order.createdAt))}

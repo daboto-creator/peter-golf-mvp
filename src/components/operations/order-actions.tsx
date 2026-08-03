@@ -7,7 +7,6 @@ import { initialOrderActionResult } from "@/lib/orders/order-action-state";
 import {
   cancelManualOrderAction,
   confirmManualOrderAction,
-  updateOrderPaymentAction,
 } from "@/lib/orders/order-actions";
 import type { ManualOrderDetail } from "@/lib/orders/operational-orders";
 
@@ -50,33 +49,39 @@ export function OrderStateActions({
           </Button>
         </form>
       ) : null}
-      <form
-        action={cancelAction}
-        className="flex flex-col gap-3 sm:flex-row sm:items-end"
-        onSubmit={(event) => {
-          if (
-            !confirm(
-              "Cancelar este pedido? La devolución de inventario será automática si ya estaba confirmado.",
+      {order.payment?.status === "paid" ? (
+        <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-950">
+          Registra primero el reembolso del pago para habilitar la cancelación.
+        </p>
+      ) : (
+        <form
+          action={cancelAction}
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+          onSubmit={(event) => {
+            if (
+              !confirm(
+                "Cancelar este pedido? La devolución de inventario será automática si ya estaba confirmado.",
+              )
             )
-          )
-            event.preventDefault();
-        }}
-      >
-        <Hidden order={order} idempotencyKey={cancelKey} />
-        <label className="flex-1 text-sm font-medium">
-          Motivo de cancelación
-          <input
-            name="reason"
-            required
-            minLength={3}
-            maxLength={500}
-            className="border-input mt-2 h-10 w-full rounded-md border px-3 font-normal"
-          />
-        </label>
-        <Button variant="destructive" disabled={cancelling || !cancelKey}>
-          {cancelling ? "Cancelando…" : "Cancelar pedido"}
-        </Button>
-      </form>
+              event.preventDefault();
+          }}
+        >
+          <Hidden order={order} idempotencyKey={cancelKey} />
+          <label className="flex-1 text-sm font-medium">
+            Motivo de cancelación
+            <input
+              name="reason"
+              required
+              minLength={3}
+              maxLength={500}
+              className="border-input mt-2 h-10 w-full rounded-md border px-3 font-normal"
+            />
+          </label>
+          <Button variant="destructive" disabled={cancelling || !cancelKey}>
+            {cancelling ? "Cancelando…" : "Cancelar pedido"}
+          </Button>
+        </form>
+      )}
       {[confirmState, cancelState].map((state, index) =>
         state.status === "error" ? (
           <p
@@ -89,52 +94,6 @@ export function OrderStateActions({
         ) : null,
       )}
     </section>
-  );
-}
-
-export function PaymentStateForm({ order }: { order: ManualOrderDetail }) {
-  const [state, action, pending] = useActionState(
-    updateOrderPaymentAction,
-    initialOrderActionResult,
-  );
-  if (order.status === "cancelled") return null;
-  return (
-    <form
-      action={action}
-      className="space-y-4 rounded-xl border bg-white p-5 sm:p-6"
-    >
-      <h2 className="text-xl font-semibold">Pago informativo</h2>
-      <p className="text-muted-foreground text-sm">
-        No procesa ni comprueba un pago real y nunca almacena datos de tarjeta.
-      </p>
-      <input type="hidden" name="orderId" value={order.id} />
-      <input type="hidden" name="version" value={order.version} />
-      <select
-        name="paymentStatus"
-        defaultValue={order.paymentStatus}
-        className="border-input h-10 w-full rounded-md border px-3 text-sm"
-      >
-        <option value="pending">Pendiente</option>
-        <option value="transfer_pending">
-          Transferencia pendiente de verificar
-        </option>
-        <option value="transfer_verified">
-          Transferencia verificada manualmente
-        </option>
-        <option value="cash_received">Efectivo registrado</option>
-        <option value="external_terminal_received">
-          Terminal externa registrada
-        </option>
-      </select>
-      {state.status === "error" ? (
-        <p role="alert" className="text-sm text-red-700">
-          {state.message}
-        </p>
-      ) : null}
-      <Button type="submit" variant="outline" disabled={pending}>
-        {pending ? "Guardando…" : "Actualizar estado informativo"}
-      </Button>
-    </form>
   );
 }
 
