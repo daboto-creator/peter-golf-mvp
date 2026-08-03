@@ -10,7 +10,6 @@ import { requireOrdersManager } from "@/lib/auth/order-authorization";
 import type { OrderActionResult } from "@/lib/orders/order-action-state";
 import { parseManualOrderForm } from "@/lib/orders/order-rules";
 import { createClient } from "@/lib/supabase/server";
-import type { Database } from "@/types/database.types";
 
 const uuid = z.uuid();
 const version = z.coerce.number().int().positive();
@@ -30,7 +29,7 @@ function failure(code?: string): OrderActionResult {
     return {
       status: "error",
       message:
-        "No hay existencias suficientes o los importes ya no son válidos.",
+        "No hay existencias suficientes, los importes cambiaron o un pago aprobado debe reembolsarse antes de cancelar.",
     };
   if (code === "23505")
     return {
@@ -141,45 +140,5 @@ async function transition(
   revalidatePath("/operacion/pedidos");
   revalidatePath(`/operacion/pedidos/${parsedId.data}`);
   revalidatePath("/operacion/inventario");
-  return { status: "idle", message: "" };
-}
-
-const paymentPairs: Record<
-  Database["public"]["Enums"]["manual_payment_status"],
-  Database["public"]["Enums"]["manual_payment_method"]
-> = {
-  pending: "none",
-  transfer_pending: "bank_transfer",
-  transfer_verified: "bank_transfer",
-  cash_received: "cash",
-  external_terminal_received: "external_terminal",
-};
-
-export async function updateOrderPaymentAction(
-  _state: OrderActionResult,
-  formData: FormData,
-): Promise<OrderActionResult> {
-  const orderId = value(formData, "orderId");
-  await requireOrdersManager(`/operacion/pedidos/${orderId}`);
-  const parsedId = uuid.safeParse(orderId);
-  const parsedVersion = version.safeParse(value(formData, "version"));
-  const status = value(formData, "paymentStatus") as keyof typeof paymentPairs;
-  if (
-    !parsedId.success ||
-    !parsedVersion.success ||
-    !(status in paymentPairs)
-  ) {
-    return { status: "error", message: "El estado informativo no es válido." };
-  }
-  const client = await createClient();
-  const { error } = await client.rpc("update_operational_order_payment", {
-    requested_order_id: parsedId.data,
-    expected_version: parsedVersion.data,
-    requested_status: status,
-    requested_method: paymentPairs[status],
-  });
-  if (error) return failure(error.code);
-  revalidatePath("/operacion/pedidos");
-  revalidatePath(`/operacion/pedidos/${parsedId.data}`);
   return { status: "idle", message: "" };
 }

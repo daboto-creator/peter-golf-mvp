@@ -11,7 +11,9 @@ contiene secretos. Los valores reales nunca se versionan.
   expone `SUPABASE_SERVICE_ROLE_KEY`.
 - `APP_ENV` acepta `development`, `test`, `staging` o `production`.
 - `PAYMENTS_MODE` acepta únicamente `disabled` o `test`; el MVP no permite pagos
-  reales.
+  reales. Es server-only: `disabled` bloquea el registro y `test` habilita sólo
+  transferencia simulada. El RPC exige además el setting privado
+  `site_settings.payments.mode=test`.
 
 Los módulos usan referencias estáticas a cada variable pública porque Next.js no
 incluye accesos dinámicos como `process.env[nombre]` en el bundle cliente.

@@ -14,9 +14,10 @@ Validar que clientes potenciales pueden descubrir productos, entender su condici
 
 - **Visitante/comprador:** persona en México interesada en equipo de golf y que puede requerir orientación.
 - **Equipo operativo:** dos personas responsables de productos, asesoría, disponibilidad, seguimiento y coordinación de envíos.
-- **Administrador futuro:** rol autorizado para mantener catálogo, inventario y solicitudes; no forma parte de la implementación actual.
+- **Administrador:** rol autorizado actual para catálogo, inventario, pedidos y
+  revisión de pagos simulados.
 
-## 4. Alcance funcional del MVP futuro
+## 4. Alcance funcional del MVP actual
 
 ### Descubrimiento
 
@@ -32,6 +33,8 @@ Validar que clientes potenciales pueden descubrir productos, entender su condici
 - Capturar únicamente los datos necesarios de contacto y contexto.
 - Permitir al equipo dar seguimiento manual.
 - Registrar una intención de compra o pedido de prueba sin cobro real.
+- Registrar y revisar una transferencia simulada, claramente identificada como
+  prueba, sin mover dinero ni confirmar automáticamente el pedido.
 - Permitir al equipo operativo registrar ventas manuales de canales controlados,
   confirmar existencias y cancelar con devolución auditable, sin pagos reales.
 - Mostrar de forma inequívoca que el flujo de staging/MVP no realiza cargos.
@@ -42,11 +45,11 @@ Validar que clientes potenciales pueden descubrir productos, entender su condici
 - Controlar estado de disponibilidad y seguimiento sin prometer inventario inexistente.
 - Mantener trazabilidad básica de cambios sensibles y estados.
 
-## 5. Fuera de alcance en esta etapa documental
+## 5. Fuera de alcance del MVP
 
-- Desarrollo de catálogo, autenticación, carrito, checkout o panel administrativo.
 - Pagos reales, Stripe o cualquier otro servicio de pago.
-- Creación o configuración de Supabase.
+- Comprobantes de pago y Storage para documentos financieros.
+- Checkout invitado, búsqueda avanzada y automatización de revisión de pagos.
 - Automatización de paqueterías, facturación, devoluciones o contabilidad.
 - Aplicaciones móviles nativas, programa de lealtad o marketplace de terceros.
 
@@ -73,9 +76,11 @@ Las metas numéricas se definirán después de contar con una línea base. El MV
 
 ## 8. Dependencias y fases
 
-1. **Actual:** documentación y scaffold técnico.
-2. **MVP funcional:** experiencia de descubrimiento, asesoría e intención sin pagos reales.
-3. **Persistencia:** evaluación e integración posterior con Supabase.
-4. **Producción:** endurecimiento operativo y eventual evaluación de pagos reales.
+1. **Actual:** MVP funcional persistido en Supabase local, con catálogo,
+   autenticación, carrito, pedidos, inventario y transferencia simulada.
+2. **Validación:** revisión del flujo y seguridad antes de aplicar cambios a
+   staging.
+3. **Producción:** endurecimiento operativo y eventual evaluación separada de
+   pagos reales.
 
 Toda ampliación requiere criterios de aceptación y revisión de seguridad propios.

@@ -113,7 +113,7 @@ export function OrderForm({
             <option value="instagram">Instagram</option>
             <option value="phone">Venta telefónica</option>
             <option value="in_person">Venta presencial</option>
-            <option value="bank_transfer">Transferencia pendiente</option>
+            <option value="bank_transfer">Transferencia</option>
             <option value="other">Otro canal controlado</option>
           </select>
         </div>

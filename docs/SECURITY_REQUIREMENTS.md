@@ -212,8 +212,8 @@ retiran antes de devolver. Esto es necesario porque clientes y operadores
 comparten el rol SQL `authenticated`: los grants de tabla que soportan las RPC
 operativas no pueden diferenciar el rol de negocio. Las políticas
 `can_manage_orders()` siguen dando a operator/admin el detalle completo; el
-cliente sólo recibe una proyección explícita sin notas, actores, motivos
-internos, historial de auditoría ni llaves de idempotencia.
+cliente sólo recibe una proyección explícita con historial sanitizado de estados
+y sin notas, actores, motivos internos ni llaves de idempotencia.
 
 La gestión de inventario usa Server Actions que ejecutan
 `requireCatalogManager()` y RPC `security invoker` con `search_path` vacío. RLS
@@ -255,6 +255,13 @@ El MVP no acepta pagos reales. No se integra Stripe ni otro proveedor y no se
 almacenan tarjeta, CVV, cuenta bancaria, token o credencial financiera.
 `simulated_payment_approved` es un estado de prueba y nunca debe mostrarse como
 un cargo real.
+
+El agregado simulado de pagos aplica RLS sin acceso `anon`, escritura sólo por
+RPC `security invoker`, locks, versión e idempotencia. El cliente sólo opera su
+pedido web confirmado y recibe una proyección que omite actores, motivos y claves
+internas. `PAYMENTS_MODE` es server-only y se complementa con un setting privado
+en base. No se usa `service_role`, datos bancarios reales, comprobantes ni
+Storage. Véase [ORDER_PAYMENTS.md](./ORDER_PAYMENTS.md).
 
 Antes de recopilar contacto se debe explicar finalidad y obtener consentimiento.
 El backend de asesoría debe aplicar minimización y rate limiting. Antes de

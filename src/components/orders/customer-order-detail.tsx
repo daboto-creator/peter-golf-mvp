@@ -1,8 +1,19 @@
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import type { CustomerOrderDetail as Order } from "@/lib/orders/customer-orders";
-import { paymentLabel, statusLabel } from "@/lib/orders/presentation";
+import { CustomerBankTransferForm } from "@/components/payments/customer-bank-transfer-form";
+import { statusLabel } from "@/lib/orders/presentation";
+import { paymentStatusLabel } from "@/lib/payments/payment-rules";
 
-export function CustomerOrderDetail({ order }: { order: Order }) {
+export function CustomerOrderDetail({
+  order,
+  paymentControls,
+}: {
+  order: Order;
+  paymentControls?: {
+    mode: "disabled" | "test";
+    idempotencyKey: string;
+  };
+}) {
   return (
     <div className="space-y-6">
       <header>
@@ -11,7 +22,7 @@ export function CustomerOrderDetail({ order }: { order: Order }) {
         </p>
         <h1 className="mt-2 text-3xl font-semibold">{order.orderNumber}</h1>
         <p className="text-muted-foreground mt-2">
-          {paymentLabel(order.paymentStatus)} · {date(order.createdAt)}
+          {paymentStatusLabel(order.paymentStatus)} · {date(order.createdAt)}
         </p>
       </header>
       <section className="overflow-hidden rounded-xl border bg-white">
@@ -63,6 +74,13 @@ export function CustomerOrderDetail({ order }: { order: Order }) {
           </strong>
         </div>
       </section>
+      {paymentControls ? (
+        <CustomerBankTransferForm
+          order={order}
+          paymentsMode={paymentControls.mode}
+          idempotencyKey={paymentControls.idempotencyKey}
+        />
+      ) : null}
       <section className="grid gap-5 md:grid-cols-2">
         <Box title="Dirección de envío">
           <p>

@@ -70,9 +70,16 @@ dirección guardada se resuelva en SQL e ignore campos manipulados del navegador
 `supabase/tests/customer_order_read_privacy.sql` prueba con `ROLLBACK` que cada
 cliente lista y consulta sólo su proyección, que un pedido ajeno devuelve nulo,
 que las lecturas directas no revelan notas, actores, historial ni idempotencia,
-y que operator/admin conservan el detalle completo. También ejecuta confirmar,
-actualizar el pago informativo y cancelar para detectar regresiones en las rutas
-operativas.
+y que operator/admin conservan el detalle completo. También ejecuta confirmar y
+cancelar para detectar regresiones en las rutas operativas.
+
+La suite `supabase/tests/order_payments_foundation.sql` cubre kill switch,
+backfill compatible, RLS, propiedad, permisos operador/admin, denegación anónima,
+creación atómica, importe/moneda derivados, idempotencia, versión, matriz de
+transiciones, reenvío, auditoría inmutable y separación pedido/pago/inventario.
+También verifica el bloqueo de cancelación pagada, reembolso y una sola devolución
+de inventario. Las reglas y presentación tienen pruebas unitarias en
+`src/lib/payments/payment-rules.test.ts`.
 
 La prueba SQL local
 `supabase/tests/catalog_base_variant_foundation.sql` verifica que la creación

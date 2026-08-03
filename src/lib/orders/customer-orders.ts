@@ -6,7 +6,7 @@ import type { Database, Json } from "@/types/database.types";
 import { z } from "zod";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
-type PaymentStatus = Database["public"]["Enums"]["manual_payment_status"];
+type PaymentStatus = Database["public"]["Enums"]["payment_status"];
 
 const orderStatusSchema = z.enum([
   "created",
@@ -21,13 +21,13 @@ const orderStatusSchema = z.enum([
 ]);
 const paymentStatusSchema = z.enum([
   "pending",
-  "transfer_pending",
-  "transfer_verified",
-  "cash_received",
-  "external_terminal_received",
+  "submitted",
+  "under_review",
+  "paid",
+  "rejected",
+  "refunded",
 ]);
 const paymentMethodSchema = z.enum([
-  "none",
   "bank_transfer",
   "cash",
   "external_terminal",
@@ -38,8 +38,6 @@ const customerOrderDetailSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   status: orderStatusSchema,
-  payment_status: paymentStatusSchema,
-  payment_method: paymentMethodSchema,
   subtotal: z.number(),
   shipping_total: z.number(),
   discount_total: z.number(),
@@ -47,6 +45,36 @@ const customerOrderDetailSchema = z.object({
   total: z.number(),
   currency: z.string(),
   shipping_address_snapshot: z.custom<Json>(),
+  payment: z.object({
+    id: z.string().uuid(),
+    status: paymentStatusSchema,
+    method: paymentMethodSchema,
+    expected_amount: z.number(),
+    currency: z.string(),
+    version: z.number().int().positive(),
+    submitted_at: z.string().nullable(),
+    under_review_at: z.string().nullable(),
+    paid_at: z.string().nullable(),
+    rejected_at: z.string().nullable(),
+    refunded_at: z.string().nullable(),
+    submissions: z.array(
+      z.object({
+        attempt_number: z.number().int().positive(),
+        transfer_reference: z.string(),
+        transferred_at: z.string(),
+        sender_name: z.string().nullable(),
+        sender_bank: z.string().nullable(),
+        created_at: z.string(),
+      }),
+    ),
+    history: z.array(
+      z.object({
+        from_status: paymentStatusSchema.nullable(),
+        to_status: paymentStatusSchema,
+        created_at: z.string(),
+      }),
+    ),
+  }),
   order_items: z.array(
     z.object({
       sku_snapshot: z.string(),
@@ -82,7 +110,29 @@ export type CustomerOrderDetail = CustomerOrderSummary & {
   shippingTotal: number;
   discountTotal: number;
   taxTotal: number;
-  paymentMethod: Database["public"]["Enums"]["manual_payment_method"];
+  paymentId: string;
+  paymentMethod: Database["public"]["Enums"]["payment_method"];
+  paymentVersion: number;
+  paymentExpectedAmount: number;
+  paymentCurrency: string;
+  paymentSubmittedAt: string | null;
+  paymentUnderReviewAt: string | null;
+  paymentPaidAt: string | null;
+  paymentRejectedAt: string | null;
+  paymentRefundedAt: string | null;
+  paymentSubmissions: {
+    attemptNumber: number;
+    transferReference: string;
+    transferredAt: string;
+    senderName: string | null;
+    senderBank: string | null;
+    createdAt: string;
+  }[];
+  paymentHistory: {
+    fromStatus: PaymentStatus | null;
+    toStatus: PaymentStatus;
+    createdAt: string;
+  }[];
   address: ReturnType<typeof normalizeManualOrderAddress>;
   items: {
     sku: string;
@@ -136,8 +186,30 @@ export async function getCustomerOrder(
       id: order.id,
       orderNumber: order.order_number,
       status: order.status,
-      paymentStatus: order.payment_status,
-      paymentMethod: order.payment_method,
+      paymentStatus: order.payment.status,
+      paymentId: order.payment.id,
+      paymentMethod: order.payment.method,
+      paymentVersion: order.payment.version,
+      paymentExpectedAmount: order.payment.expected_amount,
+      paymentCurrency: order.payment.currency,
+      paymentSubmittedAt: order.payment.submitted_at,
+      paymentUnderReviewAt: order.payment.under_review_at,
+      paymentPaidAt: order.payment.paid_at,
+      paymentRejectedAt: order.payment.rejected_at,
+      paymentRefundedAt: order.payment.refunded_at,
+      paymentSubmissions: order.payment.submissions.map((submission) => ({
+        attemptNumber: submission.attempt_number,
+        transferReference: submission.transfer_reference,
+        transferredAt: submission.transferred_at,
+        senderName: submission.sender_name,
+        senderBank: submission.sender_bank,
+        createdAt: submission.created_at,
+      })),
+      paymentHistory: order.payment.history.map((entry) => ({
+        fromStatus: entry.from_status,
+        toStatus: entry.to_status,
+        createdAt: entry.created_at,
+      })),
       subtotal: order.subtotal,
       discountTotal: order.discount_total,
       shippingTotal: order.shipping_total,

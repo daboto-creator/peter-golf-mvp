@@ -82,15 +82,9 @@ begin
         and changed_by='12000000-0000-4000-8000-000000000001'
     )
   then raise exception 'Draft status history audit is invalid'; end if;
-  perform public.update_manual_order_payment(
-    created.order_id, 1, 'transfer_pending', 'bank_transfer'
-  );
-  select * into selected from public.orders where id=created.order_id;
-  if selected.payment_status <> 'transfer_pending' or selected.version <> 2 then
-    raise exception 'Informational payment update failed'; end if;
   -- Rewrite the draft with the expected version, exercising optimistic
   -- concurrency before state transitions.
-  perform public.update_manual_order_draft(created.order_id, 2, payload);
+  perform public.update_manual_order_draft(created.order_id, 1, payload);
   select * into selected from public.orders where id=created.order_id;
   select quantity_on_hand into before_one from public.inventory where variant_id='52000000-0000-4000-8000-000000000001';
   if before_one <> 10 then raise exception 'Draft changed inventory'; end if;
@@ -110,7 +104,7 @@ begin
   begin perform public.create_manual_order(payload || '{"items":[{"product_id":"42000000-0000-4000-8000-000000000002","variant_id":"52000000-0000-4000-8000-000000000001","quantity":1}]}', '62000000-0000-4000-8000-000000000023');
     raise exception 'Expected relationship rejection'; exception when invalid_parameter_value then null; end;
 
-  perform public.confirm_manual_order(created.order_id,3,'62000000-0000-4000-8000-000000000030');
+  perform public.confirm_manual_order(created.order_id,2,'62000000-0000-4000-8000-000000000030');
   select quantity_on_hand into before_one from public.inventory where variant_id='52000000-0000-4000-8000-000000000001';
   select quantity_on_hand into before_two from public.inventory where variant_id='52000000-0000-4000-8000-000000000002';
   select count(*) into movement_count from public.inventory_movements where reference_type='manual_order' and reference_id=created.order_id and movement_type='sale';
@@ -118,15 +112,15 @@ begin
   if (select count(*) from public.order_status_history where order_id=audited_order_id and from_status='pending_confirmation' and to_status='preparing' and changed_by='12000000-0000-4000-8000-000000000001') <> 1
     or (select count(*) from public.order_status_history where order_id=audited_order_id) <> 2
   then raise exception 'Confirmation status history audit is invalid'; end if;
-  select * into replay from public.confirm_manual_order(created.order_id,3,'62000000-0000-4000-8000-000000000030');
+  select * into replay from public.confirm_manual_order(created.order_id,2,'62000000-0000-4000-8000-000000000030');
   if not replay.replayed then raise exception 'Confirm replay failed'; end if;
   if (select count(*) from public.inventory_movements where reference_id=created.order_id and movement_type='sale')<>2 then raise exception 'Double sale'; end if;
   if (select count(*) from public.order_status_history where order_id=audited_order_id) <> 2
   then raise exception 'Confirm replay duplicated status history'; end if;
-  begin perform public.update_manual_order_draft(created.order_id,4,payload); raise exception 'Expected confirmed edit denial';
+  begin perform public.update_manual_order_draft(created.order_id,3,payload); raise exception 'Expected confirmed edit denial';
     exception when invalid_parameter_value then null; end;
 
-  perform public.cancel_manual_order(created.order_id,4,'Cliente desistió','62000000-0000-4000-8000-000000000040');
+  perform public.cancel_manual_order(created.order_id,3,'Cliente desistió','62000000-0000-4000-8000-000000000040');
   if (select quantity_on_hand from public.inventory where variant_id='52000000-0000-4000-8000-000000000001')<>10
     or (select quantity_on_hand from public.inventory where variant_id='52000000-0000-4000-8000-000000000002')<>5
     or (select count(*) from public.inventory_movements where reference_id=created.order_id and movement_type='return')<>2
@@ -134,11 +128,11 @@ begin
   if (select count(*) from public.order_status_history where order_id=audited_order_id and from_status='preparing' and to_status='cancelled' and changed_by='12000000-0000-4000-8000-000000000001') <> 1
     or (select count(*) from public.order_status_history where order_id=audited_order_id) <> 3
   then raise exception 'Cancellation status history audit is invalid'; end if;
-  select * into replay from public.cancel_manual_order(created.order_id,4,'Cliente desistió','62000000-0000-4000-8000-000000000040');
+  select * into replay from public.cancel_manual_order(created.order_id,3,'Cliente desistió','62000000-0000-4000-8000-000000000040');
   if not replay.replayed then raise exception 'Cancel replay failed'; end if;
   if (select count(*) from public.order_status_history where order_id=audited_order_id) <> 3
   then raise exception 'Cancel replay duplicated status history'; end if;
-  begin perform public.confirm_manual_order(created.order_id,5,'62000000-0000-4000-8000-000000000041'); raise exception 'Expected cancelled confirm denial';
+  begin perform public.confirm_manual_order(created.order_id,4,'62000000-0000-4000-8000-000000000041'); raise exception 'Expected cancelled confirm denial';
     exception when invalid_parameter_value then null; end;
 
   -- A multi-item shortage rolls back the earlier line and all movements.

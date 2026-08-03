@@ -1,12 +1,11 @@
+import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
-import {
-  OrderStateActions,
-  PaymentStateForm,
-} from "@/components/operations/order-actions";
+import { OrderStateActions } from "@/components/operations/order-actions";
+import { PaymentReviewForm } from "@/components/operations/payment-review-form";
 import { OrderForm } from "@/components/operations/order-form";
 import { Button } from "@/components/ui/button";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
@@ -14,11 +13,11 @@ import {
   getManualOrder,
   listOrderCatalogOptions,
 } from "@/lib/orders/operational-orders";
+import { orderOriginLabel, statusLabel } from "@/lib/orders/presentation";
 import {
-  orderOriginLabel,
-  paymentLabel,
-  statusLabel,
-} from "@/lib/orders/presentation";
+  paymentMethodLabel,
+  paymentStatusLabel,
+} from "@/lib/payments/payment-rules";
 
 export const metadata: Metadata = { title: "Detalle de pedido | Peter Golf" };
 
@@ -60,7 +59,9 @@ export default async function OrderDetailPage({
           <h1 className="mt-2 text-3xl font-semibold">{order.orderNumber}</h1>
           <p className="text-muted-foreground mt-2">
             {orderOriginLabel(order.origin, order.channel)} ·{" "}
-            {paymentLabel(order.paymentStatus)}
+            {order.paymentStatus
+              ? paymentStatusLabel(order.paymentStatus)
+              : "Sin pago asociado"}
           </p>
         </div>
         {order.status === "pending_confirmation" &&
@@ -170,7 +171,29 @@ export default async function OrderDetailPage({
           ))}
         </Box>
       </section>
-      <PaymentStateForm order={order} />
+      {order.payment ? (
+        <Box title="Pago asociado">
+          <p>{paymentMethodLabel(order.payment.method)}</p>
+          <p>{paymentStatusLabel(order.payment.status)}</p>
+          <p>
+            Importe esperado:{" "}
+            {formatMoneyMinorUnits(
+              order.payment.expectedAmount,
+              order.payment.currency,
+            )}
+          </p>
+          <p>Versión de pago: {order.payment.version}</p>
+        </Box>
+      ) : null}
+      <PaymentReviewForm
+        order={order}
+        idempotencyKeys={{
+          review: randomUUID(),
+          approve: randomUUID(),
+          reject: randomUUID(),
+          refund: randomUUID(),
+        }}
+      />
       <OrderStateActions
         order={order}
         confirmKey={randomUUID()}
@@ -213,4 +236,3 @@ function date(value: string) {
     timeStyle: "short",
   }).format(new Date(value));
 }
-import { randomUUID } from "node:crypto";

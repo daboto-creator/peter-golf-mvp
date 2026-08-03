@@ -10,9 +10,9 @@ El repositorio contiene el scaffold técnico inicial, la documentación base del
 MVP, la integración tipada con Supabase de staging, la base de autenticación y
 la primera base funcional del catálogo público, la gestión operativa del
 catálogo, las imágenes de producto con Supabase Storage, una base auditable de
-inventario operativo, la gestión transaccional de pedidos manuales y el primer
-carrito/checkout autenticado sin pagos reales y la administración segura del
-perfil y direcciones del cliente.
+inventario operativo, la gestión transaccional de pedidos manuales, el primer
+carrito/checkout autenticado, pagos por transferencia estrictamente simulados y
+la administración segura del perfil y direcciones del cliente.
 
 Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
 perfil con teléfono, direcciones guardadas, protección de `/cuenta`, listado público en `/productos`
@@ -21,7 +21,7 @@ y detalle público en `/productos/[slug]`. Los usuarios con rol `operator` o
 archivar y restaurar productos base. El carrito y checkout autenticado generan
 pedidos web pendientes de revisión, sin reservar inventario ni cobrar. Todavía
 no están implementados la búsqueda avanzada, la gestión operativa de variantes o
-reservas de inventario, ni los pagos. La CLI y los clientes tipados
+reservas de inventario ni pagos reales o pasarelas. La CLI y los clientes tipados
 apuntan al proyecto remoto de staging de Supabase; el acceso funcional usa RLS.
 El MVP se validará primero sin pagos reales.
 La aplicación sólo usa la llave pública `anon`/publishable y RLS; no existe un
@@ -41,6 +41,9 @@ Las rutas y reglas de perfil/direcciones están documentadas en
 - Plataforma de despliegue por decidir; Vercel es compatible con el scaffold actual, pero no está formalmente adoptado
 
 No se ha seleccionado ni integrado un proveedor de pagos.
+
+El flujo actual de transferencia sólo registra evidencia de prueba y revisión
+manual; no mueve dinero. Véase [Pagos de pedidos](./docs/ORDER_PAYMENTS.md).
 
 ## Desarrollo
 
@@ -158,9 +161,10 @@ Las rutas protegidas son:
 - `/operacion/inventario/[productId]`: compatibilidad y selección de variante;
 - `/operacion/inventario/[productId]/[variantId]`: inicialización, ajuste e
   historial de una variante explícita.
-- `/operacion/pedidos`: listado y filtros de pedidos manuales;
+- `/operacion/pedidos`: listado y filtros de pedidos manuales y web;
 - `/operacion/pedidos/nuevo`: creación de un preliminar;
-- `/operacion/pedidos/[id]`: detalle, edición preliminar, confirmación y cancelación.
+- `/operacion/pedidos/[id]`: detalle, edición preliminar, confirmación,
+  cancelación y revisión separada del pago simulado.
 
 Cada página y cada Server Action vuelve a comprobar la sesión y el permiso
 mediante `public.can_manage_catalog()`. La función consulta `user_roles` y
@@ -313,6 +317,7 @@ La prueba usa datos ficticios dentro de una transacción y finaliza con
 - [Criterios de aceptación](./docs/MVP_ACCEPTANCE_CRITERIA.md)
 - [Plan de pruebas](./docs/TESTING_PLAN.md)
 - [Carrito y checkout](./docs/CUSTOMER_CART_AND_CHECKOUT.md)
+- [Pagos de pedidos](./docs/ORDER_PAYMENTS.md)
 - [Variables de entorno](./docs/ENVIRONMENT.md)
 - [Configuración local de Supabase](./docs/SUPABASE_SETUP.md)
 - [Runbook de despliegue](./docs/DEPLOYMENT_RUNBOOK.md)

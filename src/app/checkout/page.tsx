@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { CheckoutForm } from "@/components/cart/checkout-form";
 import { PublicHeader } from "@/components/catalog/public-header";
 import { Button } from "@/components/ui/button";
+import { serverEnv } from "@/env/server";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import {
   getCustomerCart,
@@ -65,6 +66,7 @@ export default async function CheckoutPage() {
             addresses={context.addresses}
             shippingMethod={context.shippingMethod}
             idempotencyKey={randomUUID()}
+            paymentsMode={serverEnv.PAYMENTS_MODE}
           />
         )}
       </main>
