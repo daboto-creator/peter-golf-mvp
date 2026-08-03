@@ -23,12 +23,18 @@ export default async function AccountLayout({
           >
             Peter Golf
           </Link>
-          <nav aria-label="Cuenta" className="flex items-center gap-2">
+          <nav
+            aria-label="Cuenta"
+            className="flex flex-wrap items-center justify-end gap-1 sm:gap-2"
+          >
             <Button asChild variant="ghost">
               <Link href="/cuenta">Cuenta</Link>
             </Button>
             <Button asChild variant="ghost">
               <Link href="/cuenta/perfil">Perfil</Link>
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/cuenta/direcciones">Direcciones</Link>
             </Button>
             <Button asChild variant="ghost">
               <Link href="/cuenta/pedidos">Pedidos</Link>

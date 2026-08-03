@@ -40,7 +40,7 @@ export default async function AccountPage({
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Mi cuenta</h1>
         <p className="text-muted-foreground mt-2">
-          Administra tus datos básicos y tu sesión.
+          Administra tu perfil, direcciones, pedidos y sesión.
         </p>
       </div>
       <Card className="max-w-2xl">
@@ -54,6 +54,9 @@ export default async function AccountPage({
           <p className="text-sm break-all">{user.email}</p>
           <Button asChild>
             <Link href="/cuenta/perfil">Editar perfil</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/cuenta/direcciones">Administrar direcciones</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="/cuenta/pedidos">Ver mis pedidos</Link>

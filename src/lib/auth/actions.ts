@@ -228,15 +228,11 @@ export async function updateProfileAction(
       };
     }
 
-    const displayName = `${parsed.data.firstName} ${parsed.data.lastName}`;
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        first_name: parsed.data.firstName,
-        last_name: parsed.data.lastName,
-        display_name: displayName,
-      })
-      .eq("id", user.id);
+    const { error } = await supabase.rpc("update_customer_profile", {
+      requested_first_name: parsed.data.firstName,
+      requested_last_name: parsed.data.lastName,
+      requested_phone: parsed.data.phone,
+    });
 
     if (error) {
       return {

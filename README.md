@@ -11,10 +11,11 @@ MVP, la integración tipada con Supabase de staging, la base de autenticación y
 la primera base funcional del catálogo público, la gestión operativa del
 catálogo, las imágenes de producto con Supabase Storage, una base auditable de
 inventario operativo, la gestión transaccional de pedidos manuales y el primer
-carrito/checkout autenticado sin pagos reales.
+carrito/checkout autenticado sin pagos reales y la administración segura del
+perfil y direcciones del cliente.
 
 Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
-perfil básico, protección inicial de `/cuenta`, listado público en `/productos`
+perfil con teléfono, direcciones guardadas, protección de `/cuenta`, listado público en `/productos`
 y detalle público en `/productos/[slug]`. Los usuarios con rol `operator` o
 `admin` pueden entrar a `/operacion` para crear, editar, publicar, despublicar,
 archivar y restaurar productos base. El carrito y checkout autenticado generan
@@ -25,6 +26,9 @@ apuntan al proyecto remoto de staging de Supabase; el acceso funcional usa RLS.
 El MVP se validará primero sin pagos reales.
 La aplicación sólo usa la llave pública `anon`/publishable y RLS; no existe un
 cliente administrativo ni se usa `service_role`.
+
+Las rutas y reglas de perfil/direcciones están documentadas en
+[docs/CUSTOMER_PROFILE_AND_ADDRESSES.md](./docs/CUSTOMER_PROFILE_AND_ADDRESSES.md).
 
 ## Stack previsto
 

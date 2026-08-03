@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   loginSchema,
+  profileSchema,
   registerSchema,
   updatePasswordSchema,
 } from "@/lib/auth/validation";
@@ -36,5 +37,22 @@ describe("authentication validation", () => {
         passwordConfirmation: "GolfSeguro#2026",
       }).success,
     ).toBe(true);
+  });
+
+  it("validates and normalizes customer profile fields", () => {
+    expect(
+      profileSchema.parse({
+        firstName: " Ana ",
+        lastName: " Pérez ",
+        phone: " 442 123 4567 ",
+      }),
+    ).toEqual({ firstName: "Ana", lastName: "Pérez", phone: "442 123 4567" });
+    expect(
+      profileSchema.safeParse({
+        firstName: "Ana",
+        lastName: "Pérez",
+        phone: "123",
+      }).success,
+    ).toBe(false);
   });
 });

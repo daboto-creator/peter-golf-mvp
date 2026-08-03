@@ -204,6 +204,10 @@ export async function checkoutAction(
   const shippingMethodId = uuid.safeParse(text(formData, "shippingMethodId"));
   const parsedVersion = version.safeParse(text(formData, "version"));
   const key = uuid.safeParse(text(formData, "idempotencyKey"));
+  const savedAddressValue = text(formData, "savedAddressId");
+  const savedAddressId = savedAddressValue
+    ? uuid.safeParse(savedAddressValue)
+    : null;
   const address = checkoutAddressSchema.safeParse({
     recipientName: text(formData, "recipientName"),
     phone: text(formData, "phone"),
@@ -221,7 +225,8 @@ export async function checkoutAction(
     !shippingMethodId.success ||
     !parsedVersion.success ||
     !key.success ||
-    !address.success
+    (savedAddressId !== null && !savedAddressId.success) ||
+    (savedAddressId === null && !address.success)
   ) {
     return {
       status: "error",
@@ -233,8 +238,12 @@ export async function checkoutAction(
     requested_cart_id: cartId.data,
     expected_version: parsedVersion.data,
     requested_shipping_method_id: shippingMethodId.data,
-    requested_address: checkoutAddressToPayload(address.data),
-    requested_save_address: formData.get("saveAddress") === "on",
+    requested_saved_address_id: savedAddressId?.data ?? null,
+    requested_address: address.success
+      ? checkoutAddressToPayload(address.data)
+      : {},
+    requested_save_address:
+      savedAddressId === null && formData.get("saveAddress") === "on",
     requested_idempotency_key: key.data,
   });
   if (error || !data[0]) return safeFailure(error?.code);

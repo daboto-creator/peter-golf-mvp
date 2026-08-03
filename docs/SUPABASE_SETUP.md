@@ -47,6 +47,8 @@ existe y no debe crearse ni vincularse en esta fase.
 | `20260801000000_order_management_foundation.sql`        | Pedidos manuales, transiciones, RLS e inventario.           |
 | `20260801000100_inventory_variant_management.sql`       | Inventario independiente por variante operativa.            |
 | `20260801000200_customer_checkout_foundation.sql`       | Carrito y checkout autenticado sin pago real.               |
+| `20260801000300_customer_order_read_privacy.sql`        | Proyecciones privadas de pedidos del cliente.               |
+| `20260801000400_customer_profile_addresses.sql`         | Perfil, direcciones y checkout con dirección guardada.      |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.

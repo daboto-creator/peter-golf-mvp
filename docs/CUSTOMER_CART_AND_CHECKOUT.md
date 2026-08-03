@@ -48,6 +48,12 @@ estado, CP, referencias y país fijo `MX`. Se puede usar una dirección propia y
 sólo se guarda una nueva mediante opción explícita. No se recopilan datos
 fiscales.
 
+Cuando se elige una guardada, el navegador envía sólo su UUID y la firma nueva
+de `create_customer_checkout_order` vuelve a resolver en SQL una fila activa
+propiedad de `auth.uid()`. Los campos visibles del navegador se ignoran y el
+snapshot se construye desde la versión vigente. Una captura nueva y su guardado
+opcional permanecen dentro de la transacción e idempotencia del pedido.
+
 El método único es `envio_nacional_temporal`, configurado en
 `shipping_methods` con `14900` centavos MXN ($149.00). SQL lo resuelve nuevamente
 y Peter Golf confirma después la logística. El pago es sólo `bank_transfer` con

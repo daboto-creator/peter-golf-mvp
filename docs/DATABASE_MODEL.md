@@ -23,6 +23,7 @@ migraciones posteriores crean, en orden:
 10. autorización y privilegios mínimos para gestión operativa de productos.
 11. bucket, políticas y funciones para imágenes de producto.
 12. gestión operativa transaccional e idempotente del inventario existente.
+13. carrito/checkout, privacidad de pedidos y administración segura de perfil y direcciones.
 
 `supabase/seed.sql` agrega únicamente datos ficticios de desarrollo.
 
@@ -56,12 +57,14 @@ categorías e imágenes que requieren las políticas RLS ya existentes.
 | `profiles`   | Extiende `auth.users`; nombre, apellido, nombre visible, teléfono opcional, locale y archivado. |
 | `roles`      | Roles controlados `customer`, `operator` y `admin`.                                             |
 | `user_roles` | Relación N:M entre perfiles y roles; conserva quién asignó el rol.                              |
-| `addresses`  | Direcciones mexicanas de un perfil; CP de cinco dígitos, dirección predeterminada y archivado.  |
+| `addresses`  | Direcciones mexicanas estructuradas; CP, exterior, referencias, versión y predeterminada única. |
 
 Un trigger sobre `auth.users` crea automáticamente el perfil y asigna únicamente
 el rol `customer`. Los cambios de roles no están disponibles mediante políticas
 cliente. La gestión de catálogo valida el permiso contra `user_roles` y `roles`
 mediante una función booleana protegida; no obtiene roles desde metadata.
+Las escrituras de perfil y direcciones se limitan a RPC explícitas; el correo
+permanece en `auth.users` y `addresses.user_id` siempre se deriva de `auth.uid()`.
 
 ## 4. Catálogo
 

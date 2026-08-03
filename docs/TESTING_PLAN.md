@@ -60,6 +60,13 @@ carrito único, mutaciones idempotentes, precios vigentes, disponibilidad,
 checkout atómico, snapshots, envío servidor, pedido web, no descuento al crear,
 confirmación/cancelación operativa e historial, siempre con `ROLLBACK`.
 
+Perfil y direcciones agregan pruebas unitarias de normalización, nombre,
+teléfono, etiqueta, opcionales, CP mexicano y transformación. La prueba SQL
+`supabase/tests/customer_profile_addresses.sql` cubre sesión, propiedad,
+privilegios directos, roles, CRUD, versión, predeterminada única y ausencia de
+reasignación al eliminar. La prueba de checkout comprueba además que una
+dirección guardada se resuelva en SQL e ignore campos manipulados del navegador.
+
 `supabase/tests/customer_order_read_privacy.sql` prueba con `ROLLBACK` que cada
 cliente lista y consulta sólo su proyección, que un pedido ajeno devuelve nulo,
 que las lecturas directas no revelan notas, actores, historial ni idempotencia,

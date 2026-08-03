@@ -169,7 +169,7 @@ declare cart_json jsonb; selected_cart public.carts%rowtype; first_item uuid;
     "exterior_number":"10","interior_number":null,"neighborhood":"Centro",
     "city":"Querétaro","state":"Querétaro","postal_code":"76000",
     "references":"Portón verde","country_code":"MX"}'::jsonb;
-  stock_one integer; stock_two integer;
+  stock_one integer; stock_two integer; saved record;
 begin
   cart_json := public.get_customer_cart();
   if not (cart_json->>'has_issues')::boolean
@@ -179,8 +179,14 @@ begin
   select id into first_item from public.cart_items where cart_id=selected_cart.id
     and variant_id='53000000-0000-4000-8000-000000000001';
   select shipping_method_id into method_id from public.get_customer_shipping_method();
+  select * into saved from public.manage_customer_address('create', null, null,
+    '{"label":"Casa","recipient_name":"Ana Pérez","phone":"4421234567",
+      "street":"Reforma","exterior_number":"10","interior_number":null,
+      "neighborhood":"Centro","city":"Querétaro","state":"Querétaro",
+      "postal_code":"76000","references":"Portón verde","country_code":"MX",
+      "is_default":true}'::jsonb);
   begin perform public.create_customer_checkout_order(selected_cart.id,selected_cart.version,
-    method_id,address,false,'73000000-0000-4000-8000-000000000030');
+    method_id,saved.address_id,address,false,'73000000-0000-4000-8000-000000000030');
     raise exception 'Expected changed price checkout rejection';
   exception when serialization_failure then null; end;
   perform public.change_customer_cart('update',first_item,3,selected_cart.version,
@@ -189,7 +195,9 @@ begin
   select quantity_on_hand into stock_one from public.inventory where variant_id='53000000-0000-4000-8000-000000000001';
   select quantity_on_hand into stock_two from public.inventory where variant_id='53000000-0000-4000-8000-000000000002';
   select * into result from public.create_customer_checkout_order(selected_cart.id,selected_cart.version,
-    method_id,address,true,'73000000-0000-4000-8000-000000000032');
+    method_id,saved.address_id,
+    jsonb_set(address, '{street}', '"CALLE DEL NAVEGADOR"'),
+    false,'73000000-0000-4000-8000-000000000032');
   if result.replayed or result.order_number !~ '^PG-W-[A-F0-9]{12}$' then raise exception 'Checkout result invalid'; end if;
   order_id := result.order_id;
   detail := public.get_customer_order(order_id);
@@ -202,6 +210,8 @@ begin
     or (detail->>'tax_total')::integer <> 0
     or (detail->>'total')::integer <> 76900
   then raise exception 'Checkout order fields or totals invalid: %', detail; end if;
+  if detail->'shipping_address_snapshot'->>'street' <> 'Reforma'
+  then raise exception 'Saved address was not resolved on the server: %', detail; end if;
   if jsonb_array_length(detail->'order_items') <> 2
     or (select (item->>'unit_price_snapshot')::integer
         from jsonb_array_elements(detail->'order_items') item
@@ -218,7 +228,7 @@ begin
   if (select count(*) from public.addresses where user_id=auth.uid()) <> 1
     then raise exception 'Explicit address save failed'; end if;
   select * into result from public.create_customer_checkout_order(selected_cart.id,selected_cart.version,
-    method_id,address,true,'73000000-0000-4000-8000-000000000032');
+    method_id,saved.address_id,address,false,'73000000-0000-4000-8000-000000000032');
   if not result.replayed or result.order_id <> order_id then raise exception 'Checkout replay failed'; end if;
   detail := public.get_customer_order(order_id);
   if (select count(*) from public.list_customer_orders()) <> 1
@@ -255,7 +265,8 @@ set local role authenticated;
 do $$
 declare selected public.orders%rowtype; before_one integer; before_two integer;
 begin
-  select * into selected from public.orders where origin='web';
+  select * into selected from public.orders
+  where origin='web' and user_id='13000000-0000-4000-8000-000000000001';
   if selected.id is null then raise exception 'Operator cannot read web order'; end if;
   select quantity_on_hand into before_one from public.inventory where variant_id='53000000-0000-4000-8000-000000000001';
   select quantity_on_hand into before_two from public.inventory where variant_id='53000000-0000-4000-8000-000000000002';

@@ -38,11 +38,14 @@ export type CustomerAddress = {
   recipientName: string;
   phone: string | null;
   line1: string;
+  exteriorNumber: string | null;
   line2: string | null;
   neighborhood: string | null;
   city: string;
   state: string;
   postalCode: string;
+  references: string | null;
+  isDefault: boolean;
 };
 
 export type CustomerShippingMethod = {
@@ -75,7 +78,7 @@ export async function getCustomerCheckoutContext(): Promise<{
       client
         .from("addresses")
         .select(
-          "id, label, recipient_name, phone, line_1, line_2, neighborhood, city, state, postal_code",
+          "id, label, recipient_name, phone, line_1, exterior_number, line_2, neighborhood, city, state, postal_code, delivery_references, is_default",
         )
         .is("archived_at", null)
         .order("is_default", { ascending: false })
@@ -91,11 +94,14 @@ export async function getCustomerCheckoutContext(): Promise<{
         recipientName: address.recipient_name,
         phone: address.phone,
         line1: address.line_1,
+        exteriorNumber: address.exterior_number,
         line2: address.line_2,
         neighborhood: address.neighborhood,
         city: address.city,
         state: address.state,
         postalCode: address.postal_code,
+        references: address.delivery_references,
+        isDefault: address.is_default,
       })),
       shippingMethod: method
         ? {

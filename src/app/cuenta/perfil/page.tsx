@@ -21,7 +21,7 @@ export default async function ProfilePage() {
   const supabase = await createClient();
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("first_name,last_name")
+    .select("first_name,last_name,phone,created_at")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -52,8 +52,18 @@ export default async function ProfilePage() {
               firstName={profile.first_name ?? ""}
               lastName={profile.last_name ?? ""}
               email={user.email ?? ""}
+              phone={profile.phone ?? ""}
             />
           )}
+          {profile?.created_at ? (
+            <p className="text-muted-foreground mt-6 border-t pt-4 text-sm">
+              Cuenta creada el{" "}
+              {new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(
+                new Date(profile.created_at),
+              )}
+              .
+            </p>
+          ) : null}
         </CardContent>
       </Card>
     </div>
