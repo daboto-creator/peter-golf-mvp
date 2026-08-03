@@ -11,6 +11,7 @@ export type ManualOrderListRecord = {
   customer_email: string | null;
   customer_phone: string | null;
   origin_channel: Database["public"]["Enums"]["manual_order_channel"] | null;
+  origin: Database["public"]["Enums"]["order_origin"];
   status: Database["public"]["Enums"]["order_status"];
   payment_status: Database["public"]["Enums"]["manual_payment_status"];
   total: number;
@@ -23,7 +24,7 @@ export type ManualOrderListRecord = {
 export function normalizeManualOrderSummary(
   row: ManualOrderListRecord,
 ): ManualOrderSummary | null {
-  if (!row.customer_name || !row.customer_phone || !row.origin_channel) {
+  if (!row.customer_name || !row.customer_phone) {
     return null;
   }
   return {
@@ -33,6 +34,7 @@ export function normalizeManualOrderSummary(
     customerEmail: row.customer_email,
     customerPhone: row.customer_phone,
     channel: row.origin_channel,
+    origin: row.origin,
     status: row.status,
     paymentStatus: row.payment_status,
     total: row.total,

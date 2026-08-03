@@ -10,14 +10,16 @@ El repositorio contiene el scaffold técnico inicial, la documentación base del
 MVP, la integración tipada con Supabase de staging, la base de autenticación y
 la primera base funcional del catálogo público, la gestión operativa del
 catálogo, las imágenes de producto con Supabase Storage, una base auditable de
-inventario operativo y la gestión transaccional de pedidos manuales.
+inventario operativo, la gestión transaccional de pedidos manuales y el primer
+carrito/checkout autenticado sin pagos reales.
 
 Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
 perfil básico, protección inicial de `/cuenta`, listado público en `/productos`
 y detalle público en `/productos/[slug]`. Los usuarios con rol `operator` o
 `admin` pueden entrar a `/operacion` para crear, editar, publicar, despublicar,
-archivar y restaurar productos base. Todavía no están implementados el carrito,
-el checkout, la búsqueda avanzada, la gestión operativa de variantes o
+archivar y restaurar productos base. El carrito y checkout autenticado generan
+pedidos web pendientes de revisión, sin reservar inventario ni cobrar. Todavía
+no están implementados la búsqueda avanzada, la gestión operativa de variantes o
 reservas de inventario, ni los pagos. La CLI y los clientes tipados
 apuntan al proyecto remoto de staging de Supabase; el acceso funcional usa RLS.
 El MVP se validará primero sin pagos reales.
@@ -306,6 +308,7 @@ La prueba usa datos ficticios dentro de una transacción y finaliza con
 - [Requisitos de seguridad](./docs/SECURITY_REQUIREMENTS.md)
 - [Criterios de aceptación](./docs/MVP_ACCEPTANCE_CRITERIA.md)
 - [Plan de pruebas](./docs/TESTING_PLAN.md)
+- [Carrito y checkout](./docs/CUSTOMER_CART_AND_CHECKOUT.md)
 - [Variables de entorno](./docs/ENVIRONMENT.md)
 - [Configuración local de Supabase](./docs/SUPABASE_SETUP.md)
 - [Runbook de despliegue](./docs/DEPLOYMENT_RUNBOOK.md)

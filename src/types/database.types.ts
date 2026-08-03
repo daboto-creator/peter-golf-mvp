@@ -375,7 +375,9 @@ export type Database = {
         Row: {
           cart_id: string;
           created_at: string;
+          currency_seen: string;
           id: string;
+          price_seen: number;
           quantity: number;
           updated_at: string;
           variant_id: string;
@@ -383,7 +385,9 @@ export type Database = {
         Insert: {
           cart_id: string;
           created_at?: string;
+          currency_seen?: string;
           id?: string;
+          price_seen?: number;
           quantity: number;
           updated_at?: string;
           variant_id: string;
@@ -391,7 +395,9 @@ export type Database = {
         Update: {
           cart_id?: string;
           created_at?: string;
+          currency_seen?: string;
           id?: string;
+          price_seen?: number;
           quantity?: number;
           updated_at?: string;
           variant_id?: string;
@@ -422,6 +428,7 @@ export type Database = {
           status: Database["public"]["Enums"]["cart_status"];
           updated_at: string;
           user_id: string;
+          version: number;
         };
         Insert: {
           created_at?: string;
@@ -431,6 +438,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["cart_status"];
           updated_at?: string;
           user_id: string;
+          version?: number;
         };
         Update: {
           created_at?: string;
@@ -440,6 +448,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["cart_status"];
           updated_at?: string;
           user_id?: string;
+          version?: number;
         };
         Relationships: [
           {
@@ -447,6 +456,58 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cart_idempotency_keys: {
+        Row: {
+          actor_id: string;
+          cart_id: string | null;
+          cart_item_id: string | null;
+          created_at: string;
+          idempotency_key: string;
+          operation: string;
+          payload_hash: string;
+        };
+        Insert: {
+          actor_id: string;
+          cart_id?: string | null;
+          cart_item_id?: string | null;
+          created_at?: string;
+          idempotency_key: string;
+          operation: string;
+          payload_hash: string;
+        };
+        Update: {
+          actor_id?: string;
+          cart_id?: string | null;
+          cart_item_id?: string | null;
+          created_at?: string;
+          idempotency_key?: string;
+          operation?: string;
+          payload_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cart_idempotency_keys_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_idempotency_keys_cart_id_fkey";
+            columns: ["cart_id"];
+            isOneToOne: false;
+            referencedRelation: "carts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_idempotency_keys_cart_item_id_fkey";
+            columns: ["cart_item_id"];
+            isOneToOne: false;
+            referencedRelation: "cart_items";
             referencedColumns: ["id"];
           },
         ];
@@ -776,6 +837,7 @@ export type Database = {
           id: string;
           internal_note: string | null;
           order_number: string;
+          origin: Database["public"]["Enums"]["order_origin"];
           origin_channel:
             Database["public"]["Enums"]["manual_order_channel"] | null;
           origin_channel_detail: string | null;
@@ -813,6 +875,7 @@ export type Database = {
           id?: string;
           internal_note?: string | null;
           order_number: string;
+          origin?: Database["public"]["Enums"]["order_origin"];
           origin_channel?:
             Database["public"]["Enums"]["manual_order_channel"] | null;
           origin_channel_detail?: string | null;
@@ -850,6 +913,7 @@ export type Database = {
           id?: string;
           internal_note?: string | null;
           order_number?: string;
+          origin?: Database["public"]["Enums"]["order_origin"];
           origin_channel?:
             Database["public"]["Enums"]["manual_order_channel"] | null;
           origin_channel_detail?: string | null;
@@ -1357,6 +1421,21 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      add_customer_cart_item: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_product_id: string;
+          requested_quantity: number;
+          requested_variant_id: string;
+        };
+        Returns: {
+          cart_id: string;
+          cart_item_id: string;
+          quantity: number;
+          replayed: boolean;
+          version: number;
+        }[];
+      };
       adjust_inventory: {
         Args: {
           requested_idempotency_key: string;
@@ -1399,6 +1478,60 @@ export type Database = {
       can_manage_orders: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
+      };
+      cancel_operational_order: {
+        Args: {
+          expected_version: number;
+          requested_idempotency_key: string;
+          requested_order_id: string;
+          requested_reason: string;
+        };
+        Returns: {
+          order_id: string;
+          replayed: boolean;
+          status: Database["public"]["Enums"]["order_status"];
+        }[];
+      };
+      change_customer_cart: {
+        Args: {
+          expected_version: number;
+          requested_cart_item_id: string;
+          requested_idempotency_key: string;
+          requested_operation: string;
+          requested_quantity: number;
+        };
+        Returns: { cart_id: string; replayed: boolean; version: number }[];
+      };
+      clear_customer_cart: {
+        Args: { expected_version: number; requested_idempotency_key: string };
+        Returns: { cart_id: string; replayed: boolean; version: number }[];
+      };
+      confirm_operational_order: {
+        Args: {
+          expected_version: number;
+          requested_idempotency_key: string;
+          requested_order_id: string;
+        };
+        Returns: {
+          order_id: string;
+          replayed: boolean;
+          status: Database["public"]["Enums"]["order_status"];
+        }[];
+      };
+      create_customer_checkout_order: {
+        Args: {
+          expected_version: number;
+          requested_address: Json;
+          requested_cart_id: string;
+          requested_idempotency_key: string;
+          requested_save_address: boolean;
+          requested_shipping_method_id: string;
+        };
+        Returns: {
+          order_id: string;
+          order_number: string;
+          replayed: boolean;
+        }[];
       };
       cancel_manual_order: {
         Args: {
@@ -1461,6 +1594,40 @@ export type Database = {
           variant_id: string;
         }[];
       };
+      get_customer_cart: { Args: Record<PropertyKey, never>; Returns: Json };
+      get_customer_order: {
+        Args: { requested_order_id: string };
+        Returns: Json;
+      };
+      get_customer_shipping_method: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          base_price: number;
+          currency: string;
+          description: string | null;
+          name: string;
+          shipping_method_id: string;
+        }[];
+      };
+      list_customer_orders: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          created_at: string;
+          currency: string;
+          discount_total: number;
+          id: string;
+          order_number: string;
+          payment_method: Database["public"]["Enums"]["manual_payment_method"];
+          payment_status: Database["public"]["Enums"]["manual_payment_status"];
+          shipping_address_snapshot: Json;
+          shipping_total: number;
+          status: Database["public"]["Enums"]["order_status"];
+          subtotal: number;
+          tax_total: number;
+          total: number;
+          updated_at: string;
+        }[];
+      };
       initialize_inventory: {
         Args: { requested_variant_id: string };
         Returns: {
@@ -1481,6 +1648,15 @@ export type Database = {
         Returns: { order_id: string; version: number }[];
       };
       update_manual_order_payment: {
+        Args: {
+          expected_version: number;
+          requested_method: Database["public"]["Enums"]["manual_payment_method"];
+          requested_order_id: string;
+          requested_status: Database["public"]["Enums"]["manual_payment_status"];
+        };
+        Returns: { order_id: string; version: number }[];
+      };
+      update_operational_order_payment: {
         Args: {
           expected_version: number;
           requested_method: Database["public"]["Enums"]["manual_payment_method"];
@@ -1620,6 +1796,7 @@ export type Database = {
         | "delivered"
         | "cancelled"
         | "returned";
+      order_origin: "manual" | "web";
       page_status: "draft" | "published" | "archived";
       product_condition: "new" | "used";
       product_condition_grade:

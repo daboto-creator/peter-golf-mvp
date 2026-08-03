@@ -20,6 +20,13 @@ export function channelLabel(
     other: "Otro",
   }[channel];
 }
+export function orderOriginLabel(
+  origin: Database["public"]["Enums"]["order_origin"],
+  channel: Database["public"]["Enums"]["manual_order_channel"] | null,
+) {
+  if (origin === "web") return "Tienda en línea";
+  return channel ? channelLabel(channel) : "Pedido manual";
+}
 export function paymentLabel(
   status: Database["public"]["Enums"]["manual_payment_status"],
 ) {

@@ -10,6 +10,7 @@ import type { Database } from "@/types/database.types";
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 type Channel = Database["public"]["Enums"]["manual_order_channel"];
 type PaymentStatus = Database["public"]["Enums"]["manual_payment_status"];
+type OrderOrigin = Database["public"]["Enums"]["order_origin"];
 
 export type OrderCatalogOption = {
   productId: string;
@@ -28,7 +29,8 @@ export type ManualOrderSummary = {
   customerName: string;
   customerEmail: string | null;
   customerPhone: string;
-  channel: Channel;
+  channel: Channel | null;
+  origin: OrderOrigin;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   total: number;
@@ -129,15 +131,15 @@ export async function listManualOrders(filters: {
   status?: string;
   channel?: string;
   payment?: string;
+  origin?: string;
 }): Promise<OrderQueryResult<ManualOrderSummary[]>> {
   try {
     const client = await createClient();
     let query = client
       .from("orders")
       .select(
-        "id, order_number, customer_name, customer_email, customer_phone, origin_channel, status, payment_status, total, currency, created_at, updated_at, order_items(quantity)",
+        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, status, payment_status, total, currency, created_at, updated_at, order_items(quantity)",
       )
-      .not("created_by", "is", null)
       .order("created_at", { ascending: false })
       .limit(200);
     const search = filters.search?.trim().slice(0, 120);
@@ -177,6 +179,9 @@ export async function listManualOrders(filters: {
     ) {
       query = query.eq("payment_status", filters.payment as PaymentStatus);
     }
+    if (filters.origin === "manual" || filters.origin === "web") {
+      query = query.eq("origin", filters.origin);
+    }
     const { data, error } = await query;
     if (error) return { data: null, error: "unavailable" };
     return {
@@ -199,14 +204,13 @@ export async function getManualOrder(
     const { data, error } = await client
       .from("orders")
       .select(
-        "id, order_number, customer_name, customer_email, customer_phone, origin_channel, origin_channel_detail, status, payment_status, payment_method, subtotal, discount_total, discount_reason, shipping_total, total, currency, internal_note, shipping_address_snapshot, confirmed_at, cancelled_at, cancellation_reason, version, created_at, updated_at, order_items(id, product_id, variant_id, sku_snapshot, product_name_snapshot, variant_name_snapshot, unit_price_snapshot, quantity, line_total), order_status_history(id, from_status, to_status, created_at)",
+        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, origin_channel_detail, status, payment_status, payment_method, subtotal, discount_total, discount_reason, shipping_total, total, currency, internal_note, shipping_address_snapshot, confirmed_at, cancelled_at, cancellation_reason, version, created_at, updated_at, order_items(id, product_id, variant_id, sku_snapshot, product_name_snapshot, variant_name_snapshot, unit_price_snapshot, quantity, line_total), order_status_history(id, from_status, to_status, created_at)",
       )
       .eq("id", id)
-      .not("created_by", "is", null)
       .maybeSingle();
     if (error) return { data: null, error: "unavailable" };
     if (!data) return { data: null, error: null };
-    if (!data.customer_name || !data.customer_phone || !data.origin_channel)
+    if (!data.customer_name || !data.customer_phone)
       return { data: null, error: "unavailable" };
     return {
       data: {
@@ -216,6 +220,7 @@ export async function getManualOrder(
         customerEmail: data.customer_email,
         customerPhone: data.customer_phone,
         channel: data.origin_channel,
+        origin: data.origin,
         status: data.status,
         paymentStatus: data.payment_status,
         paymentMethod: data.payment_method,

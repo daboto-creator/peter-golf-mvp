@@ -44,7 +44,8 @@ Una persona autenticada puede:
 - crear, leer y actualizar sólo su `profile`;
 - leer sólo sus direcciones;
 - crear, leer, actualizar y eliminar únicamente sus carritos y partidas;
-- leer únicamente sus pedidos, partidas e historial.
+- listar y consultar únicamente la proyección segura de sus pedidos mediante
+  RPC; no tiene lectura directa de las tablas de pedidos.
 
 El cliente no puede asignar roles, modificar direcciones, crear pedidos, ajustar
 inventario directamente ni escribir asesorías o configuración. Las excepciones
@@ -76,9 +77,9 @@ canal permitido, no un permiso implícito por poseer el rol.
 | `shipping_methods`         | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `carts`                    | No              | Propios                       | Propio              | Propio                | Propio              | Backend, soporte         | Backend, auditado        |
 | `cart_items`               | No              | De carrito propio             | De carrito propio   | De carrito propio     | De carrito propio   | Backend, soporte         | Backend, auditado        |
-| `orders`                   | No              | Propios                       | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
-| `order_items`              | No              | De pedido propio              | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
-| `order_status_history`     | No              | De pedido propio              | No                  | No                    | No                  | Backend; sólo insertar   | Backend; sólo insertar   |
+| `orders`                   | No              | Proyección RPC propia         | No                  | No                    | No                  | Detalle completo         | Detalle completo         |
+| `order_items`              | No              | Snapshots por RPC propia      | No                  | No                    | No                  | Detalle completo         | Detalle completo         |
+| `order_status_history`     | No              | Estado/fecha por RPC propia   | No                  | No                    | No                  | Detalle completo         | Detalle completo         |
 | `advisory_sessions`        | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `advisory_answers`         | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `advisory_recommendations` | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
@@ -203,6 +204,16 @@ autoridad. Véase [ORDER_MANAGEMENT.md](./ORDER_MANAGEMENT.md).
 
 Los constraints protegen importes no negativos, consistencia de totales,
 cantidades de inventario y snapshots, pero no sustituyen las reglas del backend.
+
+La lectura de pedidos del cliente usa `list_customer_orders()` y
+`get_customer_order(uuid)`, ambas `security invoker` y con `search_path` vacío.
+RLS exige `auth.uid()`, origen web y un contexto transaccional local que las RPC
+retiran antes de devolver. Esto es necesario porque clientes y operadores
+comparten el rol SQL `authenticated`: los grants de tabla que soportan las RPC
+operativas no pueden diferenciar el rol de negocio. Las políticas
+`can_manage_orders()` siguen dando a operator/admin el detalle completo; el
+cliente sólo recibe una proyección explícita sin notas, actores, motivos
+internos, historial de auditoría ni llaves de idempotencia.
 
 La gestión de inventario usa Server Actions que ejecutan
 `requireCatalogManager()` y RPC `security invoker` con `search_path` vacío. RLS

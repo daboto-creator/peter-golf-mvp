@@ -186,6 +186,8 @@ reciben nuevos ajustes.
 
 La base operativa de pedidos manuales, sus snapshots, transacciones e
 idempotencia se documenta en [ORDER_MANAGEMENT.md](./ORDER_MANAGEMENT.md).
+El carrito y checkout autenticado se documentan en
+[CUSTOMER_CART_AND_CHECKOUT.md](./CUSTOMER_CART_AND_CHECKOUT.md).
 
 | Tabla                  | Propósito y reglas principales                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------- |

@@ -15,7 +15,7 @@ import {
   listOrderCatalogOptions,
 } from "@/lib/orders/operational-orders";
 import {
-  channelLabel,
+  orderOriginLabel,
   paymentLabel,
   statusLabel,
 } from "@/lib/orders/presentation";
@@ -59,10 +59,12 @@ export default async function OrderDetailPage({
           </p>
           <h1 className="mt-2 text-3xl font-semibold">{order.orderNumber}</h1>
           <p className="text-muted-foreground mt-2">
-            {channelLabel(order.channel)} · {paymentLabel(order.paymentStatus)}
+            {orderOriginLabel(order.origin, order.channel)} ·{" "}
+            {paymentLabel(order.paymentStatus)}
           </p>
         </div>
-        {order.status === "pending_confirmation" ? (
+        {order.status === "pending_confirmation" &&
+        order.origin === "manual" ? (
           <Button asChild variant="outline">
             <a href="#editar">Editar preliminar</a>
           </Button>
@@ -174,7 +176,7 @@ export default async function OrderDetailPage({
         confirmKey={randomUUID()}
         cancelKey={randomUUID()}
       />
-      {order.status === "pending_confirmation" ? (
+      {order.status === "pending_confirmation" && order.origin === "manual" ? (
         <section id="editar" className="scroll-mt-4 space-y-5">
           <h2 className="text-2xl font-semibold">Editar preliminar</h2>
           {options.error ? (
