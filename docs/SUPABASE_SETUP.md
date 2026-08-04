@@ -8,7 +8,7 @@ Mailpit) están habilitados para probar
 registro, confirmación y recuperación. Storage está habilitado para imágenes de
 producto; Realtime, Edge Runtime y Analytics continúan deshabilitados.
 
-El esquema v1 incluye las 24 tablas públicas descritas en
+El esquema local actual incluye 32 tablas públicas descritas en
 `docs/DATABASE_MODEL.md`, y todas tienen RLS. La referencia a `auth.users` en
 `profiles` se integra con Supabase Auth mediante una migración que crea
 automáticamente el perfil y el rol `customer`.
@@ -19,10 +19,10 @@ La CLI sigue vinculada con:
 - proyecto: `peter-golf-staging`;
 - project reference: `xdulakstgsgdujjylhox`.
 
-El esquema remoto expuesto por staging contiene las 24 tablas públicas
-versionadas. Esto se verificó mediante generación de tipos de solo lectura; esta
-integración no ejecutó migraciones ni modificó recursos remotos. Producción no
-existe y no debe crearse ni vincularse en esta fase.
+La consulta remota de sólo lectura del 3 de agosto de 2026 confirmó que staging
+tiene 14 de las 24 migraciones locales: termina en
+`20260731000000_catalog_taxonomy_management.sql`. Las 10 restantes no se han
+aplicado. Producción no existe y no debe crearse ni vincularse en esta fase.
 
 ## 2. Migraciones
 
@@ -50,6 +50,8 @@ existe y no debe crearse ni vincularse en esta fase.
 | `20260801000200_customer_checkout_foundation.sql`       | Carrito y checkout autenticado sin pago real.               |
 | `20260801000300_customer_order_read_privacy.sql`        | Proyecciones privadas de pedidos del cliente.               |
 | `20260801000400_customer_profile_addresses.sql`         | Perfil, direcciones y checkout con dirección guardada.      |
+| `20260803000000_order_payments_foundation.sql`          | Pagos simulados, doble kill switch, RLS e idempotencia.     |
+| `20260803000100_order_notifications_foundation.sql`     | Outbox transaccional y cola de entrega local.               |
 
 No se deben editar migraciones aplicadas en un ambiente compartido. Cualquier
 corrección posterior debe ser una migración nueva y compatible hacia adelante.
@@ -280,8 +282,24 @@ de RLS sigue pendiente.
 
 ## 7. Staging vinculado
 
-Antes de cualquier cambio remoto, confirmar rama, diff, respaldo, estrategia de
-reversión y que la referencia continúa siendo `xdulakstgsgdujjylhox`.
+Se preservan los datos remotos actuales y no se aplica `supabase/seed.sql`.
+Antes de cualquier cambio remoto, confirmar rama, diff, estrategia de reversión,
+que la referencia continúa siendo `xdulakstgsgdujjylhox` y obtener un respaldo
+lógico inmediatamente anterior. El RPO aprobado es ese respaldo y el RTO
+objetivo es menor a cuatro horas.
+
+Las 10 migraciones pendientes son, exactamente:
+
+1. `20260731000100_inventory_management_foundation.sql`;
+2. `20260731000200_catalog_base_variant_foundation.sql`;
+3. `20260731000300_catalog_base_variant_updates.sql`;
+4. `20260801000000_order_management_foundation.sql`;
+5. `20260801000100_inventory_variant_management.sql`;
+6. `20260801000200_customer_checkout_foundation.sql`;
+7. `20260801000300_customer_order_read_privacy.sql`;
+8. `20260801000400_customer_profile_addresses.sql`;
+9. `20260803000000_order_payments_foundation.sql`;
+10. `20260803000100_order_notifications_foundation.sql`.
 
 El plan remoto se inspecciona con:
 
@@ -289,15 +307,21 @@ El plan remoto se inspecciona con:
 npx --no-install supabase db push --dry-run
 ```
 
-La aplicación real requiere revisión y autorización separada:
+El dry run debe enumerar sólo esa lista. Después del respaldo, revisión y una
+autorización separada, la fase remota podrá ejecutar:
 
 ```bash
 npx --no-install supabase db push
-npx --no-install supabase migration list
+npx --no-install supabase migration list --linked
 ```
 
-Esta fase no ejecuta esos comandos. Nunca usar `supabase db reset --linked`, ya
-que elimina y reconstruye una base remota.
+No agregar `--include-seed`. Esta preparación local no ejecuta esos comandos.
+Nunca usar `supabase db reset --linked`, ya que elimina y reconstruye una base
+remota.
+
+Después de aplicar, comprobar 24 migraciones alineadas, 32 tablas públicas con
+RLS, grants y funciones esperadas, bucket `product-images` y
+`site_settings.payments.mode=disabled`.
 
 ## 8. Separación de ambientes
 
@@ -327,11 +351,16 @@ usa la sesión autenticada, RLS y privilegios de columna.
 Staging nunca debe usar valores live ni datos de producción. Los pagos reales
 permanecen deshabilitados y no se configuró proveedor alguno.
 
-Antes de probar autenticación en `peter-golf-staging`, configurar manualmente en
-Supabase Auth:
+El primer staging usa cuentas de prueba precreadas y confirmadas. Registro y
+recuperación no se consideran disponibles para correos arbitrarios y no se
+configura SMTP. Después de conocer el alias estable `vercel.app`, configurar
+manualmente en Supabase Auth:
 
 - **Site URL:** el valor HTTPS de `NEXT_PUBLIC_APP_URL` del despliegue de staging;
 - **Redirect URLs:** ese mismo origen seguido de `/auth/callback`.
+
+Preview usa el mismo `NEXT_PUBLIC_APP_URL` canónico y no depende de Auth; no se
+agregan comodines para URLs efímeras.
 
 Esta tarea no modifica el proyecto remoto. Producción deberá usar URLs, secretos
 y proyecto separados.
@@ -363,13 +392,17 @@ Los correos locales de confirmación y recuperación se consultan en Inbucket. L
 aplicación construye sus callbacks desde `NEXT_PUBLIC_APP_URL`; no acepta
 destinos externos proporcionados por el usuario.
 
-Los correos de pedidos usan el mismo buzón mediante SMTP en `54325`, allowlist
-y processor manual. Véase [ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).
+Los correos de pedidos usan el mismo buzón local mediante SMTP en `54325`,
+allowlist y processor manual. Inbucket no existe en Vercel; Preview y staging
+usan `NOTIFICATIONS_MODE=disabled` y no configuran variables SMTP. Véase
+[ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).
 
 ## 10. Reversión
 
 No existe rollback destructivo automático. Antes de aplicar a staging se debe
-preparar una migración compensatoria o una estrategia de restauración probada.
+preparar una migración compensatoria o comprobar la restauración del respaldo.
 Eliminar tablas, tipos o `pgcrypto` puede perder datos o romper dependencias y
 requiere aprobación explícita. La alternativa segura durante desarrollo es
 corregir con una migración nueva y reconstruir exclusivamente la base local.
+Para staging se restaura el respaldo o se aplica una migración compensatoria;
+nunca se usa `db reset --linked`.

@@ -15,7 +15,19 @@ El repositorio dispone de:
 - `npm run test:e2e`
 - `npm run build`
 
-Las pruebas unitarias usan Vitest y Testing Library. Las pruebas E2E usan Playwright y se ejecutan localmente; todavía no forman parte del workflow de CI para evitar descargar navegadores en esta fase.
+Las pruebas unitarias usan Vitest y Testing Library. Playwright se ejecuta
+localmente y permite un smoke remoto manual; todavía no forma parte del workflow
+de CI. La configuración incluye Desktop Chrome, Mobile Chrome, Mobile Safari y
+Tablet.
+
+Sin `PLAYWRIGHT_BASE_URL`, Playwright inicia el servidor local. Con esa variable
+usa la URL proporcionada y no levanta `webServer`. En remoto excluye pruebas cuyo
+título incluya `@mutating`, salvo `PLAYWRIGHT_ALLOW_MUTATIONS=1`. Ese flag no se
+usa contra staging en esta fase.
+
+`e2e/staging-smoke.spec.ts` es de sólo lectura y valida home, catálogo, health,
+redirects anónimos, ausencia del scaffold, errores visibles y patrones de
+secretos. Se ejecutará después de crear el alias de staging.
 
 El catálogo incorpora pruebas unitarias deterministas para formateo de importes
 en unidades menores, condición, mensajes de disponibilidad y validación de rutas
@@ -130,6 +142,7 @@ múltiples, snapshot de estado concurrente y autorización customer/operator/adm
 
 ### End-to-end
 
+- Verificar que la portada muestre Peter Golf Pro Shop y enlace al catálogo.
 - Navegar listado y detalle publicado.
 - Distinguir nuevo/seminuevo y stock/sobre pedido.
 - Enviar una solicitud válida y manejar errores.
@@ -140,10 +153,17 @@ múltiples, snapshot de estado concurrente y autorización customer/operator/adm
   crear, editar, publicar, despublicar, archivar y restaurar.
 - Confirmar que sólo operator/admin puede gestionar imágenes y que IDs de otro
   producto son rechazados.
+- Confirmar que `/cuenta` y `/operacion` redirijan sin sesión.
+- Confirmar que el health check use `no-store` y no revele configuración o PII.
+- Ejecutar el smoke remoto sin habilitar mutaciones.
 
 ### Manuales
 
-- Responsive en tamaños móviles y escritorio.
+- Desktop Chrome en 1440×900.
+- Mobile Chrome con perfil Pixel 7.
+- Mobile Safari con perfil iPhone 15.
+- Tablet con perfil iPad Pro 11, portrait y landscape.
+- Ausencia de scroll horizontal y navegación móvil utilizable.
 - Navegación por teclado, foco visible, etiquetas, contraste y lector de pantalla en rutas críticas.
 - Contenido, fotografías y descripción de seminuevos.
 - Mensajes de error, vacío, espera y ausencia de red.
@@ -178,6 +198,11 @@ múltiples, snapshot de estado concurrente y autorización customer/operator/adm
 - Nunca copiar datos reales de producción a staging.
 - Semillas futuras sin teléfonos, correos o direcciones de personas reales.
 - Limpiar o anonimizar artefactos de prueba según política.
+- Preview y staging comparten exclusivamente datos ficticios del Supabase de
+  staging; las pruebas de escritura remotas requieren autorización explícita.
+- Staging conserva datos existentes y no recibe `supabase/seed.sql`.
+- Auth remoto usa cuentas ficticias precreadas y confirmadas.
+- Inbucket y las pruebas SMTP existen sólo localmente.
 
 ## 7. Ejecución por tarea
 
@@ -188,12 +213,24 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run format
+npm run format:check
+npm run supabase:lint
+npm run test:e2e -- e2e/home.spec.ts
+git diff --check
 ```
 
-Playwright requiere instalar el navegador local una vez con:
+Playwright requiere instalar los navegadores locales una vez con:
 
 ```bash
-npx playwright install chromium
+npx playwright install
+```
+
+Cuando exista el alias canónico, el smoke remoto manual será:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://<alias-canonico-staging>.vercel.app \
+  npm run test:e2e -- e2e/staging-smoke.spec.ts
 ```
 
 ## 8. Evidencia y salida

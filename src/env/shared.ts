@@ -18,8 +18,16 @@ export function parseEnvironment<TSchema extends z.ZodType>(
   const result = schema.safeParse(values);
 
   if (!result.success) {
+    const invalidFields = [
+      ...new Set(
+        result.error.issues.map((issue) =>
+          issue.path.length > 0 ? issue.path.join(".") : "environment",
+        ),
+      ),
+    ];
+
     throw new Error(
-      `Invalid ${scope} environment variables: ${z.prettifyError(result.error)}`,
+      `Invalid ${scope} environment variables: ${invalidFields.join(", ")}.`,
     );
   }
 

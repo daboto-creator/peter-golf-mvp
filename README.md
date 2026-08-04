@@ -6,8 +6,8 @@ La propuesta de valor no se limita a vender productos: un equipo inicial de dos 
 
 ## Estado actual
 
-El repositorio contiene el scaffold técnico inicial, la documentación base del
-MVP, la integración tipada con Supabase de staging, la base de autenticación y
+El repositorio contiene una landing funcional de Peter Golf Pro Shop, la
+documentación base del MVP, la integración tipada con Supabase de staging, la base de autenticación y
 la primera base funcional del catálogo público, la gestión operativa del
 catálogo, las imágenes de producto con Supabase Storage, una base auditable de
 inventario operativo, la gestión transaccional de pedidos manuales, el primer
@@ -40,7 +40,8 @@ Las rutas y reglas de perfil/direcciones están documentadas en
 - Tailwind CSS 4
 - ESLint
 - Supabase con base técnica local y staging vinculado; la persistencia, autenticación y almacenamiento funcionales quedan sujetos al diseño final
-- Plataforma de despliegue por decidir; Vercel es compatible con el scaffold actual, pero no está formalmente adoptado
+- Vercel como plataforma aprobada para un proyecto exclusivo de staging; el
+  proyecto remoto todavía no se crea en esta preparación local
 
 No se ha seleccionado ni integrado un proveedor de pagos.
 
@@ -62,18 +63,29 @@ Las reglas completas están en [AGENTS.md](./AGENTS.md).
 
 ## Ambientes
 
-Staging y producción tendrán recursos, secretos y datos separados.
+Staging y producción tendrán recursos, secretos y datos separados. El proyecto
+Vercel de staging usará `main` como rama estable: feature branches generarán
+previews y cada merge aprobado a `main` podrá desplegar el alias canónico
+`vercel.app` mediante la integración GitHub–Vercel. Auth no depende de previews.
 
-| Ambiente   | Uso                                                       | Supabase previsto                                                                                     |
-| ---------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Staging    | Desarrollo, pruebas y validación del MVP sin pagos reales | Organización `daboto-creator's Org`, proyecto `peter-golf-staging`, referencia `xdulakstgsgdujjylhox` |
-| Producción | Operación real futura                                     | Todavía no existe y no debe vincularse en esta etapa                                                  |
+| Ambiente   | Hosting                                         | Supabase                                          |
+| ---------- | ----------------------------------------------- | ------------------------------------------------- |
+| Local      | Next.js y Supabase CLI en localhost             | Datos ficticios locales e Inbucket                |
+| Preview    | Feature branch en el proyecto Vercel de staging | `peter-golf-staging`; sin dependencia de Auth     |
+| Staging    | Alias estable `vercel.app` desde `main`         | `peter-golf-staging`, ref. `xdulakstgsgdujjylhox` |
+| Producción | Proyecto Vercel futuro e independiente          | Proyecto Supabase futuro e independiente          |
 
-Staging ya está creado y vinculado mediante la CLI. La primera migración técnica está aplicada y el historial local coincide con el remoto. El vínculo no agregó secretos al repositorio. Staging nunca debe usar llaves live, secretos ni datos de producción; los pagos continúan deshabilitados.
+Supabase staging ya está creado y vinculado mediante la CLI. Al 3 de agosto de
+2026 tiene 14 de las 24 migraciones locales; las 10 pendientes se documentan en
+`docs/SUPABASE_SETUP.md` y no se aplican sin respaldo lógico, dry run y
+autorización separada. Se preservan sus datos actuales y no se aplica seed
+remoto. El vínculo no agregó secretos al repositorio. Staging nunca debe usar
+llaves live, secretos o datos de producción; pagos y notificaciones permanecen
+deshabilitados.
 
 ## Comandos actuales
 
-Requisitos: una versión de Node.js compatible con Next.js 16 y npm.
+Requisitos: Node.js 24.x y npm.
 
 ```bash
 npm install
@@ -88,7 +100,18 @@ npm run start
 
 `npm run dev` inicia el servidor de desarrollo en [http://localhost:3000](http://localhost:3000). `npm run start` requiere haber ejecutado antes `npm run build`.
 
-Las pruebas unitarias usan Vitest y Testing Library. Las pruebas E2E usan Playwright y requieren instalar Chromium una vez con `npx playwright install chromium`.
+Las pruebas unitarias usan Vitest y Testing Library. Playwright cubre Desktop
+Chrome, Mobile Chrome, Mobile Safari y Tablet. Para la suite local se instalan
+los navegadores una vez con `npx playwright install`. El smoke remoto es manual:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://<alias-canonico-staging>.vercel.app \
+  npm run test:e2e -- e2e/staging-smoke.spec.ts
+```
+
+Una URL remota excluye pruebas `@mutating` salvo que se proporcione
+`PLAYWRIGHT_ALLOW_MUTATIONS=1`; ese flag no se habilita contra staging en esta
+fase.
 
 Las variables disponibles y el proceso para endurecer su validación al conectar Supabase están documentados en [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md). Para desarrollo local, copiar `.env.example` a `.env.local` y mantener cualquier valor real fuera de Git.
 
@@ -106,7 +129,26 @@ Las variables disponibles y el proceso para endurecer su validación al conectar
 La configuración se valida al crear un cliente, de modo que los comandos de
 calidad pueden ejecutarse sin credenciales; cualquier flujo que use Supabase
 requiere `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-`SUPABASE_SERVICE_ROLE_KEY` debe permanecer vacía en esta fase.
+`SUPABASE_SERVICE_ROLE_KEY` debe permanecer ausente. En `APP_ENV=staging`, el
+build también exige URLs HTTPS no locales, llave publishable, pagos y
+notificaciones deshabilitados y ausencia total de variables SMTP.
+
+## Preparación de Vercel staging
+
+No se versionan `.vercel`, tokens ni variables reales. El proyecto remoto se
+creará en una fase autorizada posterior con Next.js, Node.js 24.x y `main` como
+Production Branch. Preview y staging apuntarán temporalmente al mismo
+`NEXT_PUBLIC_APP_URL` canónico.
+
+El alias de staging será accesible por URL, pero la metadata y `robots.txt`
+impiden indexarlo mientras `APP_ENV` no sea `production`. Los assets generados
+por Next.js usan nombres con hash y los deployments de Vercel son inmutables;
+no existe service worker ni caché persistente del catálogo. El rollback de
+frontend selecciona el último deployment saludable.
+
+Inbucket y SMTP funcionan sólo en la pila local. Vercel no recibe variables
+SMTP. El primer staging usa cuentas de Auth precreadas y confirmadas; registro y
+recuperación no se consideran habilitados para usuarios arbitrarios.
 
 ## Catálogo público
 

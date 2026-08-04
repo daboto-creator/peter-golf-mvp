@@ -1,6 +1,6 @@
 import "server-only";
 
-import { serverEnv } from "@/env/server";
+import { notificationEmailConfig, serverEnv } from "@/env/server";
 import {
   deterministicMessageId,
   isRecipientAllowed,
@@ -24,6 +24,9 @@ export async function dispatchPendingNotifications(
   if (serverEnv.NOTIFICATIONS_MODE !== "test") {
     return { claimed: 0, sent: 0, failed: 0, disabled: true };
   }
+  if (!notificationEmailConfig) {
+    throw new Error("notification_configuration_invalid");
+  }
   const client = await createClient();
   const { data, error } = await client.rpc("claim_notification_deliveries", {
     requested_limit: limit,
@@ -45,7 +48,7 @@ export async function dispatchPendingNotifications(
       if (
         !isRecipientAllowed(
           delivery.recipient_email,
-          serverEnv.EMAIL_ALLOWED_RECIPIENT_DOMAINS,
+          notificationEmailConfig.EMAIL_ALLOWED_RECIPIENT_DOMAINS,
         )
       ) {
         throw Object.assign(new Error("Recipient domain is not allowed."), {
@@ -73,8 +76,8 @@ export async function dispatchPendingNotifications(
       const result = await transport.send({
         to: delivery.recipient_email,
         from: {
-          name: serverEnv.EMAIL_FROM_NAME,
-          address: serverEnv.EMAIL_FROM_ADDRESS,
+          name: notificationEmailConfig.EMAIL_FROM_NAME,
+          address: notificationEmailConfig.EMAIL_FROM_ADDRESS,
         },
         ...rendered,
         messageId,

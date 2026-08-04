@@ -1,40 +1,48 @@
-# Runbook de despliegue
+# Runbook de despliegue de staging
 
-## 1. Alcance
+## 1. Arquitectura aprobada
 
-Procedimiento base para despliegues futuros de Peter Golf. No selecciona proveedor, no crea infraestructura y no configura Supabase. La plataforma de hosting y el pipeline definitivo están pendientes.
+Vercel será la plataforma de staging. Se creará un proyecto Vercel exclusivo,
+con `main` como Production Branch y una URL canónica gratuita `vercel.app`.
+Supabase staging ya existe en `daboto-creator's Org` como
+`peter-golf-staging` (`xdulakstgsgdujjylhox`).
 
-## 2. Ambientes
+Producción futura tendrá proyectos Vercel y Supabase independientes. No se
+promueven credenciales, datos ni vínculos de staging a producción.
 
-| Ambiente   | Propósito                              | Datos y secretos                   |
-| ---------- | -------------------------------------- | ---------------------------------- |
-| Local      | Desarrollo individual                  | Valores locales no reales          |
-| Staging    | Integración y prueba del MVP sin pagos | Datos ficticios; nunca llaves live |
-| Producción | Operación real futura                  | Secretos exclusivos de producción  |
+La integración GitHub–Vercel deberá crear previews para feature branches y
+desplegar staging automáticamente después de merges aprobados a `main`. El
+repositorio no agrega un workflow de despliegue ni `vercel.json`: la fase remota
+usará la integración nativa.
 
-Supabase previsto, aún no creado:
+## 2. Límites del primer staging
 
-- Organización: `daboto-creator's Org`
-- Staging: `peter-golf-staging`
-- Producción: `peter-golf-production`
+- Accesible mediante URL, pero no anunciado ni indexado como producción.
+- Auth sólo con usuarios de prueba precreados y confirmados.
+- Auth en Preview no es requisito; sus callbacks usan el origen canónico de
+  staging.
+- `PAYMENTS_MODE=disabled` y setting de base `payments.mode=disabled`.
+- `NOTIFICATIONS_MODE=disabled` y ninguna variable SMTP en Vercel.
+- Sin `SUPABASE_SERVICE_ROLE_KEY`, seed remoto, datos live ni pagos reales.
+- El catálogo permanece dinámico; no se agrega caché persistente en esta fase.
 
-## 3. Responsables
+## 3. Responsables, RPO y RTO
 
-Con un equipo de dos personas:
+Una persona ejecuta o supervisa y otra revisa checklist y decisión go/no-go.
+Los nombres y contactos se registran antes de la fase remota.
 
-- una persona ejecuta o supervisa el despliegue;
-- la otra revisa checklist, smoke tests y decisión de continuar o revertir.
+- RPO de staging: respaldo lógico inmediatamente anterior a migraciones
+  relevantes.
+- RTO objetivo: menos de cuatro horas.
+- Frontend: rollback al último deployment saludable de Vercel.
+- Base: restauración del respaldo o migración compensatoria revisada.
+- Está prohibido `supabase db reset --linked`.
 
-Para cambios de alto riesgo se requiere revisión de ambas. Deben definirse propietarios y contactos antes del primer despliegue público.
+## 4. Preparación local
 
-## 4. Preparación
-
-1. Confirmar rama y revisión aprobada; no desplegar cambios directos desde `main` sin el flujo acordado.
-2. Revisar diff, migraciones futuras, dependencias y riesgos.
-3. Confirmar que no hay secretos ni archivos `.env` versionados.
-4. Verificar que variables corresponden al ambiente y que staging no usa valores live.
-5. Confirmar respaldo y punto de restauración antes de cambios de datos futuros.
-6. Ejecutar:
+1. Confirmar rama, commit, diff y revisión aprobada.
+2. Confirmar ausencia de secretos y archivos `.env`/`.vercel` versionados.
+3. Ejecutar:
 
 ```bash
 npm ci
@@ -42,63 +50,115 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run format:check
+npm run supabase:lint
+npm run test:e2e -- e2e/home.spec.ts
+git diff --check
 ```
 
-El workflow de GitHub Actions ejecuta estos mismos controles en cada pull request y en pushes a `main`. Playwright permanece configurado para ejecución local durante esta fase.
+4. Confirmar que el build con `APP_ENV=staging` falla sin la configuración
+   HTTPS obligatoria y pasa con valores sintácticamente válidos, pagos/correo
+   deshabilitados y sin variables prohibidas.
 
-## 5. Despliegue a staging
+## 5. Migraciones de Supabase staging
 
-1. Desplegar el artefacto inmutable asociado al commit revisado.
-2. Aplicar migraciones futuras mediante proceso versionado y compatible.
-3. Confirmar estado saludable y revisar logs sin datos sensibles.
-4. Ejecutar smoke tests:
-   - carga de inicio y rutas públicas;
-   - recursos estáticos;
-   - estados de error;
-   - flujo de asesoría futuro;
-   - intención de compra sin pago;
-   - ausencia de captura o proveedor de pagos;
-   - controles de acceso y RLS cuando aplique.
-5. Registrar versión, responsable, hora, resultado y defectos.
+La consulta de sólo lectura del 3 de agosto de 2026 mostró 14 migraciones
+remotas y 10 pendientes, desde
+`20260731000100_inventory_management_foundation` hasta
+`20260803000100_order_notifications_foundation`.
 
-## 6. Promoción futura a producción
+Antes de aplicar cualquier cambio remoto:
 
-Sólo después de aprobación explícita:
+1. confirmar ref. `xdulakstgsgdujjylhox`;
+2. preservar los datos existentes;
+3. obtener y verificar un respaldo lógico inmediato;
+4. ejecutar `npx --no-install supabase db push --dry-run`;
+5. comprobar que aparezcan exactamente las 10 migraciones documentadas en
+   `SUPABASE_SETUP.md`;
+6. obtener autorización separada;
+7. ejecutar `npx --no-install supabase db push`, sin `--include-seed`;
+8. verificar historial, 32 tablas públicas, RLS, grants, Storage y kill switch;
+9. registrar hora, responsable, respaldo y resultado.
 
-1. Confirmar criterios de aceptación, revisión de seguridad y políticas legales.
-2. Verificar variables y recursos exclusivos de producción.
-3. Revisar compatibilidad de cambios de base de datos y plan de rollback.
-4. Desplegar la misma versión validada en staging.
-5. Ejecutar smoke tests que no creen cargos ni alteren datos reales indebidamente.
-6. Monitorear errores, latencia y flujos críticos durante la ventana acordada.
+No editar migraciones aplicadas ni usar reset remoto.
 
-El MVP inicial no debe promover una experiencia que parezca aceptar pagos reales.
+## 6. Configuración de Supabase Auth
 
-## 7. Rollback
+Después de conocer el alias canónico de Vercel:
 
-Revertir ante indisponibilidad, pérdida/corrupción de datos, exposición de información, falla de autorización, cálculo incorrecto de importes o error crítico del flujo.
+- Site URL: `https://<alias-canonico-staging>.vercel.app`;
+- Redirect URL exacta:
+  `https://<alias-canonico-staging>.vercel.app/auth/callback`;
+- mantener el callback local sólo si sigue siendo necesario para desarrollo;
+- revisar que plantillas de confirmación/recuperación utilicen `RedirectTo`.
 
-1. Detener promociones y operaciones riesgosas.
-2. Revertir al último artefacto saludable.
-3. Para datos, usar la estrategia compatible previamente probada; no improvisar migraciones destructivas.
-4. Revocar y rotar secretos si existe posible exposición.
-5. Verificar recuperación con smoke tests.
-6. Documentar impacto, línea de tiempo, causa y acciones correctivas.
+No se configura SMTP. Se precrean y confirman cuentas ficticias autorizadas; el
+registro y recuperación visibles no se declaran operativos para cualquier
+correo. Las feature previews no amplían la allowlist de Auth.
 
-## 8. Incidentes
+## 7. Creación del proyecto Vercel
 
-- Priorizar seguridad de personas y datos sobre continuidad.
-- Preservar evidencia sin copiar secretos en tickets o chats.
-- Notificar a los responsables definidos.
-- Comunicar sólo hechos confirmados y actualizar con cadencia acordada.
-- Realizar retrospectiva sin culpa y convertir acciones en tareas trazables.
+Esta fase requiere autorización remota posterior:
 
-## 9. Decisiones pendientes
+1. importar el repositorio en un proyecto exclusivo de staging;
+2. seleccionar Next.js, raíz del repositorio y Node.js 24.x;
+3. configurar `main` como Production Branch;
+4. cargar variables Preview y Production según `ENVIRONMENT.md`;
+5. no configurar variables SMTP ni `SUPABASE_SERVICE_ROLE_KEY`;
+6. desplegar primero una feature branch como Preview;
+7. verificar y fusionar por revisión a `main`;
+8. comprobar que la integración GitHub–Vercel despliegue el alias estable.
 
-- Proveedor de hosting, dominios y DNS.
-- CI/CD, aprobaciones y estrategia de ramas.
-- Observabilidad, alertas y contacto de guardia.
-- Backups, objetivos RPO/RTO y prueba de restauración.
-- Gestión de migraciones y datos semilla.
-- Políticas legales, privacidad y operación de producción.
-- Estrategia futura de pagos, fuera del MVP inicial.
+Los assets de Next.js usan nombres con hash y cada deployment de Vercel es
+inmutable. No existe service worker ni PWA que conserve una versión previa. Un
+rollback reasigna el tráfico al deployment saludable anterior; no se intenta
+sobrescribir el artefacto publicado.
+
+## 8. Smoke test y checklist multidispositivo
+
+El smoke remoto es inicialmente manual y de sólo lectura:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://<alias-canonico-staging>.vercel.app \
+  npm run test:e2e -- e2e/staging-smoke.spec.ts
+```
+
+Sin `PLAYWRIGHT_ALLOW_MUTATIONS=1`, cualquier prueba marcada `@mutating` queda
+excluida de una URL remota. No habilitar ese flag contra staging en esta fase.
+
+Validar al menos:
+
+- Desktop Chrome, 1440×900;
+- Mobile Chrome, Pixel 7;
+- Mobile Safari equivalente, iPhone 15;
+- tablet, iPad Pro 11 en portrait y landscape;
+- home, catálogo, health, redirects anónimos y ausencia de secretos/errores;
+- navegación sin scroll horizontal, foco visible, contraste y targets táctiles;
+- pagos y notificaciones deshabilitados;
+- cliente sin rol bloqueado de operación y RLS sin exposición cruzada.
+
+## 9. Go/no-go y monitoreo
+
+No abrir el alias hasta que migraciones, variables, Auth, health y smoke test
+pasen. Registrar deployment, commit, responsable, hora y defectos. Revisar logs
+sin copiar PII, cookies, tokens ni payloads completos.
+
+Revertir ante indisponibilidad, exposición de datos, falla de autorización,
+cálculos incorrectos o cualquier defecto crítico/alto.
+
+## 10. Rollback
+
+Frontend:
+
+1. detener promociones y cambios;
+2. seleccionar el último deployment saludable de Vercel;
+3. reasignar el alias/ejecutar rollback;
+4. repetir health y smoke test.
+
+Base:
+
+1. detener escrituras afectadas;
+2. determinar si basta una migración compensatoria compatible;
+3. si hay corrupción o incompatibilidad, restaurar el respaldo previo;
+4. verificar historial, RLS, integridad y aplicación;
+5. documentar impacto y recuperación dentro del RTO objetivo.

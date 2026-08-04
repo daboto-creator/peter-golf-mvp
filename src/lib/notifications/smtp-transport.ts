@@ -2,22 +2,34 @@ import "server-only";
 
 import nodemailer from "nodemailer";
 
-import { serverEnv } from "@/env/server";
+import { notificationEmailConfig } from "@/env/server";
 import type {
   NotificationMessage,
   NotificationTransport,
 } from "@/lib/notifications/transport";
 
 export function createSmtpTransport(): NotificationTransport {
-  if (!["127.0.0.1", "localhost", "::1"].includes(serverEnv.SMTP_HOST)) {
+  if (!notificationEmailConfig) {
+    throw Object.assign(
+      new Error("Notification transport is not configured."),
+      {
+        code: "transport_disabled",
+      },
+    );
+  }
+  if (
+    !["127.0.0.1", "localhost", "::1"].includes(
+      notificationEmailConfig.SMTP_HOST,
+    )
+  ) {
     throw Object.assign(new Error("Only local SMTP is allowed in test mode."), {
       code: "transport_disabled",
     });
   }
   const transporter = nodemailer.createTransport({
-    host: serverEnv.SMTP_HOST,
-    port: serverEnv.SMTP_PORT,
-    secure: serverEnv.SMTP_SECURE,
+    host: notificationEmailConfig.SMTP_HOST,
+    port: notificationEmailConfig.SMTP_PORT,
+    secure: notificationEmailConfig.SMTP_SECURE,
     connectionTimeout: 5_000,
     greetingTimeout: 5_000,
     socketTimeout: 10_000,
