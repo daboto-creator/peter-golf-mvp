@@ -101,3 +101,7 @@ No existen todavía carrito o checkout público, pagos integrados, cálculo o
 integración automática de envíos, facturación, devoluciones, reembolsos,
 reservas temporales, apartados, compras a proveedores ni integraciones externas.
 Tampoco se implementa completado, recolección o edición de un confirmado.
+
+Creación, confirmación y cancelación alimentan la outbox local desde
+`order_status_history`. SMTP es posterior e independiente. Véase
+[ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).

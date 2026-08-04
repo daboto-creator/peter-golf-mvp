@@ -32,6 +32,20 @@ export default function OperationsPage() {
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader>
+            <CardTitle>Notificaciones</CardTitle>
+            <CardDescription>
+              Procesa y supervisa correos transaccionales locales sin afectar
+              pedidos ni pagos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="lg">
+              <Link href="/operacion/notificaciones">Abrir notificaciones</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardTitle>Pedidos manuales</CardTitle>
             <CardDescription>
               Registra ventas asistidas, confirma existencias y conserva su

@@ -270,6 +270,13 @@ derechos ARCO conforme a la normativa aplicable.
 
 ## 9. Validación y salida a producción
 
+La outbox de notificaciones se escribe desde historiales inmutables. SMTP se
+procesa después del commit y sólo contra un host local en modo `test`. Las
+tablas no tienen políticas cliente; las funciones operativas verifican
+`can_manage_orders()`. La retención inicial de destinatarios, metadata y errores
+sanitizados es de 90 días. Véase
+[ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).
+
 - Probar cada política con casos permitidos y denegados para `anon`,
   `authenticated`, otro usuario, operator y admin.
 - Verificar aislamiento entre usuarios mediante acceso directo por UUID.

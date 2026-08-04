@@ -240,6 +240,14 @@ Importe y moneda se copian desde `orders` dentro de SQL. Las columnas
 legacy compatible, pero las lecturas y acciones nuevas usan el agregado. El
 detalle completo está en [ORDER_PAYMENTS.md](./ORDER_PAYMENTS.md).
 
+### Outbox de notificaciones
+
+`notification_events` deriva hechos de `order_status_history` y
+`payment_status_history` mediante triggers diferidos. `notification_deliveries`
+mantiene destinatario, lease, intentos y resultado SMTP. Los eventos son
+inmutables y la entrega es independiente de pedido, pago e inventario. Véase
+[ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).
+
 ## 7. Asesoría, configuración y auditoría
 
 | Tabla                      | Propósito y reglas principales                                                            |

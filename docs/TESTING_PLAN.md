@@ -81,6 +81,12 @@ También verifica el bloqueo de cancelación pagada, reembolso y una sola devolu
 de inventario. Las reglas y presentación tienen pruebas unitarias en
 `src/lib/payments/payment-rules.test.ts`.
 
+La outbox agrega pruebas unitarias de eventos, plantillas, escape, banner,
+allowlist, reintentos, errores y `Message-ID`. La prueba SQL
+`supabase/tests/order_notifications_foundation.sql` cubre pedidos web/manuales,
+ausencia de correo, unicidad, RLS, inmutabilidad, leases, reclamaciones
+concurrentes, `dead_letter` y separación de pedido/pago.
+
 La prueba SQL local
 `supabase/tests/catalog_base_variant_foundation.sql` verifica que la creación
 operativa produzca exactamente una variante base en la misma transacción, que

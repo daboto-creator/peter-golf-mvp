@@ -13,6 +13,8 @@ catálogo, las imágenes de producto con Supabase Storage, una base auditable de
 inventario operativo, la gestión transaccional de pedidos manuales, el primer
 carrito/checkout autenticado, pagos por transferencia estrictamente simulados y
 la administración segura del perfil y direcciones del cliente.
+También incluye una outbox transaccional de notificaciones de pedidos/pagos y
+entrega SMTP exclusivamente local mediante Inbucket.
 
 Están implementados registro, confirmación, inicio/cierre de sesión, recuperación,
 perfil con teléfono, direcciones guardadas, protección de `/cuenta`, listado público en `/productos`
@@ -165,6 +167,7 @@ Las rutas protegidas son:
 - `/operacion/pedidos/nuevo`: creación de un preliminar;
 - `/operacion/pedidos/[id]`: detalle, edición preliminar, confirmación,
   cancelación y revisión separada del pago simulado.
+- `/operacion/notificaciones`: cola local, reintentos y trazabilidad de correo.
 
 Cada página y cada Server Action vuelve a comprobar la sesión y el permiso
 mediante `public.can_manage_catalog()`. La función consulta `user_roles` y
@@ -318,6 +321,7 @@ La prueba usa datos ficticios dentro de una transacción y finaliza con
 - [Plan de pruebas](./docs/TESTING_PLAN.md)
 - [Carrito y checkout](./docs/CUSTOMER_CART_AND_CHECKOUT.md)
 - [Pagos de pedidos](./docs/ORDER_PAYMENTS.md)
+- [Notificaciones de pedidos y pagos](./docs/ORDER_NOTIFICATIONS.md)
 - [Variables de entorno](./docs/ENVIRONMENT.md)
 - [Configuración local de Supabase](./docs/SUPABASE_SETUP.md)
 - [Runbook de despliegue](./docs/DEPLOYMENT_RUNBOOK.md)

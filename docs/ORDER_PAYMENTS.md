@@ -82,3 +82,7 @@ key='payments.mode';`.
 
 La verificación automatizada principal está en
 `supabase/tests/order_payments_foundation.sql`.
+
+Cada transición efectiva alimenta transaccionalmente la outbox local. SMTP
+ocurre después del commit y no puede revertir el pago. Véase
+[ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).

@@ -3,7 +3,8 @@
 ## 1. Estado
 
 El repositorio usa Supabase CLI `2.110.0`, Postgres 17, migraciones versionadas y
-una semilla local. API, Studio, Auth y Mailpit están habilitados para probar
+una semilla local. API, Studio, Auth e Inbucket (captura local compatible con
+Mailpit) están habilitados para probar
 registro, confirmación y recuperación. Storage está habilitado para imágenes de
 producto; Realtime, Edge Runtime y Analytics continúan deshabilitados.
 
@@ -71,12 +72,13 @@ npm run supabase:status
 
 Servicios locales:
 
-| Servicio      | Dirección                |
-| ------------- | ------------------------ |
-| API           | `http://127.0.0.1:54321` |
-| Base de datos | `127.0.0.1:54322`        |
-| Studio        | `http://127.0.0.1:54323` |
-| Mailpit       | `http://127.0.0.1:54324` |
+| Servicio            | Dirección                |
+| ------------------- | ------------------------ |
+| API                 | `http://127.0.0.1:54321` |
+| Base de datos       | `127.0.0.1:54322`        |
+| Studio              | `http://127.0.0.1:54323` |
+| Inbucket/Mailpit UI | `http://127.0.0.1:54324` |
+| Inbucket SMTP       | `127.0.0.1:54325`        |
 
 Para detener únicamente esta pila:
 
@@ -153,7 +155,7 @@ El seed no fuerza registros en `auth.users` ni guarda contraseñas. Para probar
 el flujo de forma segura:
 
 1. iniciar la pila y reconstruirla con `npm run supabase:reset`;
-2. crear una cuenta ficticia desde `/registro` y confirmarla en Mailpit;
+2. crear una cuenta ficticia desde `/registro` y confirmarla en Inbucket;
 3. abrir SQL Editor en Studio local (`http://127.0.0.1:54323`);
 4. reemplazar el correo de ejemplo y ejecutar únicamente contra la base local:
 
@@ -357,9 +359,12 @@ visible por las políticas públicas. Devuelve `200` cuando la lectura está
 disponible o `503` en caso contrario. Nunca devuelve llaves, URLs, tokens,
 filas, detalles de base de datos, mensajes internos ni stack traces.
 
-Los correos locales de confirmación y recuperación se consultan en Mailpit. La
+Los correos locales de confirmación y recuperación se consultan en Inbucket. La
 aplicación construye sus callbacks desde `NEXT_PUBLIC_APP_URL`; no acepta
 destinos externos proporcionados por el usuario.
+
+Los correos de pedidos usan el mismo buzón mediante SMTP en `54325`, allowlist
+y processor manual. Véase [ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).
 
 ## 10. Reversión
 
