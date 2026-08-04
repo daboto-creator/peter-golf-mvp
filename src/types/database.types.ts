@@ -683,6 +683,142 @@ export type Database = {
           },
         ];
       };
+      notification_deliveries: {
+        Row: {
+          attempt_count: number;
+          channel: Database["public"]["Enums"]["notification_channel"];
+          created_at: string;
+          id: string;
+          last_error_at: string | null;
+          last_error_code: string | null;
+          lease_token: string | null;
+          max_attempts: number;
+          next_attempt_at: string;
+          notification_event_id: string;
+          processing_started_at: string | null;
+          provider: string | null;
+          provider_message_id: string | null;
+          recipient_email: string;
+          sent_at: string | null;
+          status: Database["public"]["Enums"]["notification_delivery_status"];
+          updated_at: string;
+        };
+        Insert: {
+          attempt_count?: number;
+          channel?: Database["public"]["Enums"]["notification_channel"];
+          created_at?: string;
+          id?: string;
+          last_error_at?: string | null;
+          last_error_code?: string | null;
+          lease_token?: string | null;
+          max_attempts?: number;
+          next_attempt_at?: string;
+          notification_event_id: string;
+          processing_started_at?: string | null;
+          provider?: string | null;
+          provider_message_id?: string | null;
+          recipient_email: string;
+          sent_at?: string | null;
+          status?: Database["public"]["Enums"]["notification_delivery_status"];
+          updated_at?: string;
+        };
+        Update: {
+          attempt_count?: number;
+          channel?: Database["public"]["Enums"]["notification_channel"];
+          created_at?: string;
+          id?: string;
+          last_error_at?: string | null;
+          last_error_code?: string | null;
+          lease_token?: string | null;
+          max_attempts?: number;
+          next_attempt_at?: string;
+          notification_event_id?: string;
+          processing_started_at?: string | null;
+          provider?: string | null;
+          provider_message_id?: string | null;
+          recipient_email?: string;
+          sent_at?: string | null;
+          status?: Database["public"]["Enums"]["notification_delivery_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_deliveries_notification_event_id_fkey";
+            columns: ["notification_event_id"];
+            isOneToOne: false;
+            referencedRelation: "notification_events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      notification_events: {
+        Row: {
+          created_at: string;
+          event_type: Database["public"]["Enums"]["notification_event_type"];
+          id: string;
+          occurred_at: string;
+          order_id: string;
+          order_status_history_id: string | null;
+          payload_version: number;
+          payment_id: string | null;
+          payment_status_history_id: string | null;
+          template_data: Json;
+        };
+        Insert: {
+          created_at?: string;
+          event_type: Database["public"]["Enums"]["notification_event_type"];
+          id?: string;
+          occurred_at: string;
+          order_id: string;
+          order_status_history_id?: string | null;
+          payload_version?: number;
+          payment_id?: string | null;
+          payment_status_history_id?: string | null;
+          template_data: Json;
+        };
+        Update: {
+          created_at?: string;
+          event_type?: Database["public"]["Enums"]["notification_event_type"];
+          id?: string;
+          occurred_at?: string;
+          order_id?: string;
+          order_status_history_id?: string | null;
+          payload_version?: number;
+          payment_id?: string | null;
+          payment_status_history_id?: string | null;
+          template_data?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_events_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notification_events_order_status_history_id_fkey";
+            columns: ["order_status_history_id"];
+            isOneToOne: false;
+            referencedRelation: "order_status_history";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notification_events_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "order_payments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notification_events_payment_status_history_id_fkey";
+            columns: ["payment_status_history_id"];
+            isOneToOne: false;
+            referencedRelation: "payment_status_history";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       order_idempotency_keys: {
         Row: {
           actor_id: string;
@@ -1768,6 +1904,21 @@ export type Database = {
           version: number;
         }[];
       };
+      claim_notification_deliveries: {
+        Args: { requested_limit?: number };
+        Returns: {
+          attempt_count: number;
+          customer_name: string;
+          delivery_id: string;
+          event_type: Database["public"]["Enums"]["notification_event_type"];
+          lease_token: string;
+          occurred_at: string;
+          order_id: string;
+          order_origin: Database["public"]["Enums"]["order_origin"];
+          recipient_email: string;
+          template_data: Json;
+        }[];
+      };
       clear_customer_cart: {
         Args: { expected_version: number; requested_idempotency_key: string };
         Returns: {
@@ -1775,6 +1926,13 @@ export type Database = {
           replayed: boolean;
           version: number;
         }[];
+      };
+      complete_notification_delivery: {
+        Args: {
+          requested_lease_token: string;
+          requested_provider_message_id: string;
+        };
+        Returns: string;
       };
       confirm_manual_order: {
         Args: {
@@ -1868,6 +2026,14 @@ export type Database = {
           variant_id: string;
         }[];
       };
+      fail_notification_delivery: {
+        Args: { requested_error_code: string; requested_lease_token: string };
+        Returns: {
+          delivery_id: string;
+          next_attempt_at: string;
+          status: Database["public"]["Enums"]["notification_delivery_status"];
+        }[];
+      };
       get_customer_cart: { Args: never; Returns: Json };
       get_customer_order: {
         Args: { requested_order_id: string };
@@ -1932,6 +2098,25 @@ export type Database = {
           updated_at: string;
         }[];
       };
+      list_operational_notification_deliveries: {
+        Args: { requested_limit?: number };
+        Returns: {
+          attempt_count: number;
+          created_at: string;
+          delivery_id: string;
+          event_type: Database["public"]["Enums"]["notification_event_type"];
+          last_error_code: string;
+          max_attempts: number;
+          next_attempt_at: string;
+          occurred_at: string;
+          order_number: string;
+          processing_started_at: string;
+          recipient_email_masked: string;
+          sent_at: string;
+          status: Database["public"]["Enums"]["notification_delivery_status"];
+          updated_at: string;
+        }[];
+      };
       lock_customer_order_for_payment: {
         Args: { requested_order_id: string };
         Returns: undefined;
@@ -1948,6 +2133,7 @@ export type Database = {
           version: number;
         }[];
       };
+      mask_notification_email: { Args: { email: string }; Returns: string };
       normalize_checkout_address: { Args: { requested: Json }; Returns: Json };
       normalize_customer_address: { Args: { requested: Json }; Returns: Json };
       normalize_manual_order_payload: {
@@ -1963,6 +2149,7 @@ export type Database = {
         };
         Returns: undefined;
       };
+      recover_expired_notification_leases: { Args: never; Returns: number };
       register_product_image: {
         Args: {
           requested_alt_text: string;
@@ -2007,6 +2194,7 @@ export type Database = {
         };
         Returns: boolean;
       };
+      retry_failed_notification_deliveries: { Args: never; Returns: number };
       review_order_payment: {
         Args: {
           expected_payment_version: number;
@@ -2154,6 +2342,18 @@ export type Database = {
         | "transfer_verified"
         | "cash_received"
         | "external_terminal_received";
+      notification_channel: "email";
+      notification_delivery_status:
+        "pending" | "processing" | "sent" | "failed" | "dead_letter";
+      notification_event_type:
+        | "order_created"
+        | "order_confirmed"
+        | "transfer_submitted"
+        | "payment_under_review"
+        | "payment_paid"
+        | "payment_rejected"
+        | "payment_refunded"
+        | "order_cancelled";
       order_origin: "manual" | "web";
       order_status:
         | "created"
@@ -2342,6 +2542,24 @@ export const Constants = {
         "transfer_verified",
         "cash_received",
         "external_terminal_received",
+      ],
+      notification_channel: ["email"],
+      notification_delivery_status: [
+        "pending",
+        "processing",
+        "sent",
+        "failed",
+        "dead_letter",
+      ],
+      notification_event_type: [
+        "order_created",
+        "order_confirmed",
+        "transfer_submitted",
+        "payment_under_review",
+        "payment_paid",
+        "payment_rejected",
+        "payment_refunded",
+        "order_cancelled",
       ],
       order_origin: ["manual", "web"],
       order_status: [

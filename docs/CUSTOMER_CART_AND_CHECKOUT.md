@@ -119,6 +119,7 @@ proyecciones, propiedad, bloqueo de campos internos y compatibilidad completa de
 operator/admin y sus transiciones.
 
 Todavía no existen pagos reales, checkout invitado, cupones, puntos,
-facturación, cotización de paqueterías, recolección, devoluciones, reembolsos,
-reservas temporales, correos transaccionales, WhatsApp automático ni
-integraciones externas.
+facturación, cotización de paqueterías, recolección, devoluciones,
+reservas temporales, WhatsApp automático ni integraciones externas. Los correos
+transaccionales existen sólo en local/prueba mediante la outbox descrita en
+[ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).

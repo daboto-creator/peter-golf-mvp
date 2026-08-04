@@ -38,6 +38,8 @@ Validar que clientes potenciales pueden descubrir productos, entender su condici
 - Permitir al equipo operativo registrar ventas manuales de canales controlados,
   confirmar existencias y cancelar con devolución auditable, sin pagos reales.
 - Mostrar de forma inequívoca que el flujo de staging/MVP no realiza cargos.
+- Notificar localmente eventos de pedido y pago mediante correo capturado, sin
+  proveedor externo ni envío real.
 
 ### Operación
 

@@ -22,8 +22,8 @@ schema_paths = []
 enabled = true
 sql_paths = ["./seed.sql"]
 
-# Services outside authentication, the database, and product-image Storage
-# remain disabled.
+# Services outside authentication, the database, the local mail catcher, and
+# product-image Storage remain disabled.
 [realtime]
 enabled = false
 
@@ -32,9 +32,10 @@ enabled = true
 port = 54323
 api_url = "http://127.0.0.1"
 
-[local_smtp]
+[inbucket]
 enabled = true
 port = 54324
+smtp_port = 54325
 
 [storage]
 enabled = true

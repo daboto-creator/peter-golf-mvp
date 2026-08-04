@@ -14,6 +14,12 @@ contiene secretos. Los valores reales nunca se versionan.
   reales. Es server-only: `disabled` bloquea el registro y `test` habilita sólo
   transferencia simulada. El RPC exige además el setting privado
   `site_settings.payments.mode=test`.
+- `NOTIFICATIONS_MODE` acepta `disabled` o `test`. Es server-only: `disabled`
+  conserva la outbox sin reclamar entregas y `test` habilita únicamente SMTP
+  local con allowlist.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `EMAIL_FROM_ADDRESS`,
+  `EMAIL_FROM_NAME` y `EMAIL_ALLOWED_RECIPIENT_DOMAINS` son server-only y nunca
+  deben llevar el prefijo `NEXT_PUBLIC_`.
 
 Los módulos usan referencias estáticas a cada variable pública porque Next.js no
 incluye accesos dinámicos como `process.env[nombre]` en el bundle cliente.
@@ -56,3 +62,6 @@ dominio proporcionado por formularios.
    durante el build; deben corresponder al destino final del artefacto.
 6. Configurar `NEXT_PUBLIC_APP_URL=http://localhost:3000` en desarrollo. Cada
    ambiente desplegado debe usar su propio origen HTTPS.
+7. El correo transaccional local sólo puede apuntar a `127.0.0.1:54325`.
+
+Véase [ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).
