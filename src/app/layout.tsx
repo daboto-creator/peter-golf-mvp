@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { serverEnv } from "@/env/server";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,6 +18,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Peter Golf",
   description: "Equipo de golf con asesoría para elegir con confianza.",
+  robots:
+    serverEnv.APP_ENV === "production"
+      ? { index: true, follow: true }
+      : { index: false, follow: false },
 };
 
 export default function RootLayout({

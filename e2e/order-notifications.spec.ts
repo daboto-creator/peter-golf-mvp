@@ -10,7 +10,7 @@ const mode = process.env.NOTIFICATIONS_MODE ?? "disabled";
 const inboxUrl = "http://127.0.0.1:54324";
 const password = "Notificacion123!";
 
-test.describe("local order notifications", () => {
+test.describe("local order notifications @mutating", () => {
   test.describe.configure({ mode: "serial" });
 
   test.skip(

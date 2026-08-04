@@ -17,6 +17,13 @@
   Next.js.
 - Mantener separados `peter-golf-staging` y el futuro
   `peter-golf-production`.
+- Mantener también proyectos Vercel separados. Preview y staging usan sólo la
+  llave publishable del Supabase de staging.
+- En `APP_ENV=staging`, exigir URLs HTTPS no locales, pagos y notificaciones
+  deshabilitados, ausencia de `service_role` y ausencia de variables SMTP.
+- Usar cuentas ficticias precreadas y confirmadas hasta que exista una decisión
+  explícita sobre correo de Auth; no asumir registro público arbitrario.
+- Servir `noindex` en todo ambiente no productivo.
 
 ## 3. RLS implementada
 
@@ -77,9 +84,17 @@ canal permitido, no un permiso implícito por poseer el rol.
 | `shipping_methods`         | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `carts`                    | No              | Propios                       | Propio              | Propio                | Propio              | Backend, soporte         | Backend, auditado        |
 | `cart_items`               | No              | De carrito propio             | De carrito propio   | De carrito propio     | De carrito propio   | Backend, soporte         | Backend, auditado        |
+| `cart_idempotency_keys`    | No              | Sólo contexto RPC propio      | Sólo RPC            | No                    | No                  | Backend, soporte         | Backend, auditado        |
 | `orders`                   | No              | Proyección RPC propia         | No                  | No                    | No                  | Detalle completo         | Detalle completo         |
 | `order_items`              | No              | Snapshots por RPC propia      | No                  | No                    | No                  | Detalle completo         | Detalle completo         |
 | `order_status_history`     | No              | Estado/fecha por RPC propia   | No                  | No                    | No                  | Detalle completo         | Detalle completo         |
+| `order_idempotency_keys`   | No              | Sólo actor/contexto RPC       | Sólo RPC            | No                    | No                  | RPC autorizada           | RPC autorizada           |
+| `order_payments`           | No              | Proyección RPC propia         | No                  | Sólo RPC simulada     | No                  | RPC autorizada           | RPC autorizada           |
+| `payment_submissions`      | No              | Proyección RPC propia         | Sólo RPC simulada   | No                    | No                  | Lectura autorizada       | Lectura autorizada       |
+| `payment_status_history`   | No              | Proyección RPC propia         | No                  | No                    | No                  | RPC; inmutable           | RPC; inmutable           |
+| `payment_idempotency_keys` | No              | Sólo actor/contexto RPC       | Sólo RPC            | No                    | No                  | RPC autorizada           | RPC autorizada           |
+| `notification_events`      | No              | No                            | No                  | No                    | No                  | RPC operativa            | RPC operativa            |
+| `notification_deliveries`  | No              | No                            | No                  | No                    | No                  | RPC operativa            | RPC operativa            |
 | `advisory_sessions`        | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `advisory_answers`         | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
 | `advisory_recommendations` | No              | No                            | No                  | No                    | No                  | Backend, autorizado      | Backend, auditado        |
@@ -268,7 +283,35 @@ El backend de asesoría debe aplicar minimización y rate limiting. Antes de
 producción siguen pendientes aviso de privacidad, conservación, eliminación y
 derechos ARCO conforme a la normativa aplicable.
 
-## 9. Validación y salida a producción
+## 9. Hosting, caché y despliegue de staging
+
+El proyecto Vercel de staging usa `main` como rama estable y un alias canónico
+`vercel.app`. La producción futura no comparte proyecto, variables ni Supabase.
+Los previews no dependen de Auth y usan el origen canónico de staging para los
+callbacks configurados.
+
+No existe service worker, PWA ni caché persistente del catálogo. Las rutas que
+dependen de cookies permanecen dinámicas. Los assets de Next.js tienen nombres
+con hash y cada deployment de Vercel es inmutable, por lo que el rollback del
+frontend selecciona un deployment anterior en lugar de mezclar artefactos.
+
+`GET /api/health/supabase` es dinámico, usa `Cache-Control: no-store`, selecciona
+como máximo el `id` de una marca visible y sólo responde estado, ambiente,
+timestamp y nombre del servicio. No devuelve URLs, llaves, filas, PII, errores
+internos ni stack traces.
+
+Inbucket/Mailpit sólo existe localmente. Preview y staging usan
+`NOTIFICATIONS_MODE=disabled`, no configuran SMTP y no reclaman la outbox. Una
+CSP se difiere hasta poder validar Auth, Server Actions, Storage e imágenes; no
+se agrega una política improvisada.
+
+Antes de las 10 migraciones pendientes se exige respaldo lógico inmediato, dry
+run exacto y autorización separada. Se preservan datos y no se aplica seed. El
+RPO es ese respaldo y el RTO objetivo es menor a cuatro horas. El rollback de
+base usa restauración o migración compensatoria; `db reset --linked` está
+prohibido.
+
+## 10. Validación y salida a producción
 
 La outbox de notificaciones se escribe desde historiales inmutables. SMTP se
 procesa después del commit y sólo contra un host local en modo `test`. Las

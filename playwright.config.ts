@@ -1,7 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const e2ePort = process.env.E2E_PORT ?? "3000";
-const e2eBaseUrl = `http://localhost:${e2ePort}`;
+const remoteBaseUrl = process.env.PLAYWRIGHT_BASE_URL?.trim();
+const e2eBaseUrl = remoteBaseUrl ?? `http://localhost:${e2ePort}`;
+const allowRemoteMutations = process.env.PLAYWRIGHT_ALLOW_MUTATIONS === "1";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -14,15 +16,30 @@ export default defineConfig({
     baseURL: e2eBaseUrl,
     trace: "on-first-retry",
   },
+  grepInvert: remoteBaseUrl && !allowRemoteMutations ? /@mutating/ : undefined,
   projects: [
     {
-      name: "chromium",
+      name: "Desktop Chrome",
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      name: "Mobile Chrome",
+      use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "Mobile Safari",
+      use: { ...devices["iPhone 15"] },
+    },
+    {
+      name: "Tablet",
+      use: { ...devices["iPad Pro 11"] },
+    },
   ],
-  webServer: {
-    command: `npm run dev -- --hostname localhost --port ${e2ePort}`,
-    url: e2eBaseUrl,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: remoteBaseUrl
+    ? undefined
+    : {
+        command: `npm run dev -- --hostname localhost --port ${e2ePort}`,
+        url: e2eBaseUrl,
+        reuseExistingServer: !process.env.CI,
+      },
 });

@@ -1,67 +1,79 @@
 # Variables de entorno
 
-## Uso actual
+## Principios
 
-Copiar `.env.example` a `.env.local` para desarrollo. El archivo de ejemplo no
-contiene secretos. Los valores reales nunca se versionan.
+Los valores reales se configuran fuera de Git. Desarrollo usa `.env.local`;
+Vercel usará variables separadas para Development, Preview y el ambiente
+Production del proyecto exclusivo de staging. Ese último ambiente sigue usando
+`APP_ENV=staging`: no representa la producción comercial futura.
 
-- `src/env/public.ts` valida exclusivamente variables `NEXT_PUBLIC_*`, que Next.js
-  puede incluir en el bundle del navegador.
-- `src/env/server.ts` está protegido con `server-only` y es el único módulo que
-  expone `SUPABASE_SERVICE_ROLE_KEY`.
-- `APP_ENV` acepta `development`, `test`, `staging` o `production`.
-- `PAYMENTS_MODE` acepta únicamente `disabled` o `test`; el MVP no permite pagos
-  reales. Es server-only: `disabled` bloquea el registro y `test` habilita sólo
-  transferencia simulada. El RPC exige además el setting privado
-  `site_settings.payments.mode=test`.
-- `NOTIFICATIONS_MODE` acepta `disabled` o `test`. Es server-only: `disabled`
-  conserva la outbox sin reclamar entregas y `test` habilita únicamente SMTP
-  local con allowlist.
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `EMAIL_FROM_ADDRESS`,
-  `EMAIL_FROM_NAME` y `EMAIL_ALLOWED_RECIPIENT_DOMAINS` son server-only y nunca
-  deben llevar el prefijo `NEXT_PUBLIC_`.
+Next.js inserta las variables `NEXT_PUBLIC_*` en el bundle durante el build. Un
+cambio de valor requiere un deployment nuevo. Sólo esas variables pueden llegar
+al navegador:
 
-Los módulos usan referencias estáticas a cada variable pública porque Next.js no
-incluye accesos dinámicos como `process.env[nombre]` en el bundle cliente.
+- `NEXT_PUBLIC_SUPABASE_URL`: URL pública del proyecto Supabase correspondiente;
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: llave publishable sujeta a RLS;
+- `NEXT_PUBLIC_APP_URL`: origen canónico para callbacks de Auth.
 
-## Variables de Supabase
+`SUPABASE_SERVICE_ROLE_KEY` nunca se configura. No existe un cliente
+administrativo y todas las operaciones usan sesión, RLS y permisos mínimos.
 
-| Variable                        | Alcance     | Uso en esta fase                                         |
-| ------------------------------- | ----------- | -------------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Público     | URL del proyecto usada por ambos clientes.               |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Público     | Llave `anon`/publishable sujeta a RLS.                   |
-| `NEXT_PUBLIC_APP_URL`           | Público     | Origen canónico para callbacks de Auth.                  |
-| `SUPABASE_SERVICE_ROLE_KEY`     | Sólo server | Debe permanecer vacía; no existe cliente administrativo. |
+## Matriz aprobada
 
-La URL y la llave pública son obligatorias al crear cualquiera de los clientes
-de `src/lib/supabase/`. Permanecen opcionales durante lint, pruebas unitarias y
-build para que esos procesos no dependan de credenciales ni de red. Una llamada
-sin configuración al endpoint de health responde `503` sin revelar detalles.
+| Variable                        | Development local                                 | Preview Vercel                    | Staging estable                   |
+| ------------------------------- | ------------------------------------------------- | --------------------------------- | --------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | `http://127.0.0.1:54321`                          | URL HTTPS de `peter-golf-staging` | URL HTTPS de `peter-golf-staging` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable local                                 | publishable de staging            | publishable de staging            |
+| `NEXT_PUBLIC_APP_URL`           | `http://localhost:3000`                           | URL canónica estable de staging   | URL canónica estable de staging   |
+| `APP_ENV`                       | `development`                                     | `staging`                         | `staging`                         |
+| `PAYMENTS_MODE`                 | `disabled`; `test` sólo en prueba local explícita | `disabled`                        | `disabled`                        |
+| `NOTIFICATIONS_MODE`            | `disabled`; `test` sólo con Inbucket local        | `disabled`                        | `disabled`                        |
+| `SUPABASE_SERVICE_ROLE_KEY`     | ausente/vacía                                     | prohibida                         | prohibida                         |
+| variables SMTP/`EMAIL_*`        | sólo prueba local                                 | prohibidas                        | prohibidas                        |
 
-La llave pública no sustituye controles de acceso: todas las consultas siguen
-sujetas a RLS y políticas explícitas. Aunque su exposición en el navegador es
-intencional, no debe registrarse ni devolverse desde endpoints.
+La URL Preview cambia por deployment, pero Auth no depende de ella. Mientras se
+use la URL gratuita inicial, Preview y staging reciben como
+`NEXT_PUBLIC_APP_URL` el alias canónico estable `vercel.app` del proyecto de
+staging. Los callbacks terminan allí.
 
-`SUPABASE_SERVICE_ROLE_KEY` omite RLS y por eso no se carga en ningún cliente de
-esta integración. La gestión operativa de catálogo usa la llave pública, la
-sesión autenticada y políticas RLS específicas para `operator`/`admin`.
+## Validación fail-closed
 
-El bucket público `product-images` se resuelve desde
-`NEXT_PUBLIC_SUPABASE_URL`; no requiere otra variable ni permite persistir un
-dominio proporcionado por formularios.
+`src/env/public.ts` valida con referencias estáticas cada variable pública.
+`src/env/server.ts`, protegido con `server-only`, aplica invariantes adicionales.
+Cuando `APP_ENV=staging`, el proceso falla antes de publicar si:
 
-## Separación y despliegue
+- las URLs de Supabase o aplicación faltan, no usan HTTPS o apuntan a localhost;
+- falta la llave publishable;
+- pagos o notificaciones no están en `disabled`;
+- existe `SUPABASE_SERVICE_ROLE_KEY`;
+- se configuró `EMAIL_TRANSPORT`, cualquier `SMTP_*`, `EMAIL_FROM_*` o la
+  allowlist de destinatarios.
 
-1. Configurar URL y llave pública en el ambiente correspondiente; no reutilizar
-   staging en producción.
-2. Mantener `APP_ENV=development` y `PAYMENTS_MODE=disabled` localmente.
-3. Mantener RLS y mínimo privilegio en cada tabla expuesta.
-4. No guardar valores en Git, documentación, logs, bundles no previstos ni
-   respuestas públicas.
-5. Recordar que Next.js inserta las variables `NEXT_PUBLIC_*` en el bundle
-   durante el build; deben corresponder al destino final del artefacto.
-6. Configurar `NEXT_PUBLIC_APP_URL=http://localhost:3000` en desarrollo. Cada
-   ambiente desplegado debe usar su propio origen HTTPS.
-7. El correo transaccional local sólo puede apuntar a `127.0.0.1:54325`.
+Los errores enumeran únicamente nombres de campos inválidos; nunca incluyen
+valores, URLs, llaves o secretos. Desarrollo conserva sus defaults locales.
 
-Véase [ORDER_NOTIFICATIONS.md](./ORDER_NOTIFICATIONS.md).
+## Pagos y correo
+
+`PAYMENTS_MODE=disabled` bloquea la aplicación y el setting privado
+`site_settings.payments.mode=disabled` bloquea el RPC. No existe proveedor de
+pagos.
+
+`NOTIFICATIONS_MODE=disabled` impide reclamar entregas de la outbox. Inbucket o
+Mailpit sólo existe dentro de Supabase local en `127.0.0.1:54324/54325`; no se
+despliega ni es accesible desde Vercel. Staging no configura SMTP. Los correos
+de Supabase Auth son un canal independiente y el primer staging usa únicamente
+cuentas de prueba precreadas y confirmadas; registro y recuperación no se
+consideran abiertos a correos arbitrarios.
+
+## Manejo en Vercel
+
+El proyecto Vercel de staging tendrá `main` como Production Branch. La
+integración GitHub–Vercel creará:
+
+- Preview Deployments para feature branches;
+- un deployment estable de staging después de cada merge aprobado a `main`.
+
+Las variables se cargan en el dashboard de Vercel y se asignan por ambiente.
+No se versionan `.vercel`, `.env.local`, tokens de Vercel ni valores de
+Supabase. Cambiar una variable no modifica deployments anteriores: se debe
+generar uno nuevo.
