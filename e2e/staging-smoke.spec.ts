@@ -46,9 +46,19 @@ test.describe("staging read-only smoke", () => {
       page,
     }) => {
       await page.goto(protectedPath);
-      await expect(page).toHaveURL(/\/iniciar-sesion\?next=/);
+      await expect(page).toHaveURL((url) => {
+        return (
+          url.pathname === "/iniciar-sesion" &&
+          url.searchParams.get("next") === protectedPath
+        );
+      });
       await expect(
-        page.getByRole("heading", { level: 1, name: "Inicia sesión" }),
+        page.getByRole("heading", { name: "Inicia sesión", exact: true }),
+      ).toBeVisible();
+      await expect(page.getByLabel("Correo electrónico")).toBeVisible();
+      await expect(page.getByLabel("Contraseña")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Iniciar sesión", exact: true }),
       ).toBeVisible();
     });
   }
