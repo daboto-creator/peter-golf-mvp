@@ -27,7 +27,7 @@ decisión operativa separada.
 `orders` permanecen sólo por compatibilidad y dejaron de ser la fuente de
 verdad.
 
-Transiciones válidas:
+Transiciones manuales válidas:
 
 ```text
 pending -> submitted
@@ -64,6 +64,34 @@ rechazar o reembolsar el pago no cambia el pedido ni el inventario. Un pago
 pedido realiza exactamente una devolución de inventario.
 
 ## Prueba manual local
+
+### Stripe Checkout alojado en modo test
+
+Un `order_payment` tiene `provider=manual|stripe`. `bank_transfer` pertenece a
+`manual`; `card` pertenece a `stripe`. El método queda fijo durante la creación
+del pedido. `expected_amount`, `refunded_amount` y todos los importes Stripe se
+guardan en unidades menores (centavos para MXN); no se multiplican nuevamente
+por 100.
+
+Cada intento se audita en `stripe_checkout_sessions`. La RPC autenticada
+`prepare_stripe_checkout_session` bloquea el pedido/pago, deriva importe y
+moneda desde base, impide dos sesiones activas y entrega una idempotency key
+estable. La sesión alojada dura 30 minutos. Una expiración no cancela, no
+reabastece y deja el pedido `preparing`, permitiendo otro intento.
+
+`stripe_webhook_events` deduplica `event.id` y hash; `stripe_refunds` deduplica
+`refund.id` y aplica sólo la versión cronológicamente más reciente. Los únicos
+eventos iniciales son `checkout.session.completed`,
+`checkout.session.expired`, `payment_intent.payment_failed`, `refund.created`,
+`refund.updated` y `refund.failed`. Un refund exitoso parcial produce
+`partially_refunded`; la suma completa produce `refunded`. Sólo el reembolso
+completo permite cancelar un pedido pagado.
+
+La revisión manual rechaza pagos `provider=stripe`. Los eventos existentes
+`payment_paid` y `payment_refunded` siguen alimentando el outbox; staging
+mantiene las entregas deshabilitadas.
+
+### Transferencia manual
 
 1. Iniciar y resetear Supabase local.
 2. Configurar sólo localmente `PAYMENTS_MODE=test` y actualizar el setting

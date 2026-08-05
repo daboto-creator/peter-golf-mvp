@@ -110,6 +110,22 @@ ponen en URLs, consola o errores.
 
 ## Pruebas y límites
 
+### Elección de pago y Checkout Stripe
+
+El checkout ofrece transferencia bancaria simulada o tarjeta Stripe test. La
+RPC de creación persiste la elección y crea un único agregado de pago; el
+navegador no envía precio, moneda ni total. Para tarjeta, la creación del pedido
+termina en `/pedido-confirmado/[id]` sin abrir Stripe: primero Operaciones debe
+confirmar el pedido, descontar inventario y dejarlo `preparing`.
+
+Desde el detalle propio, una Server Action autenticada prepara el intento,
+crea una Checkout Session `mode=payment` con un solo line item por el total
+exacto y redirige a `session.url`. Las páginas `/pagos/stripe/exito` y
+`/pagos/stripe/cancelado` no confían en `session_id`: la primera muestra el
+estado leído de base y la segunda no escribe estado alguno.
+
+### Cobertura actual y límites
+
 `src/lib/cart/cart-rules.test.ts` cubre cantidades, dinero y dirección.
 `supabase/tests/customer_checkout_foundation.sql` cubre RLS, carrito,
 idempotencia, precios, stock, checkout, snapshots, totales, propiedad y

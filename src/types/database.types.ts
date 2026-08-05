@@ -693,7 +693,7 @@ export type Database = {
           last_error_code: string | null;
           lease_token: string | null;
           max_attempts: number;
-          next_attempt_at: string;
+          next_attempt_at: string | null;
           notification_event_id: string;
           processing_started_at: string | null;
           provider: string | null;
@@ -712,7 +712,7 @@ export type Database = {
           last_error_code?: string | null;
           lease_token?: string | null;
           max_attempts?: number;
-          next_attempt_at?: string;
+          next_attempt_at?: string | null;
           notification_event_id: string;
           processing_started_at?: string | null;
           provider?: string | null;
@@ -731,7 +731,7 @@ export type Database = {
           last_error_code?: string | null;
           lease_token?: string | null;
           max_attempts?: number;
-          next_attempt_at?: string;
+          next_attempt_at?: string | null;
           notification_event_id?: string;
           processing_started_at?: string | null;
           provider?: string | null;
@@ -946,6 +946,8 @@ export type Database = {
           method: Database["public"]["Enums"]["payment_method"];
           order_id: string;
           paid_at: string | null;
+          provider: Database["public"]["Enums"]["payment_provider"];
+          refunded_amount: number;
           refunded_at: string | null;
           rejected_at: string | null;
           reviewed_by: string | null;
@@ -963,6 +965,8 @@ export type Database = {
           method: Database["public"]["Enums"]["payment_method"];
           order_id: string;
           paid_at?: string | null;
+          provider?: Database["public"]["Enums"]["payment_provider"];
+          refunded_amount?: number;
           refunded_at?: string | null;
           rejected_at?: string | null;
           reviewed_by?: string | null;
@@ -980,6 +984,8 @@ export type Database = {
           method?: Database["public"]["Enums"]["payment_method"];
           order_id?: string;
           paid_at?: string | null;
+          provider?: Database["public"]["Enums"]["payment_provider"];
+          refunded_amount?: number;
           refunded_at?: string | null;
           rejected_at?: string | null;
           reviewed_by?: string | null;
@@ -1762,6 +1768,176 @@ export type Database = {
         };
         Relationships: [];
       };
+      stripe_checkout_sessions: {
+        Row: {
+          amount_total: number;
+          attempt_number: number;
+          completed_at: string | null;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          expired_at: string | null;
+          expires_at: string;
+          failed_at: string | null;
+          id: string;
+          idempotency_key: string;
+          payload_hash: string;
+          payment_id: string;
+          status: Database["public"]["Enums"]["stripe_checkout_status"];
+          stripe_checkout_session_id: string | null;
+          stripe_payment_intent_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          amount_total: number;
+          attempt_number: number;
+          completed_at?: string | null;
+          created_at?: string;
+          created_by: string;
+          currency: string;
+          expired_at?: string | null;
+          expires_at: string;
+          failed_at?: string | null;
+          id?: string;
+          idempotency_key: string;
+          payload_hash: string;
+          payment_id: string;
+          status?: Database["public"]["Enums"]["stripe_checkout_status"];
+          stripe_checkout_session_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          amount_total?: number;
+          attempt_number?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          expired_at?: string | null;
+          expires_at?: string;
+          failed_at?: string | null;
+          id?: string;
+          idempotency_key?: string;
+          payload_hash?: string;
+          payment_id?: string;
+          status?: Database["public"]["Enums"]["stripe_checkout_status"];
+          stripe_checkout_session_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stripe_checkout_sessions_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stripe_checkout_sessions_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "order_payments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stripe_refunds: {
+        Row: {
+          amount: number;
+          created_at: string;
+          currency: string;
+          failure_reason: string | null;
+          id: string;
+          last_event_created_at: string;
+          payment_id: string;
+          status: Database["public"]["Enums"]["stripe_refund_status"];
+          stripe_created_at: string;
+          stripe_payment_intent_id: string;
+          stripe_refund_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          currency: string;
+          failure_reason?: string | null;
+          id?: string;
+          last_event_created_at: string;
+          payment_id: string;
+          status: Database["public"]["Enums"]["stripe_refund_status"];
+          stripe_created_at: string;
+          stripe_payment_intent_id: string;
+          stripe_refund_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          currency?: string;
+          failure_reason?: string | null;
+          id?: string;
+          last_event_created_at?: string;
+          payment_id?: string;
+          status?: Database["public"]["Enums"]["stripe_refund_status"];
+          stripe_created_at?: string;
+          stripe_payment_intent_id?: string;
+          stripe_refund_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stripe_refunds_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "order_payments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stripe_webhook_events: {
+        Row: {
+          api_version: string | null;
+          created_at: string;
+          error_code: string | null;
+          event_type: string;
+          id: string;
+          livemode: boolean;
+          payload_hash: string;
+          processed_at: string | null;
+          processing_status: Database["public"]["Enums"]["stripe_event_processing_status"];
+          stripe_created_at: string;
+          stripe_event_id: string;
+        };
+        Insert: {
+          api_version?: string | null;
+          created_at?: string;
+          error_code?: string | null;
+          event_type: string;
+          id?: string;
+          livemode: boolean;
+          payload_hash: string;
+          processed_at?: string | null;
+          processing_status?: Database["public"]["Enums"]["stripe_event_processing_status"];
+          stripe_created_at: string;
+          stripe_event_id: string;
+        };
+        Update: {
+          api_version?: string | null;
+          created_at?: string;
+          error_code?: string | null;
+          event_type?: string;
+          id?: string;
+          livemode?: boolean;
+          payload_hash?: string;
+          processed_at?: string | null;
+          processing_status?: Database["public"]["Enums"]["stripe_event_processing_status"];
+          stripe_created_at?: string;
+          stripe_event_id?: string;
+        };
+        Relationships: [];
+      };
       user_roles: {
         Row: {
           assigned_by: string | null;
@@ -1989,6 +2165,23 @@ export type Database = {
               order_number: string;
               replayed: boolean;
             }[];
+          }
+        | {
+            Args: {
+              expected_version: number;
+              requested_address: Json;
+              requested_cart_id: string;
+              requested_idempotency_key: string;
+              requested_payment_method: Database["public"]["Enums"]["payment_method"];
+              requested_save_address: boolean;
+              requested_saved_address_id: string;
+              requested_shipping_method_id: string;
+            };
+            Returns: {
+              order_id: string;
+              order_number: string;
+              replayed: boolean;
+            }[];
           };
       create_manual_order: {
         Args: { requested_idempotency_key: string; requested_payload: Json };
@@ -2079,6 +2272,18 @@ export type Database = {
           reorder_point: number;
         }[];
       };
+      link_stripe_checkout_session: {
+        Args: {
+          requested_checkout_attempt_id: string;
+          requested_expires_at: string;
+          requested_idempotency_key: string;
+          requested_stripe_checkout_session_id: string;
+        };
+        Returns: {
+          checkout_attempt_id: string;
+          linked: boolean;
+        }[];
+      };
       list_customer_orders: {
         Args: never;
         Returns: {
@@ -2149,6 +2354,45 @@ export type Database = {
         };
         Returns: undefined;
       };
+      prepare_stripe_checkout_session: {
+        Args: { requested_idempotency_key: string; requested_order_id: string };
+        Returns: {
+          amount_minor_units: number;
+          checkout_attempt_id: string;
+          checkout_idempotency_key: string;
+          currency: string;
+          payment_id: string;
+          replayed: boolean;
+          stripe_checkout_session_id: string;
+          stripe_idempotency_key: string;
+        }[];
+      };
+      process_stripe_webhook_event: {
+        Args: {
+          requested_amount: number;
+          requested_api_version: string;
+          requested_checkout_attempt_id: string;
+          requested_checkout_session_id: string;
+          requested_currency: string;
+          requested_event_created_at: string;
+          requested_event_id: string;
+          requested_event_type: string;
+          requested_failure_reason: string;
+          requested_livemode: boolean;
+          requested_payload_hash: string;
+          requested_payment_id: string;
+          requested_payment_intent_id: string;
+          requested_payment_status: string;
+          requested_refund_created_at: string;
+          requested_refund_id: string;
+          requested_refund_status: string;
+        };
+        Returns: {
+          outcome: string;
+          processed: boolean;
+          replayed: boolean;
+        }[];
+      };
       recover_expired_notification_leases: { Args: never; Returns: number };
       register_product_image: {
         Args: {
@@ -2210,6 +2454,7 @@ export type Database = {
           version: number;
         }[];
       };
+      stripe_checkout_test_mode_enabled: { Args: never; Returns: boolean };
       submit_bank_transfer: {
         Args: {
           expected_payment_version: number;
@@ -2366,18 +2611,26 @@ export type Database = {
         | "cancelled"
         | "returned";
       page_status: "draft" | "published" | "archived";
-      payment_method: "bank_transfer" | "cash" | "external_terminal";
+      payment_method: "bank_transfer" | "cash" | "external_terminal" | "card";
+      payment_provider: "manual" | "stripe";
       payment_status:
         | "pending"
         | "submitted"
         | "under_review"
         | "paid"
         | "rejected"
-        | "refunded";
+        | "refunded"
+        | "failed"
+        | "partially_refunded";
       product_condition: "new" | "used";
       product_condition_grade:
         "like_new" | "excellent" | "very_good" | "good" | "fair";
       product_status: "draft" | "active" | "archived";
+      stripe_checkout_status:
+        "creating" | "open" | "payment_failed" | "completed" | "expired";
+      stripe_event_processing_status: "processing" | "processed" | "rejected";
+      stripe_refund_status:
+        "pending" | "requires_action" | "succeeded" | "failed" | "canceled";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -2574,7 +2827,8 @@ export const Constants = {
         "returned",
       ],
       page_status: ["draft", "published", "archived"],
-      payment_method: ["bank_transfer", "cash", "external_terminal"],
+      payment_method: ["bank_transfer", "cash", "external_terminal", "card"],
+      payment_provider: ["manual", "stripe"],
       payment_status: [
         "pending",
         "submitted",
@@ -2582,6 +2836,8 @@ export const Constants = {
         "paid",
         "rejected",
         "refunded",
+        "failed",
+        "partially_refunded",
       ],
       product_condition: ["new", "used"],
       product_condition_grade: [
@@ -2592,6 +2848,21 @@ export const Constants = {
         "fair",
       ],
       product_status: ["draft", "active", "archived"],
+      stripe_checkout_status: [
+        "creating",
+        "open",
+        "payment_failed",
+        "completed",
+        "expired",
+      ],
+      stripe_event_processing_status: ["processing", "processed", "rejected"],
+      stripe_refund_status: [
+        "pending",
+        "requires_action",
+        "succeeded",
+        "failed",
+        "canceled",
+      ],
     },
   },
 } as const;

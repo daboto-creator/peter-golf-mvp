@@ -235,4 +235,34 @@ PLAYWRIGHT_BASE_URL=https://<alias-canonico-staging>.vercel.app \
 
 ## 8. Evidencia y salida
 
-Cada entrega debe registrar comandos, resultado, ambiente, pruebas manuales y defectos conocidos. Un release no avanza con fallas de build, defectos críticos/altos, controles de acceso sin comprobar o ambigüedad sobre pagos reales.
+Cada entrega debe registrar comandos, resultado, ambiente, pruebas manuales y
+defectos conocidos. Un release no avanza con fallas de build, defectos
+críticos/altos, controles de acceso sin comprobar o ambigüedad sobre pagos
+reales.
+
+## 9. Stripe Checkout test
+
+`supabase/tests/stripe_test_checkout_foundation.sql` cubre proveedor manual y
+Stripe, ownership/anon/otro usuario, unidades menores, doble clic,
+idempotencia, IDs duplicados, orden de eventos, monto/moneda manipulados,
+`livemode`, refunds, aislamiento de inventario, cancelación, RLS, grants y
+`search_path`. Debe ejecutarse junto con todas las pruebas SQL históricas.
+
+Las pruebas unitarias cubren reglas de claves/eventos, normalización del webhook
+y matriz de ambiente. El E2E `e2e/stripe-test-checkout.spec.ts` es opt-in:
+
+```bash
+RUN_STRIPE_E2E=1 npm run test:e2e -- e2e/stripe-test-checkout.spec.ts
+```
+
+Requiere Supabase local, configuración Stripe test completa y un listener
+Stripe CLI activo. Nunca se ejecuta contra staging sin autorización explícita.
+
+Para webhook local:
+
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+```
+
+Copiar el `whsec_...` emitido a `.env.local`; usar tarjetas de prueba de la
+documentación de Stripe, nunca datos reales.

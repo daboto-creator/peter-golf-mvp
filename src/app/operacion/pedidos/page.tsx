@@ -89,6 +89,8 @@ export default async function OrdersPage({
             ["under_review", "En revisión"],
             ["paid", "Aprobada"],
             ["rejected", "Rechazada"],
+            ["failed", "Tarjeta fallida"],
+            ["partially_refunded", "Reembolso parcial"],
             ["refunded", "Reembolsada"],
           ]}
         />

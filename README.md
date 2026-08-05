@@ -126,12 +126,12 @@ Las variables disponibles y el proceso para endurecer su validación al conectar
 - `src/types/database.types.ts` contiene los tipos generados desde el esquema
   remoto de staging.
 
-La configuración se valida al crear un cliente, de modo que los comandos de
-calidad pueden ejecutarse sin credenciales; cualquier flujo que use Supabase
-requiere `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-`SUPABASE_SERVICE_ROLE_KEY` debe permanecer ausente. En `APP_ENV=staging`, el
-build también exige URLs HTTPS no locales, llave publishable, pagos y
-notificaciones deshabilitados y ausencia total de variables SMTP.
+La configuración se valida al crear un cliente. Cualquier ambiente alojado
+exige URLs HTTPS no locales, llave publishable, notificaciones deshabilitadas y
+ausencia total de variables SMTP. Preview usa explícitamente `APP_ENV=preview`;
+el deployment estable usa `APP_ENV=staging`. `SUPABASE_SERVICE_ROLE_KEY` sólo
+se permite en staging cuando Stripe test está completamente habilitado. Un
+build con `NODE_ENV=production` y sin `APP_ENV` explícito falla cerrado.
 
 ## Preparación de Vercel staging
 
@@ -353,6 +353,20 @@ La prueba usa datos ficticios dentro de una transacción y finaliza con
 `ROLLBACK`. No prueba ni modifica staging.
 
 ## Documentación
+
+### Stripe Checkout de prueba
+
+La rama incorpora Stripe Checkout alojado exclusivamente en modo test. El
+cliente crea el pedido, Operaciones lo confirma y descuenta inventario, y sólo
+entonces se habilita el pago con tarjeta. Stripe nunca confirma pedidos ni
+modifica inventario. La transferencia bancaria simulada sigue disponible como
+proveedor manual independiente.
+
+Para la configuración y validación local consulta
+[`docs/ORDER_PAYMENTS.md`](docs/ORDER_PAYMENTS.md),
+[`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md) y
+[`docs/TESTING_PLAN.md`](docs/TESTING_PLAN.md). No se usa Stripe.js ni existe
+una variable `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
 
 - [Requisitos de producto](./docs/PRODUCT_REQUIREMENTS.md)
 - [Reglas de negocio](./docs/BUSINESS_RULES.md)

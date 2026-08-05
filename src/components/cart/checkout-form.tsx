@@ -64,12 +64,14 @@ export function CheckoutForm({
   shippingMethod,
   idempotencyKey,
   paymentsMode,
+  stripeCheckoutMode,
 }: {
   cart: CustomerCart & { cart_id: string; version: number };
   addresses: CustomerAddress[];
   shippingMethod: CustomerShippingMethod;
   idempotencyKey: string;
   paymentsMode: "disabled" | "test";
+  stripeCheckoutMode: "disabled" | "test";
 }) {
   const [state, action, pending] = useActionState(
     checkoutAction,
@@ -217,10 +219,23 @@ export function CheckoutForm({
               />
               <span>Transferencia bancaria simulada</span>
             </label>
+            <label className="flex items-start gap-3">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="card"
+                disabled={stripeCheckoutMode !== "test"}
+                className="mt-1"
+              />
+              <span>
+                Tarjeta mediante Stripe — modo de prueba
+                {stripeCheckoutMode !== "test" ? " (no disponible)" : ""}
+              </span>
+            </label>
           </fieldset>
           <p className="mt-3">
             {paymentsMode === "test"
-              ? "Flujo de prueba: no realizar una transferencia real. Operaciones confirmará primero el pedido."
+              ? "Flujo de prueba: Operaciones confirmará primero el pedido. Si eliges tarjeta, podrás abrir Stripe Checkout desde el detalle cuando el pedido esté preparando."
               : "El registro de transferencias está deshabilitado. No se realizará ningún cargo."}
           </p>
         </div>

@@ -56,9 +56,10 @@ npm run test:e2e -- e2e/home.spec.ts
 git diff --check
 ```
 
-4. Confirmar que el build con `APP_ENV=staging` falla sin la configuración
-   HTTPS obligatoria y pasa con valores sintácticamente válidos, pagos/correo
-   deshabilitados y sin variables prohibidas.
+4. Confirmar que los builds con `APP_ENV=preview` y `APP_ENV=staging` fallan sin
+   la configuración HTTPS obligatoria y pasan con su matriz de pagos/Stripe,
+   notificaciones deshabilitadas y sin variables prohibidas. Confirmar también
+   que `NODE_ENV=production` sin `APP_ENV` falla.
 
 ## 5. Migraciones de Supabase staging
 
@@ -103,7 +104,8 @@ Esta fase requiere autorización remota posterior:
 1. importar el repositorio en un proyecto exclusivo de staging;
 2. seleccionar Next.js, raíz del repositorio y Node.js 24.x;
 3. configurar `main` como Production Branch;
-4. cargar variables Preview y Production según `ENVIRONMENT.md`;
+4. cargar variables por scope según `ENVIRONMENT.md`: `APP_ENV=preview` en
+   Preview y `APP_ENV=staging` en Production del proyecto de staging;
 5. no configurar variables SMTP ni `SUPABASE_SERVICE_ROLE_KEY`;
 6. desplegar primero una feature branch como Preview;
 7. verificar y fusionar por revisión a `main`;
@@ -146,7 +148,29 @@ sin copiar PII, cookies, tokens ni payloads completos.
 Revertir ante indisponibilidad, exposición de datos, falla de autorización,
 cálculos incorrectos o cualquier defecto crítico/alto.
 
-## 10. Rollback
+## 10. Habilitación futura de Stripe test en staging
+
+Esta tarea no configura recursos remotos. Cuando exista autorización:
+
+1. Aplicar y validar migraciones en `peter-golf-staging`; nunca usar producción.
+2. Crear/seleccionar una cuenta Stripe en test mode y registrar el endpoint
+   `https://<dominio-staging>/api/webhooks/stripe` con los seis eventos
+   documentados.
+3. En Vercel Staging (no Preview) configurar `APP_ENV=staging`,
+   `PAYMENTS_MODE=test`, `STRIPE_CHECKOUT_MODE=test`, la `sk_test_`, el
+   `whsec_`, la service role exclusiva de `peter-golf-staging` y
+   `NOTIFICATIONS_MODE=disabled`.
+4. Activar `payments.mode=test` y `stripe.checkout.mode=test` en la base de
+   staging, desplegar, verificar firma/reintentos y ejecutar el E2E autorizado.
+5. Confirmar que Preview conserva Stripe disabled y sin los tres secretos.
+
+Rollback funcional: poner primero `STRIPE_CHECKOUT_MODE=disabled` y
+`stripe.checkout.mode=disabled`, redesplegar y conservar tablas/eventos para
+auditoría. Esto impide nuevos intentos sin alterar pedidos, inventario, pagos ya
+confirmados o transferencia bancaria. El rollback de esquema sólo se evaluará
+después de retención/exportación; no se borran auditorías como respuesta rápida.
+
+## 11. Rollback
 
 Frontend:
 

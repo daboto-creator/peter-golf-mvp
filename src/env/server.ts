@@ -40,14 +40,17 @@ const notificationEmailEnvironmentSchema = z.object({
 
 const defaultAppEnvironment =
   process.env.NODE_ENV === "production"
-    ? "production"
+    ? undefined
     : process.env.NODE_ENV === "test"
       ? "test"
       : "development";
 
 const serverEnvironmentSchema = z.object({
-  APP_ENV: z.enum(["development", "test", "staging", "production"]),
+  APP_ENV: z.enum(["development", "test", "preview", "staging", "production"]),
   PAYMENTS_MODE: z.enum(["disabled", "test"]).default("disabled"),
+  STRIPE_CHECKOUT_MODE: z.enum(["disabled", "test"]).default("disabled"),
+  STRIPE_SECRET_KEY: optionalNonEmptyString,
+  STRIPE_WEBHOOK_SECRET: optionalNonEmptyString,
   NOTIFICATIONS_MODE: z.enum(["disabled", "test"]).default("disabled"),
   SUPABASE_SERVICE_ROLE_KEY: optionalNonEmptyString,
   ...notificationEmailEnvironmentSchema.shape,
@@ -76,6 +79,9 @@ const localNotificationEmailDefaults: NotificationEmailConfig = {
 const rawServerEnvironment = {
   APP_ENV: process.env.APP_ENV || defaultAppEnvironment,
   PAYMENTS_MODE: process.env.PAYMENTS_MODE,
+  STRIPE_CHECKOUT_MODE: process.env.STRIPE_CHECKOUT_MODE,
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   NOTIFICATIONS_MODE: process.env.NOTIFICATIONS_MODE,
   EMAIL_TRANSPORT: process.env.EMAIL_TRANSPORT,
   SMTP_HOST: process.env.SMTP_HOST,
@@ -175,6 +181,9 @@ function isHostedHttpsUrl(value: string | undefined) {
 
 function assertHostedEnvironment() {
   const invalidFields: string[] = [];
+  const hostedEnvironment = ["preview", "staging", "production"].includes(
+    resolvedServerEnvironment.APP_ENV,
+  );
 
   const forbiddenMailFields = [
     "EMAIL_TRANSPORT",
@@ -186,7 +195,40 @@ function assertHostedEnvironment() {
     "EMAIL_ALLOWED_RECIPIENT_DOMAINS",
   ] as const;
 
-  if (resolvedServerEnvironment.APP_ENV === "staging") {
+  const stripeSecretFields = [
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+  ] as const;
+
+  if (resolvedServerEnvironment.STRIPE_CHECKOUT_MODE === "test") {
+    if (resolvedServerEnvironment.PAYMENTS_MODE !== "test") {
+      invalidFields.push("PAYMENTS_MODE");
+    }
+    if (!resolvedServerEnvironment.STRIPE_SECRET_KEY?.startsWith("sk_test_")) {
+      invalidFields.push("STRIPE_SECRET_KEY");
+    }
+    if (
+      !resolvedServerEnvironment.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")
+    ) {
+      invalidFields.push("STRIPE_WEBHOOK_SECRET");
+    }
+    if (!resolvedServerEnvironment.SUPABASE_SERVICE_ROLE_KEY) {
+      invalidFields.push("SUPABASE_SERVICE_ROLE_KEY");
+    }
+  } else {
+    for (const field of stripeSecretFields) {
+      if (rawServerEnvironment[field]?.trim()) invalidFields.push(field);
+    }
+    if (resolvedServerEnvironment.SUPABASE_SERVICE_ROLE_KEY) {
+      invalidFields.push("SUPABASE_SERVICE_ROLE_KEY");
+    }
+  }
+
+  if (resolvedServerEnvironment.STRIPE_SECRET_KEY?.startsWith("sk_live_")) {
+    invalidFields.push("STRIPE_SECRET_KEY");
+  }
+
+  if (hostedEnvironment) {
     if (!isHostedHttpsUrl(publicEnv.NEXT_PUBLIC_SUPABASE_URL)) {
       invalidFields.push("NEXT_PUBLIC_SUPABASE_URL");
     }
@@ -196,26 +238,38 @@ function assertHostedEnvironment() {
     if (!isHostedHttpsUrl(publicEnv.NEXT_PUBLIC_APP_URL)) {
       invalidFields.push("NEXT_PUBLIC_APP_URL");
     }
-    if (resolvedServerEnvironment.PAYMENTS_MODE !== "disabled") {
-      invalidFields.push("PAYMENTS_MODE");
-    }
     if (resolvedServerEnvironment.NOTIFICATIONS_MODE !== "disabled") {
       invalidFields.push("NOTIFICATIONS_MODE");
     }
-    if (resolvedServerEnvironment.SUPABASE_SERVICE_ROLE_KEY) {
-      invalidFields.push("SUPABASE_SERVICE_ROLE_KEY");
-    }
-
     for (const field of forbiddenMailFields) {
       if (rawServerEnvironment[field]?.trim()) invalidFields.push(field);
     }
   }
 
   if (
-    resolvedServerEnvironment.APP_ENV === "production" &&
-    resolvedServerEnvironment.NOTIFICATIONS_MODE !== "disabled"
+    resolvedServerEnvironment.APP_ENV === "preview" ||
+    resolvedServerEnvironment.APP_ENV === "production"
   ) {
-    invalidFields.push("NOTIFICATIONS_MODE");
+    if (resolvedServerEnvironment.PAYMENTS_MODE !== "disabled") {
+      invalidFields.push("PAYMENTS_MODE");
+    }
+    if (resolvedServerEnvironment.STRIPE_CHECKOUT_MODE !== "disabled") {
+      invalidFields.push("STRIPE_CHECKOUT_MODE");
+    }
+    for (const field of stripeSecretFields) {
+      if (rawServerEnvironment[field]?.trim()) invalidFields.push(field);
+    }
+    if (resolvedServerEnvironment.SUPABASE_SERVICE_ROLE_KEY) {
+      invalidFields.push("SUPABASE_SERVICE_ROLE_KEY");
+    }
+  }
+
+  if (
+    resolvedServerEnvironment.APP_ENV === "staging" &&
+    resolvedServerEnvironment.STRIPE_CHECKOUT_MODE === "disabled" &&
+    resolvedServerEnvironment.PAYMENTS_MODE !== "disabled"
+  ) {
+    invalidFields.push("PAYMENTS_MODE");
   }
 
   if (

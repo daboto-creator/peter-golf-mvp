@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import type { ManualOrderDetail } from "@/lib/orders/operational-orders";
 import { initialPaymentActionResult } from "@/lib/payments/payment-action-state";
 import { reviewOrderPaymentAction } from "@/lib/payments/payment-actions";
-import { paymentStatusLabel } from "@/lib/payments/payment-rules";
+import {
+  paymentProviderLabel,
+  paymentStatusLabel,
+  stripeCheckoutStatusLabel,
+} from "@/lib/payments/payment-rules";
 
 type Keys = {
   review: string;
@@ -46,9 +50,22 @@ export function PaymentReviewForm({
           Estado independiente: {paymentStatusLabel(payment.status)}. Ninguna
           acción de pago confirma el pedido o modifica inventario.
         </p>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Proveedor: {paymentProviderLabel(payment.provider)}
+          {payment.provider === "stripe"
+            ? ` · ${stripeCheckoutStatusLabel(payment.stripeCheckoutStatus)}`
+            : ""}
+        </p>
       </div>
 
-      {payment.submissions.length ? (
+      {payment.provider === "stripe" ? (
+        <p className="rounded-lg bg-blue-50 p-4 text-sm text-blue-950">
+          Los pagos Stripe sólo cambian mediante webhooks firmados. No pueden
+          aprobarse ni reembolsarse manualmente desde Operaciones.
+        </p>
+      ) : null}
+
+      {payment.provider === "manual" && payment.submissions.length ? (
         <div className="overflow-hidden rounded-lg border">
           <ul className="divide-y text-sm">
             {payment.submissions.map((submission) => (
@@ -66,36 +83,39 @@ export function PaymentReviewForm({
             ))}
           </ul>
         </div>
-      ) : (
+      ) : payment.provider === "manual" ? (
         <p className="text-muted-foreground text-sm">
           El cliente todavía no registra una transferencia simulada.
         </p>
-      )}
+      ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        {payment.status === "submitted" ? (
-          <SimpleTransition
-            action={action}
-            order={order}
-            status="under_review"
-            idempotencyKey={idempotencyKeys.review}
-            label="Iniciar revisión"
-            pending={pending}
-          />
-        ) : null}
-        {payment.status === "under_review" ? (
-          <SimpleTransition
-            action={action}
-            order={order}
-            status="paid"
-            idempotencyKey={idempotencyKeys.approve}
-            label="Aprobar pago"
-            pending={pending}
-          />
-        ) : null}
-      </div>
+      {payment.provider === "manual" ? (
+        <div className="flex flex-wrap gap-3">
+          {payment.status === "submitted" ? (
+            <SimpleTransition
+              action={action}
+              order={order}
+              status="under_review"
+              idempotencyKey={idempotencyKeys.review}
+              label="Iniciar revisión"
+              pending={pending}
+            />
+          ) : null}
+          {payment.status === "under_review" ? (
+            <SimpleTransition
+              action={action}
+              order={order}
+              status="paid"
+              idempotencyKey={idempotencyKeys.approve}
+              label="Aprobar pago"
+              pending={pending}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
-      {["submitted", "under_review"].includes(payment.status) ? (
+      {payment.provider === "manual" &&
+      ["submitted", "under_review"].includes(payment.status) ? (
         <ReasonTransition
           action={action}
           order={order}
@@ -105,7 +125,7 @@ export function PaymentReviewForm({
           pending={pending}
         />
       ) : null}
-      {payment.status === "paid" ? (
+      {payment.provider === "manual" && payment.status === "paid" ? (
         <ReasonTransition
           action={action}
           order={order}

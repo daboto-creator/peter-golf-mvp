@@ -13,6 +13,14 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      APP_ENV: test
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-local-publishable-key
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      PAYMENTS_MODE: disabled
+      STRIPE_CHECKOUT_MODE: disabled
+      NOTIFICATIONS_MODE: disabled
 
     steps:
       - name: Check out repository

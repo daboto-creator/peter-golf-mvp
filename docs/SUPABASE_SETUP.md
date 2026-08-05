@@ -345,11 +345,13 @@ La integración usa:
 
 Ambos clientes usan exclusivamente `NEXT_PUBLIC_SUPABASE_URL` y
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Los valores locales deben ir en `.env.local`,
-nunca en Git. `SUPABASE_SERVICE_ROLE_KEY` permanece vacía; la gestión operativa
-usa la sesión autenticada, RLS y privilegios de columna.
+nunca en Git. `SUPABASE_SERVICE_ROLE_KEY` permanece ausente en Preview y cuando
+Stripe está deshabilitado. Sólo se admite en staging con Stripe Checkout test,
+aislada al webhook y al RPC transaccional; la gestión operativa ordinaria usa la
+sesión autenticada, RLS y privilegios de columna.
 
-Staging nunca debe usar valores live ni datos de producción. Los pagos reales
-permanecen deshabilitados y no se configuró proveedor alguno.
+Staging nunca debe usar valores live ni datos de producción. Stripe Checkout se
+admite exclusivamente en modo test; los pagos reales permanecen deshabilitados.
 
 El primer staging usa cuentas de prueba precreadas y confirmadas. Registro y
 recuperación no se consideran disponibles para correos arbitrarios y no se

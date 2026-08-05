@@ -31,8 +31,9 @@ export default async function ConfirmedOrderPage({
         <section className="mb-8 rounded-xl bg-emerald-50 p-6 text-emerald-950">
           <h1 className="text-2xl font-semibold">Recibimos tu pedido</h1>
           <p className="mt-2">
-            Está pendiente de revisión operativa. No se realizó ningún cargo y
-            no debes enviar dinero real desde este flujo de prueba.
+            Está pendiente de revisión operativa. No se realizó ningún cargo. Si
+            elegiste tarjeta, el pago se habilitará aquí después de que
+            Operaciones confirme el pedido.
           </p>
           <Button asChild variant="outline" className="mt-4">
             <Link href="/cuenta/pedidos">Ir a mis pedidos</Link>
@@ -43,6 +44,8 @@ export default async function ConfirmedOrderPage({
           paymentControls={{
             mode: serverEnv.PAYMENTS_MODE,
             idempotencyKey: randomUUID(),
+            stripeMode: serverEnv.STRIPE_CHECKOUT_MODE,
+            stripeIdempotencyKey: randomUUID(),
           }}
         />
       </main>

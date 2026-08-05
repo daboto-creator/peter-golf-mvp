@@ -15,6 +15,7 @@ export type ManualOrderListRecord = {
   status: Database["public"]["Enums"]["order_status"];
   order_payments: {
     status: Database["public"]["Enums"]["payment_status"];
+    provider: Database["public"]["Enums"]["payment_provider"];
   } | null;
   total: number;
   currency: string;
@@ -39,6 +40,7 @@ export function normalizeManualOrderSummary(
     origin: row.origin,
     status: row.status,
     paymentStatus: row.order_payments?.status ?? null,
+    paymentProvider: row.order_payments?.provider ?? null,
     total: row.total,
     currency: row.currency,
     itemCount: row.order_items.reduce((sum, item) => sum + item.quantity, 0),

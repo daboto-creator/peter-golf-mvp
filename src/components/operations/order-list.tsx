@@ -3,7 +3,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import { orderOriginLabel, statusLabel } from "@/lib/orders/presentation";
-import { paymentStatusLabel } from "@/lib/payments/payment-rules";
+import {
+  paymentProviderLabel,
+  paymentStatusLabel,
+} from "@/lib/payments/payment-rules";
 import type { ManualOrderSummary } from "@/lib/orders/operational-orders";
 
 export function OrderList({ orders }: { orders: ManualOrderSummary[] }) {
@@ -37,6 +40,9 @@ export function OrderList({ orders }: { orders: ManualOrderSummary[] }) {
               {order.paymentStatus
                 ? paymentStatusLabel(order.paymentStatus)
                 : "Sin pago asociado"}
+              {order.paymentProvider
+                ? ` · ${paymentProviderLabel(order.paymentProvider)}`
+                : ""}
             </p>
           </div>
           <div>

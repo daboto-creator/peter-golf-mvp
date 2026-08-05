@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { serverEnv } from "@/env/server";
 import {
   cartQuantitySchema,
   checkoutAddressSchema,
@@ -226,7 +227,8 @@ export async function checkoutAction(
     !shippingMethodId.success ||
     !parsedVersion.success ||
     !key.success ||
-    paymentMethod !== "bank_transfer" ||
+    !["bank_transfer", "card"].includes(paymentMethod) ||
+    (paymentMethod === "card" && serverEnv.STRIPE_CHECKOUT_MODE !== "test") ||
     (savedAddressId !== null && !savedAddressId.success) ||
     (savedAddressId === null && !address.success)
   ) {
@@ -247,6 +249,7 @@ export async function checkoutAction(
     requested_save_address:
       savedAddressId === null && formData.get("saveAddress") === "on",
     requested_idempotency_key: key.data,
+    requested_payment_method: paymentMethod as "bank_transfer" | "card",
   });
   if (error || !data[0]) return safeFailure(error?.code);
   revalidatePath("/carrito");

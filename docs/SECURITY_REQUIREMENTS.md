@@ -19,8 +19,12 @@
   `peter-golf-production`.
 - Mantener también proyectos Vercel separados. Preview y staging usan sólo la
   llave publishable del Supabase de staging.
-- En `APP_ENV=staging`, exigir URLs HTTPS no locales, pagos y notificaciones
-  deshabilitados, ausencia de `service_role` y ausencia de variables SMTP.
+- En `APP_ENV=preview|staging|production`, exigir URLs HTTPS no locales,
+  notificaciones deshabilitadas y ausencia de variables SMTP.
+- Preview y producción futura exigen pagos/Stripe deshabilitados y ausencia de
+  secretos Stripe/service role. Staging sólo permite service role con la
+  configuración Stripe test completa.
+- Configurar `APP_ENV` explícitamente; un build productivo sin ella debe fallar.
 - Usar cuentas ficticias precreadas y confirmadas hasta que exista una decisión
   explícita sobre correo de Auth; no asumir registro público arbitrario.
 - Servir `noindex` en todo ambiente no productivo.
@@ -312,6 +316,26 @@ base usa restauración o migración compensatoria; `db reset --linked` está
 prohibido.
 
 ## 10. Validación y salida a producción
+
+### Frontera de Stripe test y service role
+
+- Sólo se acepta `sk_test_`; `sk_live_`, eventos `livemode=true` y una modalidad
+  live no están soportados.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` y
+  `SUPABASE_SERVICE_ROLE_KEY` son server-only. No hay clave publicable ni
+  Stripe.js.
+- El módulo `src/lib/supabase/service-role.ts` no exporta un cliente genérico:
+  sólo ejecuta `process_stripe_webhook_event`. No puede importarse en Server
+  Actions iniciadas por el cliente.
+- El webhook usa el body raw y `stripe-signature`; persiste únicamente campos
+  normalizados e IDs. No registra body, email, dirección, metadata completa,
+  tarjetas, claves, URL de Supabase ni errores internos.
+- Las tablas Stripe tienen RLS y grants mínimos. Clientes leen estados sólo por
+  la proyección segura de su pedido; writes requieren marcadores locales de RPC.
+- La RPC webhook es `SECURITY DEFINER`, `search_path=''`, transaccional e
+  invocable únicamente por `service_role`.
+
+### Validación general de salida
 
 La outbox de notificaciones se escribe desde historiales inmutables. SMTP se
 procesa después del commit y sólo contra un host local en modo `test`. Las

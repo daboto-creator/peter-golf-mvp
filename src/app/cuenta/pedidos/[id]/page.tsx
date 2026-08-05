@@ -32,6 +32,8 @@ export default async function CustomerOrderPage({
         paymentControls={{
           mode: serverEnv.PAYMENTS_MODE,
           idempotencyKey: randomUUID(),
+          stripeMode: serverEnv.STRIPE_CHECKOUT_MODE,
+          stripeIdempotencyKey: randomUUID(),
         }}
       />
     </div>
