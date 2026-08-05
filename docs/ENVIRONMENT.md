@@ -58,6 +58,8 @@ pagos y Stripe `disabled`, sin esos tres secretos; live mode no está soportado.
 `APP_ENV` es obligatorio y se configura explícitamente por scope en Vercel.
 Si falta durante un build con `NODE_ENV=production`, el build falla mencionando
 `APP_ENV`; no se infiere Preview, staging ni producción desde `NODE_ENV`.
+GitHub Actions es un ambiente de validación aislado y usa explícitamente
+`APP_ENV=test`, incluso cuando `next build` establece `NODE_ENV=production`.
 
 Los errores enumeran únicamente nombres de campos inválidos; nunca incluyen
 valores, URLs, llaves o secretos. Desarrollo conserva sus defaults locales.
