@@ -33,6 +33,7 @@ export type ManualOrderSummary = {
   origin: OrderOrigin;
   status: OrderStatus;
   paymentStatus: PaymentStatus | null;
+  paymentProvider: Database["public"]["Enums"]["payment_provider"] | null;
   total: number;
   currency: string;
   itemCount: number;
@@ -63,9 +64,11 @@ export type ManualOrderDetail = ManualOrderSummary & {
   originChannelDetail: string | null;
   payment: {
     id: string;
+    provider: Database["public"]["Enums"]["payment_provider"];
     method: Database["public"]["Enums"]["payment_method"];
     status: PaymentStatus;
     expectedAmount: number;
+    refundedAmount: number;
     currency: string;
     version: number;
     submittedAt: string | null;
@@ -73,6 +76,8 @@ export type ManualOrderDetail = ManualOrderSummary & {
     paidAt: string | null;
     rejectedAt: string | null;
     refundedAt: string | null;
+    stripeCheckoutStatus:
+      Database["public"]["Enums"]["stripe_checkout_status"] | null;
     submissions: {
       id: string;
       attemptNumber: number;
@@ -166,7 +171,7 @@ export async function listManualOrders(filters: {
     let query = client
       .from("orders")
       .select(
-        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, status, total, currency, created_at, updated_at, order_items(quantity), order_payments(status)",
+        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, status, total, currency, created_at, updated_at, order_items(quantity), order_payments(status, provider)",
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -203,6 +208,8 @@ export async function listManualOrders(filters: {
         "under_review",
         "paid",
         "rejected",
+        "failed",
+        "partially_refunded",
         "refunded",
       ].includes(filters.payment ?? "")
     ) {
@@ -236,7 +243,7 @@ export async function getManualOrder(
     const { data, error } = await client
       .from("orders")
       .select(
-        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, origin_channel_detail, status, subtotal, discount_total, discount_reason, shipping_total, total, currency, internal_note, shipping_address_snapshot, confirmed_at, cancelled_at, cancellation_reason, version, created_at, updated_at, order_items(id, product_id, variant_id, sku_snapshot, product_name_snapshot, variant_name_snapshot, unit_price_snapshot, quantity, line_total), order_status_history(id, from_status, to_status, created_at), order_payments(id, method, status, expected_amount, currency, version, submitted_at, under_review_at, paid_at, rejected_at, refunded_at, payment_submissions(id, attempt_number, transfer_reference, transferred_at, sender_name, sender_bank, created_at), payment_status_history(id, from_status, to_status, note, created_at))",
+        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, origin_channel_detail, status, subtotal, discount_total, discount_reason, shipping_total, total, currency, internal_note, shipping_address_snapshot, confirmed_at, cancelled_at, cancellation_reason, version, created_at, updated_at, order_items(id, product_id, variant_id, sku_snapshot, product_name_snapshot, variant_name_snapshot, unit_price_snapshot, quantity, line_total), order_status_history(id, from_status, to_status, created_at), order_payments(id, provider, method, status, expected_amount, refunded_amount, currency, version, submitted_at, under_review_at, paid_at, rejected_at, refunded_at, stripe_checkout_sessions(status, created_at), payment_submissions(id, attempt_number, transfer_reference, transferred_at, sender_name, sender_bank, created_at), payment_status_history(id, from_status, to_status, note, created_at))",
       )
       .eq("id", id)
       .maybeSingle();
@@ -255,12 +262,15 @@ export async function getManualOrder(
         origin: data.origin,
         status: data.status,
         paymentStatus: data.order_payments?.status ?? null,
+        paymentProvider: data.order_payments?.provider ?? null,
         payment: data.order_payments
           ? {
               id: data.order_payments.id,
+              provider: data.order_payments.provider,
               method: data.order_payments.method,
               status: data.order_payments.status,
               expectedAmount: data.order_payments.expected_amount,
+              refundedAmount: data.order_payments.refunded_amount,
               currency: data.order_payments.currency,
               version: data.order_payments.version,
               submittedAt: data.order_payments.submitted_at,
@@ -268,6 +278,10 @@ export async function getManualOrder(
               paidAt: data.order_payments.paid_at,
               rejectedAt: data.order_payments.rejected_at,
               refundedAt: data.order_payments.refunded_at,
+              stripeCheckoutStatus:
+                data.order_payments.stripe_checkout_sessions.toSorted((a, b) =>
+                  b.created_at.localeCompare(a.created_at),
+                )[0]?.status ?? null,
               submissions: data.order_payments.payment_submissions
                 .map((submission) => ({
                   id: submission.id,

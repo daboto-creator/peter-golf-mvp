@@ -25,13 +25,20 @@ const paymentStatusSchema = z.enum([
   "under_review",
   "paid",
   "rejected",
+  "failed",
   "refunded",
+  "partially_refunded",
 ]);
 const paymentMethodSchema = z.enum([
   "bank_transfer",
   "cash",
   "external_terminal",
+  "card",
 ]);
+const paymentProviderSchema = z.enum(["manual", "stripe"]);
+const stripeCheckoutStatusSchema = z
+  .enum(["creating", "open", "payment_failed", "completed", "expired"])
+  .nullable();
 const customerOrderDetailSchema = z.object({
   id: z.string().uuid(),
   order_number: z.string(),
@@ -47,9 +54,11 @@ const customerOrderDetailSchema = z.object({
   shipping_address_snapshot: z.custom<Json>(),
   payment: z.object({
     id: z.string().uuid(),
+    provider: paymentProviderSchema,
     status: paymentStatusSchema,
     method: paymentMethodSchema,
     expected_amount: z.number(),
+    refunded_amount: z.number(),
     currency: z.string(),
     version: z.number().int().positive(),
     submitted_at: z.string().nullable(),
@@ -57,6 +66,7 @@ const customerOrderDetailSchema = z.object({
     paid_at: z.string().nullable(),
     rejected_at: z.string().nullable(),
     refunded_at: z.string().nullable(),
+    stripe_status: stripeCheckoutStatusSchema,
     submissions: z.array(
       z.object({
         attempt_number: z.number().int().positive(),
@@ -111,15 +121,19 @@ export type CustomerOrderDetail = CustomerOrderSummary & {
   discountTotal: number;
   taxTotal: number;
   paymentId: string;
+  paymentProvider: Database["public"]["Enums"]["payment_provider"];
   paymentMethod: Database["public"]["Enums"]["payment_method"];
   paymentVersion: number;
   paymentExpectedAmount: number;
+  paymentRefundedAmount: number;
   paymentCurrency: string;
   paymentSubmittedAt: string | null;
   paymentUnderReviewAt: string | null;
   paymentPaidAt: string | null;
   paymentRejectedAt: string | null;
   paymentRefundedAt: string | null;
+  stripeCheckoutStatus:
+    Database["public"]["Enums"]["stripe_checkout_status"] | null;
   paymentSubmissions: {
     attemptNumber: number;
     transferReference: string;
@@ -188,15 +202,18 @@ export async function getCustomerOrder(
       status: order.status,
       paymentStatus: order.payment.status,
       paymentId: order.payment.id,
+      paymentProvider: order.payment.provider,
       paymentMethod: order.payment.method,
       paymentVersion: order.payment.version,
       paymentExpectedAmount: order.payment.expected_amount,
+      paymentRefundedAmount: order.payment.refunded_amount,
       paymentCurrency: order.payment.currency,
       paymentSubmittedAt: order.payment.submitted_at,
       paymentUnderReviewAt: order.payment.under_review_at,
       paymentPaidAt: order.payment.paid_at,
       paymentRejectedAt: order.payment.rejected_at,
       paymentRefundedAt: order.payment.refunded_at,
+      stripeCheckoutStatus: order.payment.stripe_status,
       paymentSubmissions: order.payment.submissions.map((submission) => ({
         attemptNumber: submission.attempt_number,
         transferReference: submission.transfer_reference,

@@ -83,6 +83,20 @@ realizar una transferencia real**.
 
 ## Prueba local
 
+### Eventos originados por Stripe
+
+El webhook no envía correo directamente. Al cambiar `order_payments.status`, el
+trigger existente crea los mismos eventos `payment_paid` y
+`payment_refunded`; así Stripe y transferencia manual comparten plantillas y
+outbox sin compartir autoridad de pago. Un reembolso parcial queda auditado,
+pero `payment_refunded` se emite únicamente al alcanzar el reembolso total.
+
+`NOTIFICATIONS_MODE=disabled` permanece obligatorio en staging durante esta
+fase. La confirmación del webhook y el commit de pago no dependen del transporte
+SMTP ni de la entrega posterior.
+
+### Prueba manual y E2E
+
 1. Ejecutar `npm run supabase:reset` y `npm run dev`.
 2. Usar sólo usuarios ficticios bajo un dominio permitido.
 3. Crear o transicionar un pedido/pago.

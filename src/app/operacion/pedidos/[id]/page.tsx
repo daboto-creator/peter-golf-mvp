@@ -16,7 +16,9 @@ import {
 import { orderOriginLabel, statusLabel } from "@/lib/orders/presentation";
 import {
   paymentMethodLabel,
+  paymentProviderLabel,
   paymentStatusLabel,
+  stripeCheckoutStatusLabel,
 } from "@/lib/payments/payment-rules";
 
 export const metadata: Metadata = { title: "Detalle de pedido | Peter Golf" };
@@ -174,7 +176,14 @@ export default async function OrderDetailPage({
       {order.payment ? (
         <Box title="Pago asociado">
           <p>{paymentMethodLabel(order.payment.method)}</p>
+          <p>Proveedor: {paymentProviderLabel(order.payment.provider)}</p>
           <p>{paymentStatusLabel(order.payment.status)}</p>
+          {order.payment.provider === "stripe" ? (
+            <p>
+              Estado Stripe:{" "}
+              {stripeCheckoutStatusLabel(order.payment.stripeCheckoutStatus)}
+            </p>
+          ) : null}
           <p>
             Importe esperado:{" "}
             {formatMoneyMinorUnits(
@@ -183,6 +192,13 @@ export default async function OrderDetailPage({
             )}
           </p>
           <p>Versión de pago: {order.payment.version}</p>
+          <p>
+            Reembolsado:{" "}
+            {formatMoneyMinorUnits(
+              order.payment.refundedAmount,
+              order.payment.currency,
+            )}
+          </p>
         </Box>
       ) : null}
       <PaymentReviewForm

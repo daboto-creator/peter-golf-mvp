@@ -1,8 +1,14 @@
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import type { CustomerOrderDetail as Order } from "@/lib/orders/customer-orders";
 import { CustomerBankTransferForm } from "@/components/payments/customer-bank-transfer-form";
+import { CustomerStripeCheckoutButton } from "@/components/payments/customer-stripe-checkout-button";
+import { StripePaymentStatus } from "@/components/payments/stripe-payment-status";
 import { statusLabel } from "@/lib/orders/presentation";
-import { paymentStatusLabel } from "@/lib/payments/payment-rules";
+import {
+  paymentMethodLabel,
+  paymentProviderLabel,
+  paymentStatusLabel,
+} from "@/lib/payments/payment-rules";
 
 export function CustomerOrderDetail({
   order,
@@ -12,6 +18,8 @@ export function CustomerOrderDetail({
   paymentControls?: {
     mode: "disabled" | "test";
     idempotencyKey: string;
+    stripeMode: "disabled" | "test";
+    stripeIdempotencyKey: string;
   };
 }) {
   return (
@@ -74,12 +82,51 @@ export function CustomerOrderDetail({
           </strong>
         </div>
       </section>
+      <section className="space-y-3 rounded-xl border bg-white p-5">
+        <h2 className="text-xl font-semibold">Pago</h2>
+        <p className="text-sm">
+          {paymentMethodLabel(order.paymentMethod)} ·{" "}
+          {paymentProviderLabel(order.paymentProvider)}
+        </p>
+        {order.paymentRefundedAmount > 0 ? (
+          <p className="text-sm">
+            Importe reembolsado:{" "}
+            {formatMoneyMinorUnits(
+              order.paymentRefundedAmount,
+              order.paymentCurrency,
+            )}
+          </p>
+        ) : null}
+        {order.paymentProvider === "stripe" ? (
+          <StripePaymentStatus
+            orderStatus={order.status}
+            paymentStatus={order.paymentStatus}
+            stripeStatus={order.stripeCheckoutStatus}
+          />
+        ) : null}
+      </section>
       {paymentControls ? (
-        <CustomerBankTransferForm
-          order={order}
-          paymentsMode={paymentControls.mode}
-          idempotencyKey={paymentControls.idempotencyKey}
-        />
+        order.paymentProvider === "manual" ? (
+          <CustomerBankTransferForm
+            order={order}
+            paymentsMode={paymentControls.mode}
+            idempotencyKey={paymentControls.idempotencyKey}
+          />
+        ) : (
+          <section className="rounded-xl border bg-white p-5 sm:p-6">
+            <CustomerStripeCheckoutButton
+              orderId={order.id}
+              idempotencyKey={paymentControls.stripeIdempotencyKey}
+              enabled={
+                paymentControls.mode === "test" &&
+                paymentControls.stripeMode === "test" &&
+                order.status === "preparing" &&
+                ["pending", "failed"].includes(order.paymentStatus) &&
+                !["creating", "open"].includes(order.stripeCheckoutStatus ?? "")
+              }
+            />
+          </section>
+        )
       ) : null}
       <section className="grid gap-5 md:grid-cols-2">
         <Box title="Dirección de envío">

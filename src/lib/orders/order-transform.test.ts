@@ -15,7 +15,7 @@ const record: ManualOrderListRecord = {
   origin_channel: "whatsapp",
   origin: "manual",
   status: "pending_confirmation",
-  order_payments: { status: "pending" },
+  order_payments: { status: "pending", provider: "manual" },
   total: 25_000,
   currency: "MXN",
   created_at: "2026-08-01T12:00:00Z",

@@ -67,6 +67,7 @@ export default async function CheckoutPage() {
             shippingMethod={context.shippingMethod}
             idempotencyKey={randomUUID()}
             paymentsMode={serverEnv.PAYMENTS_MODE}
+            stripeCheckoutMode={serverEnv.STRIPE_CHECKOUT_MODE}
           />
         )}
       </main>

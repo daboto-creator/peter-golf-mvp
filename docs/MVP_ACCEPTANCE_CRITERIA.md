@@ -34,10 +34,12 @@
 - [x] No se solicitan tarjeta, CVV, CLABE ni credenciales financieras.
 - [x] Operador/admin puede gestionar pedidos; inventario se descuenta y devuelve
       transaccionalmente según las reglas documentadas.
-- [ ] Preview y staging tienen `PAYMENTS_MODE=disabled`.
-- [ ] Staging conserva `site_settings.payments.mode=disabled` después de las
-      migraciones.
-- [ ] La interfaz y RPC bloquean cualquier registro de transferencia en staging.
+- [ ] Preview tiene `PAYMENTS_MODE=disabled`, Stripe disabled y ningún secreto
+      de pagos ni service role.
+- [ ] Staging permanece disabled hasta habilitar explícitamente Stripe test en
+      ambiente y `site_settings`; nunca acepta credenciales live.
+- [ ] Con Stripe disabled, la interfaz y los RPC bloquean operaciones de pago en
+      staging.
 
 ## 4. Notificaciones
 

@@ -8,7 +8,9 @@ export const paymentStatuses = [
   "under_review",
   "paid",
   "rejected",
+  "failed",
   "refunded",
+  "partially_refunded",
 ] as const;
 
 export type PaymentStatus = (typeof paymentStatuses)[number];
@@ -21,7 +23,9 @@ export const paymentTransitions: Readonly<
   under_review: ["paid", "rejected"],
   paid: ["refunded"],
   rejected: ["submitted"],
+  failed: [],
   refunded: [],
+  partially_refunded: [],
 };
 
 const optionalText = z
@@ -92,7 +96,9 @@ export function paymentStatusLabel(
     under_review: "En revisión",
     paid: "Pago aprobado",
     rejected: "Transferencia rechazada",
+    failed: "Intento de tarjeta fallido",
     refunded: "Pago reembolsado",
+    partially_refunded: "Pago con reembolso parcial",
   }[status];
 }
 
@@ -103,5 +109,25 @@ export function paymentMethodLabel(
     bank_transfer: "Transferencia bancaria",
     cash: "Efectivo",
     external_terminal: "Terminal externa",
+    card: "Tarjeta",
   }[method];
+}
+
+export function paymentProviderLabel(
+  provider: Database["public"]["Enums"]["payment_provider"],
+) {
+  return provider === "stripe" ? "Stripe (prueba)" : "Manual";
+}
+
+export function stripeCheckoutStatusLabel(
+  status: Database["public"]["Enums"]["stripe_checkout_status"] | null,
+) {
+  if (!status) return "Sin sesión iniciada";
+  return {
+    creating: "Preparando sesión",
+    open: "Confirmando pago",
+    payment_failed: "Intento fallido",
+    completed: "Sesión completada",
+    expired: "Sesión expirada",
+  }[status];
 }
