@@ -1,17 +1,35 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import type Stripe from "stripe";
 
 import { serverEnv } from "@/env/server";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import {
+  getStripeCheckoutExpiresAt,
   getStripeCheckoutFailure,
   getStripeCheckoutFormText,
+  sanitizeStripeCheckoutError,
   stripeCheckoutRequestSchema,
   type StripeCheckoutActionResult,
+  type StripeCheckoutDiagnosticStage,
 } from "@/lib/payments/stripe-action-rules";
 import { getStripeClient } from "@/lib/stripe/server";
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/types/database.types";
+
+type PreparedStripeCheckout =
+  Database["public"]["Functions"]["prepare_stripe_checkout_session"]["Returns"][number];
+
+function logStripeCheckoutError(
+  stage: StripeCheckoutDiagnosticStage,
+  error: unknown,
+) {
+  console.error(
+    "Stripe Checkout diagnostic",
+    sanitizeStripeCheckoutError(error, stage),
+  );
+}
 
 export async function createStripeCheckoutAction(
   _state: StripeCheckoutActionResult,
@@ -35,8 +53,10 @@ export async function createStripeCheckoutAction(
     };
   }
 
+  let client: Awaited<ReturnType<typeof createClient>>;
+  let prepared: PreparedStripeCheckout | undefined;
   try {
-    const client = await createClient();
+    client = await createClient();
     const { data, error } = await client.rpc(
       "prepare_stripe_checkout_session",
       {
@@ -44,19 +64,28 @@ export async function createStripeCheckoutAction(
         requested_idempotency_key: parsed.data.idempotencyKey,
       },
     );
-    const prepared = data?.[0];
+    prepared = data?.[0];
     if (error || !prepared) {
+      logStripeCheckoutError(
+        "prepare",
+        error ?? { code: "missing_prepared_checkout" },
+      );
       return getStripeCheckoutFailure(error?.code);
     }
+  } catch (error) {
+    logStripeCheckoutError("prepare", error);
+    return getStripeCheckoutFailure();
+  }
 
+  let session: Stripe.Checkout.Session;
+  try {
     const stripe = getStripeClient();
-    let session;
     if (prepared.stripe_checkout_session_id) {
       session = await stripe.checkout.sessions.retrieve(
         prepared.stripe_checkout_session_id,
       );
     } else {
-      const expiresAt = Math.ceil(Date.now() / 1000) + 30 * 60;
+      const expiresAt = getStripeCheckoutExpiresAt();
       session = await stripe.checkout.sessions.create(
         {
           mode: "payment",
@@ -90,38 +119,42 @@ export async function createStripeCheckoutAction(
         },
         { idempotencyKey: prepared.stripe_idempotency_key },
       );
-      const { error: linkError } = await client.rpc(
-        "link_stripe_checkout_session",
-        {
-          requested_checkout_attempt_id: prepared.checkout_attempt_id,
-          requested_idempotency_key: prepared.checkout_idempotency_key,
-          requested_stripe_checkout_session_id: session.id,
-          requested_expires_at: new Date(expiresAt * 1000).toISOString(),
-        },
-      );
-      if (linkError) return getStripeCheckoutFailure(linkError.code);
+      try {
+        const { error: linkError } = await client.rpc(
+          "link_stripe_checkout_session",
+          {
+            requested_checkout_attempt_id: prepared.checkout_attempt_id,
+            requested_idempotency_key: prepared.checkout_idempotency_key,
+            requested_stripe_checkout_session_id: session.id,
+            requested_expires_at: new Date(expiresAt * 1000).toISOString(),
+          },
+        );
+        if (linkError) {
+          logStripeCheckoutError("attach", linkError);
+          return getStripeCheckoutFailure(linkError.code);
+        }
+      } catch (error) {
+        logStripeCheckoutError("attach", error);
+        return getStripeCheckoutFailure();
+      }
     }
-
-    if (session.livemode || !session.url) {
-      return {
-        status: "error",
-        message: "Stripe devolvió una sesión de prueba no válida.",
-      };
-    }
-    redirect(session.url);
   } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "digest" in error &&
-      typeof error.digest === "string" &&
-      error.digest.startsWith("NEXT_REDIRECT")
-    ) {
-      throw error;
-    }
+    logStripeCheckoutError("stripe_create", error);
     return {
       status: "error",
       message: "No pudimos abrir Stripe Checkout. Inténtalo nuevamente.",
     };
   }
+
+  if (session.livemode || !session.url) {
+    logStripeCheckoutError("redirect", {
+      code: session.livemode ? "live_mode_session" : "missing_session_url",
+    });
+    return {
+      status: "error",
+      message: "No pudimos abrir Stripe Checkout. Inténtalo nuevamente.",
+    };
+  }
+
+  redirect(session.url);
 }
