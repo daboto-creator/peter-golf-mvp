@@ -4,10 +4,8 @@ import { useState, useTransition } from "react";
 
 import { CatalogFeedback } from "@/components/operations/catalog-feedback";
 import { Button } from "@/components/ui/button";
-import {
-  repairProductBaseVariantAction,
-  type CatalogActionResult,
-} from "@/lib/catalog/operational-actions";
+import type { CatalogActionResult } from "@/lib/catalog/catalog-action-state";
+import { repairProductBaseVariantAction } from "@/lib/catalog/operational-actions";
 
 export function BaseVariantRepair({ productId }: { productId: string }) {
   const [pending, startTransition] = useTransition();

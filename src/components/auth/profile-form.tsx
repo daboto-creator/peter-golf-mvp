@@ -7,7 +7,8 @@ import { useForm } from "react-hook-form";
 import { Field, FormMessage } from "@/components/auth/form-parts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { updateProfileAction, type FormResult } from "@/lib/auth/actions";
+import { updateProfileAction } from "@/lib/auth/actions";
+import type { FormResult } from "@/lib/auth/auth-action-state";
 import { profileSchema, type ProfileValues } from "@/lib/auth/validation";
 
 export function ProfileForm({

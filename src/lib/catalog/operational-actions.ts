@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireCatalogManager } from "@/lib/auth/catalog-authorization";
+import type { CatalogActionResult } from "@/lib/catalog/catalog-action-state";
 import {
   getOperationalProductById,
   productToFormValues,
@@ -21,12 +22,6 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
 
 type ProductUpdate = Database["public"]["Tables"]["products"]["Update"];
-
-export type CatalogActionResult = {
-  status: "idle" | "success" | "error";
-  message?: string;
-  errors?: Record<string, string[] | undefined>;
-};
 
 const productIdSchema = z.uuid();
 

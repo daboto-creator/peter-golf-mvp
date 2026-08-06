@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { publicEnv } from "@/env/public";
+import type { FormResult } from "@/lib/auth/auth-action-state";
 import { getSafeInternalPath } from "@/lib/auth/redirect";
 import {
   loginSchema,
@@ -19,12 +20,6 @@ import {
   type UpdatePasswordValues,
 } from "@/lib/auth/validation";
 import { createClient } from "@/lib/supabase/server";
-
-export type FormResult = {
-  status: "idle" | "success" | "error";
-  message?: string;
-  errors?: Record<string, string[] | undefined>;
-};
 
 function validationResult(error: {
   flatten: () => { fieldErrors: Record<string, string[]> };

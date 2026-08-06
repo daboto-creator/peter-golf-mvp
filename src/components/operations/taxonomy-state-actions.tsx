@@ -4,10 +4,10 @@ import { useState, useTransition } from "react";
 
 import { CatalogFeedback } from "@/components/operations/catalog-feedback";
 import { Button } from "@/components/ui/button";
+import type { TaxonomyActionResult } from "@/lib/catalog/catalog-action-state";
 import {
   changeBrandStatusAction,
   changeCategoryStatusAction,
-  type TaxonomyActionResult,
 } from "@/lib/catalog/taxonomy-actions";
 import type { Database } from "@/types/database.types";
 

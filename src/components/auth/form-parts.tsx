@@ -4,7 +4,7 @@ import type { FieldError } from "react-hook-form";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
-import type { FormResult } from "@/lib/auth/actions";
+import type { FormResult } from "@/lib/auth/auth-action-state";
 
 export function Field({
   id,
