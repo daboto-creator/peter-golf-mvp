@@ -1,9 +1,11 @@
 import type { Database } from "@/types/database.types";
+import { resolveEffectiveStripeCheckoutStatus } from "@/lib/orders/order-transform";
 
 type Props = {
   orderStatus: Database["public"]["Enums"]["order_status"];
   paymentStatus: Database["public"]["Enums"]["payment_status"];
   stripeStatus: Database["public"]["Enums"]["stripe_checkout_status"] | null;
+  stripeExpiresAt: string | null;
 };
 
 export function StripePaymentStatus(props: Props) {
@@ -20,7 +22,16 @@ export function StripePaymentStatus(props: Props) {
   );
 }
 
-function resolveState({ orderStatus, paymentStatus, stripeStatus }: Props) {
+function resolveState({
+  orderStatus,
+  paymentStatus,
+  stripeStatus,
+  stripeExpiresAt,
+}: Props) {
+  stripeStatus = resolveEffectiveStripeCheckoutStatus(
+    stripeStatus,
+    stripeExpiresAt,
+  );
   if (paymentStatus === "refunded" || paymentStatus === "partially_refunded") {
     return {
       title: "Reembolsado",
@@ -65,6 +76,14 @@ function resolveState({ orderStatus, paymentStatus, stripeStatus }: Props) {
       title: "Sesión expirada",
       description:
         "El pedido sigue preparando y el inventario no cambió. Puedes intentarlo de nuevo.",
+      className: "bg-amber-50 text-amber-950",
+    };
+  }
+  if (stripeStatus === "abandoned") {
+    return {
+      title: "Intento no completado",
+      description:
+        "La sesión no llegó a crearse en Stripe. Puedes intentarlo de nuevo.",
       className: "bg-amber-50 text-amber-950",
     };
   }

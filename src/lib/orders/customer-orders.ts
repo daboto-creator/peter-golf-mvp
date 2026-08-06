@@ -1,7 +1,10 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { normalizeManualOrderAddress } from "@/lib/orders/order-transform";
+import {
+  normalizeManualOrderAddress,
+  resolveEffectiveStripeCheckoutStatus,
+} from "@/lib/orders/order-transform";
 import type { Database, Json } from "@/types/database.types";
 import { z } from "zod";
 
@@ -37,7 +40,14 @@ const paymentMethodSchema = z.enum([
 ]);
 const paymentProviderSchema = z.enum(["manual", "stripe"]);
 const stripeCheckoutStatusSchema = z
-  .enum(["creating", "open", "payment_failed", "completed", "expired"])
+  .enum([
+    "creating",
+    "open",
+    "payment_failed",
+    "completed",
+    "expired",
+    "abandoned",
+  ])
   .nullable();
 const customerOrderDetailSchema = z.object({
   id: z.string().uuid(),
@@ -67,6 +77,7 @@ const customerOrderDetailSchema = z.object({
     rejected_at: z.string().nullable(),
     refunded_at: z.string().nullable(),
     stripe_status: stripeCheckoutStatusSchema,
+    stripe_expires_at: z.string().nullable(),
     submissions: z.array(
       z.object({
         attempt_number: z.number().int().positive(),
@@ -134,6 +145,7 @@ export type CustomerOrderDetail = CustomerOrderSummary & {
   paymentRefundedAt: string | null;
   stripeCheckoutStatus:
     Database["public"]["Enums"]["stripe_checkout_status"] | null;
+  stripeCheckoutExpiresAt: string | null;
   paymentSubmissions: {
     attemptNumber: number;
     transferReference: string;
@@ -213,7 +225,11 @@ export async function getCustomerOrder(
       paymentPaidAt: order.payment.paid_at,
       paymentRejectedAt: order.payment.rejected_at,
       paymentRefundedAt: order.payment.refunded_at,
-      stripeCheckoutStatus: order.payment.stripe_status,
+      stripeCheckoutStatus: resolveEffectiveStripeCheckoutStatus(
+        order.payment.stripe_status,
+        order.payment.stripe_expires_at,
+      ),
+      stripeCheckoutExpiresAt: order.payment.stripe_expires_at,
       paymentSubmissions: order.payment.submissions.map((submission) => ({
         attemptNumber: submission.attempt_number,
         transferReference: submission.transfer_reference,

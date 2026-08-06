@@ -129,5 +129,6 @@ export function stripeCheckoutStatusLabel(
     payment_failed: "Intento fallido",
     completed: "Sesión completada",
     expired: "Sesión expirada",
+    abandoned: "Intento local abandonado",
   }[status];
 }

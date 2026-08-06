@@ -49,6 +49,7 @@ export default async function StripeSuccessPage({
               orderStatus={order.status}
               paymentStatus={order.paymentStatus}
               stripeStatus={order.stripeCheckoutStatus}
+              stripeExpiresAt={order.stripeCheckoutExpiresAt}
             />
           ) : (
             <p

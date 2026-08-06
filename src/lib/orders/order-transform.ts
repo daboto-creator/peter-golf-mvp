@@ -4,6 +4,54 @@ import type {
 } from "@/lib/orders/operational-orders";
 import type { Database, Json } from "@/types/database.types";
 
+type StripeCheckoutStatus =
+  Database["public"]["Enums"]["stripe_checkout_status"];
+
+export function resolveEffectiveStripeCheckoutStatus(
+  status: StripeCheckoutStatus | null,
+  expiresAt: string | null,
+  nowMs = Date.now(),
+): StripeCheckoutStatus | null {
+  if (!status || !expiresAt) return status;
+  const expirationMs = Date.parse(expiresAt);
+  if (!Number.isFinite(expirationMs) || expirationMs > nowMs) return status;
+  if (status === "creating") return "abandoned";
+  if (status === "open") return "expired";
+  return status;
+}
+
+export function canStartStripeCheckout({
+  paymentsMode,
+  stripeMode,
+  orderStatus,
+  paymentStatus,
+  stripeStatus,
+  stripeExpiresAt,
+  nowMs = Date.now(),
+}: {
+  paymentsMode: "disabled" | "test";
+  stripeMode: "disabled" | "test";
+  orderStatus: Database["public"]["Enums"]["order_status"];
+  paymentStatus: Database["public"]["Enums"]["payment_status"];
+  stripeStatus: StripeCheckoutStatus | null;
+  stripeExpiresAt: string | null;
+  nowMs?: number;
+}) {
+  const effectiveStatus = resolveEffectiveStripeCheckoutStatus(
+    stripeStatus,
+    stripeExpiresAt,
+    nowMs,
+  );
+  return (
+    paymentsMode === "test" &&
+    stripeMode === "test" &&
+    orderStatus === "preparing" &&
+    (paymentStatus === "pending" || paymentStatus === "failed") &&
+    effectiveStatus !== "creating" &&
+    effectiveStatus !== "open"
+  );
+}
+
 export type ManualOrderListRecord = {
   id: string;
   order_number: string;
