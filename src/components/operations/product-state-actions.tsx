@@ -4,12 +4,12 @@ import { useState, useTransition } from "react";
 
 import { CatalogFeedback } from "@/components/operations/catalog-feedback";
 import { Button } from "@/components/ui/button";
+import type { CatalogActionResult } from "@/lib/catalog/catalog-action-state";
 import {
   archiveProductAction,
   publishProductAction,
   restoreProductAction,
   unpublishProductAction,
-  type CatalogActionResult,
 } from "@/lib/catalog/operational-actions";
 import type { Database } from "@/types/database.types";
 

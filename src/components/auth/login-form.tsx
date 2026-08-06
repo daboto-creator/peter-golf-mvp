@@ -8,7 +8,8 @@ import { useForm } from "react-hook-form";
 import { Field, FormMessage } from "@/components/auth/form-parts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { loginAction, type FormResult } from "@/lib/auth/actions";
+import { loginAction } from "@/lib/auth/actions";
+import type { FormResult } from "@/lib/auth/auth-action-state";
 import { loginSchema, type LoginValues } from "@/lib/auth/validation";
 
 export function LoginForm({ next }: { next: string }) {

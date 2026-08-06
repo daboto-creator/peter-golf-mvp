@@ -3,10 +3,8 @@
 import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  createStripeCheckoutAction,
-  initialStripeCheckoutActionResult,
-} from "@/lib/payments/stripe-actions";
+import { createStripeCheckoutAction } from "@/lib/payments/stripe-actions";
+import { initialStripeCheckoutActionResult } from "@/lib/payments/stripe-action-rules";
 
 export function CustomerStripeCheckoutButton({
   orderId,

@@ -8,10 +8,10 @@ import { CatalogFeedback } from "@/components/operations/catalog-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { CatalogActionResult } from "@/lib/catalog/catalog-action-state";
 import {
   createProductAction,
   updateProductAction,
-  type CatalogActionResult,
 } from "@/lib/catalog/operational-actions";
 import type { CatalogReference } from "@/lib/catalog/operational-products";
 import {

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireCatalogManager } from "@/lib/auth/catalog-authorization";
+import type { TaxonomyActionResult } from "@/lib/catalog/catalog-action-state";
 import { listOperationalCategories } from "@/lib/catalog/operational-taxonomies";
 import {
   taxonomySlugConflictMessage,
@@ -22,12 +23,6 @@ type BrandInsert = Database["public"]["Tables"]["brands"]["Insert"];
 type BrandUpdate = Database["public"]["Tables"]["brands"]["Update"];
 type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
 type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"];
-
-export type TaxonomyActionResult = {
-  status: "idle" | "success" | "error";
-  message?: string;
-  errors?: Record<string, string[] | undefined>;
-};
 
 const idSchema = z.uuid();
 

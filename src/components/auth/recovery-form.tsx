@@ -8,10 +8,8 @@ import { useForm } from "react-hook-form";
 import { Field, FormMessage } from "@/components/auth/form-parts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  requestPasswordRecoveryAction,
-  type FormResult,
-} from "@/lib/auth/actions";
+import { requestPasswordRecoveryAction } from "@/lib/auth/actions";
+import type { FormResult } from "@/lib/auth/auth-action-state";
 import {
   recoveryRequestSchema,
   type RecoveryRequestValues,

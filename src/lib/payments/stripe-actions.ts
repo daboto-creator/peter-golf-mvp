@@ -1,40 +1,25 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { z } from "zod";
 
 import { serverEnv } from "@/env/server";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
+import {
+  getStripeCheckoutFailure,
+  getStripeCheckoutFormText,
+  stripeCheckoutRequestSchema,
+  type StripeCheckoutActionResult,
+} from "@/lib/payments/stripe-action-rules";
 import { getStripeClient } from "@/lib/stripe/server";
 import { createClient } from "@/lib/supabase/server";
-
-export type StripeCheckoutActionResult = {
-  status: "idle" | "error";
-  message: string;
-};
-
-export const initialStripeCheckoutActionResult: StripeCheckoutActionResult = {
-  status: "idle",
-  message: "",
-};
-
-const requestSchema = z.object({
-  orderId: z.uuid(),
-  idempotencyKey: z.uuid(),
-});
-
-function text(formData: FormData, name: string) {
-  const value = formData.get(name);
-  return typeof value === "string" ? value : "";
-}
 
 export async function createStripeCheckoutAction(
   _state: StripeCheckoutActionResult,
   formData: FormData,
 ): Promise<StripeCheckoutActionResult> {
-  const parsed = requestSchema.safeParse({
-    orderId: text(formData, "orderId"),
-    idempotencyKey: text(formData, "idempotencyKey"),
+  const parsed = stripeCheckoutRequestSchema.safeParse({
+    orderId: getStripeCheckoutFormText(formData, "orderId"),
+    idempotencyKey: getStripeCheckoutFormText(formData, "idempotencyKey"),
   });
   if (!parsed.success) {
     return { status: "error", message: "La solicitud de pago no es válida." };
@@ -61,7 +46,7 @@ export async function createStripeCheckoutAction(
     );
     const prepared = data?.[0];
     if (error || !prepared) {
-      return checkoutFailure(error?.code);
+      return getStripeCheckoutFailure(error?.code);
     }
 
     const stripe = getStripeClient();
@@ -114,7 +99,7 @@ export async function createStripeCheckoutAction(
           requested_expires_at: new Date(expiresAt * 1000).toISOString(),
         },
       );
-      if (linkError) return checkoutFailure(linkError.code);
+      if (linkError) return getStripeCheckoutFailure(linkError.code);
     }
 
     if (session.livemode || !session.url) {
@@ -139,26 +124,4 @@ export async function createStripeCheckoutAction(
       message: "No pudimos abrir Stripe Checkout. Inténtalo nuevamente.",
     };
   }
-}
-
-function checkoutFailure(code?: string): StripeCheckoutActionResult {
-  if (code === "22023") {
-    return {
-      status: "error",
-      message: "El pedido aún no está listo para pagar o ya fue pagado.",
-    };
-  }
-  if (code === "P0002") {
-    return { status: "error", message: "El pago no está disponible." };
-  }
-  if (code === "42501") {
-    return {
-      status: "error",
-      message: "Stripe Checkout de prueba está deshabilitado.",
-    };
-  }
-  return {
-    status: "error",
-    message: "No pudimos preparar el pago. Inténtalo nuevamente.",
-  };
 }

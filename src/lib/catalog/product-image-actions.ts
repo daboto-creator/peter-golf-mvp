@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireCatalogManager } from "@/lib/auth/catalog-authorization";
+import type { ProductImageActionResult } from "@/lib/catalog/catalog-action-state";
 import {
   MAX_PRODUCT_IMAGES_PER_PRODUCT,
   PRODUCT_IMAGE_BUCKET,
@@ -18,11 +19,6 @@ import {
   validateUploadCount,
 } from "@/lib/catalog/product-image-rules";
 import { createClient } from "@/lib/supabase/server";
-
-export type ProductImageActionResult = {
-  status: "idle" | "success" | "error";
-  message?: string;
-};
 
 const uuidSchema = z.uuid();
 const imageUpdateSchema = z.object({
