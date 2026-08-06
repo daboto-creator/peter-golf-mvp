@@ -1770,6 +1770,7 @@ export type Database = {
       };
       stripe_checkout_sessions: {
         Row: {
+          abandoned_at: string | null;
           amount_total: number;
           attempt_number: number;
           completed_at: string | null;
@@ -1789,6 +1790,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          abandoned_at?: string | null;
           amount_total: number;
           attempt_number: number;
           completed_at?: string | null;
@@ -1808,6 +1810,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          abandoned_at?: string | null;
           amount_total?: number;
           attempt_number?: number;
           completed_at?: string | null;
@@ -2627,7 +2630,12 @@ export type Database = {
         "like_new" | "excellent" | "very_good" | "good" | "fair";
       product_status: "draft" | "active" | "archived";
       stripe_checkout_status:
-        "creating" | "open" | "payment_failed" | "completed" | "expired";
+        | "creating"
+        | "open"
+        | "payment_failed"
+        | "completed"
+        | "expired"
+        | "abandoned";
       stripe_event_processing_status: "processing" | "processed" | "rejected";
       stripe_refund_status:
         "pending" | "requires_action" | "succeeded" | "failed" | "canceled";
@@ -2854,6 +2862,7 @@ export const Constants = {
         "payment_failed",
         "completed",
         "expired",
+        "abandoned",
       ],
       stripe_event_processing_status: ["processing", "processed", "rejected"],
       stripe_refund_status: [

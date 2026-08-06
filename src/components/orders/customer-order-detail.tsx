@@ -5,6 +5,10 @@ import { CustomerStripeCheckoutButton } from "@/components/payments/customer-str
 import { StripePaymentStatus } from "@/components/payments/stripe-payment-status";
 import { statusLabel } from "@/lib/orders/presentation";
 import {
+  canStartStripeCheckout,
+  resolveEffectiveStripeCheckoutStatus,
+} from "@/lib/orders/order-transform";
+import {
   paymentMethodLabel,
   paymentProviderLabel,
   paymentStatusLabel,
@@ -22,6 +26,10 @@ export function CustomerOrderDetail({
     stripeIdempotencyKey: string;
   };
 }) {
+  const effectiveStripeStatus = resolveEffectiveStripeCheckoutStatus(
+    order.stripeCheckoutStatus,
+    order.stripeCheckoutExpiresAt,
+  );
   return (
     <div className="space-y-6">
       <header>
@@ -101,7 +109,8 @@ export function CustomerOrderDetail({
           <StripePaymentStatus
             orderStatus={order.status}
             paymentStatus={order.paymentStatus}
-            stripeStatus={order.stripeCheckoutStatus}
+            stripeStatus={effectiveStripeStatus}
+            stripeExpiresAt={order.stripeCheckoutExpiresAt}
           />
         ) : null}
       </section>
@@ -117,13 +126,14 @@ export function CustomerOrderDetail({
             <CustomerStripeCheckoutButton
               orderId={order.id}
               idempotencyKey={paymentControls.stripeIdempotencyKey}
-              enabled={
-                paymentControls.mode === "test" &&
-                paymentControls.stripeMode === "test" &&
-                order.status === "preparing" &&
-                ["pending", "failed"].includes(order.paymentStatus) &&
-                !["creating", "open"].includes(order.stripeCheckoutStatus ?? "")
-              }
+              enabled={canStartStripeCheckout({
+                paymentsMode: paymentControls.mode,
+                stripeMode: paymentControls.stripeMode,
+                orderStatus: order.status,
+                paymentStatus: order.paymentStatus,
+                stripeStatus: effectiveStripeStatus,
+                stripeExpiresAt: order.stripeCheckoutExpiresAt,
+              })}
             />
           </section>
         )
