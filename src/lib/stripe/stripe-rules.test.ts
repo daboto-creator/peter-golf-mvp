@@ -1,9 +1,11 @@
 import { describe, expect, test } from "vitest";
+import Stripe from "stripe";
 
 import {
   isAllowedStripeWebhookEvent,
   isStripeTestSecretKey,
   parseStripeInternalMetadata,
+  stripeApiVersion,
   stripeObjectId,
 } from "@/lib/stripe/stripe-rules";
 
@@ -20,6 +22,11 @@ describe("Stripe test-mode rules", () => {
     expect(isStripeTestSecretKey("sk_test_synthetic")).toBe(true);
     expect(isStripeTestSecretKey("sk_live_forbidden")).toBe(false);
     expect(isStripeTestSecretKey("pk_test_not_server_secret")).toBe(false);
+    expect(isStripeTestSecretKey("rk_test_restricted")).toBe(false);
+  });
+
+  test("pins the API version bundled with the installed Stripe SDK", () => {
+    expect(stripeApiVersion).toBe(Stripe.API_VERSION);
   });
 
   test("accepts only UUID internal metadata", () => {
