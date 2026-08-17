@@ -20,17 +20,16 @@ export async function processStripeWebhookEvent(input: StripeWebhookRpcInput) {
   const client = createClient<Database>(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { data, error } = await client.rpc(
-    "process_stripe_webhook_event",
-    toStripeWebhookRpcArgs(input),
-  );
-  if (error || !data[0]) {
+  const { data, error } = await client
+    .rpc("process_stripe_webhook_event", toStripeWebhookRpcArgs(input))
+    .single();
+  if (error || !data) {
     const code = error?.code;
     const hintCode = error?.hint;
     const permanent = isPermanentStripeWebhookDatabaseError(code, hintCode);
     throw new StripeWebhookDatabaseError(!permanent, code, hintCode);
   }
-  return data[0];
+  return data;
 }
 
 export class StripeWebhookDatabaseError extends Error {

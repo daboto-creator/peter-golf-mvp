@@ -92,6 +92,39 @@ describe("Stripe webhook RPC contract", () => {
     });
   });
 
+  test("allows SQLSTATE and PostgREST codes only", () => {
+    expect(
+      createStripeWebhookDiagnostic("rpc", "transient_database", input, {
+        code: "PGRST202",
+      }),
+    ).toMatchObject({ postgresCode: "PGRST202" });
+    expect(
+      createStripeWebhookDiagnostic("rpc", "transient_database", input, {
+        code: "23505",
+      }),
+    ).toMatchObject({ postgresCode: "23505" });
+    expect(
+      createStripeWebhookDiagnostic("rpc", "transient_database", input, {
+        code: "not_allowed",
+      }),
+    ).not.toHaveProperty("postgresCode");
+  });
+
+  test("keeps stripe hints and discards arbitrary hints", () => {
+    expect(
+      createStripeWebhookDiagnostic("rpc", "transient_database", input, {
+        hintCode: "stripe_checkout_session_missing",
+      }),
+    ).toMatchObject({
+      postgresHintCode: "stripe_checkout_session_missing",
+    });
+    expect(
+      createStripeWebhookDiagnostic("rpc", "transient_database", input, {
+        hintCode: "customer@example.test pi_sensitive_full_id",
+      }),
+    ).not.toHaveProperty("postgresHintCode");
+  });
+
   test("retries transient database failures and rejects known incoherence", () => {
     expect(
       isPermanentStripeWebhookDatabaseError(

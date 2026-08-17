@@ -44,7 +44,8 @@ function safePaymentStatus(value: string | null | undefined) {
 }
 
 function safePostgresCode(value: unknown) {
-  return typeof value === "string" && /^[A-Z0-9]{5}$/.test(value)
+  return typeof value === "string" &&
+    /^(?:[A-Z0-9]{5}|PGRST[0-9]{3})$/.test(value)
     ? value
     : undefined;
 }

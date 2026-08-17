@@ -126,6 +126,31 @@ describe("Stripe webhook route responses", () => {
     );
   });
 
+  test("logs PGRST202 without logging webhook IDs or PII", async () => {
+    mocks.process.mockRejectedValue(
+      new StripeWebhookDatabaseError(true, "PGRST202"),
+    );
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(500);
+    expect(consoleError).toHaveBeenCalledWith(
+      "stripe_webhook",
+      expect.objectContaining({
+        stage: "rpc",
+        category: "transient_database",
+        postgresCode: "PGRST202",
+      }),
+    );
+    const logged = JSON.stringify(consoleError.mock.calls);
+    expect(logged).not.toMatch(
+      /sensitive|11111111|22222222|customer@|signed|metadata|test-signature/i,
+    );
+  });
+
   test("acknowledges a processed duplicate idempotently", async () => {
     mocks.process.mockResolvedValue({
       processed: true,
