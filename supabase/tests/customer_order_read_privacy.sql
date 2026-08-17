@@ -65,7 +65,22 @@ insert into public.order_payments (
   ('75000000-0000-4000-8000-000000000001',
    '74000000-0000-4000-8000-000000000001','bank_transfer','pending',24800,'MXN'),
   ('75000000-0000-4000-8000-000000000002',
-   '74000000-0000-4000-8000-000000000002','bank_transfer','pending',24800,'MXN');
+   '74000000-0000-4000-8000-000000000002','cash','paid',24800,'MXN');
+
+do $$ begin
+  if not exists (
+    select 1
+    from public.orders o
+    join public.order_payments p on p.order_id = o.id
+    where o.id = '74000000-0000-4000-8000-000000000002'
+      and o.payment_status = 'transfer_pending'
+      and o.payment_method = 'bank_transfer'
+      and p.status = 'paid'
+      and p.method = 'cash'
+  ) then
+    raise exception 'Payment source divergence fixture is invalid';
+  end if;
+end $$;
 
 insert into public.order_items (
   id, order_id, product_id, variant_id, sku_snapshot, product_name_snapshot,
@@ -140,8 +155,13 @@ end $$;
 reset role;
 select set_config('request.jwt.claim.sub','14000000-0000-4000-8000-000000000002',true);
 set local role authenticated;
-do $$ begin
+do $$
+declare listed record;
+begin
+  select * into listed from public.list_customer_orders();
   if (select count(*) from public.list_customer_orders()) <> 1
+    or listed.payment_status <> 'paid'::public.payment_status
+    or listed.payment_method <> 'cash'::public.payment_method
     or public.get_customer_order('74000000-0000-4000-8000-000000000001') is not null
   then raise exception 'Customer ownership boundary failed'; end if;
 end $$;
