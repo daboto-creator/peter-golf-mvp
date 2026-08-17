@@ -14,7 +14,7 @@ afterEach(cleanup);
 const baseAvailability = {
   paymentsMode: "test" as const,
   stripeMode: "test" as const,
-  orderStatus: "preparing" as const,
+  orderStatus: "pending_confirmation" as const,
   paymentStatus: "pending" as const,
   stripeStatus: "creating" as const,
   nowMs: Date.parse("2026-08-06T12:00:00.000Z"),

@@ -45,7 +45,7 @@ export function canStartStripeCheckout({
   return (
     paymentsMode === "test" &&
     stripeMode === "test" &&
-    orderStatus === "preparing" &&
+    orderStatus === "pending_confirmation" &&
     (paymentStatus === "pending" || paymentStatus === "failed") &&
     effectiveStatus !== "creating" &&
     effectiveStatus !== "open"
