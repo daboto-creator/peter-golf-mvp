@@ -125,6 +125,7 @@ do $$ declare first record; replay record; duplicate record; begin
   perform public.link_stripe_checkout_session(
     first.checkout_attempt_id,'a6000000-0000-4000-8000-000000000005',
     'cs_test_primary',now()+interval '30 minutes');
+  perform set_config('test.stripe_primary_attempt_id',first.checkout_attempt_id::text,true);
 end $$;
 
 -- Direct customer reads are private; the safe projection exposes only status.
@@ -149,34 +150,43 @@ from public.orders o cross join public.inventory i
 where o.id='76000000-0000-4000-8000-000000000001'
   and i.id='66000000-0000-4000-8000-000000000001';
 set local role service_role;
-do $$ declare result record; begin
-  begin perform public.process_stripe_webhook_event(
+do $$ declare
+  result record;
+  primary_attempt_id uuid:=current_setting('test.stripe_primary_attempt_id')::uuid;
+begin
+  select * into result from public.process_stripe_webhook_event(
     'evt_live','checkout.session.completed',now(),'2026-07-29.dahlia',true,repeat('a',64),
-    'cs_test_primary',null,null,'pi_primary',12500,'MXN','paid',null,null,null,null);
-    raise exception 'Expected livemode rejection';
-  exception when invalid_parameter_value then null; end;
-  begin perform public.process_stripe_webhook_event(
+    'cs_test_primary',primary_attempt_id,'96000000-0000-4000-8000-000000000001',
+    'pi_primary',12500,'MXN','paid',null,null,null,null);
+  if result.processed or result.outcome<>'live_mode_forbidden'
+  then raise exception 'Expected audited livemode rejection'; end if;
+  select * into result from public.process_stripe_webhook_event(
     'evt_amount','checkout.session.completed',now(),'2026-07-29.dahlia',false,repeat('b',64),
-    'cs_test_primary',null,null,'pi_primary',1250000,'MXN','paid',null,null,null,null);
-    raise exception 'Expected amount tampering rejection';
-  exception when invalid_parameter_value then null; end;
-  begin perform public.process_stripe_webhook_event(
+    'cs_test_primary',primary_attempt_id,'96000000-0000-4000-8000-000000000001',
+    'pi_primary',1250000,'MXN','paid',null,null,null,null);
+  if result.processed or result.outcome<>'completion_amount'
+  then raise exception 'Expected audited amount rejection'; end if;
+  select * into result from public.process_stripe_webhook_event(
     'evt_currency','checkout.session.completed',now(),'2026-07-29.dahlia',false,repeat('c',64),
-    'cs_test_primary',null,null,'pi_primary',12500,'USD','paid',null,null,null,null);
-    raise exception 'Expected currency rejection';
-  exception when invalid_parameter_value then null; end;
+    'cs_test_primary',primary_attempt_id,'96000000-0000-4000-8000-000000000001',
+    'pi_primary',12500,'USD','paid',null,null,null,null);
+  if result.processed or result.outcome<>'completion_currency'
+  then raise exception 'Expected audited currency rejection'; end if;
 
   select * into result from public.process_stripe_webhook_event(
     'evt_completed','checkout.session.completed',now(),'2026-07-29.dahlia',false,repeat('d',64),
-    'cs_test_primary',null,null,'pi_primary',12500,'mxn','paid',null,null,null,null);
+    'cs_test_primary',primary_attempt_id,'96000000-0000-4000-8000-000000000001',
+    'pi_primary',12500,'mxn','paid',null,null,null,null);
   if not result.processed or result.replayed then raise exception 'Completion failed'; end if;
   select * into result from public.process_stripe_webhook_event(
     'evt_completed','checkout.session.completed',now(),'2026-07-29.dahlia',false,repeat('d',64),
-    'cs_test_primary',null,null,'pi_primary',12500,'mxn','paid',null,null,null,null);
+    'cs_test_primary',primary_attempt_id,'96000000-0000-4000-8000-000000000001',
+    'pi_primary',12500,'mxn','paid',null,null,null,null);
   if not result.replayed then raise exception 'Event replay failed'; end if;
   begin perform public.process_stripe_webhook_event(
     'evt_completed','checkout.session.completed',now(),'2026-07-29.dahlia',false,repeat('e',64),
-    'cs_test_primary',null,null,'pi_primary',12500,'MXN','paid',null,null,null,null);
+    'cs_test_primary',primary_attempt_id,'96000000-0000-4000-8000-000000000001',
+    'pi_primary',12500,'MXN','paid',null,null,null,null);
     raise exception 'Expected event ID payload conflict';
   exception when unique_violation then null; end;
   perform public.process_stripe_webhook_event(
@@ -246,7 +256,8 @@ do $$ declare attempt_id uuid:=current_setting('test.stripe_attempt_id')::uuid; 
     '96000000-0000-4000-8000-000000000004','pi_sequence',null,null,null,null,null,null,null);
   perform public.process_stripe_webhook_event(
     'evt_completed_after_fail','checkout.session.completed',now()+interval '2 seconds',
-    '2026-07-29.dahlia',false,repeat('3',64),'cs_test_sequence',null,null,
+    '2026-07-29.dahlia',false,repeat('3',64),'cs_test_sequence',attempt_id,
+    '96000000-0000-4000-8000-000000000004',
     'pi_sequence',12500,'MXN','paid',null,null,null,null);
 end $$;
 reset role;
@@ -279,6 +290,93 @@ do $$ begin
     or (select quantity_on_hand from public.inventory where id='66000000-0000-4000-8000-000000000001')<>8
     or not exists (select 1 from public.stripe_refunds where stripe_refund_id='re_failed' and status='failed')
   then raise exception 'Refund audit or inventory isolation failed'; end if;
+end $$;
+
+-- A realistic MXN 1,149.00 card completion links all identities, leaves the
+-- order and inventory aggregates alone, and replays idempotently.
+insert into public.orders (
+  id,order_number,user_id,status,subtotal,total,shipping_address_snapshot,
+  confirmed_at,confirmed_by,payment_status,payment_method,origin
+) values (
+  '76000000-0000-4000-8000-000000000006','PG-W-STRIPE-114900',
+  '16000000-0000-4000-8000-000000000001','preparing',114900,114900,
+  '{"recipient_name":"Stripe","street":"Prueba"}',now(),
+  '16000000-0000-4000-8000-000000000003','transfer_pending','bank_transfer','web'
+);
+insert into public.order_payments (
+  id,order_id,provider,method,status,expected_amount,currency
+) values (
+  '96000000-0000-4000-8000-000000000006','76000000-0000-4000-8000-000000000006',
+  'stripe','card','pending',114900,'MXN'
+);
+insert into public.stripe_checkout_sessions (
+  id,payment_id,attempt_number,idempotency_key,payload_hash,
+  stripe_checkout_session_id,status,amount_total,currency,created_by,expires_at
+) values (
+  'a6000000-0000-4000-8000-000000000006','96000000-0000-4000-8000-000000000006',
+  2,'b6000000-0000-4000-8000-000000000006',repeat('9',64),
+  'cs_test_realistic114900','open',114900,'MXN',
+  '16000000-0000-4000-8000-000000000001',now()+interval '30 minutes'
+);
+create temp table realistic_stripe_invariants as
+select o.status as order_status,
+  (select sum(quantity_on_hand) from public.inventory) as inventory_total
+from public.orders o where o.id='76000000-0000-4000-8000-000000000006';
+set local role service_role;
+do $$ declare result record; begin
+  select * into result from public.process_stripe_webhook_event(
+    'evt_realistic114900','checkout.session.completed',now(),
+    '2026-06-24.dahlia',false,repeat('8',64),'cs_test_realistic114900',
+    'a6000000-0000-4000-8000-000000000006',
+    '96000000-0000-4000-8000-000000000006',
+    'pi_3RealisticPaymentIntent114900',114900,'mxn','paid',null,null,null,null);
+  if not result.processed or result.replayed then
+    raise exception 'Realistic completion was not processed';
+  end if;
+  select * into result from public.process_stripe_webhook_event(
+    'evt_realistic114900','checkout.session.completed',now(),
+    '2026-06-24.dahlia',false,repeat('8',64),'cs_test_realistic114900',
+    'a6000000-0000-4000-8000-000000000006',
+    '96000000-0000-4000-8000-000000000006',
+    'pi_3RealisticPaymentIntent114900',114900,'MXN','paid',null,null,null,null);
+  if not result.processed or not result.replayed then
+    raise exception 'Realistic completion replay failed';
+  end if;
+end $$;
+reset role;
+do $$ begin
+  if (select status from public.order_payments where id='96000000-0000-4000-8000-000000000006')<>'paid'
+    or (select status from public.stripe_checkout_sessions where id='a6000000-0000-4000-8000-000000000006')<>'completed'
+    or (select stripe_payment_intent_id from public.stripe_checkout_sessions where id='a6000000-0000-4000-8000-000000000006')<>'pi_3RealisticPaymentIntent114900'
+    or (select status from public.orders where id='76000000-0000-4000-8000-000000000006')
+      <> (select order_status from realistic_stripe_invariants)
+    or (select sum(quantity_on_hand) from public.inventory)
+      <> (select inventory_total from realistic_stripe_invariants)
+  then raise exception 'Realistic completion changed incoherent aggregates'; end if;
+  if not exists (
+    select 1 from public.stripe_webhook_events
+    where stripe_event_id='evt_amount' and processing_status='rejected'
+      and error_code='completion_amount' and processed_at is not null
+  ) then raise exception 'Permanent rejection disappeared from the ledger'; end if;
+end $$;
+
+-- A missing local Session remains retryable and rolls back its processing row.
+set local role service_role;
+do $$ begin
+  begin
+    perform public.process_stripe_webhook_event(
+      'evt_transient_missing','checkout.session.completed',now(),
+      '2026-07-29.dahlia',false,repeat('7',64),'cs_test_not_linked_yet',
+      'a6000000-0000-4000-8000-000000000006',
+      '96000000-0000-4000-8000-000000000006',
+      'pi_3TransientPaymentIntent',114900,'MXN','paid',null,null,null,null);
+    raise exception 'Expected retryable missing Session';
+  exception when no_data_found then null; end;
+end $$;
+reset role;
+do $$ begin
+  if exists (select 1 from public.stripe_webhook_events where stripe_event_id='evt_transient_missing')
+  then raise exception 'Transient event must be retried, not permanently rejected'; end if;
 end $$;
 
 -- Manual review cannot mutate Stripe payments; paid blocks cancellation until full refund.
