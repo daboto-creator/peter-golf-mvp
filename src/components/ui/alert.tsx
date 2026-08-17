@@ -18,7 +18,7 @@ function Alert({
         variant === "destructive" &&
           "border-destructive/40 text-destructive bg-destructive/5",
         variant === "success" &&
-          "border-emerald-600/30 bg-emerald-50 text-emerald-900",
+          "border-pg-success/30 bg-pg-success/5 text-pg-success",
         className,
       )}
       {...props}
