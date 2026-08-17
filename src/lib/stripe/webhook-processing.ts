@@ -35,6 +35,16 @@ function isoFromSeconds(value: number) {
   return new Date(value * 1000).toISOString();
 }
 
+function normalizedCurrency(value: string | null) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized || null;
+}
+
+function normalizedPaymentStatus(value: string | null) {
+  const normalized = value?.trim().toLowerCase();
+  return normalized || null;
+}
+
 function base(event: Stripe.Event, payloadHash: string) {
   return {
     requested_event_id: event.id,
@@ -68,6 +78,7 @@ export function normalizeStripeWebhookEvent(
 
   if (event.type.startsWith("checkout.session.")) {
     const session = event.data.object as Stripe.Checkout.Session;
+    const metadata = parseStripeInternalMetadata(session.metadata);
     const paymentIntentId = stripeObjectId(session.payment_intent, "pi_");
     if (!session.id.startsWith("cs_test_")) return { status: "invalid" };
     return {
@@ -75,10 +86,18 @@ export function normalizeStripeWebhookEvent(
       input: {
         ...input,
         requested_checkout_session_id: session.id,
+        requested_checkout_attempt_id: metadata.success
+          ? metadata.data.checkout_attempt_id
+          : null,
+        requested_payment_id: metadata.success
+          ? metadata.data.payment_id
+          : null,
         requested_payment_intent_id: paymentIntentId,
         requested_amount: session.amount_total,
-        requested_currency: session.currency,
-        requested_payment_status: session.payment_status,
+        requested_currency: normalizedCurrency(session.currency),
+        requested_payment_status: normalizedPaymentStatus(
+          session.payment_status,
+        ),
       },
     };
   }
@@ -111,7 +130,7 @@ export function normalizeStripeWebhookEvent(
       ...input,
       requested_payment_intent_id: paymentIntentId,
       requested_amount: refund.amount,
-      requested_currency: refund.currency,
+      requested_currency: normalizedCurrency(refund.currency),
       requested_refund_id: refund.id,
       requested_refund_status: refund.status,
       requested_failure_reason: refund.failure_reason ?? null,
