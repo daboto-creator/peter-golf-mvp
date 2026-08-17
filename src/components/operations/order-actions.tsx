@@ -27,27 +27,39 @@ export function OrderStateActions({
     cancelManualOrderAction,
     initialOrderActionResult,
   );
+  const isAwaitingStripePayment =
+    order.payment?.provider === "stripe" && order.payment.status !== "paid";
   if (order.status === "cancelled") return null;
   return (
     <section className="space-y-4 rounded-xl border bg-white p-5 sm:p-6">
       <h2 className="text-xl font-semibold">Acciones de estado</h2>
       {order.status === "pending_confirmation" ? (
-        <form
-          action={confirmAction}
-          onSubmit={(event) => {
-            if (
-              !confirm(
-                "Confirmar este pedido y descontar todo el inventario ahora?",
+        isAwaitingStripePayment ? (
+          <p
+            role="status"
+            className="rounded-lg bg-blue-50 p-4 text-sm text-blue-950"
+          >
+            Estamos esperando la confirmación del pago por Stripe. El inventario
+            no se descontará hasta que el pago esté confirmado.
+          </p>
+        ) : (
+          <form
+            action={confirmAction}
+            onSubmit={(event) => {
+              if (
+                !confirm(
+                  "Confirmar este pedido y descontar todo el inventario ahora?",
+                )
               )
-            )
-              event.preventDefault();
-          }}
-        >
-          <Hidden order={order} idempotencyKey={confirmKey} />
-          <Button disabled={confirming || !confirmKey}>
-            {confirming ? "Confirmando…" : "Confirmar y descontar inventario"}
-          </Button>
-        </form>
+                event.preventDefault();
+            }}
+          >
+            <Hidden order={order} idempotencyKey={confirmKey} />
+            <Button disabled={confirming || !confirmKey}>
+              {confirming ? "Confirmando…" : "Confirmar y descontar inventario"}
+            </Button>
+          </form>
+        )
       ) : null}
       {order.payment?.status === "paid" ? (
         <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-950">
