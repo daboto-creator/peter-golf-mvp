@@ -11,6 +11,7 @@ import {
   parseBankTransferForm,
   paymentStatuses,
 } from "@/lib/payments/payment-rules";
+import { getStripeClient } from "@/lib/stripe/server";
 import { createClient } from "@/lib/supabase/server";
 
 const uuid = z.uuid();
@@ -109,6 +110,112 @@ export async function submitBankTransferAction(
     status: "success",
     message: "Transferencia simulada registrada para revisión.",
   };
+}
+
+export async function refundStripePaymentAction(
+  _state: PaymentActionResult,
+  formData: FormData,
+): Promise<PaymentActionResult> {
+  const orderId = text(formData, "orderId");
+  await requireOrdersManager(`/operacion/pedidos/${orderId}`);
+
+  if (
+    serverEnv.PAYMENTS_MODE !== "test" ||
+    serverEnv.STRIPE_CHECKOUT_MODE !== "test"
+  ) {
+    return {
+      status: "error",
+      message: "Los reembolsos Stripe de prueba están deshabilitados.",
+    };
+  }
+
+  const parsedOrderId = uuid.safeParse(orderId);
+  const key = uuid.safeParse(text(formData, "idempotencyKey"));
+  if (!parsedOrderId.success || !key.success) {
+    return {
+      status: "error",
+      message: "La solicitud de reembolso no es válida.",
+    };
+  }
+
+  try {
+    const client = await createClient();
+
+    const { data: order, error } = await client
+      .from("orders")
+      .select(
+        "id, order_payments!inner(id, provider, status, expected_amount, refunded_amount, stripe_checkout_sessions(stripe_payment_intent_id, status, completed_at, created_at))",
+      )
+      .eq("id", parsedOrderId.data)
+      .maybeSingle();
+
+    if (error || !order?.order_payments) {
+      return {
+        status: "error",
+        message: "El pago ya no está disponible.",
+      };
+    }
+
+    const payment = order.order_payments;
+
+    if (
+      payment.provider !== "stripe" ||
+      payment.status !== "paid" ||
+      payment.refunded_amount !== 0
+    ) {
+      return {
+        status: "error",
+        message: "Este pago Stripe no está disponible para reembolso total.",
+      };
+    }
+
+    const completedSession = payment.stripe_checkout_sessions
+      .filter(
+        (session) =>
+          session.status === "completed" &&
+          Boolean(session.completed_at) &&
+          Boolean(session.stripe_payment_intent_id),
+      )
+      .toSorted((a, b) => b.created_at.localeCompare(a.created_at))[0];
+
+    if (!completedSession?.stripe_payment_intent_id) {
+      return {
+        status: "error",
+        message: "No encontramos el pago confirmado en Stripe.",
+      };
+    }
+
+    const stripe = getStripeClient();
+
+    await stripe.refunds.create(
+      {
+        payment_intent: completedSession.stripe_payment_intent_id,
+        metadata: {
+          order_id: parsedOrderId.data,
+          payment_id: payment.id,
+        },
+      },
+      {
+        idempotencyKey: `pg_full_refund_${payment.id}`,
+      },
+    );
+
+    revalidatePath("/operacion/pedidos");
+    revalidatePath(`/operacion/pedidos/${parsedOrderId.data}`);
+    revalidatePath("/cuenta/pedidos");
+    revalidatePath(`/cuenta/pedidos/${parsedOrderId.data}`);
+
+    return {
+      status: "success",
+      message:
+        "Reembolso solicitado a Stripe. El estado se actualizará mediante webhook.",
+    };
+  } catch {
+    return {
+      status: "error",
+      message: "No pudimos solicitar el reembolso en Stripe.",
+    };
+  }
 }
 
 export async function reviewOrderPaymentAction(
