@@ -5,7 +5,10 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ManualOrderDetail } from "@/lib/orders/operational-orders";
 import { initialPaymentActionResult } from "@/lib/payments/payment-action-state";
-import { reviewOrderPaymentAction } from "@/lib/payments/payment-actions";
+import {
+  refundStripePaymentAction,
+  reviewOrderPaymentAction,
+} from "@/lib/payments/payment-actions";
 import {
   paymentProviderLabel,
   paymentStatusLabel,
@@ -30,6 +33,8 @@ export function PaymentReviewForm({
     reviewOrderPaymentAction,
     initialPaymentActionResult,
   );
+  const [stripeRefundState, stripeRefundAction, stripeRefundPending] =
+    useActionState(refundStripePaymentAction, initialPaymentActionResult);
   const payment = order.payment;
   if (!payment) {
     return (
@@ -59,10 +64,46 @@ export function PaymentReviewForm({
       </div>
 
       {payment.provider === "stripe" ? (
-        <p className="rounded-lg bg-blue-50 p-4 text-sm text-blue-950">
-          Los pagos Stripe sólo cambian mediante webhooks firmados. No pueden
-          aprobarse ni reembolsarse manualmente desde Operaciones.
-        </p>
+        <div className="space-y-3 rounded-lg bg-blue-50 p-4 text-sm text-blue-950">
+          <p>
+            Los estados de pagos Stripe sólo cambian mediante webhooks firmados.
+            Los reembolsos se solicitan a Stripe y se confirman posteriormente
+            mediante webhook.
+          </p>
+
+          {payment.status === "paid" && payment.refundedAmount === 0 ? (
+            <form action={stripeRefundAction}>
+              <input type="hidden" name="orderId" value={order.id} />
+              <input
+                type="hidden"
+                name="idempotencyKey"
+                value={idempotencyKeys.refund}
+              />
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={stripeRefundPending}
+              >
+                {stripeRefundPending
+                  ? "Solicitando reembolso..."
+                  : "Reembolsar pago completo en Stripe"}
+              </Button>
+            </form>
+          ) : null}
+
+          {stripeRefundState.message ? (
+            <p
+              role={stripeRefundState.status === "error" ? "alert" : "status"}
+              className={
+                stripeRefundState.status === "error"
+                  ? "text-red-700"
+                  : "text-emerald-800"
+              }
+            >
+              {stripeRefundState.message}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {payment.provider === "manual" && payment.submissions.length ? (
