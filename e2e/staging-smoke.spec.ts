@@ -19,7 +19,10 @@ test.describe("staging read-only smoke", () => {
 
     await page.goto("/productos");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Productos" }),
+      page.getByRole("heading", {
+        level: 1,
+        name: "Equipo seleccionado para jugar mejor.",
+      }),
     ).toBeVisible();
     await expect(page.locator("body")).not.toContainText(
       /Application error|Internal Server Error|SUPABASE_SERVICE_ROLE_KEY|service_role|sb_secret_/i,
