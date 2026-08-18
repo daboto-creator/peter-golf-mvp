@@ -1,5 +1,8 @@
+import { ClipboardList, MapPin, UserRound, Wrench } from "lucide-react";
 import Link from "next/link";
 
+import { PublicFooter } from "@/components/catalog/public-footer";
+import { PublicHeader } from "@/components/catalog/public-header";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/lib/auth/actions";
 import { canCurrentUserManageCatalog } from "@/lib/auth/catalog-authorization";
@@ -14,45 +17,58 @@ export default async function AccountLayout({
   const canManageCatalog = await canCurrentUserManageCatalog();
 
   return (
-    <div className="bg-muted/30 min-h-screen">
-      <header className="bg-background border-b">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <Link
-            href="/"
-            className="focus-visible:ring-ring rounded-sm text-lg font-semibold focus-visible:ring-2 focus-visible:outline-none"
-          >
-            Peter Golf
-          </Link>
+    <div className="bg-pg-warm-white min-h-screen" data-account-shell>
+      <PublicHeader />
+      <div className="border-border border-b bg-white">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
+          <p className="hidden shrink-0 text-xs font-semibold tracking-[0.16em] uppercase md:block">
+            Mi Golf
+          </p>
           <nav
-            aria-label="Cuenta"
-            className="flex flex-wrap items-center justify-end gap-1 sm:gap-2"
+            aria-label="Mi Golf"
+            className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-2"
           >
-            <Button asChild variant="ghost">
-              <Link href="/cuenta">Cuenta</Link>
+            <Button asChild variant="ghost" className="shrink-0">
+              <Link href="/cuenta">
+                <UserRound aria-hidden="true" />
+                Resumen
+              </Link>
             </Button>
-            <Button asChild variant="ghost">
+            <Button asChild variant="ghost" className="shrink-0">
               <Link href="/cuenta/perfil">Perfil</Link>
             </Button>
-            <Button asChild variant="ghost">
-              <Link href="/cuenta/direcciones">Direcciones</Link>
+            <Button asChild variant="ghost" className="shrink-0">
+              <Link href="/cuenta/direcciones">
+                <MapPin aria-hidden="true" />
+                Direcciones
+              </Link>
             </Button>
-            <Button asChild variant="ghost">
-              <Link href="/cuenta/pedidos">Pedidos</Link>
+            <Button asChild variant="ghost" className="shrink-0">
+              <Link href="/cuenta/pedidos">
+                <ClipboardList aria-hidden="true" />
+                Pedidos
+              </Link>
             </Button>
             {canManageCatalog ? (
-              <Button asChild variant="ghost">
-                <Link href="/operacion">Operación</Link>
+              <Button asChild variant="ghost" className="shrink-0">
+                <Link href="/operacion">
+                  <Wrench aria-hidden="true" />
+                  Operación
+                </Link>
               </Button>
             ) : null}
-            <form action={logoutAction}>
-              <Button type="submit" variant="outline">
-                Cerrar sesión
-              </Button>
-            </form>
           </nav>
+          <form action={logoutAction} className="shrink-0">
+            <Button type="submit" variant="outline" size="sm">
+              Cerrar sesión
+            </Button>
+          </form>
         </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">{children}</main>
+      </div>
+      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        {children}
+      </main>
+      <PublicFooter />
     </div>
   );
 }

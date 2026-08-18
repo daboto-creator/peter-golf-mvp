@@ -1,30 +1,36 @@
 import Link from "next/link";
 
+import { PublicFooter } from "@/components/catalog/public-footer";
+import { PublicHeader } from "@/components/catalog/public-header";
 import { Button } from "@/components/ui/button";
 
 export default function Forbidden() {
   return (
-    <main className="bg-muted/30 flex min-h-screen items-center justify-center px-4 py-16">
-      <section className="w-full max-w-lg rounded-2xl border bg-white p-8 text-center shadow-sm">
-        <p className="text-sm font-medium tracking-wide text-red-700 uppercase">
-          Acceso 403
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-          No tienes permiso para entrar
-        </h1>
-        <p className="text-muted-foreground mt-4 leading-7">
-          Tu sesión está activa, pero esta área está reservada para personal
-          autorizado de operación.
-        </p>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Button asChild>
-            <Link href="/cuenta">Volver a mi cuenta</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/productos">Ver catálogo público</Link>
-          </Button>
-        </div>
-      </section>
-    </main>
+    <div className="bg-pg-warm-white min-h-screen">
+      <PublicHeader />
+      <main className="mx-auto flex min-h-[60vh] max-w-3xl items-center px-4 py-20 sm:px-6">
+        <section className="border-border w-full border-y py-12 text-center">
+          <p className="text-destructive text-xs font-semibold tracking-[0.18em] uppercase">
+            Acceso restringido
+          </p>
+          <h1 className="font-heading text-pg-black mt-4 text-3xl font-bold sm:text-4xl">
+            No tienes permiso para entrar
+          </h1>
+          <p className="text-muted-foreground mx-auto mt-4 max-w-xl leading-7">
+            Tu sesión está activa, pero esta área está reservada para personal
+            autorizado de Operaciones.
+          </p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <Button asChild>
+              <Link href="/cuenta">Volver a Mi Golf</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/productos">Ver el Pro Shop</Link>
+            </Button>
+          </div>
+        </section>
+      </main>
+      <PublicFooter />
+    </div>
   );
 }

@@ -17,10 +17,10 @@ export default async function OperationalCatalogPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
+          <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
             Gestión de catálogo
           </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+          <h1 className="text-pg-black mt-3 text-4xl font-semibold tracking-[-0.035em]">
             Productos
           </h1>
           <p className="text-muted-foreground mt-3">

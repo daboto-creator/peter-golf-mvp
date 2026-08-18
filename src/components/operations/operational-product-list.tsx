@@ -14,8 +14,8 @@ export function OperationalProductList({
   products: OperationalProductSummary[];
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-white">
-      <div className="hidden grid-cols-[minmax(0,2fr)_1fr_1fr_0.8fr_auto] gap-4 border-b bg-zinc-50 px-5 py-3 text-xs font-medium tracking-wide text-zinc-600 uppercase lg:grid">
+    <div className="overflow-hidden rounded-[20px] border bg-white">
+      <div className="bg-pg-warm-white text-pg-charcoal hidden grid-cols-[minmax(0,2fr)_1fr_1fr_0.8fr_auto] gap-4 border-b px-5 py-3 text-xs font-medium tracking-wide uppercase lg:grid">
         <span>Producto</span>
         <span>Clasificación</span>
         <span>Precio</span>
@@ -26,7 +26,7 @@ export function OperationalProductList({
         {products.map((product) => (
           <li
             key={product.id}
-            className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,2fr)_1fr_1fr_0.8fr_auto] lg:items-center"
+            className="hover:bg-pg-warm-white/70 grid gap-4 px-5 py-5 transition-colors duration-200 lg:grid-cols-[minmax(0,2fr)_1fr_1fr_0.8fr_auto] lg:items-center"
           >
             <div className="min-w-0">
               <p className="font-medium">{product.name}</p>

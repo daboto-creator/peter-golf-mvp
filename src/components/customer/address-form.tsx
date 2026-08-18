@@ -111,7 +111,7 @@ export function AddressForm({ address }: { address?: CustomerAddress }) {
             name="references"
             defaultValue={address?.references ?? ""}
             maxLength={500}
-            className="border-input min-h-24 w-full rounded-md border p-3"
+            className="border-input focus-visible:ring-pg-gold min-h-28 w-full rounded-xl border p-3 outline-none focus-visible:ring-2"
           />
         </label>
       </div>

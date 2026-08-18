@@ -9,12 +9,12 @@ import type {
 
 export function BrandList({ brands }: { brands: OperationalBrand[] }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-white">
+    <div className="overflow-hidden rounded-[20px] border bg-white">
       <ul className="divide-y">
         {brands.map((brand) => (
           <li
             key={brand.id}
-            className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+            className="hover:bg-pg-warm-white/70 flex flex-col gap-4 p-5 transition-colors duration-200 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -43,12 +43,12 @@ export function CategoryList({
   categories: OperationalCategory[];
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-white">
+    <div className="overflow-hidden rounded-[20px] border bg-white">
       <ul className="divide-y">
         {categories.map((category) => (
           <li
             key={category.id}
-            className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+            className="hover:bg-pg-warm-white/70 flex flex-col gap-4 p-5 transition-colors duration-200 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">

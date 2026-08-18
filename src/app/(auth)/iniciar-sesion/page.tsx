@@ -32,7 +32,7 @@ export default async function LoginPage({
   return (
     <AuthShell
       title="Inicia sesión"
-      description="Accede a tu cuenta de Peter Golf."
+      description="Accede a Mi Golf para consultar tu perfil, direcciones y pedidos."
     >
       <div className="space-y-5">
         {callbackError ? (

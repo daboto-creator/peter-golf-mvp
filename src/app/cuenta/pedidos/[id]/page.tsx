@@ -23,7 +23,7 @@ export default async function CustomerOrderPage({
     <div className="space-y-5">
       <Link
         href="/cuenta/pedidos"
-        className="text-sm font-medium text-emerald-800 hover:underline"
+        className="focus-visible:ring-pg-gold inline-flex min-h-11 items-center rounded-lg text-sm font-semibold underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
       >
         ← Volver a mis pedidos
       </Link>

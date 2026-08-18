@@ -1,5 +1,6 @@
 "use client";
 
+import { LockKeyhole, ShieldCheck, Truck } from "lucide-react";
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -90,15 +91,23 @@ export function CheckoutForm({
     setAddress((current) => ({ ...current, [field]: value }));
   };
   return (
-    <form action={action} className="grid gap-8 lg:grid-cols-[1fr_22rem]">
+    <form
+      action={action}
+      className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_23rem] lg:gap-10"
+    >
       <input type="hidden" name="cartId" value={cart.cart_id} />
       <input type="hidden" name="version" value={cart.version} />
       <input type="hidden" name="shippingMethodId" value={shippingMethod.id} />
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
       <input type="hidden" name="savedAddressId" value={savedAddressId} />
-      <section className="space-y-6 rounded-xl border bg-white p-5 sm:p-7">
+      <section className="space-y-7 rounded-[20px] border bg-white p-5 sm:p-8">
         <div>
-          <h2 className="text-xl font-semibold">Dirección de envío</h2>
+          <p className="text-pg-gold text-xs font-semibold tracking-[0.16em] uppercase">
+            Entrega
+          </p>
+          <h2 className="font-heading mt-2 text-2xl font-bold sm:text-3xl">
+            Dirección de envío
+          </h2>
           <p className="text-muted-foreground mt-1 text-sm">
             Sólo realizamos envíos dentro de México en esta fase.
           </p>
@@ -108,7 +117,7 @@ export function CheckoutForm({
             <span>Usar dirección guardada</span>
             <select
               value={savedAddressId}
-              className="border-input h-11 w-full rounded-md border px-3"
+              className="border-input focus-visible:ring-pg-gold h-12 w-full rounded-xl border bg-white px-3 outline-none focus-visible:ring-2"
               onChange={(event) => {
                 const saved = addresses.find(
                   (item) => item.id === event.target.value,
@@ -191,7 +200,7 @@ export function CheckoutForm({
               value={address.references}
               onChange={(event) => update("references", event.target.value)}
               maxLength={500}
-              className="border-input min-h-24 w-full rounded-md border p-3"
+              className="border-input focus-visible:ring-pg-gold min-h-28 w-full rounded-xl border p-3 outline-none focus-visible:ring-2"
             />
           </label>
         </div>
@@ -206,9 +215,12 @@ export function CheckoutForm({
             pedido.
           </p>
         )}
-        <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-950">
+        <div className="bg-pg-warm-white border-border text-pg-charcoal rounded-xl border p-5 text-sm">
           <fieldset className="space-y-2">
-            <legend className="font-semibold">Método de pago</legend>
+            <legend className="flex items-center gap-2 font-semibold">
+              <LockKeyhole className="text-pg-gold size-4" aria-hidden="true" />
+              Método de pago
+            </legend>
             <label className="flex items-start gap-3">
               <input
                 type="radio"
@@ -240,8 +252,11 @@ export function CheckoutForm({
           </p>
         </div>
       </section>
-      <aside className="h-fit space-y-5 rounded-xl border bg-white p-5 lg:sticky lg:top-5">
-        <h2 className="text-xl font-semibold">Resumen del pedido</h2>
+      <aside className="h-fit space-y-5 rounded-[20px] border bg-white p-5 sm:p-6 lg:sticky lg:top-36">
+        <p className="text-pg-gold text-xs font-semibold tracking-[0.16em] uppercase">
+          Tu compra
+        </p>
+        <h2 className="font-heading text-2xl font-bold">Resumen del pedido</h2>
         <ul className="space-y-3 text-sm">
           {cart.items.map((item) => (
             <li key={item.id} className="flex justify-between gap-4">
@@ -267,14 +282,24 @@ export function CheckoutForm({
           />
           <Row label="Descuento" amount={0} currency={cart.currency} />
           <Row label="Impuestos" amount={0} currency={cart.currency} />
-          <div className="flex justify-between pt-2 text-lg">
+          <div className="border-border flex justify-between border-t pt-4 text-xl">
             <span>Total</span>
             <strong>
               {formatMoneyMinorUnits(totals.total, cart.currency)}
             </strong>
           </div>
         </div>
-        <p className="text-muted-foreground text-xs">
+        <div className="border-border text-pg-charcoal space-y-3 border-y py-4 text-xs">
+          <p className="flex items-center gap-2">
+            <ShieldCheck className="text-pg-gold size-4" aria-hidden="true" />
+            Compra segura y revisada
+          </p>
+          <p className="flex items-center gap-2">
+            <Truck className="text-pg-gold size-4" aria-hidden="true" />
+            Envíos dentro de México
+          </p>
+        </div>
+        <p className="text-muted-foreground text-xs leading-5">
           {shippingMethod.description} El inventario se revalidará al enviar,
           pero se descontará sólo cuando operación confirme.
         </p>

@@ -107,7 +107,7 @@ export function OrderForm({
             id="originChannel"
             name="originChannel"
             defaultValue={order?.channel ?? "whatsapp"}
-            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+            className="border-input bg-background focus-visible:ring-pg-gold h-11 w-full rounded-xl border px-3 text-sm outline-none focus-visible:ring-2"
           >
             <option value="whatsapp">WhatsApp</option>
             <option value="instagram">Instagram</option>
@@ -129,7 +129,7 @@ export function OrderForm({
             name="internalNote"
             defaultValue={order?.internalNote ?? ""}
             maxLength={2000}
-            className="border-input min-h-24 w-full rounded-md border p-3 text-sm"
+            className="border-input focus-visible:ring-pg-gold min-h-28 w-full rounded-xl border p-3 text-sm outline-none focus-visible:ring-2"
           />
         </div>
       </section>
@@ -258,7 +258,7 @@ export function OrderForm({
                         ),
                       )
                     }
-                    className="border-input h-10 w-full rounded-md border px-3 text-sm"
+                    className="border-input focus-visible:ring-pg-gold h-11 w-full rounded-xl border px-3 text-sm outline-none focus-visible:ring-2"
                     required
                   >
                     {options.map((option) => (

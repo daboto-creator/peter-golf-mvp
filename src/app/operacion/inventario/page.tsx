@@ -52,10 +52,10 @@ export default async function OperationalInventoryPage({
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
+        <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
           Control auditable
         </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+        <h1 className="text-pg-black mt-3 text-4xl font-semibold tracking-[-0.035em]">
           Inventario
         </h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-7">
@@ -80,7 +80,7 @@ export default async function OperationalInventoryPage({
             id="status"
             name="status"
             defaultValue={status ?? ""}
-            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+            className="border-input bg-background focus-visible:ring-pg-gold h-11 w-full rounded-xl border px-3 text-sm outline-none focus-visible:ring-2"
           >
             <option value="">Todos</option>
             <option value="draft">Borrador</option>
@@ -94,7 +94,7 @@ export default async function OperationalInventoryPage({
             id="condition"
             name="condition"
             defaultValue={condition ?? ""}
-            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+            className="border-input bg-background focus-visible:ring-pg-gold h-11 w-full rounded-xl border px-3 text-sm outline-none focus-visible:ring-2"
           >
             <option value="">Todas</option>
             <option value="new">Nuevo</option>
@@ -107,7 +107,7 @@ export default async function OperationalInventoryPage({
             id="stock"
             name="stock"
             defaultValue={level ?? ""}
-            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+            className="border-input bg-background focus-visible:ring-pg-gold h-11 w-full rounded-xl border px-3 text-sm outline-none focus-visible:ring-2"
           >
             <option value="">Todos</option>
             <option value="uninitialized">Sin inicializar</option>

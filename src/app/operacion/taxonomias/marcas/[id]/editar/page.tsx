@@ -39,7 +39,7 @@ export default async function EditBrandPage({
           <Link href="/operacion/taxonomias/marcas">← Volver a marcas</Link>
         </Button>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <h1 className="text-pg-black text-4xl font-semibold tracking-[-0.035em]">
             Editar marca
           </h1>
           <TaxonomyStatusBadge status={brand.status} />

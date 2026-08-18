@@ -21,9 +21,14 @@ export default async function NewAddressPage() {
       <Button asChild variant="ghost">
         <Link href="/cuenta/direcciones">Volver a direcciones</Link>
       </Button>
-      <Card className="max-w-3xl">
+      <Card className="max-w-3xl rounded-[20px]">
         <CardHeader>
-          <CardTitle>Nueva dirección</CardTitle>
+          <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
+            Mi Golf
+          </p>
+          <CardTitle className="font-heading text-3xl font-bold">
+            Nueva dirección
+          </CardTitle>
           <CardDescription>El país está fijo en México.</CardDescription>
         </CardHeader>
         <CardContent>

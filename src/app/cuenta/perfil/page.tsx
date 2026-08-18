@@ -28,12 +28,17 @@ export default async function ProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Mi perfil</h1>
+        <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
+          Mi Golf
+        </p>
+        <h1 className="font-heading text-pg-black mt-3 text-4xl font-bold tracking-[-0.035em]">
+          Mi perfil
+        </h1>
         <p className="text-muted-foreground mt-2">
           Mantén actualizados tu nombre y apellido.
         </p>
       </div>
-      <Card className="max-w-2xl">
+      <Card className="max-w-2xl rounded-[20px]">
         <CardHeader>
           <CardTitle>Información personal</CardTitle>
           <CardDescription>

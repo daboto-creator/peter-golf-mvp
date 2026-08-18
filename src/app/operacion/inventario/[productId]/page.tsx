@@ -50,7 +50,9 @@ export default async function InventoryProductPage({
         <Button asChild variant="ghost">
           <Link href="/operacion/inventario">← Volver al inventario</Link>
         </Button>
-        <h1 className="mt-4 text-3xl font-semibold">{product.productName}</h1>
+        <h1 className="text-pg-black mt-4 text-4xl font-semibold tracking-[-0.035em]">
+          {product.productName}
+        </h1>
         <p className="text-muted-foreground mt-2">SKU {product.productSku}</p>
       </header>
       {product.variants.length > 1 ? (

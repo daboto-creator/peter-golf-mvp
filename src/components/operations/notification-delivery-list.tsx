@@ -74,9 +74,9 @@ export function NotificationDeliveryList({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border bg-white">
+        <div className="overflow-x-auto rounded-[20px] border bg-white">
           <table className="w-full min-w-[980px] text-left text-sm">
-            <thead className="bg-muted/50 border-b">
+            <thead className="bg-pg-warm-white border-b">
               <tr>
                 <Header>Pedido</Header>
                 <Header>Evento</Header>
@@ -90,7 +90,10 @@ export function NotificationDeliveryList({
             </thead>
             <tbody className="divide-y">
               {deliveries.map((delivery) => (
-                <tr key={delivery.id}>
+                <tr
+                  key={delivery.id}
+                  className="hover:bg-pg-warm-white/70 transition-colors duration-200"
+                >
                   <Cell>{delivery.orderNumber}</Cell>
                   <Cell>
                     {

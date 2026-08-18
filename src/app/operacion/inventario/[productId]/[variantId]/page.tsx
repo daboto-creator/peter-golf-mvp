@@ -58,10 +58,12 @@ export default async function InventoryVariantDetailPage({
         </Button>
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
+            <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
               Detalle por variante
             </p>
-            <h1 className="mt-2 text-3xl font-semibold">{item.productName}</h1>
+            <h1 className="text-pg-black mt-3 text-4xl font-semibold tracking-[-0.035em]">
+              {item.productName}
+            </h1>
             <p className="text-muted-foreground mt-2">
               Producto: {item.productSku}
             </p>

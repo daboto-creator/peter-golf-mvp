@@ -17,7 +17,10 @@ export default async function AddressesPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
+            Mi Golf
+          </p>
+          <h1 className="font-heading text-pg-black mt-3 text-4xl font-bold tracking-[-0.035em]">
             Mis direcciones
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -50,7 +53,7 @@ export default async function AddressesPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {addresses.map((address) => (
-            <Card key={address.id}>
+            <Card key={address.id} className="rounded-[20px]">
               <CardHeader className="flex-row items-center justify-between gap-3">
                 <CardTitle>{address.label}</CardTitle>
                 {address.isDefault ? (

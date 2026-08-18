@@ -26,9 +26,14 @@ export default async function EditAddressPage({
       <Button asChild variant="ghost">
         <Link href="/cuenta/direcciones">Volver a direcciones</Link>
       </Button>
-      <Card className="max-w-3xl">
+      <Card className="max-w-3xl rounded-[20px]">
         <CardHeader>
-          <CardTitle>Editar dirección</CardTitle>
+          <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
+            Mi Golf
+          </p>
+          <CardTitle className="font-heading text-3xl font-bold">
+            Editar dirección
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <AddressForm address={address} />

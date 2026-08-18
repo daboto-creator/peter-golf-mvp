@@ -86,7 +86,7 @@ export function OrderStateActions({
               required
               minLength={3}
               maxLength={500}
-              className="border-input mt-2 h-10 w-full rounded-md border px-3 font-normal"
+              className="border-input focus-visible:ring-pg-gold mt-2 h-11 w-full rounded-xl border px-3 font-normal outline-none focus-visible:ring-2"
             />
           </label>
           <Button variant="destructive" disabled={cancelling || !cancelKey}>

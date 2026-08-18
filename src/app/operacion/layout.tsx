@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -14,54 +15,100 @@ export default async function OperationsLayout({
   await requireCatalogManager("/operacion");
 
   return (
-    <div className="bg-muted/30 min-h-screen">
-      <header className="border-b bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+    <div className="bg-pg-warm-white min-h-screen" data-operations-shell>
+      <header className="border-pg-gold/35 bg-pg-black border-b text-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <Link
               href="/operacion"
-              className="focus-visible:ring-ring rounded-sm text-lg font-semibold focus-visible:ring-2 focus-visible:outline-none"
+              className="focus-visible:ring-pg-gold flex items-center gap-3 rounded-xl focus-visible:ring-2 focus-visible:outline-none"
             >
-              Peter Golf · Operación
+              <span className="inline-flex rounded-lg bg-white px-2 py-1">
+                <Image
+                  src="/logos/peter-golf-pro-shop.jpg"
+                  alt="Peter Golf Pro Shop"
+                  width={375}
+                  height={282}
+                  className="h-auto w-16"
+                />
+              </span>
+              <span>
+                <span className="block text-xs tracking-[0.14em] text-white/55 uppercase">
+                  Peter Golf
+                </span>
+                <span className="block text-sm font-semibold">Operaciones</span>
+              </span>
             </Link>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 lg:hidden">
+            <span className="border-pg-gold/40 text-pg-gold rounded-lg border px-2.5 py-1 text-xs font-medium lg:hidden">
               Área protegida
             </span>
           </div>
           <nav
             aria-label="Navegación de operación"
-            className="flex flex-wrap items-center gap-2"
+            className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0"
           >
-            <Button asChild variant="ghost">
+            <Button
+              asChild
+              variant="ghost"
+              className="shrink-0 text-white/75 hover:bg-white/10 hover:text-white"
+            >
               <Link href="/operacion/pedidos">Pedidos</Link>
             </Button>
-            <Button asChild variant="ghost">
+            <Button
+              asChild
+              variant="ghost"
+              className="shrink-0 text-white/75 hover:bg-white/10 hover:text-white"
+            >
               <Link href="/operacion/notificaciones">Notificaciones</Link>
             </Button>
-            <Button asChild variant="ghost">
+            <Button
+              asChild
+              variant="ghost"
+              className="shrink-0 text-white/75 hover:bg-white/10 hover:text-white"
+            >
               <Link href="/operacion/catalogo">Catálogo</Link>
             </Button>
-            <Button asChild variant="ghost">
+            <Button
+              asChild
+              variant="ghost"
+              className="shrink-0 text-white/75 hover:bg-white/10 hover:text-white"
+            >
               <Link href="/operacion/inventario">Inventario</Link>
             </Button>
-            <Button asChild variant="ghost">
+            <Button
+              asChild
+              variant="ghost"
+              className="shrink-0 text-white/75 hover:bg-white/10 hover:text-white"
+            >
               <Link href="/operacion/taxonomias">Taxonomías</Link>
             </Button>
-            <Button asChild variant="ghost">
+            <Button
+              asChild
+              variant="ghost"
+              className="shrink-0 text-white/75 hover:bg-white/10 hover:text-white"
+            >
               <Link href="/productos">Catálogo público</Link>
             </Button>
-            <Button asChild variant="ghost">
-              <Link href="/cuenta">Mi cuenta</Link>
+            <Button
+              asChild
+              variant="ghost"
+              className="shrink-0 text-white/75 hover:bg-white/10 hover:text-white"
+            >
+              <Link href="/cuenta">Mi Golf</Link>
             </Button>
             <form action={logoutAction}>
-              <Button type="submit" variant="outline">
+              <Button
+                type="submit"
+                variant="outline"
+                className="hover:text-pg-black shrink-0 border-white/25 bg-transparent text-white hover:bg-white"
+              >
                 Cerrar sesión
               </Button>
             </form>
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
         {children}
       </main>
     </div>
