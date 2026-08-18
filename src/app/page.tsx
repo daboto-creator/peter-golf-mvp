@@ -23,11 +23,6 @@ import { PublicHeader } from "@/components/catalog/public-header";
 import { Button } from "@/components/ui/button";
 import { listPublicProducts } from "@/lib/catalog/public-products";
 
-import adviceFittingImage from "../../public/images/home/advice-fitting-temporary.jpg";
-import heroGolfImage from "../../public/images/home/hero-golf-temporary.jpg";
-import proShopEquipmentImage from "../../public/images/home/pro-shop-equipment-temporary.jpg";
-import seminuevosEquipmentImage from "../../public/images/home/seminuevos-equipment-temporary.jpg";
-
 export const metadata: Metadata = {
   title: "Peter Golf Pro Shop | Equipo elegido con criterio",
   description:
@@ -142,11 +137,10 @@ export default async function Home() {
 
             <div className="bg-pg-warm-white relative mx-auto aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-[20px] sm:aspect-[16/10] lg:aspect-[5/6] lg:max-w-xl">
               <Image
-                src={heroGolfImage}
+                src="/images/home/hero-golf-temporary.jpg"
                 alt="Golfista terminando un golpe con driver frente a un campo de golf"
                 fill
                 preload
-                placeholder="blur"
                 sizes="(max-width: 1023px) calc(100vw - 2rem), 36rem"
                 className="object-cover object-[center_62%]"
               />
@@ -280,10 +274,9 @@ export default async function Home() {
             >
               <div className="bg-pg-white relative aspect-[4/3] overflow-hidden rounded-[20px] sm:aspect-[16/8] lg:aspect-[16/7]">
                 <Image
-                  src={proShopEquipmentImage}
+                  src="/images/home/pro-shop-equipment-temporary.jpg"
                   alt="Bolsa con palos de golf, polo, zapatos, guante y pelotas"
                   fill
-                  placeholder="blur"
                   sizes="(max-width: 1279px) calc(100vw - 3rem), 80rem"
                   className="object-cover object-center transition-transform duration-200 group-hover:scale-[1.01]"
                 />
@@ -369,10 +362,9 @@ export default async function Home() {
         <section className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 sm:py-24 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:gap-24 lg:px-8 lg:py-32">
           <div className="bg-pg-black relative aspect-square max-w-lg overflow-hidden rounded-[20px] text-white">
             <Image
-              src={seminuevosEquipmentImage}
+              src="/images/home/seminuevos-equipment-temporary.jpg"
               alt="Detalle cuidado de driver, hierros y putter seminuevos"
               fill
-              placeholder="blur"
               sizes="(max-width: 1023px) calc(100vw - 2rem), 32rem"
               className="object-cover"
             />
@@ -426,10 +418,9 @@ export default async function Home() {
 
             <div className="bg-pg-charcoal relative aspect-[4/3] overflow-hidden rounded-[20px] sm:aspect-[16/10] lg:aspect-[3/2]">
               <Image
-                src={adviceFittingImage}
+                src="/images/home/advice-fitting-temporary.jpg"
                 alt="Golfista revisando un hierro junto a un especialista de golf"
                 fill
-                placeholder="blur"
                 sizes="(max-width: 1023px) calc(100vw - 2rem), 44rem"
                 className="object-cover object-center"
               />
