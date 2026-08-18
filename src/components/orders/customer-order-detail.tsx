@@ -33,17 +33,19 @@ export function CustomerOrderDetail({
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
+        <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
           {statusLabel(order.status)}
         </p>
-        <h1 className="mt-2 text-3xl font-semibold">{order.orderNumber}</h1>
+        <h1 className="font-heading text-pg-black mt-3 text-4xl font-bold tracking-[-0.035em]">
+          {order.orderNumber}
+        </h1>
         <p className="text-muted-foreground mt-2">
           {paymentStatusLabel(order.paymentStatus)} · {date(order.createdAt)}
         </p>
       </header>
-      <section className="overflow-hidden rounded-xl border bg-white">
+      <section className="overflow-hidden rounded-[20px] border bg-white">
         <div className="border-b p-5">
-          <h2 className="text-xl font-semibold">Partidas</h2>
+          <h2 className="font-heading text-2xl font-bold">Productos</h2>
         </div>
         <ul className="divide-y">
           {order.items.map((item, index) => (
@@ -90,8 +92,8 @@ export function CustomerOrderDetail({
           </strong>
         </div>
       </section>
-      <section className="space-y-3 rounded-xl border bg-white p-5">
-        <h2 className="text-xl font-semibold">Pago</h2>
+      <section className="space-y-3 rounded-[20px] border bg-white p-5 sm:p-6">
+        <h2 className="font-heading text-2xl font-bold">Pago</h2>
         <p className="text-sm">
           {paymentMethodLabel(order.paymentMethod)} ·{" "}
           {paymentProviderLabel(order.paymentProvider)}
@@ -122,7 +124,7 @@ export function CustomerOrderDetail({
             idempotencyKey={paymentControls.idempotencyKey}
           />
         ) : (
-          <section className="rounded-xl border bg-white p-5 sm:p-6">
+          <section className="rounded-[20px] border bg-white p-5 sm:p-6">
             <CustomerStripeCheckoutButton
               orderId={order.id}
               idempotencyKey={paymentControls.stripeIdempotencyKey}
@@ -180,8 +182,8 @@ function Box({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2 rounded-xl border bg-white p-5">
-      <h2 className="text-xl font-semibold">{title}</h2>
+    <div className="space-y-2 rounded-[20px] border bg-white p-5 sm:p-6">
+      <h2 className="font-heading text-2xl font-bold">{title}</h2>
       <div className="space-y-1 text-sm">{children}</div>
     </div>
   );

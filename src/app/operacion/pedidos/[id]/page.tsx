@@ -51,14 +51,16 @@ export default async function OrderDetailPage({
         <div>
           <Link
             href="/operacion/pedidos"
-            className="text-sm font-medium text-emerald-800 hover:underline"
+            className="focus-visible:ring-pg-gold inline-flex min-h-11 items-center rounded-lg text-sm font-semibold underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
           >
             ← Volver a pedidos
           </Link>
-          <p className="mt-4 text-sm font-medium tracking-wide text-emerald-800 uppercase">
+          <p className="text-pg-gold mt-4 text-xs font-semibold tracking-[0.18em] uppercase">
             {statusLabel(order.status)}
           </p>
-          <h1 className="mt-2 text-3xl font-semibold">{order.orderNumber}</h1>
+          <h1 className="text-pg-black mt-3 text-4xl font-semibold tracking-[-0.035em]">
+            {order.orderNumber}
+          </h1>
           <p className="text-muted-foreground mt-2">
             {orderOriginLabel(order.origin, order.channel)} ·{" "}
             {order.paymentStatus

@@ -22,7 +22,7 @@ export default async function NewProductPage() {
         <Button asChild variant="ghost" className="-ml-2">
           <Link href="/operacion/catalogo">← Volver al catálogo</Link>
         </Button>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">
+        <h1 className="text-pg-black mt-4 text-4xl font-semibold tracking-[-0.035em]">
           Crear producto
         </h1>
         <p className="text-muted-foreground mt-3 max-w-2xl leading-7">

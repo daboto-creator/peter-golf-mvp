@@ -1,4 +1,11 @@
 import type { Metadata } from "next";
+import {
+  Bell,
+  ClipboardList,
+  PackageSearch,
+  Tags,
+  Warehouse,
+} from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -18,11 +25,11 @@ export default function OperationsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
-          Área protegida
+        <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
+          Peter Golf profesional
         </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Operación
+        <h1 className="text-pg-black mt-3 text-4xl font-semibold tracking-[-0.035em]">
+          Centro de operaciones
         </h1>
         <p className="text-muted-foreground mt-3 max-w-2xl leading-7">
           Administra la información comercial base del catálogo. Los cambios
@@ -30,8 +37,9 @@ export default function OperationsPage() {
         </p>
       </div>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <Card>
+        <Card className="rounded-[20px]">
           <CardHeader>
+            <Bell className="text-pg-gold size-5" aria-hidden="true" />
             <CardTitle>Notificaciones</CardTitle>
             <CardDescription>
               Procesa y supervisa correos transaccionales locales sin afectar
@@ -44,8 +52,9 @@ export default function OperationsPage() {
             </Button>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-[20px]">
           <CardHeader>
+            <ClipboardList className="text-pg-gold size-5" aria-hidden="true" />
             <CardTitle>Pedidos manuales</CardTitle>
             <CardDescription>
               Registra ventas asistidas, confirma existencias y conserva su
@@ -58,8 +67,9 @@ export default function OperationsPage() {
             </Button>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-[20px]">
           <CardHeader>
+            <PackageSearch className="text-pg-gold size-5" aria-hidden="true" />
             <CardTitle>Gestión de catálogo</CardTitle>
             <CardDescription>
               Crea, edita, publica, despublica, archiva y restaura productos
@@ -72,8 +82,9 @@ export default function OperationsPage() {
             </Button>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-[20px]">
           <CardHeader>
+            <Warehouse className="text-pg-gold size-5" aria-hidden="true" />
             <CardTitle>Inventario</CardTitle>
             <CardDescription>
               Consulta saldos y registra incrementos o correcciones con un
@@ -86,8 +97,9 @@ export default function OperationsPage() {
             </Button>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-[20px]">
           <CardHeader>
+            <Tags className="text-pg-gold size-5" aria-hidden="true" />
             <CardTitle>Marcas y categorías</CardTitle>
             <CardDescription>
               Administra las referencias disponibles para clasificar productos.

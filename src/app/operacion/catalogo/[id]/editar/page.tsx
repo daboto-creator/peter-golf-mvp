@@ -67,7 +67,7 @@ export default async function EditProductPage({
           <Link href="/operacion/catalogo">← Volver al catálogo</Link>
         </Button>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <h1 className="text-pg-black text-4xl font-semibold tracking-[-0.035em]">
             Editar producto
           </h1>
           <ProductStatusBadge

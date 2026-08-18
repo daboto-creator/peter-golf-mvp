@@ -91,7 +91,7 @@ export function InventoryAdjustmentForm({
           <select
             id="movementType"
             name="movementType"
-            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+            className="border-input bg-background focus-visible:ring-pg-gold h-11 w-full rounded-xl border px-3 text-sm outline-none focus-visible:ring-2"
             defaultValue="adjustment"
           >
             <option value="adjustment">Ajuste / corrección</option>
@@ -125,7 +125,7 @@ export function InventoryAdjustmentForm({
           required
           minLength={3}
           maxLength={500}
-          className="border-input bg-background min-h-24 w-full rounded-md border px-3 py-2 text-sm"
+          className="border-input bg-background focus-visible:ring-pg-gold min-h-28 w-full rounded-xl border px-3 py-2 text-sm outline-none focus-visible:ring-2"
           placeholder="Describe el conteo, recepción o corrección."
         />
       </div>

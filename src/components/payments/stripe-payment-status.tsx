@@ -14,7 +14,7 @@ export function StripePaymentStatus(props: Props) {
     <div
       role="status"
       aria-live="polite"
-      className={`rounded-lg p-4 text-sm ${state.className}`}
+      className={`rounded-xl border border-current/10 p-4 text-sm ${state.className}`}
     >
       <p className="font-semibold">{state.title}</p>
       <p className="mt-1">{state.description}</p>

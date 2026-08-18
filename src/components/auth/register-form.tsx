@@ -123,7 +123,7 @@ export function RegisterForm() {
         ) : null}
       </div>
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? "Creando cuenta…" : "Crear cuenta"}
+        {pending ? "Creando acceso…" : "Crear Mi Golf"}
       </Button>
       <p className="text-muted-foreground text-center text-sm">
         ¿Ya tienes cuenta?{" "}

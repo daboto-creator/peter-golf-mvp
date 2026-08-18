@@ -13,7 +13,7 @@ export default function NewBrandPage() {
         <Button asChild variant="ghost" className="-ml-2">
           <Link href="/operacion/taxonomias/marcas">← Volver a marcas</Link>
         </Button>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">
+        <h1 className="text-pg-black mt-4 text-4xl font-semibold tracking-[-0.035em]">
           Crear marca
         </h1>
         <p className="text-muted-foreground mt-3">

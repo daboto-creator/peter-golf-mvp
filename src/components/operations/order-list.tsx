@@ -11,11 +11,11 @@ import type { ManualOrderSummary } from "@/lib/orders/operational-orders";
 
 export function OrderList({ orders }: { orders: ManualOrderSummary[] }) {
   return (
-    <ul className="divide-y overflow-hidden rounded-xl border bg-white">
+    <ul className="divide-y overflow-hidden rounded-[20px] border bg-white">
       {orders.map((order) => (
         <li
           key={order.id}
-          className="grid gap-4 p-5 lg:grid-cols-[1fr_1.5fr_1fr_1fr_auto] lg:items-center"
+          className="hover:bg-pg-warm-white/70 grid gap-4 p-5 transition-colors duration-200 lg:grid-cols-[1fr_1.5fr_1fr_1fr_auto] lg:items-center"
         >
           <div>
             <p className="font-semibold">{order.orderNumber}</p>

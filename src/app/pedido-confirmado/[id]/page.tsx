@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { PublicHeader } from "@/components/catalog/public-header";
+import { PublicFooter } from "@/components/catalog/public-footer";
 import { CustomerOrderDetail } from "@/components/orders/customer-order-detail";
 import { Button } from "@/components/ui/button";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
@@ -25,12 +26,17 @@ export default async function ConfirmedOrderPage({
   const order = await getCustomerOrder(id);
   if (!order) notFound();
   return (
-    <div className="bg-muted/30 min-h-screen">
+    <div className="bg-pg-warm-white min-h-screen">
       <PublicHeader />
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <section className="mb-8 rounded-xl bg-emerald-50 p-6 text-emerald-950">
-          <h1 className="text-2xl font-semibold">Recibimos tu pedido</h1>
-          <p className="mt-2">
+      <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <section className="border-pg-success/25 bg-pg-success/5 text-pg-charcoal mb-10 rounded-[20px] border p-6 sm:p-8">
+          <p className="text-pg-success text-xs font-semibold tracking-[0.18em] uppercase">
+            Pedido recibido
+          </p>
+          <h1 className="font-heading text-pg-black mt-3 text-3xl font-bold sm:text-4xl">
+            Recibimos tu pedido
+          </h1>
+          <p className="mt-3 max-w-3xl leading-7">
             Está pendiente de revisión operativa. No se realizó ningún cargo. Si
             elegiste tarjeta, el pago se habilitará aquí después de que
             Operaciones confirme el pedido.
@@ -49,6 +55,7 @@ export default async function ConfirmedOrderPage({
           }}
         />
       </main>
+      <PublicFooter />
     </div>
   );
 }

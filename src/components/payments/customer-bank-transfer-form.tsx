@@ -32,12 +32,14 @@ export function CustomerBankTransferForm({
     ["pending", "rejected"].includes(order.paymentStatus);
 
   return (
-    <section className="space-y-5 rounded-xl border bg-white p-5 sm:p-6">
+    <section className="space-y-5 rounded-[20px] border bg-white p-5 sm:p-6">
       <div>
-        <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
+        <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
           {paymentMethodLabel(order.paymentMethod)}
         </p>
-        <h2 className="mt-2 text-xl font-semibold">Pago del pedido</h2>
+        <h2 className="font-heading mt-2 text-2xl font-bold">
+          Pago del pedido
+        </h2>
         <p className="text-muted-foreground mt-2 text-sm">
           Estado: {paymentStatusLabel(order.paymentStatus)}
         </p>

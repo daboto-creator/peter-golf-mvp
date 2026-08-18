@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { CheckoutForm } from "@/components/cart/checkout-form";
+import { PublicFooter } from "@/components/catalog/public-footer";
 import { PublicHeader } from "@/components/catalog/public-header";
 import { Button } from "@/components/ui/button";
 import { serverEnv } from "@/env/server";
@@ -25,24 +26,37 @@ export default async function CheckoutPage() {
   if (cart && (!cart.cart_id || !cart.version || !cart.items.length))
     redirect("/carrito");
   return (
-    <div className="bg-muted/30 min-h-screen">
+    <div className="bg-pg-warm-white min-h-screen">
       <PublicHeader />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-8">
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+        <header className="mb-10 max-w-3xl">
           <Link
             href="/carrito"
-            className="text-sm font-medium text-emerald-800 hover:underline"
+            className="focus-visible:ring-pg-gold inline-flex min-h-11 items-center rounded-lg text-sm font-semibold underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
           >
-            ← Volver al carrito
+            ← Volver a Mi Bolsa
           </Link>
-          <h1 className="mt-3 text-3xl font-semibold">Checkout</h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-pg-gold mt-5 text-xs font-semibold tracking-[0.18em] uppercase">
+            Paso final
+          </p>
+          <h1 className="font-heading text-pg-black mt-3 text-4xl font-bold tracking-[-0.035em] sm:text-5xl">
+            Confirma tu pedido
+          </h1>
+          <p className="text-muted-foreground mt-4 leading-7">
             Genera un pedido pendiente de revisión. No realizaremos ningún
             cargo.
           </p>
+          <ol className="text-muted-foreground mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold tracking-wide uppercase">
+            <li className="text-pg-black">1 · Envío</li>
+            <li>2 · Pago</li>
+            <li>3 · Revisión</li>
+          </ol>
         </header>
         {!cart || !context ? (
-          <p className="rounded-xl bg-red-50 p-5 text-red-800">
+          <p
+            role="alert"
+            className="border-destructive/30 bg-destructive/5 text-destructive rounded-xl border p-5"
+          >
             No pudimos preparar el checkout.
           </p>
         ) : cart.has_issues ? (
@@ -71,6 +85,7 @@ export default async function CheckoutPage() {
           />
         )}
       </main>
+      <PublicFooter />
     </div>
   );
 }

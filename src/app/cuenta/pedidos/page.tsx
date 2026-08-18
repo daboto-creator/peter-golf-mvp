@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -12,19 +13,36 @@ export const metadata: Metadata = { title: "Mis pedidos | Peter Golf" };
 export default async function CustomerOrdersPage() {
   const orders = await listCustomerOrders();
   return (
-    <div className="space-y-7">
-      <header>
-        <h1 className="text-3xl font-semibold">Mis pedidos</h1>
-        <p className="text-muted-foreground mt-2">
-          Consulta pedidos generados desde la tienda en línea.
-        </p>
+    <div className="space-y-8">
+      <header className="grid overflow-hidden rounded-[20px] border bg-white md:grid-cols-[1fr_16rem]">
+        <div className="flex flex-col justify-center px-6 py-10 sm:px-8">
+          <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
+            Mi Golf
+          </p>
+          <h1 className="font-heading text-pg-black mt-3 text-4xl font-bold tracking-[-0.035em]">
+            Mis pedidos
+          </h1>
+          <p className="text-muted-foreground mt-3 leading-7">
+            Consulta pedidos, estados y pagos generados desde el Pro Shop.
+          </p>
+        </div>
+        <figure className="relative hidden min-h-48 md:block">
+          <Image
+            src="/images/home/pro-shop-equipment-temporary.jpg"
+            alt="Equipo de golf preparado para jugar"
+            fill
+            sizes="16rem"
+            className="object-cover"
+          />
+          <figcaption className="sr-only">Imagen editorial</figcaption>
+        </figure>
       </header>
       {orders === null ? (
         <p className="rounded-xl bg-red-50 p-5 text-red-800">
           No pudimos cargar tus pedidos.
         </p>
       ) : orders.length ? (
-        <ul className="divide-y overflow-hidden rounded-xl border bg-white">
+        <ul className="divide-y overflow-hidden rounded-[20px] border bg-white">
           {orders.map((order) => (
             <li
               key={order.id}
@@ -32,9 +50,15 @@ export default async function CustomerOrdersPage() {
             >
               <div>
                 <p className="font-semibold">{order.orderNumber}</p>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  {statusLabel(order.status)} ·{" "}
-                  {paymentStatusLabel(order.paymentStatus)} ·{" "}
+                <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium">
+                  <span className="bg-pg-warm-white rounded-lg px-2.5 py-1">
+                    {statusLabel(order.status)}
+                  </span>
+                  <span className="bg-pg-warm-white rounded-lg px-2.5 py-1">
+                    {paymentStatusLabel(order.paymentStatus)}
+                  </span>
+                </div>
+                <p className="text-muted-foreground mt-3 text-sm">
                   {new Intl.DateTimeFormat("es-MX", {
                     dateStyle: "medium",
                   }).format(new Date(order.createdAt))}
@@ -50,10 +74,12 @@ export default async function CustomerOrdersPage() {
           ))}
         </ul>
       ) : (
-        <section className="rounded-xl border border-dashed bg-white p-10 text-center">
-          <h2 className="text-xl font-semibold">Aún no tienes pedidos</h2>
+        <section className="rounded-[20px] border border-dashed bg-white p-10 text-center">
+          <h2 className="font-heading text-2xl font-bold">
+            Aún no tienes pedidos
+          </h2>
           <Button asChild className="mt-5">
-            <Link href="/productos">Explorar productos</Link>
+            <Link href="/productos">Explorar el Pro Shop</Link>
           </Button>
         </section>
       )}

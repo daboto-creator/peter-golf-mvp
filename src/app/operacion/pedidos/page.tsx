@@ -28,10 +28,12 @@ export default async function OrdersPage({
     <div className="space-y-8">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
+          <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
             Operación de pedidos
           </p>
-          <h1 className="mt-2 text-3xl font-semibold">Pedidos</h1>
+          <h1 className="text-pg-black mt-3 text-4xl font-semibold tracking-[-0.035em]">
+            Pedidos
+          </h1>
           <p className="text-muted-foreground mt-3">
             Hasta 200 pedidos, ordenados del más reciente.
           </p>
@@ -132,7 +134,7 @@ function Select({
       name={name}
       defaultValue={value ?? ""}
       aria-label={label}
-      className="border-input h-10 rounded-md border px-3 text-sm"
+      className="border-input focus-visible:ring-pg-gold h-11 rounded-xl border bg-white px-3 text-sm outline-none focus-visible:ring-2"
     >
       <option value="">{label}</option>
       {options.map(([key, text]) => (

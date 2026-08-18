@@ -15,10 +15,12 @@ export default async function OperationalNotificationsPage() {
   return (
     <div className="space-y-7">
       <header>
-        <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
+        <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
           Entrega local y de prueba
         </p>
-        <h1 className="mt-2 text-3xl font-semibold">Notificaciones</h1>
+        <h1 className="text-pg-black mt-3 text-4xl font-semibold tracking-[-0.035em]">
+          Notificaciones
+        </h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-7">
           Procesa la outbox transaccional hacia Inbucket. El correo se envía
           después del commit y una falla nunca revierte pedidos, pagos o

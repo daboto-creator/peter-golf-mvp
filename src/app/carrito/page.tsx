@@ -2,25 +2,31 @@ import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 
 import { CartView } from "@/components/cart/cart-view";
+import { PublicFooter } from "@/components/catalog/public-footer";
 import { PublicHeader } from "@/components/catalog/public-header";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { getCustomerCart } from "@/lib/cart/customer-cart";
 
-export const metadata: Metadata = { title: "Carrito | Peter Golf" };
+export const metadata: Metadata = { title: "Mi Bolsa | Peter Golf" };
 export const dynamic = "force-dynamic";
 
 export default async function CartPage() {
   await requireAuthenticatedUser("/carrito");
   const cart = await getCustomerCart();
   return (
-    <div className="bg-muted/30 min-h-screen">
+    <div className="bg-pg-warm-white min-h-screen">
       <PublicHeader />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-8">
-          <p className="text-sm font-medium tracking-wide text-emerald-800 uppercase">
-            Compra sin cobro en línea
+      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+        <header className="mb-10 max-w-3xl">
+          <p className="before:bg-pg-gold flex items-center gap-3 text-xs font-semibold tracking-[0.18em] uppercase before:h-px before:w-8">
+            Tu selección
           </p>
-          <h1 className="mt-2 text-3xl font-semibold">Carrito</h1>
+          <h1 className="font-heading text-pg-black mt-4 text-4xl font-bold tracking-[-0.035em] sm:text-5xl">
+            Mi Bolsa
+          </h1>
+          <p className="text-muted-foreground mt-4 leading-7">
+            Revisa tu equipo, cantidades y disponibilidad antes de continuar.
+          </p>
         </header>
         {cart ? (
           <CartView
@@ -34,11 +40,15 @@ export default async function CartPage() {
             clearKey={randomUUID()}
           />
         ) : (
-          <p className="rounded-xl bg-red-50 p-5 text-red-800">
-            No pudimos cargar tu carrito. Inténtalo nuevamente.
+          <p
+            role="alert"
+            className="border-destructive/30 bg-destructive/5 text-destructive rounded-xl border p-5"
+          >
+            No pudimos cargar Mi Bolsa. Inténtalo nuevamente.
           </p>
         )}
       </main>
+      <PublicFooter />
     </div>
   );
 }

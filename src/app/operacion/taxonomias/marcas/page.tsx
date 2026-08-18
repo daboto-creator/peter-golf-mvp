@@ -17,7 +17,9 @@ export default async function BrandsPage() {
           <Button asChild variant="ghost" className="-ml-2">
             <Link href="/operacion/taxonomias">← Volver a taxonomías</Link>
           </Button>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight">Marcas</h1>
+          <h1 className="text-pg-black mt-4 text-4xl font-semibold tracking-[-0.035em]">
+            Marcas
+          </h1>
           <p className="text-muted-foreground mt-3">
             Activa o archiva marcas sin borrar productos históricos.
           </p>
