@@ -25,7 +25,7 @@ export function AddToCartForm({
   );
   if (!variants.length) {
     return (
-      <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+      <p className="bg-pg-warm-white border-border mt-8 rounded-xl border p-4 text-sm text-pg-charcoal">
         Este producto no tiene variantes disponibles.
       </p>
     );
@@ -33,7 +33,7 @@ export function AddToCartForm({
   return (
     <form
       action={action}
-      className="mt-8 space-y-4 rounded-xl border bg-zinc-50 p-5"
+      className="bg-pg-warm-white border-border mt-8 space-y-5 rounded-[20px] border p-5 sm:p-6"
     >
       <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="slug" value={slug} />
@@ -43,7 +43,7 @@ export function AddToCartForm({
         <select
           name="variantId"
           required
-          className="border-input h-11 w-full rounded-md border bg-white px-3"
+          className="border-input focus-visible:ring-pg-gold h-12 w-full rounded-xl border bg-white px-3 outline-none focus-visible:ring-2"
         >
           {variants.map((variant) => (
             <option key={variant.id} value={variant.id}>
@@ -77,17 +77,27 @@ export function AddToCartForm({
         </p>
       ) : null}
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button type="submit" size="lg" disabled={pending}>
-          {pending ? "Agregando…" : "Agregar al carrito"}
+        <Button
+          type="submit"
+          size="lg"
+          disabled={pending}
+          className="min-h-12 flex-1 rounded-xl"
+        >
+          {pending ? "Agregando…" : "Agregar a Mi Bolsa"}
         </Button>
         {state.status === "success" ? (
-          <Button asChild variant="outline" size="lg">
-            <Link href="/carrito">Ir al carrito</Link>
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="min-h-12 flex-1 rounded-xl"
+          >
+            <Link href="/carrito">Ir a Mi Bolsa</Link>
           </Button>
         ) : null}
       </div>
-      <p className="text-muted-foreground text-xs">
-        Necesitas iniciar sesión para guardar el carrito. La disponibilidad se
+      <p className="text-muted-foreground text-xs leading-5">
+        Necesitas iniciar sesión para guardar Mi Bolsa. La disponibilidad se
         valida nuevamente en checkout.
       </p>
     </form>
