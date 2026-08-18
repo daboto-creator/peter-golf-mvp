@@ -18,7 +18,10 @@ const validProduct: ProductFormValues = {
   description: "Descripción completa del producto.",
   condition: "new",
   conditionGrade: "",
+  conditionScore: "",
   conditionNotes: "",
+  targetPlayer: "",
+  productFamily: "",
   fulfillmentType: "in_stock",
   price: "1250.50",
   compareAtPrice: "1500",
@@ -28,6 +31,44 @@ const validProduct: ProductFormValues = {
   leadTimeMaxDays: "",
   featured: false,
   published: true,
+  clubType: "",
+  bagType: "",
+  setType: "",
+  model: "",
+  modelYear: "",
+  handedness: "",
+  shaftMaterial: "",
+  shaftBrand: "",
+  shaftModel: "",
+  shaftFlex: "",
+  shaftWeightGrams: "",
+  clubLengthInches: "",
+  gripBrand: "",
+  gripModel: "",
+  gripCondition: "",
+  headcoverIncluded: "",
+  specificationNotes: "",
+  loftDegrees: "",
+  adjustableLoft: "",
+  adjustableHosel: "",
+  adjustmentToolIncluded: "",
+  clubNumber: "",
+  ironNumber: "",
+  bounceDegrees: "",
+  grind: "",
+  putterHeadType: "",
+  lengthInches: "",
+  lieDegrees: "",
+  neckType: "",
+  color: "",
+  dividerCount: "",
+  pocketCount: "",
+  weightKg: "",
+  rainHoodIncluded: "",
+  strapIncluded: "",
+  waterproof: "",
+  cartCompatible: "",
+  components: [],
 };
 
 describe("product validation", () => {
@@ -116,6 +157,124 @@ describe("product validation", () => {
     if (!result.success) {
       expect(result.errors.shortDescription).toBeDefined();
       expect(result.errors.description).toBeDefined();
+    }
+  });
+
+  it.each([
+    ["driver", { loftDegrees: "10.5", adjustableLoft: "yes" }],
+    ["wedge", { loftDegrees: "56", bounceDegrees: "12", grind: "M" }],
+    ["putter", { putterHeadType: "mallet", lengthInches: "34" }],
+  ] as const)(
+    "normalizes structured %s specifications",
+    (clubType, details) => {
+      const result = validateProductForm({
+        ...validProduct,
+        productFamily: "club",
+        clubType,
+        handedness: "right",
+        shaftFlex: "regular",
+        shaftMaterial: "graphite",
+        ...details,
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.specifications).toMatchObject({
+          clubType,
+          handedness: "right",
+          shaftFlex: "regular",
+        });
+      }
+    },
+  );
+
+  it("normalizes a Stand Bag", () => {
+    const result = validateProductForm({
+      ...validProduct,
+      productFamily: "bag",
+      bagType: "stand_bag",
+      color: "Negro",
+      dividerCount: "4",
+      rainHoodIncluded: "yes",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.specifications).toMatchObject({
+        bagType: "stand_bag",
+        dividerCount: 4,
+        rainHoodIncluded: true,
+      });
+    }
+  });
+
+  it("requires and normalizes structured Complete Set components", () => {
+    const result = validateProductForm({
+      ...validProduct,
+      productFamily: "set",
+      setType: "complete_set",
+      handedness: "right",
+      components: [
+        {
+          componentKind: "club",
+          quantity: "1",
+          clubType: "driver",
+          bagType: "",
+          componentNumber: "",
+          loftDegrees: "10.5",
+          handedness: "right",
+          shaftFlex: "regular",
+          shaftMaterial: "graphite",
+          brand: "Marca demo",
+          model: "D1",
+          condition: "new",
+          conditionGrade: "",
+        },
+        {
+          componentKind: "bag",
+          quantity: "1",
+          clubType: "",
+          bagType: "stand_bag",
+          componentNumber: "",
+          loftDegrees: "",
+          handedness: "",
+          shaftFlex: "",
+          shaftMaterial: "",
+          brand: "Marca demo",
+          model: "Carry",
+          condition: "new",
+          conditionGrade: "",
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.components).toHaveLength(2);
+      expect(result.data.components[0]).toMatchObject({ clubType: "driver" });
+      expect(result.data.components[1]).toMatchObject({
+        bagType: "stand_bag",
+        clubType: null,
+      });
+    }
+  });
+
+  it("normalizes a seminuevo score without changing the legacy condition", () => {
+    const result = validateProductForm({
+      ...validProduct,
+      condition: "used",
+      conditionGrade: "excellent",
+      conditionScore: "9",
+      conditionNotes: "Marcas cosméticas leves.",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toMatchObject({
+        condition: "used",
+        conditionGrade: "excellent",
+        conditionScore: 9,
+      });
     }
   });
 });

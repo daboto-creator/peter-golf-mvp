@@ -1,19 +1,55 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 
+import { CatalogFilters } from "@/components/catalog/catalog-filters";
 import { ProductGrid } from "@/components/catalog/product-grid";
 import { PublicFooter } from "@/components/catalog/public-footer";
 import { PublicHeader } from "@/components/catalog/public-header";
-import { listPublicProducts } from "@/lib/catalog/public-products";
+import {
+  listPublicCatalog,
+  type PublicProductFilters,
+} from "@/lib/catalog/public-products";
 
-export const metadata: Metadata = {
-  title: "Pro Shop | Peter Golf",
-  description:
-    "Explora equipo de golf nuevo y seminuevo con condición, precio y disponibilidad claramente indicados.",
+type ProductsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function ProductsPage() {
-  const result = await listPublicProducts();
+export async function generateMetadata({
+  searchParams,
+}: ProductsPageProps): Promise<Metadata> {
+  const query = await searchParams;
+  const hasFilters = Object.values(query).some((value) =>
+    Array.isArray(value) ? value.some(Boolean) : Boolean(value),
+  );
+  return {
+    title: "Pro Shop | Peter Golf",
+    description:
+      "Explora equipo de golf nuevo y seminuevo con condición, precio y disponibilidad claramente indicados.",
+    alternates: { canonical: "/productos" },
+    robots: hasFilters ? { index: false, follow: true } : undefined,
+  };
+}
+
+export default async function ProductsPage({
+  searchParams,
+}: ProductsPageProps) {
+  const query = await searchParams;
+  const requestedFilters = parseFilters(query);
+  const catalog = await listPublicCatalog(requestedFilters);
+  const facets = catalog.error
+    ? { brands: [], categories: [], colors: [] }
+    : catalog.data.facets;
+  const selectedFamily =
+    facets.categories.find(
+      (category) => category.id === requestedFilters.categoryId,
+    )?.family ?? undefined;
+  const filters = { ...requestedFilters, family: selectedFamily };
+  const result = catalog.error
+    ? catalog
+    : ({ data: catalog.data.products, error: null } as const);
+  const hasFilters = Object.values(filters).some(
+    (value) => value !== undefined && value !== false,
+  );
 
   return (
     <div className="bg-background min-h-screen">
@@ -74,39 +110,45 @@ export default async function ProductsPage() {
               ) : null}
             </div>
 
-            <div className="mt-10">
-              {result.error ? (
-                <section
-                  role="alert"
-                  className="bg-pg-warm-white rounded-[20px] px-6 py-14 sm:px-10 sm:py-16"
-                >
-                  <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
-                    Hagamos una pausa
-                  </p>
-                  <h3 className="font-heading mt-4 text-3xl font-bold tracking-[-0.03em] sm:text-4xl">
-                    No pudimos cargar el Pro Shop.
-                  </h3>
-                  <p className="text-muted-foreground mt-4 max-w-xl leading-7">
-                    Intenta nuevamente en unos minutos. Tus opciones volverán a
-                    mostrarse aquí cuando el catálogo esté disponible.
-                  </p>
-                </section>
-              ) : result.data.length > 0 ? (
-                <ProductGrid products={result.data} />
-              ) : (
-                <section className="bg-pg-warm-white rounded-[20px] px-6 py-14 sm:px-10 sm:py-16">
-                  <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
-                    Selección en preparación
-                  </p>
-                  <h3 className="font-heading mt-4 text-3xl font-bold tracking-[-0.03em] sm:text-4xl">
-                    Estamos preparando nuevo equipo.
-                  </h3>
-                  <p className="text-muted-foreground mt-4 max-w-xl leading-7">
-                    Aún no hay productos publicados. Vuelve pronto para conocer
-                    las opciones elegidas para el Pro Shop.
-                  </p>
-                </section>
-              )}
+            <div className="mt-10 grid gap-10 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-12">
+              <CatalogFilters facets={facets} filters={filters} />
+              <div className="min-w-0">
+                {result.error ? (
+                  <section
+                    role="alert"
+                    className="bg-pg-warm-white rounded-[20px] px-6 py-14 sm:px-10 sm:py-16"
+                  >
+                    <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
+                      Hagamos una pausa
+                    </p>
+                    <h3 className="font-heading mt-4 text-3xl font-bold tracking-[-0.03em] sm:text-4xl">
+                      No pudimos cargar el Pro Shop.
+                    </h3>
+                    <p className="text-muted-foreground mt-4 max-w-xl leading-7">
+                      Intenta nuevamente en unos minutos. Tus opciones volverán
+                      a mostrarse aquí cuando el catálogo esté disponible.
+                    </p>
+                  </section>
+                ) : result.data.length > 0 ? (
+                  <ProductGrid products={result.data} />
+                ) : (
+                  <section className="bg-pg-warm-white rounded-[20px] px-6 py-14 sm:px-10 sm:py-16">
+                    <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
+                      Selección en preparación
+                    </p>
+                    <h3 className="font-heading mt-4 text-3xl font-bold tracking-[-0.03em] sm:text-4xl">
+                      {hasFilters
+                        ? "No encontramos equipo con esos filtros."
+                        : "Estamos preparando nuevo equipo."}
+                    </h3>
+                    <p className="text-muted-foreground mt-4 max-w-xl leading-7">
+                      {hasFilters
+                        ? "Prueba una selección más amplia o limpia los filtros para volver a ver todo el Pro Shop."
+                        : "Aún no hay productos publicados. Vuelve pronto para conocer las opciones elegidas para el Pro Shop."}
+                    </p>
+                  </section>
+                )}
+              </div>
             </div>
           </section>
 
@@ -133,4 +175,87 @@ export default async function ProductsPage() {
       <PublicFooter />
     </div>
   );
+}
+
+function parseFilters(
+  query: Record<string, string | string[] | undefined>,
+): PublicProductFilters {
+  const value = (key: string) => {
+    const raw = query[key];
+    return Array.isArray(raw) ? raw[0] : raw;
+  };
+  const oneOf = <T extends string>(key: string, values: readonly T[]) => {
+    const selected = value(key);
+    return values.includes(selected as T) ? (selected as T) : undefined;
+  };
+  const price = (key: string) => {
+    const selected = value(key);
+    if (!selected || !/^\d+(?:\.\d{1,2})?$/.test(selected)) return undefined;
+    return Math.round(Number(selected) * 100);
+  };
+  const categoryId = value("category");
+  const decimal = (key: string) => {
+    const selected = value(key);
+    return selected && /^\d+(?:\.\d{1,2})?$/.test(selected)
+      ? Number(selected)
+      : undefined;
+  };
+
+  return {
+    categoryId: categoryId || undefined,
+    brandId: value("brand") || undefined,
+    minimumPrice: price("min"),
+    maximumPrice: price("max"),
+    condition: oneOf("condition", [
+      "new",
+      "like_new",
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+    ] as const),
+    available: value("available") === "1" || undefined,
+    clubType: oneOf("clubType", [
+      "driver",
+      "fairway_wood",
+      "hybrid",
+      "iron",
+      "wedge",
+      "putter",
+    ] as const),
+    bagType: oneOf("bagType", [
+      "cart_bag",
+      "stand_bag",
+      "tour_bag",
+      "pencil_bag",
+      "travel_bag",
+    ] as const),
+    setType: oneOf("setType", [
+      "complete_set",
+      "iron_set",
+      "starter_set",
+      "junior_set",
+    ] as const),
+    handedness: oneOf("handedness", ["right", "left"] as const),
+    shaftFlex: oneOf("shaftFlex", [
+      "ladies",
+      "senior",
+      "regular",
+      "stiff",
+      "x_stiff",
+      "other",
+    ] as const),
+    shaftMaterial: oneOf("shaftMaterial", [
+      "graphite",
+      "steel",
+      "other",
+    ] as const),
+    loftDegrees: decimal("loft"),
+    color: value("color") || undefined,
+    includesDriver: value("driver") === "1" || undefined,
+    includesFairwayWood: value("fairway") === "1" || undefined,
+    includesHybrid: value("hybrid") === "1" || undefined,
+    includesPutter: value("putter") === "1" || undefined,
+    includesBag: value("bag") === "1" || undefined,
+  };
 }

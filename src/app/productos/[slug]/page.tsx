@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 import { ProductAvailability } from "@/components/catalog/product-availability";
 import { ProductImage } from "@/components/catalog/product-image";
 import { ProductPrice } from "@/components/catalog/product-price";
+import { ProductSpecifications } from "@/components/catalog/product-specifications";
 import { AddToCartForm } from "@/components/cart/add-to-cart-form";
 import { PublicFooter } from "@/components/catalog/public-footer";
 import { PublicHeader } from "@/components/catalog/public-header";
@@ -69,7 +70,7 @@ export default async function ProductDetailPage({
             </p>
             <Link
               href="/productos"
-              className="bg-pg-black focus-visible:ring-pg-gold mt-7 inline-flex min-h-11 items-center rounded-xl px-6 text-sm font-semibold text-white transition-colors duration-200 hover:bg-pg-black-soft focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              className="bg-pg-black focus-visible:ring-pg-gold hover:bg-pg-black-soft mt-7 inline-flex min-h-11 items-center rounded-xl px-6 text-sm font-semibold text-white transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             >
               Volver al Pro Shop
             </Link>
@@ -116,10 +117,7 @@ export default async function ProductDetailPage({
                   </li>
                 </>
               ) : null}
-              <li
-                className="text-pg-charcoal truncate"
-                aria-current="page"
-              >
+              <li className="text-pg-charcoal truncate" aria-current="page">
                 {product.name}
               </li>
             </ol>
@@ -168,6 +166,7 @@ export default async function ProductDetailPage({
                   {getConditionLabel(
                     product.condition,
                     product.conditionGrade,
+                    product.conditionScore,
                   )}
                 </p>
               </div>
@@ -277,6 +276,8 @@ export default async function ProductDetailPage({
               ) : null}
             </div>
           </section>
+
+          <ProductSpecifications product={product} />
 
           {product.variants.length > 0 ? (
             <section

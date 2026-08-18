@@ -1,10 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState, useTransition } from "react";
-import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
+import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  useForm,
+  useWatch,
+  type UseFormRegisterReturn,
+  type UseFormSetValue,
+} from "react-hook-form";
 
 import { CatalogFeedback } from "@/components/operations/catalog-feedback";
+import { ProductGolfFields } from "@/components/operations/product-golf-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,7 +62,10 @@ export function ProductForm({
   });
   const name = useWatch({ control, name: "name" });
   const condition = useWatch({ control, name: "condition" });
+  const categoryId = useWatch({ control, name: "categoryId" });
+  const productFamily = useWatch({ control, name: "productFamily" });
   const fulfillmentType = useWatch({ control, name: "fulfillmentType" });
+  const previousCategoryId = useRef(categoryId);
   const unavailable =
     disabled || brands.length === 0 || categories.length === 0;
 
@@ -64,8 +73,25 @@ export function ProductForm({
     if (condition === "new") {
       setValue("conditionGrade", "");
       setValue("conditionNotes", "");
+      setValue("conditionScore", "");
     }
   }, [condition, setValue]);
+
+  useEffect(() => {
+    const category = categories.find(
+      (candidate) => candidate.id === categoryId,
+    );
+    if (previousCategoryId.current !== categoryId) {
+      clearGolfSpecificationValues(setValue);
+      previousCategoryId.current = categoryId;
+    }
+    setValue("productFamily", category?.family ?? "", {
+      shouldValidate: true,
+    });
+    if (category?.clubType) setValue("clubType", category.clubType);
+    if (category?.bagType) setValue("bagType", category.bagType);
+    if (category?.setType) setValue("setType", category.setType);
+  }, [categories, categoryId, setValue]);
 
   function fieldError(name: keyof ProductFormValues): string | undefined {
     const clientError = errors[name]?.message;
@@ -179,7 +205,7 @@ export function ProductForm({
                 <option value="">Selecciona una categoría</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
-                    {category.name}
+                    {category.parentId ? `— ${category.name}` : category.name}
                     {category.status === "archived"
                       ? " (archivada · relación actual)"
                       : ""}
@@ -221,7 +247,7 @@ export function ProductForm({
               Los productos seminuevos requieren grado y notas claras.
             </p>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <FormField
               id="condition"
               label="Condición"
@@ -234,6 +260,35 @@ export function ProductForm({
               >
                 <option value="new">Nuevo</option>
                 <option value="used">Seminuevo</option>
+              </select>
+            </FormField>
+            <FormField
+              id="conditionScore"
+              label="Calificación (1–10)"
+              error={fieldError("conditionScore")}
+            >
+              <Input
+                id="conditionScore"
+                inputMode="numeric"
+                disabled={condition === "new" || unavailable || pending}
+                {...register("conditionScore")}
+              />
+            </FormField>
+            <FormField
+              id="targetPlayer"
+              label="Golfista objetivo"
+              error={fieldError("targetPlayer")}
+            >
+              <select
+                id="targetPlayer"
+                className={selectClassName}
+                {...register("targetPlayer")}
+              >
+                <option value="">No especificado</option>
+                <option value="men">Hombre</option>
+                <option value="women">Mujer</option>
+                <option value="junior">Junior</option>
+                <option value="unisex">Unisex</option>
               </select>
             </FormField>
             <FormField
@@ -271,6 +326,18 @@ export function ProductForm({
             </FormField>
           ) : null}
         </section>
+
+        {productFamily ? (
+          <ProductGolfFields
+            family={productFamily}
+            category={categories.find(
+              (candidate) => candidate.id === categoryId,
+            )}
+            register={register}
+            control={control}
+            fieldError={fieldError}
+          />
+        ) : null}
 
         <section className="space-y-5 rounded-xl border bg-white p-5 sm:p-6">
           <div>
@@ -383,6 +450,52 @@ export function ProductForm({
       </div>
     </form>
   );
+}
+
+function clearGolfSpecificationValues(
+  setValue: UseFormSetValue<ProductFormValues>,
+) {
+  const emptyTextFields = [
+    "clubType",
+    "bagType",
+    "setType",
+    "model",
+    "modelYear",
+    "handedness",
+    "shaftMaterial",
+    "shaftBrand",
+    "shaftModel",
+    "shaftFlex",
+    "shaftWeightGrams",
+    "clubLengthInches",
+    "gripBrand",
+    "gripModel",
+    "gripCondition",
+    "headcoverIncluded",
+    "specificationNotes",
+    "loftDegrees",
+    "adjustableLoft",
+    "adjustableHosel",
+    "adjustmentToolIncluded",
+    "clubNumber",
+    "ironNumber",
+    "bounceDegrees",
+    "grind",
+    "putterHeadType",
+    "lengthInches",
+    "lieDegrees",
+    "neckType",
+    "color",
+    "dividerCount",
+    "pocketCount",
+    "weightKg",
+    "rainHoodIncluded",
+    "strapIncluded",
+    "waterproof",
+    "cartCompatible",
+  ] as const;
+  emptyTextFields.forEach((name) => setValue(name, "", { shouldDirty: true }));
+  setValue("components", [], { shouldDirty: true });
 }
 
 function FormField({
