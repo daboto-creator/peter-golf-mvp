@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
 
 type ProductUpdate = Database["public"]["Tables"]["products"]["Update"];
+type GolfProductFamily = Database["public"]["Enums"]["golf_product_family"];
 
 const productIdSchema = z.uuid();
 
@@ -57,6 +58,35 @@ async function referencesAreActive(
     category.data !== null &&
     (brand.data.status === "active" || current?.brandId === brandId) &&
     (category.data.status === "active" || current?.categoryId === categoryId)
+  );
+}
+
+async function categoryProfileMatches(input: {
+  categoryId: string;
+  productFamily: "" | GolfProductFamily;
+  specifications: Record<string, string | number | boolean | null> | null;
+}): Promise<boolean> {
+  const client = await createClient();
+  const result = await client
+    .from("category_spec_profiles")
+    .select("family, club_type, bag_type, set_type")
+    .eq("category_id", input.categoryId)
+    .maybeSingle();
+
+  if (result.error) return false;
+  if (!result.data) {
+    return input.productFamily === "" && input.specifications === null;
+  }
+  if (result.data.family !== input.productFamily || !input.specifications) {
+    return false;
+  }
+  return (
+    (!result.data.club_type ||
+      result.data.club_type === input.specifications.clubType) &&
+    (!result.data.bag_type ||
+      result.data.bag_type === input.specifications.bagType) &&
+    (!result.data.set_type ||
+      result.data.set_type === input.specifications.setType)
   );
 }
 
@@ -147,6 +177,14 @@ export async function createProductAction(
     });
   }
 
+  if (!(await categoryProfileMatches(validated.data))) {
+    return validationFailure({
+      categoryId: [
+        "La categoría y el tipo de producto especializado no coinciden.",
+      ],
+    });
+  }
+
   const conflicts = await findIdentityConflicts({
     slug: validated.data.slug,
     sku: validated.data.sku,
@@ -157,13 +195,15 @@ export async function createProductAction(
 
   const client = await createClient();
   const { data, error } = await client
-    .rpc("create_product_with_base_variant", {
+    .rpc("create_golf_product_with_base_variant", {
       requested_brand_id: validated.data.brandId,
       requested_category_id: validated.data.categoryId,
       requested_compare_at_price: validated.data.compareAtPrice,
       requested_condition: validated.data.condition,
       requested_condition_grade: validated.data.conditionGrade,
       requested_condition_notes: validated.data.conditionNotes,
+      requested_condition_score: validated.data.conditionScore,
+      requested_components: validated.data.components,
       requested_currency: validated.data.currency,
       requested_description: validated.data.description,
       requested_featured: validated.data.featured,
@@ -177,6 +217,8 @@ export async function createProductAction(
       requested_short_description: validated.data.shortDescription,
       requested_sku: validated.data.sku,
       requested_slug: validated.data.slug,
+      requested_specifications: validated.data.specifications,
+      requested_target_player: validated.data.targetPlayer,
     })
     .single();
 
@@ -282,6 +324,14 @@ export async function updateProductAction(
     });
   }
 
+  if (!(await categoryProfileMatches(validated.data))) {
+    return validationFailure({
+      categoryId: [
+        "La categoría y el tipo de producto especializado no coinciden.",
+      ],
+    });
+  }
+
   if (
     existing.data.condition === "used" &&
     validated.data.condition === "new"
@@ -313,7 +363,7 @@ export async function updateProductAction(
 
   const client = await createClient();
   const { data, error } = await client
-    .rpc("update_product_with_base_variant", {
+    .rpc("update_golf_product_with_base_variant", {
       expected_published: expectedState.published,
       expected_status: expectedState.status,
       requested_brand_id: validated.data.brandId,
@@ -322,6 +372,8 @@ export async function updateProductAction(
       requested_condition: validated.data.condition,
       requested_condition_grade: validated.data.conditionGrade,
       requested_condition_notes: validated.data.conditionNotes,
+      requested_condition_score: validated.data.conditionScore,
+      requested_components: validated.data.components,
       requested_currency: validated.data.currency,
       requested_description: validated.data.description,
       requested_featured: validated.data.featured,
@@ -336,6 +388,8 @@ export async function updateProductAction(
       requested_short_description: validated.data.shortDescription,
       requested_sku: validated.data.sku,
       requested_slug: validated.data.slug,
+      requested_specifications: validated.data.specifications,
+      requested_target_player: validated.data.targetPlayer,
     })
     .single();
 

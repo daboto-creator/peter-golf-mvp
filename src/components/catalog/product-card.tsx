@@ -38,7 +38,11 @@ export function ProductCard({ product }: { product: PublicProductSummary }) {
           </Link>
         </h3>
         <p className="text-muted-foreground mt-2 text-sm">
-          {getConditionLabel(product.condition, product.conditionGrade)}
+          {getConditionLabel(
+            product.condition,
+            product.conditionGrade,
+            product.conditionScore,
+          )}
         </p>
 
         <ProductPrice

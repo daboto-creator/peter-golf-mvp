@@ -44,6 +44,10 @@ describe("catalog presentation", () => {
     );
   });
 
+  it("prioritizes the normalized 1–10 score when available", () => {
+    expect(getConditionLabel("used", "excellent", 9)).toBe("Seminuevo · 9/10");
+  });
+
   it("accepts safe local paths and rejects arbitrary remote-looking paths", () => {
     expect(resolvePublicImagePath("/catalog/demo-product.webp")).toBe(
       "/catalog/demo-product.webp",

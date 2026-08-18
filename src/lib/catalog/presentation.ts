@@ -33,11 +33,13 @@ export function formatMoneyMinorUnits(
 export function getConditionLabel(
   condition: ProductCondition,
   grade: ProductConditionGrade | null,
+  score?: number | null,
 ): string {
   if (condition === "new") {
     return "Nuevo";
   }
 
+  if (score) return `Seminuevo · ${score}/10`;
   return grade ? `Seminuevo · ${conditionGradeLabels[grade]}` : "Seminuevo";
 }
 

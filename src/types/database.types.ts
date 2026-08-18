@@ -585,6 +585,44 @@ export type Database = {
           },
         ];
       };
+      category_spec_profiles: {
+        Row: {
+          bag_type: Database["public"]["Enums"]["golf_bag_type"] | null;
+          category_id: string;
+          club_type: Database["public"]["Enums"]["golf_club_type"] | null;
+          created_at: string;
+          family: Database["public"]["Enums"]["golf_product_family"];
+          set_type: Database["public"]["Enums"]["golf_set_type"] | null;
+          updated_at: string;
+        };
+        Insert: {
+          bag_type?: Database["public"]["Enums"]["golf_bag_type"] | null;
+          category_id: string;
+          club_type?: Database["public"]["Enums"]["golf_club_type"] | null;
+          created_at?: string;
+          family: Database["public"]["Enums"]["golf_product_family"];
+          set_type?: Database["public"]["Enums"]["golf_set_type"] | null;
+          updated_at?: string;
+        };
+        Update: {
+          bag_type?: Database["public"]["Enums"]["golf_bag_type"] | null;
+          category_id?: string;
+          club_type?: Database["public"]["Enums"]["golf_club_type"] | null;
+          created_at?: string;
+          family?: Database["public"]["Enums"]["golf_product_family"];
+          set_type?: Database["public"]["Enums"]["golf_set_type"] | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "category_spec_profiles_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: true;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       inventory: {
         Row: {
           created_at: string;
@@ -1421,6 +1459,258 @@ export type Database = {
           },
         ];
       };
+      product_bag_specs: {
+        Row: {
+          bag_type: Database["public"]["Enums"]["golf_bag_type"];
+          cart_compatible: boolean | null;
+          color: string | null;
+          created_at: string;
+          divider_count: number | null;
+          model: string | null;
+          model_year: number | null;
+          notes: string | null;
+          pocket_count: number | null;
+          product_id: string;
+          rain_hood_included: boolean | null;
+          strap_included: boolean | null;
+          updated_at: string;
+          waterproof: boolean | null;
+          weight_kg: number | null;
+        };
+        Insert: {
+          bag_type: Database["public"]["Enums"]["golf_bag_type"];
+          cart_compatible?: boolean | null;
+          color?: string | null;
+          created_at?: string;
+          divider_count?: number | null;
+          model?: string | null;
+          model_year?: number | null;
+          notes?: string | null;
+          pocket_count?: number | null;
+          product_id: string;
+          rain_hood_included?: boolean | null;
+          strap_included?: boolean | null;
+          updated_at?: string;
+          waterproof?: boolean | null;
+          weight_kg?: number | null;
+        };
+        Update: {
+          bag_type?: Database["public"]["Enums"]["golf_bag_type"];
+          cart_compatible?: boolean | null;
+          color?: string | null;
+          created_at?: string;
+          divider_count?: number | null;
+          model?: string | null;
+          model_year?: number | null;
+          notes?: string | null;
+          pocket_count?: number | null;
+          product_id?: string;
+          rain_hood_included?: boolean | null;
+          strap_included?: boolean | null;
+          updated_at?: string;
+          waterproof?: boolean | null;
+          weight_kg?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_bag_specs_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: true;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_club_specs: {
+        Row: {
+          adjustable_hosel: boolean | null;
+          adjustable_loft: boolean | null;
+          adjustment_tool_included: boolean | null;
+          bounce_degrees: number | null;
+          club_length_inches: number | null;
+          club_number: string | null;
+          club_type: Database["public"]["Enums"]["golf_club_type"];
+          created_at: string;
+          grind: string | null;
+          grip_brand: string | null;
+          grip_condition: string | null;
+          grip_model: string | null;
+          handedness: Database["public"]["Enums"]["golfer_handedness"] | null;
+          headcover_included: boolean | null;
+          iron_number: string | null;
+          length_inches: number | null;
+          lie_degrees: number | null;
+          loft_degrees: number | null;
+          model: string | null;
+          model_year: number | null;
+          neck_type: string | null;
+          notes: string | null;
+          product_id: string;
+          putter_head_type:
+            Database["public"]["Enums"]["golf_putter_head_type"] | null;
+          shaft_brand: string | null;
+          shaft_flex: Database["public"]["Enums"]["golf_shaft_flex"] | null;
+          shaft_material:
+            Database["public"]["Enums"]["golf_shaft_material"] | null;
+          shaft_model: string | null;
+          shaft_weight_grams: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          adjustable_hosel?: boolean | null;
+          adjustable_loft?: boolean | null;
+          adjustment_tool_included?: boolean | null;
+          bounce_degrees?: number | null;
+          club_length_inches?: number | null;
+          club_number?: string | null;
+          club_type: Database["public"]["Enums"]["golf_club_type"];
+          created_at?: string;
+          grind?: string | null;
+          grip_brand?: string | null;
+          grip_condition?: string | null;
+          grip_model?: string | null;
+          handedness?: Database["public"]["Enums"]["golfer_handedness"] | null;
+          headcover_included?: boolean | null;
+          iron_number?: string | null;
+          length_inches?: number | null;
+          lie_degrees?: number | null;
+          loft_degrees?: number | null;
+          model?: string | null;
+          model_year?: number | null;
+          neck_type?: string | null;
+          notes?: string | null;
+          product_id: string;
+          putter_head_type?:
+            Database["public"]["Enums"]["golf_putter_head_type"] | null;
+          shaft_brand?: string | null;
+          shaft_flex?: Database["public"]["Enums"]["golf_shaft_flex"] | null;
+          shaft_material?:
+            Database["public"]["Enums"]["golf_shaft_material"] | null;
+          shaft_model?: string | null;
+          shaft_weight_grams?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          adjustable_hosel?: boolean | null;
+          adjustable_loft?: boolean | null;
+          adjustment_tool_included?: boolean | null;
+          bounce_degrees?: number | null;
+          club_length_inches?: number | null;
+          club_number?: string | null;
+          club_type?: Database["public"]["Enums"]["golf_club_type"];
+          created_at?: string;
+          grind?: string | null;
+          grip_brand?: string | null;
+          grip_condition?: string | null;
+          grip_model?: string | null;
+          handedness?: Database["public"]["Enums"]["golfer_handedness"] | null;
+          headcover_included?: boolean | null;
+          iron_number?: string | null;
+          length_inches?: number | null;
+          lie_degrees?: number | null;
+          loft_degrees?: number | null;
+          model?: string | null;
+          model_year?: number | null;
+          neck_type?: string | null;
+          notes?: string | null;
+          product_id?: string;
+          putter_head_type?:
+            Database["public"]["Enums"]["golf_putter_head_type"] | null;
+          shaft_brand?: string | null;
+          shaft_flex?: Database["public"]["Enums"]["golf_shaft_flex"] | null;
+          shaft_material?:
+            Database["public"]["Enums"]["golf_shaft_material"] | null;
+          shaft_model?: string | null;
+          shaft_weight_grams?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_club_specs_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: true;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_components: {
+        Row: {
+          bag_type: Database["public"]["Enums"]["golf_bag_type"] | null;
+          brand: string | null;
+          club_type: Database["public"]["Enums"]["golf_club_type"] | null;
+          component_kind: Database["public"]["Enums"]["product_component_kind"];
+          component_number: string | null;
+          condition: Database["public"]["Enums"]["product_condition"] | null;
+          condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          created_at: string;
+          handedness: Database["public"]["Enums"]["golfer_handedness"] | null;
+          id: string;
+          loft_degrees: number | null;
+          model: string | null;
+          quantity: number;
+          set_product_id: string;
+          shaft_flex: Database["public"]["Enums"]["golf_shaft_flex"] | null;
+          shaft_material:
+            Database["public"]["Enums"]["golf_shaft_material"] | null;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          bag_type?: Database["public"]["Enums"]["golf_bag_type"] | null;
+          brand?: string | null;
+          club_type?: Database["public"]["Enums"]["golf_club_type"] | null;
+          component_kind: Database["public"]["Enums"]["product_component_kind"];
+          component_number?: string | null;
+          condition?: Database["public"]["Enums"]["product_condition"] | null;
+          condition_grade?:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          created_at?: string;
+          handedness?: Database["public"]["Enums"]["golfer_handedness"] | null;
+          id?: string;
+          loft_degrees?: number | null;
+          model?: string | null;
+          quantity?: number;
+          set_product_id: string;
+          shaft_flex?: Database["public"]["Enums"]["golf_shaft_flex"] | null;
+          shaft_material?:
+            Database["public"]["Enums"]["golf_shaft_material"] | null;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          bag_type?: Database["public"]["Enums"]["golf_bag_type"] | null;
+          brand?: string | null;
+          club_type?: Database["public"]["Enums"]["golf_club_type"] | null;
+          component_kind?: Database["public"]["Enums"]["product_component_kind"];
+          component_number?: string | null;
+          condition?: Database["public"]["Enums"]["product_condition"] | null;
+          condition_grade?:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          created_at?: string;
+          handedness?: Database["public"]["Enums"]["golfer_handedness"] | null;
+          id?: string;
+          loft_degrees?: number | null;
+          model?: string | null;
+          quantity?: number;
+          set_product_id?: string;
+          shaft_flex?: Database["public"]["Enums"]["golf_shaft_flex"] | null;
+          shaft_material?:
+            Database["public"]["Enums"]["golf_shaft_material"] | null;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_components_set_product_id_fkey";
+            columns: ["set_product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       product_images: {
         Row: {
           alt_text: string;
@@ -1471,6 +1761,56 @@ export type Database = {
             columns: ["variant_id"];
             isOneToOne: false;
             referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_set_specs: {
+        Row: {
+          created_at: string;
+          handedness: Database["public"]["Enums"]["golfer_handedness"] | null;
+          model: string | null;
+          model_year: number | null;
+          notes: string | null;
+          product_id: string;
+          set_type: Database["public"]["Enums"]["golf_set_type"];
+          shaft_flex: Database["public"]["Enums"]["golf_shaft_flex"] | null;
+          shaft_material:
+            Database["public"]["Enums"]["golf_shaft_material"] | null;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          handedness?: Database["public"]["Enums"]["golfer_handedness"] | null;
+          model?: string | null;
+          model_year?: number | null;
+          notes?: string | null;
+          product_id: string;
+          set_type: Database["public"]["Enums"]["golf_set_type"];
+          shaft_flex?: Database["public"]["Enums"]["golf_shaft_flex"] | null;
+          shaft_material?:
+            Database["public"]["Enums"]["golf_shaft_material"] | null;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          handedness?: Database["public"]["Enums"]["golfer_handedness"] | null;
+          model?: string | null;
+          model_year?: number | null;
+          notes?: string | null;
+          product_id?: string;
+          set_type?: Database["public"]["Enums"]["golf_set_type"];
+          shaft_flex?: Database["public"]["Enums"]["golf_shaft_flex"] | null;
+          shaft_material?:
+            Database["public"]["Enums"]["golf_shaft_material"] | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_set_specs_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: true;
+            referencedRelation: "products";
             referencedColumns: ["id"];
           },
         ];
@@ -1541,6 +1881,7 @@ export type Database = {
           condition_grade:
             Database["public"]["Enums"]["product_condition_grade"] | null;
           condition_notes: string | null;
+          condition_score: number | null;
           cost: number | null;
           created_at: string;
           currency: string;
@@ -1560,6 +1901,8 @@ export type Database = {
           sku: string;
           slug: string;
           status: Database["public"]["Enums"]["product_status"];
+          target_player:
+            Database["public"]["Enums"]["product_target_player"] | null;
           updated_at: string;
         };
         Insert: {
@@ -1571,6 +1914,7 @@ export type Database = {
           condition_grade?:
             Database["public"]["Enums"]["product_condition_grade"] | null;
           condition_notes?: string | null;
+          condition_score?: number | null;
           cost?: number | null;
           created_at?: string;
           currency?: string;
@@ -1590,6 +1934,8 @@ export type Database = {
           sku: string;
           slug: string;
           status?: Database["public"]["Enums"]["product_status"];
+          target_player?:
+            Database["public"]["Enums"]["product_target_player"] | null;
           updated_at?: string;
         };
         Update: {
@@ -1601,6 +1947,7 @@ export type Database = {
           condition_grade?:
             Database["public"]["Enums"]["product_condition_grade"] | null;
           condition_notes?: string | null;
+          condition_score?: number | null;
           cost?: number | null;
           created_at?: string;
           currency?: string;
@@ -1620,6 +1967,8 @@ export type Database = {
           sku?: string;
           slug?: string;
           status?: Database["public"]["Enums"]["product_status"];
+          target_player?:
+            Database["public"]["Enums"]["product_target_player"] | null;
           updated_at?: string;
         };
         Relationships: [
@@ -2186,6 +2535,39 @@ export type Database = {
               replayed: boolean;
             }[];
           };
+      create_golf_product_with_base_variant: {
+        Args: {
+          requested_brand_id: string;
+          requested_category_id: string;
+          requested_compare_at_price: unknown;
+          requested_components?: Json;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_condition_score: number | null;
+          requested_currency: unknown;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_name: string;
+          requested_price: unknown;
+          requested_price_is_estimate: boolean;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+          requested_specifications: Json;
+          requested_target_player:
+            Database["public"]["Enums"]["product_target_player"] | null;
+        };
+        Returns: {
+          product_id: string;
+          variant_id: string;
+        }[];
+      };
       create_manual_order: {
         Args: { requested_idempotency_key: string; requested_payload: Json };
         Returns: {
@@ -2200,20 +2582,19 @@ export type Database = {
           requested_category_id: string;
           requested_compare_at_price: unknown;
           requested_condition: Database["public"]["Enums"]["product_condition"];
-          requested_condition_grade:
-            Database["public"]["Enums"]["product_condition_grade"] | null;
-          requested_condition_notes: string | null;
+          requested_condition_grade: Database["public"]["Enums"]["product_condition_grade"];
+          requested_condition_notes: string;
           requested_currency: unknown;
-          requested_description: string | null;
+          requested_description: string;
           requested_featured: boolean;
           requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
-          requested_lead_time_max_days: number | null;
-          requested_lead_time_min_days: number | null;
+          requested_lead_time_max_days: number;
+          requested_lead_time_min_days: number;
           requested_name: string;
           requested_price: unknown;
           requested_price_is_estimate: boolean;
           requested_published: boolean;
-          requested_short_description: string | null;
+          requested_short_description: string;
           requested_sku: string;
           requested_slug: string;
         };
@@ -2476,6 +2857,16 @@ export type Database = {
           version: number;
         }[];
       };
+      sync_product_golf_details: {
+        Args: {
+          requested_components?: Json;
+          requested_condition_score: number;
+          requested_product_id: string;
+          requested_specifications: Json;
+          requested_target_player: Database["public"]["Enums"]["product_target_player"];
+        };
+        Returns: undefined;
+      };
       update_customer_profile: {
         Args: {
           requested_first_name: string;
@@ -2483,6 +2874,42 @@ export type Database = {
           requested_phone: string;
         };
         Returns: undefined;
+      };
+      update_golf_product_with_base_variant: {
+        Args: {
+          expected_published: boolean;
+          expected_status: Database["public"]["Enums"]["product_status"];
+          requested_brand_id: string;
+          requested_category_id: string;
+          requested_compare_at_price: unknown;
+          requested_components?: Json;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_condition_score: number | null;
+          requested_currency: unknown;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_name: string;
+          requested_price: unknown;
+          requested_price_is_estimate: boolean;
+          requested_product_id: string;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+          requested_specifications: Json;
+          requested_target_player:
+            Database["public"]["Enums"]["product_target_player"] | null;
+        };
+        Returns: {
+          product_id: string;
+          variant_id: string;
+        }[];
       };
       update_manual_order_draft: {
         Args: {
@@ -2537,21 +2964,20 @@ export type Database = {
           requested_category_id: string;
           requested_compare_at_price: unknown;
           requested_condition: Database["public"]["Enums"]["product_condition"];
-          requested_condition_grade:
-            Database["public"]["Enums"]["product_condition_grade"] | null;
-          requested_condition_notes: string | null;
+          requested_condition_grade: Database["public"]["Enums"]["product_condition_grade"];
+          requested_condition_notes: string;
           requested_currency: unknown;
-          requested_description: string | null;
+          requested_description: string;
           requested_featured: boolean;
           requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
-          requested_lead_time_max_days: number | null;
-          requested_lead_time_min_days: number | null;
+          requested_lead_time_max_days: number;
+          requested_lead_time_min_days: number;
           requested_name: string;
           requested_price: unknown;
           requested_price_is_estimate: boolean;
           requested_product_id: string;
           requested_published: boolean;
-          requested_short_description: string | null;
+          requested_short_description: string;
           requested_sku: string;
           requested_slug: string;
         };
@@ -2568,6 +2994,17 @@ export type Database = {
       catalog_record_status: "active" | "archived";
       contact_channel: "email" | "phone" | "whatsapp";
       fulfillment_type: "in_stock" | "special_order" | "preorder";
+      golf_bag_type:
+        "cart_bag" | "stand_bag" | "tour_bag" | "pencil_bag" | "travel_bag";
+      golf_club_type:
+        "driver" | "fairway_wood" | "hybrid" | "iron" | "wedge" | "putter";
+      golf_product_family: "club" | "bag" | "set";
+      golf_putter_head_type: "blade" | "mallet";
+      golf_set_type: "complete_set" | "iron_set" | "starter_set" | "junior_set";
+      golf_shaft_flex:
+        "ladies" | "senior" | "regular" | "stiff" | "x_stiff" | "other";
+      golf_shaft_material: "graphite" | "steel" | "other";
+      golfer_handedness: "right" | "left";
       inventory_movement_type:
         | "receipt"
         | "adjustment"
@@ -2625,10 +3062,12 @@ export type Database = {
         | "refunded"
         | "failed"
         | "partially_refunded";
+      product_component_kind: "club" | "bag";
       product_condition: "new" | "used";
       product_condition_grade:
         "like_new" | "excellent" | "very_good" | "good" | "fair";
       product_status: "draft" | "active" | "archived";
+      product_target_player: "men" | "women" | "junior" | "unisex";
       stripe_checkout_status:
         | "creating"
         | "open"
@@ -2775,6 +3214,34 @@ export const Constants = {
       catalog_record_status: ["active", "archived"],
       contact_channel: ["email", "phone", "whatsapp"],
       fulfillment_type: ["in_stock", "special_order", "preorder"],
+      golf_bag_type: [
+        "cart_bag",
+        "stand_bag",
+        "tour_bag",
+        "pencil_bag",
+        "travel_bag",
+      ],
+      golf_club_type: [
+        "driver",
+        "fairway_wood",
+        "hybrid",
+        "iron",
+        "wedge",
+        "putter",
+      ],
+      golf_product_family: ["club", "bag", "set"],
+      golf_putter_head_type: ["blade", "mallet"],
+      golf_set_type: ["complete_set", "iron_set", "starter_set", "junior_set"],
+      golf_shaft_flex: [
+        "ladies",
+        "senior",
+        "regular",
+        "stiff",
+        "x_stiff",
+        "other",
+      ],
+      golf_shaft_material: ["graphite", "steel", "other"],
+      golfer_handedness: ["right", "left"],
       inventory_movement_type: [
         "receipt",
         "adjustment",
@@ -2847,6 +3314,7 @@ export const Constants = {
         "failed",
         "partially_refunded",
       ],
+      product_component_kind: ["club", "bag"],
       product_condition: ["new", "used"],
       product_condition_grade: [
         "like_new",
@@ -2856,6 +3324,7 @@ export const Constants = {
         "fair",
       ],
       product_status: ["draft", "active", "archived"],
+      product_target_player: ["men", "women", "junior", "unisex"],
       stripe_checkout_status: [
         "creating",
         "open",
