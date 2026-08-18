@@ -6,8 +6,6 @@ import { PublicFooter } from "@/components/catalog/public-footer";
 import { PublicHeader } from "@/components/catalog/public-header";
 import { listPublicProducts } from "@/lib/catalog/public-products";
 
-import proShopEquipmentImage from "../../../public/images/home/pro-shop-equipment-temporary.jpg";
-
 export const metadata: Metadata = {
   title: "Pro Shop | Peter Golf",
   description:
@@ -40,11 +38,10 @@ export default async function ProductsPage() {
 
             <div className="relative aspect-[16/8] overflow-hidden rounded-[20px] bg-white md:aspect-[4/3] lg:aspect-[16/10]">
               <Image
-                src={proShopEquipmentImage}
+                src="/images/home/pro-shop-equipment-temporary.jpg"
                 alt="Bolsa con palos de golf, ropa, calzado y pelotas en una composición editorial"
                 fill
                 preload
-                placeholder="blur"
                 sizes="(max-width: 767px) calc(100vw - 2rem), (max-width: 1279px) 52vw, 42rem"
                 className="object-cover object-center"
               />
