@@ -26,9 +26,9 @@ export default async function NewProductPage() {
           Crear producto
         </h1>
         <p className="text-muted-foreground mt-3 max-w-2xl leading-7">
-          Captura la información comercial base. Al guardar se crea una variante
-          base con el mismo SKU; imágenes, inventario, costos y variantes
-          configurables permanecen fuera de este flujo.
+          Captura la información comercial y el costo interno. Al guardar se
+          crea una variante base con el mismo SKU y el motor publica el precio
+          final; imágenes e inventario permanecen fuera de este flujo.
         </p>
       </div>
 
@@ -52,6 +52,7 @@ export default async function NewProductPage() {
         defaultValues={emptyProductFormValues}
         brands={references.data?.brands ?? []}
         categories={references.data?.categories ?? []}
+        pricingConfiguration={references.data?.pricingConfiguration ?? null}
       />
     </div>
   );

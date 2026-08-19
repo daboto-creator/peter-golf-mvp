@@ -11,6 +11,7 @@ import {
 
 import { CatalogFeedback } from "@/components/operations/catalog-feedback";
 import { ProductGolfFields } from "@/components/operations/product-golf-fields";
+import { ProductPricingFields } from "@/components/operations/product-pricing-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,10 @@ import {
   createProductAction,
   updateProductAction,
 } from "@/lib/catalog/operational-actions";
-import type { CatalogReference } from "@/lib/catalog/operational-products";
+import type {
+  CatalogReference,
+  OperationalPricingConfiguration,
+} from "@/lib/catalog/operational-products";
 import {
   generateProductSlug,
   productFormSchema,
@@ -37,6 +41,7 @@ export function ProductForm({
   defaultValues,
   brands,
   categories,
+  pricingConfiguration,
   disabled = false,
 }: {
   mode: "create" | "edit";
@@ -44,6 +49,7 @@ export function ProductForm({
   defaultValues: ProductFormValues;
   brands: CatalogReference[];
   categories: CatalogReference[];
+  pricingConfiguration: OperationalPricingConfiguration | null;
   disabled?: boolean;
 }) {
   const [result, setResult] = useState<CatalogActionResult>({
@@ -339,6 +345,19 @@ export function ProductForm({
           />
         ) : null}
 
+        {pricingConfiguration ? (
+          <ProductPricingFields
+            mode={mode}
+            productId={productId}
+            categories={categories}
+            pricingConfiguration={pricingConfiguration}
+            control={control}
+            register={register}
+            setValue={setValue}
+            fieldError={fieldError}
+          />
+        ) : null}
+
         <section className="space-y-5 rounded-xl border bg-white p-5 sm:p-6">
           <div>
             <h2 className="text-lg font-semibold">Precio y disponibilidad</h2>
@@ -346,7 +365,7 @@ export function ProductForm({
               Los importes se capturan en pesos y se guardan como centavos.
             </p>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2">
             <FormField
               id="fulfillmentType"
               label="Tipo de fulfillment"
@@ -361,18 +380,6 @@ export function ProductForm({
                 <option value="special_order">Sobre pedido</option>
                 <option value="preorder">Preventa</option>
               </select>
-            </FormField>
-            <FormField
-              id="price"
-              label="Precio (MXN)"
-              error={fieldError("price")}
-            >
-              <Input
-                id="price"
-                inputMode="decimal"
-                placeholder="1250.00"
-                {...register("price")}
-              />
             </FormField>
             <FormField
               id="compareAtPrice"
@@ -444,8 +451,8 @@ export function ProductForm({
         </Button>
         <p className="text-muted-foreground text-sm">
           {mode === "create"
-            ? "Se creará una variante base con el mismo SKU. Costos e inventario permanecen fuera de este formulario."
-            : "Nombre y SKU se sincronizan con la variante base; no se crean variantes ni se modifican costos o inventario."}
+            ? "Se creará una variante base con el mismo SKU y costo de adquisición; el inventario permanece fuera de este formulario."
+            : "Nombre, SKU, costo y precio se sincronizan atómicamente; no se crean variantes ni se modifica inventario."}
         </p>
       </div>
     </form>

@@ -1,11 +1,22 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+
 import {
   minorUnitsToPriceInput,
   type ProductFormValues,
 } from "@/lib/catalog/product-validation";
 import { selectAssignableTaxonomies } from "@/lib/catalog/taxonomy-validation";
+import {
+  pricingRuleCodes,
+  type AcquisitionChannel,
+  type MarketConfidence,
+  type PricingHealth,
+  type PricingRuleCode,
+  type PricingStatus,
+  type PaymentFeeConfig,
+} from "@/lib/pricing/pricing-types";
+import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
 
 type ProductCondition = Database["public"]["Enums"]["product_condition"];
@@ -24,7 +35,87 @@ export type CatalogReference = {
   clubType?: Database["public"]["Enums"]["golf_club_type"] | null;
   bagType?: Database["public"]["Enums"]["golf_bag_type"] | null;
   setType?: Database["public"]["Enums"]["golf_set_type"] | null;
+  newPricingRule?: PricingRuleCode | null;
+  usedPricingRule?: PricingRuleCode | null;
 };
+
+export type OperationalProductPricing = {
+  variantId: string;
+  acquisitionCost: number;
+  acquisitionChannel: AcquisitionChannel;
+  conditioningCost: number;
+  packagingCost: number;
+  shippingSubsidy: number;
+  pricingRuleCode: PricingRuleCode;
+  marketReference: number | null;
+  marketAverage: number | null;
+  marketLow: number | null;
+  marketHigh: number | null;
+  marketSampleSize: number;
+  marketConfidence: MarketConfidence;
+  marketSource: string | null;
+  marketSourceUrl: string | null;
+  marketCheckedAt: string | null;
+  marketProvider: string | null;
+  marketResearchId: string | null;
+  financialPrice: number;
+  suggestedPrice: number;
+  finalPrice: number;
+  estimatedPaymentFee: number;
+  expectedContribution: number;
+  returnOnCostBps: number;
+  marginOnSaleBps: number;
+  marketDeltaBps: number | null;
+  status: PricingStatus;
+  health: PricingHealth;
+  manualOverride: boolean;
+  manualPriceReason: string | null;
+  version: number;
+};
+
+export type OperationalPricingConfiguration = {
+  targetReturnBps: Record<PricingRuleCode, number>;
+  paymentFee: PaymentFeeConfig;
+};
+
+const operationalProductPricingSchema = z.object({
+  variantId: z.uuid(),
+  acquisitionCost: z.number().int().positive(),
+  acquisitionChannel: z.enum(["purchase", "trade_in"]),
+  conditioningCost: z.number().int().nonnegative(),
+  packagingCost: z.number().int().nonnegative(),
+  shippingSubsidy: z.number().int().nonnegative(),
+  pricingRuleCode: z.enum(pricingRuleCodes),
+  marketReference: z.number().int().positive().nullable(),
+  marketAverage: z.number().int().positive().nullable(),
+  marketLow: z.number().int().nonnegative().nullable(),
+  marketHigh: z.number().int().nonnegative().nullable(),
+  marketSampleSize: z.number().int().nonnegative(),
+  marketConfidence: z.enum(["high", "medium", "low", "unavailable"]),
+  marketSource: z.string().nullable(),
+  marketSourceUrl: z.string().nullable(),
+  marketCheckedAt: z.string().nullable(),
+  marketProvider: z.string().nullable(),
+  marketResearchId: z.uuid().nullable(),
+  financialPrice: z.number().int().nonnegative(),
+  suggestedPrice: z.number().int().nonnegative(),
+  finalPrice: z.number().int().nonnegative(),
+  estimatedPaymentFee: z.number().int().nonnegative(),
+  expectedContribution: z.number().int(),
+  returnOnCostBps: z.number().int(),
+  marginOnSaleBps: z.number().int(),
+  marketDeltaBps: z.number().int().nullable(),
+  status: z.enum([
+    "AUTO_COMPETITIVE",
+    "ABOVE_MARKET_WARNING",
+    "AUTO_MARKET_ADJUSTED_UP",
+    "NO_MARKET_REFERENCE",
+  ]),
+  health: z.enum(["GREEN", "YELLOW", "RED"]),
+  manualOverride: z.boolean(),
+  manualPriceReason: z.string().nullable(),
+  version: z.number().int().positive(),
+});
 
 export type OperationalProductSummary = {
   id: string;
@@ -284,29 +375,54 @@ export async function listActiveCatalogReferences(current?: {
   OperationalCatalogResult<{
     brands: CatalogReference[];
     categories: CatalogReference[];
+    pricingConfiguration: OperationalPricingConfiguration;
   }>
 > {
   try {
     const client = await createClient();
-    const [brandsResult, categoriesResult] = await Promise.all([
-      client.from("brands").select("id, name, status").order("name"),
-      client
-        .from("categories")
-        .select(
-          `
+    const [brandsResult, categoriesResult, rulesResult, feeResult] =
+      await Promise.all([
+        client.from("brands").select("id, name, status").order("name"),
+        client
+          .from("categories")
+          .select(
+            `
           id,
           parent_id,
           slug,
           name,
           status,
-          profile:category_spec_profiles(family, club_type, bag_type, set_type)
+          profile:category_spec_profiles(family, club_type, bag_type, set_type),
+          pricing_profile:category_pricing_profiles(new_rule_code, used_rule_code)
         `,
-        )
-        .order("sort_order")
-        .order("name"),
-    ]);
+          )
+          .order("sort_order")
+          .order("name"),
+        client
+          .from("pricing_rules")
+          .select("code, target_return_bps")
+          .eq("active", true),
+        client
+          .from("payment_fee_configs")
+          .select("code, percentage_bps, fixed_fee")
+          .eq("code", "stripe_domestic_mx")
+          .eq("active", true)
+          .maybeSingle(),
+      ]);
 
-    if (brandsResult.error || categoriesResult.error) {
+    if (
+      brandsResult.error ||
+      categoriesResult.error ||
+      rulesResult.error ||
+      feeResult.error ||
+      !feeResult.data
+    ) {
+      return { data: null, error: "unavailable" };
+    }
+    const targetEntries = rulesResult.data.filter((rule) =>
+      pricingRuleCodes.includes(rule.code as PricingRuleCode),
+    );
+    if (targetEntries.length !== pricingRuleCodes.length) {
       return { data: null, error: "unavailable" };
     }
 
@@ -324,9 +440,25 @@ export async function listActiveCatalogReferences(current?: {
             clubType: category.profile?.club_type ?? null,
             bagType: category.profile?.bag_type ?? null,
             setType: category.profile?.set_type ?? null,
+            newPricingRule:
+              (category.pricing_profile
+                ?.new_rule_code as PricingRuleCode | null) ?? null,
+            usedPricingRule:
+              (category.pricing_profile
+                ?.used_rule_code as PricingRuleCode | null) ?? null,
           })),
           current?.categoryId,
         ),
+        pricingConfiguration: {
+          targetReturnBps: Object.fromEntries(
+            targetEntries.map((rule) => [rule.code, rule.target_return_bps]),
+          ) as Record<PricingRuleCode, number>,
+          paymentFee: {
+            code: feeResult.data.code,
+            percentageBps: feeResult.data.percentage_bps,
+            fixedFeeMinor: feeResult.data.fixed_fee,
+          },
+        },
       },
       error: null,
     };
@@ -337,6 +469,7 @@ export async function listActiveCatalogReferences(current?: {
 
 export function productToFormValues(
   product: OperationalProduct,
+  pricing: OperationalProductPricing | null = null,
 ): ProductFormValues {
   return {
     name: product.name,
@@ -358,6 +491,27 @@ export function productToFormValues(
     compareAtPrice: minorUnitsToPriceInput(product.compareAtPrice),
     currency: "MXN",
     priceIsEstimate: product.priceIsEstimate,
+    pricingEnabled: pricing !== null,
+    acquisitionChannel: pricing?.acquisitionChannel ?? "purchase",
+    acquisitionCost: minorUnitsToPriceInput(pricing?.acquisitionCost ?? null),
+    conditioningCost: minorUnitsToPriceInput(pricing?.conditioningCost ?? 0),
+    packagingCost: minorUnitsToPriceInput(pricing?.packagingCost ?? 0),
+    shippingSubsidy: minorUnitsToPriceInput(pricing?.shippingSubsidy ?? 0),
+    marketReference: minorUnitsToPriceInput(pricing?.marketReference ?? null),
+    marketAverage: minorUnitsToPriceInput(pricing?.marketAverage ?? null),
+    marketLow: minorUnitsToPriceInput(pricing?.marketLow ?? null),
+    marketHigh: minorUnitsToPriceInput(pricing?.marketHigh ?? null),
+    marketSampleSize:
+      pricing && pricing.marketSampleSize > 0
+        ? String(pricing.marketSampleSize)
+        : "",
+    marketConfidence: pricing?.marketConfidence ?? "unavailable",
+    marketSource: pricing?.marketSource ?? "",
+    marketSourceUrl: pricing?.marketSourceUrl ?? "",
+    marketResearchId: pricing?.marketResearchId ?? "",
+    marketProvider: pricing?.marketProvider ?? "",
+    marketCheckedAt: pricing?.marketCheckedAt ?? "",
+    manualPriceReason: pricing?.manualPriceReason ?? "",
     leadTimeMinDays:
       product.leadTimeMinDays === null ? "" : String(product.leadTimeMinDays),
     leadTimeMaxDays:
@@ -387,6 +541,24 @@ export const emptyProductFormValues: ProductFormValues = {
   compareAtPrice: "",
   currency: "MXN",
   priceIsEstimate: false,
+  pricingEnabled: true,
+  acquisitionChannel: "purchase",
+  acquisitionCost: "",
+  conditioningCost: "0.00",
+  packagingCost: "0.00",
+  shippingSubsidy: "0.00",
+  marketReference: "",
+  marketAverage: "",
+  marketLow: "",
+  marketHigh: "",
+  marketSampleSize: "",
+  marketConfidence: "unavailable",
+  marketSource: "",
+  marketSourceUrl: "",
+  marketResearchId: "",
+  marketProvider: "",
+  marketCheckedAt: "",
+  manualPriceReason: "",
   leadTimeMinDays: "",
   leadTimeMaxDays: "",
   featured: false,
@@ -430,6 +602,31 @@ export const emptyProductFormValues: ProductFormValues = {
   cartCompatible: "",
   components: [],
 };
+
+export async function getOperationalProductPricing(
+  productId: string,
+): Promise<OperationalCatalogResult<OperationalProductPricing | null>> {
+  try {
+    const client = await createClient();
+    const { data, error } = await client.rpc("get_product_pricing_private", {
+      requested_product_id: productId,
+    });
+    if (error) return { data: null, error: "unavailable" };
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      return { data: null, error: null };
+    }
+    const value = data as Record<string, unknown>;
+    if (value.acquisitionChannel === null) return { data: null, error: null };
+    const parsed = operationalProductPricingSchema.safeParse(value);
+    if (!parsed.success) return { data: null, error: "unavailable" };
+    return {
+      data: parsed.data,
+      error: null,
+    };
+  } catch {
+    return { data: null, error: "unavailable" };
+  }
+}
 
 function toInput(value: number | null | undefined): string {
   return value === null || value === undefined ? "" : String(value);
