@@ -136,6 +136,21 @@ export type SelectableTaxonomy = {
   status: (typeof catalogRecordStatuses)[number];
 };
 
+export type SelectableProductCategory = SelectableTaxonomy & {
+  parentId?: string | null;
+  sortOrder?: number;
+  hasChildren?: boolean;
+};
+
+export type ProductCategoryOptionGroup<
+  T extends SelectableProductCategory = SelectableProductCategory,
+> = {
+  key: string;
+  label: string;
+  options: T[];
+  currentRelationOnly?: boolean;
+};
+
 export function selectAssignableTaxonomies<T extends SelectableTaxonomy>(
   records: T[],
   currentId?: string,
@@ -143,4 +158,78 @@ export function selectAssignableTaxonomies<T extends SelectableTaxonomy>(
   return records.filter(
     (record) => record.status === "active" || record.id === currentId,
   );
+}
+
+function compareCategoryOrder(
+  left: SelectableProductCategory,
+  right: SelectableProductCategory,
+): number {
+  return (
+    (left.sortOrder ?? 0) - (right.sortOrder ?? 0) ||
+    left.name.localeCompare(right.name, "es")
+  );
+}
+
+export function groupProductCategoryOptions<
+  T extends SelectableProductCategory,
+>(records: T[], currentId?: string): ProductCategoryOptionGroup<T>[] {
+  const categoriesById = new Map(
+    records.map((category) => [category.id, category]),
+  );
+  const groupsByRoot = new Map<string, T[]>();
+  const otherCategories: T[] = [];
+
+  for (const category of records) {
+    if (category.hasChildren) continue;
+    let root = category;
+    const visited = new Set<string>();
+    while (root.parentId && !visited.has(root.id)) {
+      visited.add(root.id);
+      const parent = categoriesById.get(root.parentId);
+      if (!parent) break;
+      root = parent;
+    }
+
+    if (root.id === category.id) {
+      otherCategories.push(category);
+      continue;
+    }
+    const group = groupsByRoot.get(root.id) ?? [];
+    group.push(category);
+    groupsByRoot.set(root.id, group);
+  }
+
+  const grouped: ProductCategoryOptionGroup<T>[] = [...groupsByRoot.entries()]
+    .map(([rootId, options]) => ({
+      key: rootId,
+      label: categoriesById.get(rootId)?.name ?? "Otras categorías",
+      root: categoriesById.get(rootId),
+      options: options.sort(compareCategoryOrder),
+    }))
+    .sort((left, right) =>
+      left.root && right.root
+        ? compareCategoryOrder(left.root, right.root)
+        : left.label.localeCompare(right.label, "es"),
+    )
+    .map(({ key, label, options }) => ({ key, label, options }));
+
+  if (otherCategories.length > 0) {
+    grouped.push({
+      key: "other-categories",
+      label: "Otras categorías",
+      options: otherCategories.sort(compareCategoryOrder),
+    });
+  }
+
+  const currentCategory = currentId ? categoriesById.get(currentId) : null;
+  if (currentCategory?.hasChildren) {
+    grouped.unshift({
+      key: "current-category-relation",
+      label: "Relación actual",
+      options: [currentCategory],
+      currentRelationOnly: true,
+    });
+  }
+
+  return grouped;
 }

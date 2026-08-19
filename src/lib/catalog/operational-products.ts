@@ -30,6 +30,8 @@ export type CatalogReference = {
   name: string;
   slug?: string;
   parentId?: string | null;
+  sortOrder?: number;
+  hasChildren?: boolean;
   status: Database["public"]["Enums"]["catalog_record_status"];
   family?: Database["public"]["Enums"]["golf_product_family"] | null;
   clubType?: Database["public"]["Enums"]["golf_club_type"] | null;
@@ -389,6 +391,7 @@ export async function listActiveCatalogReferences(current?: {
             `
           id,
           parent_id,
+          sort_order,
           slug,
           name,
           status,
@@ -426,6 +429,12 @@ export async function listActiveCatalogReferences(current?: {
       return { data: null, error: "unavailable" };
     }
 
+    const categoryIdsWithChildren = new Set(
+      categoriesResult.data.flatMap((category) =>
+        category.parent_id ? [category.parent_id] : [],
+      ),
+    );
+
     return {
       data: {
         brands: selectAssignableTaxonomies(brandsResult.data, current?.brandId),
@@ -435,6 +444,8 @@ export async function listActiveCatalogReferences(current?: {
             name: category.name,
             slug: category.slug,
             parentId: category.parent_id,
+            sortOrder: category.sort_order,
+            hasChildren: categoryIdsWithChildren.has(category.id),
             status: category.status,
             family: category.profile?.family ?? null,
             clubType: category.profile?.club_type ?? null,
