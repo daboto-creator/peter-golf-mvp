@@ -24,6 +24,7 @@ import type {
   CatalogReference,
   OperationalPricingConfiguration,
 } from "@/lib/catalog/operational-products";
+import { groupProductCategoryOptions } from "@/lib/catalog/taxonomy-validation";
 import {
   generateProductSlug,
   productFormSchema,
@@ -74,6 +75,10 @@ export function ProductForm({
   const previousCategoryId = useRef(categoryId);
   const unavailable =
     disabled || brands.length === 0 || categories.length === 0;
+  const categoryGroups = groupProductCategoryOptions(
+    categories,
+    defaultValues.categoryId || undefined,
+  );
 
   useEffect(() => {
     if (condition === "new") {
@@ -209,13 +214,19 @@ export function ProductForm({
                 {...register("categoryId")}
               >
                 <option value="">Selecciona una categoría</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.parentId ? `— ${category.name}` : category.name}
-                    {category.status === "archived"
-                      ? " (archivada · relación actual)"
-                      : ""}
-                  </option>
+                {categoryGroups.map((group) => (
+                  <optgroup key={group.key} label={group.label}>
+                    {group.options.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                        {group.currentRelationOnly
+                          ? " (categoría general · relación actual)"
+                          : category.status === "archived"
+                            ? " (archivada · relación actual)"
+                            : ""}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </FormField>

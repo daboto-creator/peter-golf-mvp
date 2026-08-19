@@ -123,6 +123,8 @@ test.describe("golf product create, edit and reload @mutating", () => {
     await login(page);
     await page.goto("/operacion/catalogo/nuevo");
 
+    await expectCategoryHierarchy(page);
+
     for (const viewport of [
       { width: 390, height: 844 },
       { width: 768, height: 1024 },
@@ -141,6 +143,49 @@ test.describe("golf product create, edit and reload @mutating", () => {
     }
   });
 });
+
+async function expectCategoryHierarchy(page: Page) {
+  const categorySelect = page.locator("#categoryId");
+  const expectedGroups = {
+    "Golf Clubs": [
+      "Driver",
+      "Fairway Wood",
+      "Hybrid",
+      "Iron",
+      "Wedge",
+      "Putter",
+    ],
+    "Golf Club Sets": ["Complete Set", "Iron Set", "Starter Set", "Junior Set"],
+    "Golf Bags": [
+      "Cart Bag",
+      "Stand Bag",
+      "Tour Bag",
+      "Pencil Bag",
+      "Travel Bag",
+    ],
+  };
+
+  for (const [label, expectedOptions] of Object.entries(expectedGroups)) {
+    await expect(
+      categorySelect.locator(`optgroup[label="${label}"] option`),
+    ).toHaveText(expectedOptions);
+  }
+
+  for (const parent of Object.keys(expectedGroups)) {
+    await expect(
+      categorySelect.locator("option", { hasText: new RegExp(`^${parent}$`) }),
+    ).toHaveCount(0);
+  }
+
+  const optionValues = await categorySelect
+    .locator("option")
+    .evaluateAll((options) =>
+      options
+        .map((option) => (option as HTMLOptionElement).value)
+        .filter(Boolean),
+    );
+  expect(new Set(optionValues).size).toBe(optionValues.length);
+}
 
 type Cycle = {
   slug: string;
