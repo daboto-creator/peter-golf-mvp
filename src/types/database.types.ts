@@ -585,6 +585,52 @@ export type Database = {
           },
         ];
       };
+      category_pricing_profiles: {
+        Row: {
+          category_id: string;
+          created_at: string;
+          new_rule_code: string | null;
+          updated_at: string;
+          used_rule_code: string | null;
+        };
+        Insert: {
+          category_id: string;
+          created_at?: string;
+          new_rule_code?: string | null;
+          updated_at?: string;
+          used_rule_code?: string | null;
+        };
+        Update: {
+          category_id?: string;
+          created_at?: string;
+          new_rule_code?: string | null;
+          updated_at?: string;
+          used_rule_code?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "category_pricing_profiles_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: true;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "category_pricing_profiles_new_rule_code_fkey";
+            columns: ["new_rule_code"];
+            isOneToOne: false;
+            referencedRelation: "pricing_rules";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "category_pricing_profiles_used_rule_code_fkey";
+            columns: ["used_rule_code"];
+            isOneToOne: false;
+            referencedRelation: "pricing_rules";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
       category_spec_profiles: {
         Row: {
           bag_type: Database["public"]["Enums"]["golf_bag_type"] | null;
@@ -717,6 +763,100 @@ export type Database = {
             columns: ["inventory_id"];
             isOneToOne: false;
             referencedRelation: "inventory";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      market_price_researches: {
+        Row: {
+          average_price: number | null;
+          brand_id: string;
+          category_id: string;
+          checked_at: string;
+          confidence: Database["public"]["Enums"]["market_price_confidence"];
+          created_at: string;
+          created_by: string;
+          excluded_count: number;
+          expires_at: string;
+          high_price: number | null;
+          id: string;
+          input_fingerprint: string;
+          input_snapshot: Json;
+          low_price: number | null;
+          median_price: number | null;
+          product_condition: Database["public"]["Enums"]["product_condition"];
+          product_id: string | null;
+          provider: string;
+          result_snapshot: Json;
+          sample_size: number;
+          search_query: string | null;
+        };
+        Insert: {
+          average_price?: number | null;
+          brand_id: string;
+          category_id: string;
+          checked_at: string;
+          confidence?: Database["public"]["Enums"]["market_price_confidence"];
+          created_at?: string;
+          created_by: string;
+          excluded_count?: number;
+          expires_at: string;
+          high_price?: number | null;
+          id?: string;
+          input_fingerprint: string;
+          input_snapshot: Json;
+          low_price?: number | null;
+          median_price?: number | null;
+          product_condition: Database["public"]["Enums"]["product_condition"];
+          product_id?: string | null;
+          provider: string;
+          result_snapshot: Json;
+          sample_size?: number;
+          search_query?: string | null;
+        };
+        Update: {
+          average_price?: number | null;
+          brand_id?: string;
+          category_id?: string;
+          checked_at?: string;
+          confidence?: Database["public"]["Enums"]["market_price_confidence"];
+          created_at?: string;
+          created_by?: string;
+          excluded_count?: number;
+          expires_at?: string;
+          high_price?: number | null;
+          id?: string;
+          input_fingerprint?: string;
+          input_snapshot?: Json;
+          low_price?: number | null;
+          median_price?: number | null;
+          product_condition?: Database["public"]["Enums"]["product_condition"];
+          product_id?: string | null;
+          provider?: string;
+          result_snapshot?: Json;
+          sample_size?: number;
+          search_query?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "market_price_researches_brand_id_fkey";
+            columns: ["brand_id"];
+            isOneToOne: false;
+            referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "market_price_researches_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "market_price_researches_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
             referencedColumns: ["id"];
           },
         ];
@@ -1301,6 +1441,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      payment_fee_configs: {
+        Row: {
+          active: boolean;
+          code: string;
+          created_at: string;
+          display_name: string;
+          fixed_fee: number;
+          percentage_bps: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          code: string;
+          created_at?: string;
+          display_name: string;
+          fixed_fee: number;
+          percentage_bps: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          created_at?: string;
+          display_name?: string;
+          fixed_fee?: number;
+          percentage_bps?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       payment_idempotency_keys: {
         Row: {
           actor_id: string;
@@ -1458,6 +1628,94 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      pricing_calculations: {
+        Row: {
+          actor_id: string | null;
+          calculated_at: string;
+          final_price: number;
+          id: string;
+          manual_override: boolean;
+          pricing_rule_code: string;
+          product_id: string;
+          snapshot: Json;
+          status: Database["public"]["Enums"]["pricing_status"];
+          variant_id: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          calculated_at?: string;
+          final_price: number;
+          id?: string;
+          manual_override: boolean;
+          pricing_rule_code: string;
+          product_id: string;
+          snapshot: Json;
+          status: Database["public"]["Enums"]["pricing_status"];
+          variant_id: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          calculated_at?: string;
+          final_price?: number;
+          id?: string;
+          manual_override?: boolean;
+          pricing_rule_code?: string;
+          product_id?: string;
+          snapshot?: Json;
+          status?: Database["public"]["Enums"]["pricing_status"];
+          variant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pricing_calculations_pricing_rule_code_fkey";
+            columns: ["pricing_rule_code"];
+            isOneToOne: false;
+            referencedRelation: "pricing_rules";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "pricing_calculations_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pricing_calculations_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pricing_rules: {
+        Row: {
+          active: boolean;
+          code: string;
+          created_at: string;
+          display_name: string;
+          target_return_bps: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          code: string;
+          created_at?: string;
+          display_name: string;
+          target_return_bps: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          created_at?: string;
+          display_name?: string;
+          target_return_bps?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       product_bag_specs: {
         Row: {
@@ -1760,6 +2018,159 @@ export type Database = {
             foreignKeyName: "product_images_variant_id_fkey";
             columns: ["variant_id"];
             isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_pricing: {
+        Row: {
+          acquisition_channel: Database["public"]["Enums"]["acquisition_channel"];
+          conditioning_cost: number;
+          created_at: string;
+          estimated_payment_fee: number;
+          expected_contribution: number;
+          final_price: number;
+          financial_price: number;
+          health: Database["public"]["Enums"]["pricing_health"];
+          manual_override: boolean;
+          manual_price_reason: string | null;
+          margin_on_sale_bps: number;
+          market_average: number | null;
+          market_checked_at: string | null;
+          market_confidence: Database["public"]["Enums"]["market_price_confidence"];
+          market_delta_bps: number | null;
+          market_high: number | null;
+          market_low: number | null;
+          market_provider: string | null;
+          market_reference: number | null;
+          market_research_id: string | null;
+          market_sample_size: number;
+          market_source: string | null;
+          market_source_url: string | null;
+          overridden_at: string | null;
+          overridden_by: string | null;
+          packaging_cost: number;
+          payment_fee_config_code: string;
+          pricing_rule_code: string;
+          product_id: string;
+          return_on_cost_bps: number;
+          shipping_subsidy: number;
+          status: Database["public"]["Enums"]["pricing_status"];
+          suggested_price: number;
+          updated_at: string;
+          variant_id: string;
+          version: number;
+        };
+        Insert: {
+          acquisition_channel?: Database["public"]["Enums"]["acquisition_channel"];
+          conditioning_cost?: number;
+          created_at?: string;
+          estimated_payment_fee: number;
+          expected_contribution: number;
+          final_price: number;
+          financial_price: number;
+          health: Database["public"]["Enums"]["pricing_health"];
+          manual_override?: boolean;
+          manual_price_reason?: string | null;
+          margin_on_sale_bps: number;
+          market_average?: number | null;
+          market_checked_at?: string | null;
+          market_confidence?: Database["public"]["Enums"]["market_price_confidence"];
+          market_delta_bps?: number | null;
+          market_high?: number | null;
+          market_low?: number | null;
+          market_provider?: string | null;
+          market_reference?: number | null;
+          market_research_id?: string | null;
+          market_sample_size?: number;
+          market_source?: string | null;
+          market_source_url?: string | null;
+          overridden_at?: string | null;
+          overridden_by?: string | null;
+          packaging_cost?: number;
+          payment_fee_config_code: string;
+          pricing_rule_code: string;
+          product_id: string;
+          return_on_cost_bps: number;
+          shipping_subsidy?: number;
+          status: Database["public"]["Enums"]["pricing_status"];
+          suggested_price: number;
+          updated_at?: string;
+          variant_id: string;
+          version?: number;
+        };
+        Update: {
+          acquisition_channel?: Database["public"]["Enums"]["acquisition_channel"];
+          conditioning_cost?: number;
+          created_at?: string;
+          estimated_payment_fee?: number;
+          expected_contribution?: number;
+          final_price?: number;
+          financial_price?: number;
+          health?: Database["public"]["Enums"]["pricing_health"];
+          manual_override?: boolean;
+          manual_price_reason?: string | null;
+          margin_on_sale_bps?: number;
+          market_average?: number | null;
+          market_checked_at?: string | null;
+          market_confidence?: Database["public"]["Enums"]["market_price_confidence"];
+          market_delta_bps?: number | null;
+          market_high?: number | null;
+          market_low?: number | null;
+          market_provider?: string | null;
+          market_reference?: number | null;
+          market_research_id?: string | null;
+          market_sample_size?: number;
+          market_source?: string | null;
+          market_source_url?: string | null;
+          overridden_at?: string | null;
+          overridden_by?: string | null;
+          packaging_cost?: number;
+          payment_fee_config_code?: string;
+          pricing_rule_code?: string;
+          product_id?: string;
+          return_on_cost_bps?: number;
+          shipping_subsidy?: number;
+          status?: Database["public"]["Enums"]["pricing_status"];
+          suggested_price?: number;
+          updated_at?: string;
+          variant_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_pricing_market_research_id_fkey";
+            columns: ["market_research_id"];
+            isOneToOne: false;
+            referencedRelation: "market_price_researches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_pricing_payment_fee_config_code_fkey";
+            columns: ["payment_fee_config_code"];
+            isOneToOne: false;
+            referencedRelation: "payment_fee_configs";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "product_pricing_pricing_rule_code_fkey";
+            columns: ["pricing_rule_code"];
+            isOneToOne: false;
+            referencedRelation: "pricing_rules";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "product_pricing_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: true;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_pricing_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: true;
             referencedRelation: "product_variants";
             referencedColumns: ["id"];
           },
@@ -2376,7 +2787,35 @@ export type Database = {
           replayed: boolean;
         }[];
       };
+      apply_product_pricing: {
+        Args: {
+          requested_category_id: string;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_final_price: unknown;
+          requested_pricing: Json;
+          requested_product_id: string;
+          requested_variant_id: string;
+        };
+        Returns: Json;
+      };
       backfill_legacy_order_payments: { Args: never; Returns: undefined };
+      calculate_product_pricing: {
+        Args: {
+          requested_acquisition_cost: unknown;
+          requested_conditioning_cost: unknown;
+          requested_final_price: unknown;
+          requested_manual_reason: string;
+          requested_market_confidence: Database["public"]["Enums"]["market_price_confidence"];
+          requested_market_high: unknown;
+          requested_market_low: unknown;
+          requested_market_reference: unknown;
+          requested_market_sample_size: number;
+          requested_packaging_cost: unknown;
+          requested_rule_code: string;
+          requested_shipping_subsidy: unknown;
+        };
+        Returns: Json;
+      };
       can_create_catalog_base_variant: {
         Args: {
           requested_name: string;
@@ -2391,6 +2830,7 @@ export type Database = {
         Returns: boolean;
       };
       can_manage_orders: { Args: never; Returns: boolean };
+      can_override_pricing_floor: { Args: never; Returns: boolean };
       cancel_manual_order: {
         Args: {
           expected_version: number;
@@ -2576,6 +3016,40 @@ export type Database = {
           replayed: boolean;
         }[];
       };
+      create_priced_golf_product_with_base_variant: {
+        Args: {
+          requested_brand_id: string;
+          requested_category_id: string;
+          requested_compare_at_price: unknown;
+          requested_components: Json;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_condition_score: number | null;
+          requested_currency: unknown;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_name: string;
+          requested_price: unknown;
+          requested_price_is_estimate: boolean;
+          requested_pricing: Json;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+          requested_specifications: Json;
+          requested_target_player:
+            Database["public"]["Enums"]["product_target_player"] | null;
+        };
+        Returns: {
+          product_id: string;
+          variant_id: string;
+        }[];
+      };
       create_product_with_base_variant: {
         Args: {
           requested_brand_id: string;
@@ -2644,6 +3118,10 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      get_product_pricing_private: {
+        Args: { requested_product_id: string };
+        Returns: Json;
       };
       initialize_inventory: {
         Args: { requested_variant_id: string };
@@ -2777,6 +3255,29 @@ export type Database = {
           replayed: boolean;
         }[];
       };
+      record_market_price_research: {
+        Args: {
+          requested_average_price: unknown;
+          requested_brand_id: string;
+          requested_category_id: string;
+          requested_checked_at: string;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_confidence: Database["public"]["Enums"]["market_price_confidence"];
+          requested_excluded_count: number;
+          requested_expires_at: string;
+          requested_high_price: unknown;
+          requested_input_fingerprint: string;
+          requested_input_snapshot: Json;
+          requested_low_price: unknown;
+          requested_median_price: unknown;
+          requested_product_id: string | null;
+          requested_provider: string;
+          requested_result_snapshot: Json;
+          requested_sample_size: number;
+          requested_search_query: string | null;
+        };
+        Returns: string;
+      };
       recover_expired_notification_leases: { Args: never; Returns: number };
       register_product_image: {
         Args: {
@@ -2810,6 +3311,15 @@ export type Database = {
           variant_id: string;
         }[];
       };
+      resolve_product_pricing_rule: {
+        Args: {
+          requested_acquisition_channel: Database["public"]["Enums"]["acquisition_channel"];
+          requested_category_id: string;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_product_id: string;
+        };
+        Returns: string;
+      };
       restore_product_image: {
         Args: {
           requested_alt_text: string;
@@ -2837,6 +3347,10 @@ export type Database = {
           status: Database["public"]["Enums"]["payment_status"];
           version: number;
         }[];
+      };
+      round_up_commercial_price: {
+        Args: { requested_market_upper?: unknown; requested_minimum: unknown };
+        Returns: unknown;
       };
       stripe_checkout_test_mode_enabled: { Args: never; Returns: boolean };
       submit_bank_transfer: {
@@ -2946,6 +3460,43 @@ export type Database = {
           version: number;
         }[];
       };
+      update_priced_golf_product_with_base_variant: {
+        Args: {
+          expected_published: boolean;
+          expected_status: Database["public"]["Enums"]["product_status"];
+          requested_brand_id: string;
+          requested_category_id: string;
+          requested_compare_at_price: unknown;
+          requested_components: Json;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_condition_score: number | null;
+          requested_currency: unknown;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_name: string;
+          requested_price: unknown;
+          requested_price_is_estimate: boolean;
+          requested_pricing: Json;
+          requested_product_id: string;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+          requested_specifications: Json;
+          requested_target_player:
+            Database["public"]["Enums"]["product_target_player"] | null;
+        };
+        Returns: {
+          product_id: string;
+          variant_id: string;
+        }[];
+      };
       update_product_image: {
         Args: {
           requested_alt_text: string;
@@ -2988,6 +3539,7 @@ export type Database = {
       };
     };
     Enums: {
+      acquisition_channel: "purchase" | "trade_in";
       advisory_request_status: "new" | "in_contact" | "resolved" | "closed";
       advisory_session_status: "active" | "completed" | "abandoned";
       cart_status: "active" | "converted" | "abandoned";
@@ -3027,6 +3579,7 @@ export type Database = {
         | "transfer_verified"
         | "cash_received"
         | "external_terminal_received";
+      market_price_confidence: "high" | "medium" | "low" | "unavailable";
       notification_channel: "email";
       notification_delivery_status:
         "pending" | "processing" | "sent" | "failed" | "dead_letter";
@@ -3062,6 +3615,12 @@ export type Database = {
         | "refunded"
         | "failed"
         | "partially_refunded";
+      pricing_health: "GREEN" | "YELLOW" | "RED";
+      pricing_status:
+        | "AUTO_COMPETITIVE"
+        | "ABOVE_MARKET_WARNING"
+        | "AUTO_MARKET_ADJUSTED_UP"
+        | "NO_MARKET_REFERENCE";
       product_component_kind: "club" | "bag";
       product_condition: "new" | "used";
       product_condition_grade:
@@ -3208,6 +3767,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      acquisition_channel: ["purchase", "trade_in"],
       advisory_request_status: ["new", "in_contact", "resolved", "closed"],
       advisory_session_status: ["active", "completed", "abandoned"],
       cart_status: ["active", "converted", "abandoned"],
@@ -3271,6 +3831,7 @@ export const Constants = {
         "cash_received",
         "external_terminal_received",
       ],
+      market_price_confidence: ["high", "medium", "low", "unavailable"],
       notification_channel: ["email"],
       notification_delivery_status: [
         "pending",
@@ -3313,6 +3874,13 @@ export const Constants = {
         "refunded",
         "failed",
         "partially_refunded",
+      ],
+      pricing_health: ["GREEN", "YELLOW", "RED"],
+      pricing_status: [
+        "AUTO_COMPETITIVE",
+        "ABOVE_MARKET_WARNING",
+        "AUTO_MARKET_ADJUSTED_UP",
+        "NO_MARKET_REFERENCE",
       ],
       product_component_kind: ["club", "bag"],
       product_condition: ["new", "used"],

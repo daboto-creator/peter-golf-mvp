@@ -14,7 +14,9 @@ test.describe("golf product create, edit and reload @mutating", () => {
     );
   });
 
-  test.beforeAll(() => prepareOperator());
+  test.beforeAll(({}, workerInfo) => {
+    if (workerInfo.project.name === "Desktop Chrome") prepareOperator();
+  });
 
   test("persists Driver, Wedge, Putter, Stand Bag and Complete Set fields", async ({
     page,
@@ -44,6 +46,7 @@ test.describe("golf product create, edit and reload @mutating", () => {
         adjustmentToolIncluded: "yes",
       },
       edit: { loftDegrees: "9" },
+      researchMarket: true,
     });
     await createEditReload(page, {
       slug: "e2e-final-wedge",
@@ -113,6 +116,30 @@ test.describe("golf product create, edit and reload @mutating", () => {
       ],
     });
   });
+
+  test("keeps Pricing Peter Golf usable without horizontal overflow", async ({
+    page,
+  }) => {
+    await login(page);
+    await page.goto("/operacion/catalogo/nuevo");
+
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 768, height: 1024 },
+      { width: 1440, height: 1000 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect(
+        page.getByRole("heading", { name: "Costo, mercado y rentabilidad" }),
+      ).toBeVisible();
+      await expect(page.locator("#acquisitionCost")).toBeVisible();
+      await expect(page.locator("#price")).toBeVisible();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > window.innerWidth + 1,
+      );
+      expect(overflow).toBe(false);
+    }
+  });
 });
 
 type Cycle = {
@@ -127,6 +154,7 @@ type Cycle = {
     number?: string;
     loft?: string;
   }>;
+  researchMarket?: boolean;
 };
 
 async function createEditReload(page: Page, cycle: Cycle) {
@@ -136,14 +164,37 @@ async function createEditReload(page: Page, cycle: Cycle) {
   await page.locator("#sku").fill(cycle.slug.toUpperCase());
   await page.locator("#brandId").selectOption({ index: 1 });
   await selectCategory(page, cycle.category);
+  await page.locator("#acquisitionCost").fill("800.00");
   await page.locator("#price").fill("1250.00");
   await fillValues(page, cycle.values);
   if (cycle.components) await fillComponents(page, cycle.components);
+  if (cycle.researchMarket) {
+    await page
+      .getByRole("button", { name: "Calcular precio Peter Golf" })
+      .click();
+    await expect(
+      page.locator('input[name="marketResearchId"]'),
+    ).not.toHaveValue("", { timeout: 20_000 });
+  }
   await page.getByRole("button", { name: "Crear producto" }).click();
   await expect(page).toHaveURL(
     /\/operacion\/catalogo\/[0-9a-f-]+\/editar\?creado=1/,
   );
   await assertValues(page, cycle.values);
+  await expect(page.locator("#acquisitionCost")).toHaveValue("800.00");
+  if (cycle.researchMarket) {
+    const currentPrice = await page.locator("#price").inputValue();
+    const previousResearchId = await page
+      .locator('input[name="marketResearchId"]')
+      .inputValue();
+    await page
+      .getByRole("button", { name: "Actualizar referencia de mercado" })
+      .click();
+    await expect(
+      page.locator('input[name="marketResearchId"]'),
+    ).not.toHaveValue(previousResearchId, { timeout: 20_000 });
+    await expect(page.locator("#price")).toHaveValue(currentPrice);
+  }
 
   await fillValues(page, cycle.edit);
   await page.getByRole("button", { name: "Guardar cambios" }).click();
@@ -152,6 +203,7 @@ async function createEditReload(page: Page, cycle: Cycle) {
   ).toBeVisible();
   await page.reload();
   await assertValues(page, { ...cycle.values, ...cycle.edit });
+  await expect(page.locator("#acquisitionCost")).toHaveValue("800.00");
   if (cycle.components) {
     await expect(page.locator('[id^="components-"][id$="-kind"]')).toHaveCount(
       cycle.components.length,

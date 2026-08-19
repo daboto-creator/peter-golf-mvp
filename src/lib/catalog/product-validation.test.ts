@@ -27,6 +27,24 @@ const validProduct: ProductFormValues = {
   compareAtPrice: "1500",
   currency: "MXN",
   priceIsEstimate: false,
+  pricingEnabled: true,
+  acquisitionChannel: "purchase",
+  acquisitionCost: "800.00",
+  conditioningCost: "0.00",
+  packagingCost: "0.00",
+  shippingSubsidy: "0.00",
+  marketReference: "",
+  marketAverage: "",
+  marketLow: "",
+  marketHigh: "",
+  marketSampleSize: "",
+  marketConfidence: "unavailable",
+  marketSource: "",
+  marketSourceUrl: "",
+  marketResearchId: "",
+  marketProvider: "",
+  marketCheckedAt: "",
+  manualPriceReason: "",
   leadTimeMinDays: "",
   leadTimeMaxDays: "",
   featured: false,
@@ -97,8 +115,42 @@ describe("product validation", () => {
         sku: "PG-DRIVER-001",
         price: 125050,
         compareAtPrice: 150000,
+        pricing: {
+          acquisitionCost: 80000,
+          conditioningCost: 0,
+        },
       });
     }
+  });
+
+  it("requires acquisition cost when pricing is enabled", () => {
+    const result = validateProductForm({
+      ...validProduct,
+      acquisitionCost: "0",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.errors.acquisitionCost).toBeDefined();
+  });
+
+  it("keeps a legacy product valid without internal pricing", () => {
+    const result = validateProductForm({
+      ...validProduct,
+      pricingEnabled: false,
+      acquisitionCost: "",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.pricing).toBeNull();
+  });
+
+  it("requires provenance for a manual market reference", () => {
+    const result = validateProductForm({
+      ...validProduct,
+      marketReference: "1500.00",
+      marketConfidence: "medium",
+      marketSource: "",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.errors.marketSource).toBeDefined();
   });
 
   it("requires condition details for a used product", () => {

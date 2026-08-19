@@ -12,6 +12,7 @@ import { ProductStatusBadge } from "@/components/operations/product-status-badge
 import { Button } from "@/components/ui/button";
 import {
   getOperationalProductById,
+  getOperationalProductPricing,
   listActiveCatalogReferences,
   listOperationalProductImages,
   productToFormValues,
@@ -52,12 +53,13 @@ export default async function EditProductPage({
   }
 
   const product = productResult.data;
-  const [references, imagesResult] = await Promise.all([
+  const [references, imagesResult, pricingResult] = await Promise.all([
     listActiveCatalogReferences({
       brandId: product.brandId,
       categoryId: product.categoryId,
     }),
     listOperationalProductImages(id),
+    getOperationalProductPricing(id),
   ]);
 
   return (
@@ -95,6 +97,14 @@ export default async function EditProductPage({
         />
       ) : null}
 
+      {pricingResult.error ? (
+        <CatalogFeedback
+          tone="error"
+          title="No pudimos cargar el pricing interno"
+          message="La edición está deshabilitada para evitar sobrescribir costos o rentabilidad con información incompleta."
+        />
+      ) : null}
+
       <ProductStateActions
         productId={product.id}
         status={product.status}
@@ -104,10 +114,15 @@ export default async function EditProductPage({
       <ProductForm
         mode="edit"
         productId={product.id}
-        defaultValues={productToFormValues(product)}
+        defaultValues={productToFormValues(product, pricingResult.data)}
         brands={references.data?.brands ?? []}
         categories={references.data?.categories ?? []}
-        disabled={product.status === "archived" || Boolean(references.error)}
+        pricingConfiguration={references.data?.pricingConfiguration ?? null}
+        disabled={
+          product.status === "archived" ||
+          Boolean(references.error) ||
+          Boolean(pricingResult.error)
+        }
       />
 
       {imagesResult.error ? (

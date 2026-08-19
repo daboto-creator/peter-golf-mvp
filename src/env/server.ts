@@ -53,6 +53,10 @@ const serverEnvironmentSchema = z.object({
   STRIPE_WEBHOOK_SECRET: optionalNonEmptyString,
   NOTIFICATIONS_MODE: z.enum(["disabled", "test"]).default("disabled"),
   SUPABASE_SERVICE_ROLE_KEY: optionalNonEmptyString,
+  MARKET_PRICE_PROVIDER: emptyAsUndefined(
+    z.enum(["serpapi", "unavailable"]).default("unavailable"),
+  ),
+  SERPAPI_API_KEY: optionalNonEmptyString,
   ...notificationEmailEnvironmentSchema.shape,
 });
 
@@ -91,6 +95,8 @@ const rawServerEnvironment = {
   EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME,
   EMAIL_ALLOWED_RECIPIENT_DOMAINS: process.env.EMAIL_ALLOWED_RECIPIENT_DOMAINS,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  MARKET_PRICE_PROVIDER: process.env.MARKET_PRICE_PROVIDER,
+  SERPAPI_API_KEY: process.env.SERPAPI_API_KEY,
 };
 
 const parsedServerEnvironment = parseEnvironment(
@@ -281,6 +287,13 @@ function assertHostedEnvironment() {
         invalidFields.push(field);
       }
     }
+  }
+
+  if (
+    resolvedServerEnvironment.MARKET_PRICE_PROVIDER === "serpapi" &&
+    !resolvedServerEnvironment.SERPAPI_API_KEY
+  ) {
+    invalidFields.push("SERPAPI_API_KEY");
   }
 
   if (invalidFields.length > 0) {

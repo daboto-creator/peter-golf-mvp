@@ -66,6 +66,13 @@ const optionalDecimalText = z
     message: "Escribe un número positivo con máximo dos decimales.",
   });
 
+const moneyTextWithZeroDefault = z
+  .string()
+  .trim()
+  .refine((value) => parseMoneyToMinorUnits(value || "0") !== null, {
+    message: "Escribe un importe válido con máximo dos decimales.",
+  });
+
 const triState = z.enum(["", "yes", "no"]);
 const componentSchema = z.object({
   componentKind: z.enum(["club", "bag"]),
@@ -117,6 +124,24 @@ export const productFormSchema = z
     compareAtPrice: z.string().trim(),
     currency: z.literal("MXN"),
     priceIsEstimate: z.boolean(),
+    pricingEnabled: z.boolean(),
+    acquisitionChannel: z.enum(["purchase", "trade_in"]),
+    acquisitionCost: z.string().trim(),
+    conditioningCost: moneyTextWithZeroDefault,
+    packagingCost: moneyTextWithZeroDefault,
+    shippingSubsidy: moneyTextWithZeroDefault,
+    marketReference: z.string().trim(),
+    marketAverage: z.string().trim(),
+    marketLow: z.string().trim(),
+    marketHigh: z.string().trim(),
+    marketSampleSize: optionalIntegerText(10_000),
+    marketConfidence: z.enum(["unavailable", "low", "medium", "high"]),
+    marketSource: optionalText(240),
+    marketSourceUrl: optionalText(2_000),
+    marketResearchId: z.union([z.literal(""), z.uuid()]),
+    marketProvider: optionalText(80),
+    marketCheckedAt: optionalText(80),
+    manualPriceReason: optionalText(2_000),
     leadTimeMinDays: optionalIntegerText(),
     leadTimeMaxDays: optionalIntegerText(),
     featured: z.boolean(),
@@ -189,6 +214,96 @@ export const productFormSchema = z
         path: ["compareAtPrice"],
         message: "El precio comparativo no puede ser menor que el precio.",
       });
+    }
+
+    if (values.pricingEnabled) {
+      const acquisitionCost = parseMoneyToMinorUnits(values.acquisitionCost);
+      if (acquisitionCost === null || acquisitionCost <= 0) {
+        context.addIssue({
+          code: "custom",
+          path: ["acquisitionCost"],
+          message: "El costo de adquisición debe ser mayor que cero.",
+        });
+      }
+      const marketReference = values.marketReference
+        ? parseMoneyToMinorUnits(values.marketReference)
+        : null;
+      const marketLow = values.marketLow
+        ? parseMoneyToMinorUnits(values.marketLow)
+        : null;
+      const marketHigh = values.marketHigh
+        ? parseMoneyToMinorUnits(values.marketHigh)
+        : null;
+      const marketAverage = values.marketAverage
+        ? parseMoneyToMinorUnits(values.marketAverage)
+        : null;
+      if (
+        [
+          ["marketReference", values.marketReference, marketReference],
+          ["marketAverage", values.marketAverage, marketAverage],
+          ["marketLow", values.marketLow, marketLow],
+          ["marketHigh", values.marketHigh, marketHigh],
+        ].some(([field, raw, parsed]) => {
+          if (raw && parsed === null) {
+            context.addIssue({
+              code: "custom",
+              path: [String(field)],
+              message: "Escribe una referencia válida en MXN.",
+            });
+            return true;
+          }
+          return false;
+        })
+      ) {
+        return;
+      }
+      if (marketReference === null) {
+        if (
+          marketLow !== null ||
+          marketHigh !== null ||
+          marketAverage !== null ||
+          values.marketConfidence !== "unavailable" ||
+          values.marketSampleSize !== "" ||
+          values.marketSource !== ""
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["marketReference"],
+            message:
+              "Agrega una referencia central o limpia los datos de mercado.",
+          });
+        }
+      } else {
+        if (values.marketConfidence === "unavailable") {
+          context.addIssue({
+            code: "custom",
+            path: ["marketConfidence"],
+            message: "Selecciona la confianza de la referencia manual.",
+          });
+        }
+        if (!values.marketSource) {
+          context.addIssue({
+            code: "custom",
+            path: ["marketSource"],
+            message: "Indica la fuente de la referencia manual.",
+          });
+        }
+        if (marketLow !== null && marketLow > marketReference) {
+          context.addIssue({
+            code: "custom",
+            path: ["marketLow"],
+            message: "El mínimo no puede superar la referencia central.",
+          });
+        }
+        if (marketHigh !== null && marketHigh < marketReference) {
+          context.addIssue({
+            code: "custom",
+            path: ["marketHigh"],
+            message:
+              "El máximo no puede quedar debajo de la referencia central.",
+          });
+        }
+      }
     }
 
     if (values.condition === "used") {
@@ -333,6 +448,25 @@ export type ProductMutationInput = {
   compareAtPrice: number | null;
   currency: "MXN";
   priceIsEstimate: boolean;
+  pricing: {
+    acquisitionChannel: "purchase" | "trade_in";
+    acquisitionCost: number;
+    conditioningCost: number;
+    packagingCost: number;
+    shippingSubsidy: number;
+    marketReference: number | null;
+    marketAverage: number | null;
+    marketLow: number | null;
+    marketHigh: number | null;
+    marketSampleSize: number;
+    marketConfidence: "unavailable" | "low" | "medium" | "high";
+    marketSource: string | null;
+    marketSourceUrl: string | null;
+    marketResearchId: string | null;
+    marketProvider: string | null;
+    marketCheckedAt: string | null;
+    manualPriceReason: string | null;
+  } | null;
   leadTimeMinDays: number | null;
   leadTimeMaxDays: number | null;
   featured: boolean;
@@ -490,6 +624,43 @@ export function validateProductForm(
       compareAtPrice,
       currency: "MXN",
       priceIsEstimate: data.priceIsEstimate,
+      pricing: data.pricingEnabled
+        ? {
+            acquisitionChannel: data.acquisitionChannel,
+            acquisitionCost: parseMoneyToMinorUnits(data.acquisitionCost)!,
+            conditioningCost: parseMoneyToMinorUnits(
+              data.conditioningCost || "0",
+            )!,
+            packagingCost: parseMoneyToMinorUnits(data.packagingCost || "0")!,
+            shippingSubsidy: parseMoneyToMinorUnits(
+              data.shippingSubsidy || "0",
+            )!,
+            marketReference: data.marketReference
+              ? parseMoneyToMinorUnits(data.marketReference)
+              : null,
+            marketAverage: data.marketAverage
+              ? parseMoneyToMinorUnits(data.marketAverage)
+              : null,
+            marketLow: data.marketLow
+              ? parseMoneyToMinorUnits(data.marketLow)
+              : null,
+            marketHigh: data.marketHigh
+              ? parseMoneyToMinorUnits(data.marketHigh)
+              : null,
+            marketSampleSize: data.marketSampleSize
+              ? Number(data.marketSampleSize)
+              : 0,
+            marketConfidence: data.marketReference
+              ? data.marketConfidence
+              : "unavailable",
+            marketSource: data.marketSource || null,
+            marketSourceUrl: data.marketSourceUrl || null,
+            marketResearchId: data.marketResearchId || null,
+            marketProvider: data.marketProvider || null,
+            marketCheckedAt: data.marketCheckedAt || null,
+            manualPriceReason: data.manualPriceReason || null,
+          }
+        : null,
       leadTimeMinDays: numberOrNull(data.leadTimeMinDays),
       leadTimeMaxDays: numberOrNull(data.leadTimeMaxDays),
       featured: data.featured,

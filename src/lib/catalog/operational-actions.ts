@@ -143,6 +143,31 @@ function databaseMutationFailure(code?: string): CatalogActionResult {
   };
 }
 
+function pricingMutationFailure(code?: string): CatalogActionResult | null {
+  if (code === "42501") {
+    return {
+      status: "error",
+      message:
+        "Sólo un administrador puede guardar por debajo del precio financiero.",
+    };
+  }
+  if (code === "23514") {
+    return {
+      status: "error",
+      message:
+        "El precio final no puede quedar debajo del costo directo ni invalidar el precio comparativo.",
+    };
+  }
+  if (code === "22023") {
+    return {
+      status: "error",
+      message:
+        "Revisa los costos, la referencia de mercado y el motivo del precio manual.",
+    };
+  }
+  return null;
+}
+
 function productStateChangedFailure(): CatalogActionResult {
   return {
     status: "error",
@@ -159,6 +184,13 @@ export async function createProductAction(
 
   if (!validated.success) {
     return validationFailure(validated.errors);
+  }
+  if (!validated.data.pricing) {
+    return validationFailure({
+      acquisitionCost: [
+        "El pricing interno es obligatorio al crear un producto.",
+      ],
+    });
   }
 
   if (
@@ -195,7 +227,7 @@ export async function createProductAction(
 
   const client = await createClient();
   const { data, error } = await client
-    .rpc("create_golf_product_with_base_variant", {
+    .rpc("create_priced_golf_product_with_base_variant", {
       requested_brand_id: validated.data.brandId,
       requested_category_id: validated.data.categoryId,
       requested_compare_at_price: validated.data.compareAtPrice,
@@ -213,6 +245,7 @@ export async function createProductAction(
       requested_name: validated.data.name,
       requested_price: validated.data.price,
       requested_price_is_estimate: validated.data.priceIsEstimate,
+      requested_pricing: validated.data.pricing,
       requested_published: validated.data.published,
       requested_short_description: validated.data.shortDescription,
       requested_sku: validated.data.sku,
@@ -223,6 +256,8 @@ export async function createProductAction(
     .single();
 
   if (error || !data) {
+    const pricingFailure = pricingMutationFailure(error?.code);
+    if (pricingFailure) return pricingFailure;
     return databaseMutationFailure(error?.code);
   }
 
@@ -362,39 +397,48 @@ export async function updateProductAction(
   }
 
   const client = await createClient();
-  const { data, error } = await client
-    .rpc("update_golf_product_with_base_variant", {
-      expected_published: expectedState.published,
-      expected_status: expectedState.status,
-      requested_brand_id: validated.data.brandId,
-      requested_category_id: validated.data.categoryId,
-      requested_compare_at_price: validated.data.compareAtPrice,
-      requested_condition: validated.data.condition,
-      requested_condition_grade: validated.data.conditionGrade,
-      requested_condition_notes: validated.data.conditionNotes,
-      requested_condition_score: validated.data.conditionScore,
-      requested_components: validated.data.components,
-      requested_currency: validated.data.currency,
-      requested_description: validated.data.description,
-      requested_featured: validated.data.featured,
-      requested_fulfillment_type: validated.data.fulfillmentType,
-      requested_lead_time_max_days: validated.data.leadTimeMaxDays,
-      requested_lead_time_min_days: validated.data.leadTimeMinDays,
-      requested_name: validated.data.name,
-      requested_price: validated.data.price,
-      requested_price_is_estimate: validated.data.priceIsEstimate,
-      requested_product_id: parsedId.data,
-      requested_published: validated.data.published,
-      requested_short_description: validated.data.shortDescription,
-      requested_sku: validated.data.sku,
-      requested_slug: validated.data.slug,
-      requested_specifications: validated.data.specifications,
-      requested_target_player: validated.data.targetPlayer,
-    })
-    .single();
+  const mutationArguments = {
+    expected_published: expectedState.published,
+    expected_status: expectedState.status,
+    requested_brand_id: validated.data.brandId,
+    requested_category_id: validated.data.categoryId,
+    requested_compare_at_price: validated.data.compareAtPrice,
+    requested_condition: validated.data.condition,
+    requested_condition_grade: validated.data.conditionGrade,
+    requested_condition_notes: validated.data.conditionNotes,
+    requested_condition_score: validated.data.conditionScore,
+    requested_components: validated.data.components,
+    requested_currency: validated.data.currency,
+    requested_description: validated.data.description,
+    requested_featured: validated.data.featured,
+    requested_fulfillment_type: validated.data.fulfillmentType,
+    requested_lead_time_max_days: validated.data.leadTimeMaxDays,
+    requested_lead_time_min_days: validated.data.leadTimeMinDays,
+    requested_name: validated.data.name,
+    requested_price: validated.data.price,
+    requested_price_is_estimate: validated.data.priceIsEstimate,
+    requested_product_id: parsedId.data,
+    requested_published: validated.data.published,
+    requested_short_description: validated.data.shortDescription,
+    requested_sku: validated.data.sku,
+    requested_slug: validated.data.slug,
+    requested_specifications: validated.data.specifications,
+    requested_target_player: validated.data.targetPlayer,
+  };
+  const mutation = validated.data.pricing
+    ? client.rpc("update_priced_golf_product_with_base_variant", {
+        ...mutationArguments,
+        requested_pricing: validated.data.pricing,
+      })
+    : client.rpc("update_golf_product_with_base_variant", mutationArguments);
+  const { data, error } = await mutation.single();
 
   if (error) {
     if (error.code === "40001") return productStateChangedFailure();
+    const pricingFailure = validated.data.pricing
+      ? pricingMutationFailure(error.code)
+      : null;
+    if (pricingFailure) return pricingFailure;
     if (error.code === "22023") {
       return {
         status: "error",
