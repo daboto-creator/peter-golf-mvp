@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listManualOrders } from "@/lib/orders/operational-orders";
 
-export const metadata: Metadata = { title: "Pedidos | Peter Golf" };
+export const metadata: Metadata = { title: "Pedidos | Best Round Pro Shop" };
 
 export default async function OrdersPage({
   searchParams,

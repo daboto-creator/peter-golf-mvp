@@ -11,7 +11,7 @@ import type { InventoryLevel } from "@/lib/inventory/inventory-rules";
 import type { Database } from "@/types/database.types";
 
 export const metadata: Metadata = {
-  title: "Inventario operativo | Peter Golf",
+  title: "Inventario operativo | Best Round Pro Shop",
 };
 
 type ProductStatus = Database["public"]["Enums"]["product_status"];

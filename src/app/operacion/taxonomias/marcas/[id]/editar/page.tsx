@@ -10,7 +10,9 @@ import { TaxonomyStatusBadge } from "@/components/operations/taxonomy-status-bad
 import { Button } from "@/components/ui/button";
 import { getOperationalBrand } from "@/lib/catalog/operational-taxonomies";
 
-export const metadata: Metadata = { title: "Editar marca | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Editar marca | Best Round Pro Shop",
+};
 
 export default async function EditBrandPage({
   params,

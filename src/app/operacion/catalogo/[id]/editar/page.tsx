@@ -24,7 +24,7 @@ type EditProductPageProps = {
 };
 
 export const metadata: Metadata = {
-  title: "Editar producto | Peter Golf",
+  title: "Editar producto | Best Round Pro Shop",
 };
 
 export default async function EditProductPage({

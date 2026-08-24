@@ -1,9 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/lib/auth/actions";
 import { requireCatalogManager } from "@/lib/auth/catalog-authorization";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -23,18 +24,10 @@ export default async function OperationsLayout({
               href="/operacion"
               className="focus-visible:ring-pg-gold flex items-center gap-3 rounded-xl focus-visible:ring-2 focus-visible:outline-none"
             >
-              <span className="inline-flex rounded-lg bg-white px-2 py-1">
-                <Image
-                  src="/logos/peter-golf-pro-shop.jpg"
-                  alt="Peter Golf Pro Shop"
-                  width={375}
-                  height={282}
-                  className="h-auto w-16"
-                />
-              </span>
+              <BrandLogo background="dark" className="w-16" />
               <span>
                 <span className="block text-xs tracking-[0.14em] text-white/55 uppercase">
-                  Peter Golf
+                  {BRAND_NAME}
                 </span>
                 <span className="block text-sm font-semibold">Operaciones</span>
               </span>

@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { getCustomerAddresses } from "@/lib/customer/customer-data";
 
-export const metadata: Metadata = { title: "Mis direcciones | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Mis direcciones | Best Round Pro Shop",
+};
 
 export default async function AddressesPage() {
   await requireAuthenticatedUser("/cuenta/direcciones");

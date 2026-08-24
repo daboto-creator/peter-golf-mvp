@@ -24,7 +24,7 @@ import { getOperationalInventoryDetail } from "@/lib/inventory/operational-inven
 import { getInventoryLevelLabel } from "@/lib/inventory/inventory-rules";
 
 export const metadata: Metadata = {
-  title: "Detalle de inventario | Peter Golf",
+  title: "Detalle de inventario | Best Round Pro Shop",
 };
 
 export default async function InventoryVariantDetailPage({

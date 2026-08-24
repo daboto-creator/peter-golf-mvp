@@ -8,7 +8,9 @@ import { listCustomerOrders } from "@/lib/orders/customer-orders";
 import { statusLabel } from "@/lib/orders/presentation";
 import { paymentStatusLabel } from "@/lib/payments/payment-rules";
 
-export const metadata: Metadata = { title: "Mis pedidos | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Mis pedidos | Best Round Pro Shop",
+};
 
 export default async function CustomerOrdersPage() {
   const orders = await listCustomerOrders();

@@ -8,7 +8,9 @@ import { CustomerOrderDetail } from "@/components/orders/customer-order-detail";
 import { getCustomerOrder } from "@/lib/orders/customer-orders";
 import { serverEnv } from "@/env/server";
 
-export const metadata: Metadata = { title: "Detalle de pedido | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Detalle de pedido | Best Round Pro Shop",
+};
 
 export default async function CustomerOrderPage({
   params,

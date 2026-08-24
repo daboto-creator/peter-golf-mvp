@@ -137,7 +137,7 @@ export function calculatePricing(
     warnings.push(
       input.market.confidence === "low"
         ? "La referencia de mercado tiene confianza baja y se muestra sólo como orientación; no ajustó el precio automáticamente."
-        : "No fue posible obtener una referencia de mercado suficientemente confiable. El precio fue calculado utilizando costo, procesamiento de pago y utilidad objetivo Peter Golf.",
+        : "No fue posible obtener una referencia de mercado suficientemente confiable. El precio fue calculado utilizando costo, procesamiento de pago y utilidad objetivo Best Round.",
     );
   }
 

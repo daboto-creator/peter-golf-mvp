@@ -117,12 +117,18 @@ test.describe("golf product create, edit and reload @mutating", () => {
     });
   });
 
-  test("keeps Pricing Peter Golf usable without horizontal overflow", async ({
+  test("keeps Pricing Best Round usable without horizontal overflow", async ({
     page,
   }) => {
     await login(page);
     await page.goto("/operacion/catalogo/nuevo");
 
+    await expect(page.getByAltText("Best Round Pro Shop")).toHaveAttribute(
+      "src",
+      /best-round-pro-shop-dark\.png/,
+    );
+    await expect(page.locator("body")).not.toContainText("Peter Golf");
+    await expect(page.getByText("Pricing Best Round").first()).toBeVisible();
     await expectCategoryHierarchy(page);
 
     for (const viewport of [
@@ -206,16 +212,19 @@ async function createEditReload(page: Page, cycle: Cycle) {
   await page.goto("/operacion/catalogo/nuevo");
   await page.locator("#name").fill(cycle.slug.replaceAll("-", " "));
   await page.locator("#slug").fill(cycle.slug);
-  await page.locator("#sku").fill(cycle.slug.toUpperCase());
   await page.locator("#brandId").selectOption({ index: 1 });
   await selectCategory(page, cycle.category);
   await page.locator("#acquisitionCost").fill("800.00");
   await page.locator("#price").fill("1250.00");
   await fillValues(page, cycle.values);
   if (cycle.components) await fillComponents(page, cycle.components);
+  await expect(page.locator("#sku")).toHaveValue(/^BRPS-[A-Z0-9-]+-\d{3,}$/, {
+    timeout: 20_000,
+  });
+  const createdSku = await page.locator("#sku").inputValue();
   if (cycle.researchMarket) {
     await page
-      .getByRole("button", { name: "Calcular precio Peter Golf" })
+      .getByRole("button", { name: "Calcular precio Best Round" })
       .click();
     await expect(
       page.locator('input[name="marketResearchId"]'),
@@ -227,6 +236,8 @@ async function createEditReload(page: Page, cycle: Cycle) {
   );
   await assertValues(page, cycle.values);
   await expect(page.locator("#acquisitionCost")).toHaveValue("800.00");
+  await expect(page.locator("#sku")).toHaveValue(createdSku);
+  await expect(page.locator("#sku")).toHaveAttribute("readonly", "");
   if (cycle.researchMarket) {
     const currentPrice = await page.locator("#price").inputValue();
     const previousResearchId = await page
@@ -248,6 +259,7 @@ async function createEditReload(page: Page, cycle: Cycle) {
   ).toBeVisible();
   await page.reload();
   await assertValues(page, { ...cycle.values, ...cycle.edit });
+  await expect(page.locator("#sku")).toHaveValue(createdSku);
   await expect(page.locator("#acquisitionCost")).toHaveValue("800.00");
   if (cycle.components) {
     await expect(page.locator('[id^="components-"][id$="-kind"]')).toHaveCount(
@@ -320,6 +332,8 @@ async function login(page: Page) {
 function prepareOperator() {
   sql(`
     delete from public.products where slug like 'e2e-final-%';
+    delete from public.market_price_researches
+    where created_by = '19500000-0000-4000-8000-000000000001';
     delete from auth.users where email = '${email}';
     insert into auth.users (
       instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,

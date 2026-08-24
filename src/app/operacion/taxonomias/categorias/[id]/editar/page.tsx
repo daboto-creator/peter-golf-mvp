@@ -14,7 +14,9 @@ import {
 } from "@/lib/catalog/operational-taxonomies";
 import { wouldCreateCategoryCycle } from "@/lib/catalog/taxonomy-validation";
 
-export const metadata: Metadata = { title: "Editar categoría | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Editar categoría | Best Round Pro Shop",
+};
 
 export default async function EditCategoryPage({
   params,

@@ -27,14 +27,14 @@ export async function generateMetadata({
 
   if (result.error || !result.data) {
     return {
-      title: "Producto | Peter Golf",
+      title: "Producto | Best Round Pro Shop",
       description: "Consulta productos de golf nuevos y seminuevos.",
       robots: result.error ? undefined : { index: false, follow: false },
     };
   }
 
   return {
-    title: `${result.data.seoTitle ?? result.data.name} | Peter Golf`,
+    title: `${result.data.seoTitle ?? result.data.name} | Best Round Pro Shop`,
     description:
       result.data.seoDescription ??
       result.data.shortDescription ??

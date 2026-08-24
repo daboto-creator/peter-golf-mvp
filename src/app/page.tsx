@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { listPublicProducts } from "@/lib/catalog/public-products";
 
 export const metadata: Metadata = {
-  title: "Peter Golf Pro Shop | Equipo elegido con criterio",
+  title: "Best Round Pro Shop | Equipo elegido con criterio",
   description:
     "Equipo de golf nuevo y seminuevo con asesoría profesional para comprar con confianza en México.",
 };
@@ -370,7 +370,7 @@ export default async function Home() {
             />
             <div className="absolute inset-0 bg-linear-to-b from-black/35 via-transparent to-black/65" />
             <div className="absolute top-8 left-8 text-xs font-semibold tracking-[0.18em] text-white/55 uppercase">
-              Seminuevos / Peter Golf
+              Seminuevos / Best Round Pro Shop
             </div>
             <div className="absolute right-8 bottom-8 left-8 border-t border-white/15 pt-6">
               <div className="flex items-center gap-3 text-sm text-white/75">
@@ -401,7 +401,7 @@ export default async function Home() {
           <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 sm:py-24 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16 lg:px-8 lg:py-28">
             <div className="max-w-2xl">
               <p className="text-pg-gold text-xs font-semibold tracking-[0.2em] uppercase">
-                Asesoría Peter Golf
+                Asesoría Best Round
               </p>
               <h2 className="font-heading mt-5 text-4xl leading-[1.05] font-bold tracking-[-0.035em] text-balance sm:text-5xl">
                 No tienes que saber exactamente qué comprar.
@@ -430,7 +430,7 @@ export default async function Home() {
 
         <section aria-labelledby="trust-heading" className="border-b">
           <h2 id="trust-heading" className="sr-only">
-            Razones para confiar en Peter Golf
+            Razones para confiar en Best Round Pro Shop
           </h2>
           <ul className="mx-auto grid max-w-7xl divide-y px-4 sm:grid-cols-2 sm:divide-x sm:divide-y-0 sm:px-6 lg:grid-cols-4 lg:px-8">
             {trustPoints.map(({ icon: Icon, label }) => (

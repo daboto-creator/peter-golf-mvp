@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Montserrat, Playfair_Display } from "next/font/google";
 
 import { serverEnv } from "@/env/server";
+import { publicEnv } from "@/env/public";
+import { BRAND_DESCRIPTION, BRAND_NAME } from "@/lib/brand";
 
 import "./globals.css";
 
@@ -18,8 +20,25 @@ const playfairDisplay = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Peter Golf",
-  description: "Equipo de golf con asesoría para elegir con confianza.",
+  metadataBase: new URL(publicEnv.NEXT_PUBLIC_APP_URL),
+  title: BRAND_NAME,
+  description: BRAND_DESCRIPTION,
+  applicationName: BRAND_NAME,
+  openGraph: {
+    type: "website",
+    locale: "es_MX",
+    siteName: BRAND_NAME,
+    title: BRAND_NAME,
+    description: BRAND_DESCRIPTION,
+    images: [
+      {
+        url: "/logos/best-round-pro-shop-light.png",
+        width: 928,
+        height: 924,
+        alt: BRAND_NAME,
+      },
+    ],
+  },
   robots:
     serverEnv.APP_ENV === "production"
       ? { index: true, follow: true }
@@ -31,12 +50,31 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: BRAND_NAME,
+    url: publicEnv.NEXT_PUBLIC_APP_URL,
+    logo: new URL(
+      "/logos/best-round-pro-shop-light.png",
+      publicEnv.NEXT_PUBLIC_APP_URL,
+    ).toString(),
+  };
+
   return (
     <html
       lang="es-MX"
       className={`${montserrat.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

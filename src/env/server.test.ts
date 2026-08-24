@@ -118,7 +118,7 @@ describe("server environment", () => {
       SMTP_PORT: 54325,
       SMTP_SECURE: false,
       EMAIL_FROM_ADDRESS: "no-reply@peter-golf.test",
-      EMAIL_FROM_NAME: "Peter Golf Pruebas",
+      EMAIL_FROM_NAME: "Best Round Pro Shop",
       EMAIL_ALLOWED_RECIPIENT_DOMAINS: ["example.test", "peter-golf.test"],
     });
     expect(serverEnv.SMTP_HOST).toBe("127.0.0.1");

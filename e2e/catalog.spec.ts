@@ -19,7 +19,7 @@ test("loads the public catalog without visual or navigation regressions", async 
       name: "Equipo seleccionado para jugar mejor.",
     }),
   ).toBeVisible();
-  await expect(page.getByAltText("Peter Golf Pro Shop")).toHaveCount(2);
+  await expect(page.getByAltText("Best Round Pro Shop")).toHaveCount(2);
   const editorialImage = page.getByAltText(
     "Bolsa con palos de golf, ropa, calzado y pelotas en una composición editorial",
   );

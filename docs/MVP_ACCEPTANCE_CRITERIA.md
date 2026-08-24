@@ -3,7 +3,7 @@
 ## 1. Experiencia pública
 
 - [x] La experiencia principal está en español de México.
-- [x] La portada identifica Peter Golf Pro Shop, presenta asesoría profesional y
+- [x] La portada identifica Best Round Pro Shop, presenta asesoría profesional y
       enlaza al catálogo sin contenido del scaffold técnico.
 - [x] El catálogo permite consultar únicamente productos publicados, activos y
       no archivados.

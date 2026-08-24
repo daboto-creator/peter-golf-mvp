@@ -2,12 +2,14 @@
 
 ## 1. Esencia
 
-**Nombre:** Peter Golf  
-**Mercado:** México  
-**Punto de partida:** Querétaro  
-**Promesa:** ayudar a cada cliente a elegir con confianza el artículo de golf adecuado.
+- **Nombre:** Best Round Pro Shop
+- **Abreviatura operativa:** BRPS
+- **Nombre anterior:** Peter Golf Pro Shop
+- **Mercado:** México
+- **Punto de partida:** Querétaro
+- **Promesa:** ayudar a cada cliente a elegir con confianza el artículo de golf adecuado.
 
-Peter Golf debe sentirse conocedor, cercano y transparente. La marca acompaña la compra sin presionar y hace comprensibles diferencias de condición, disponibilidad y compatibilidad.
+Best Round Pro Shop debe sentirse conocedor, cercano y transparente. La marca acompaña la compra sin presionar y hace comprensibles diferencias de condición, disponibilidad y compatibilidad.
 
 ## 2. Principios
 

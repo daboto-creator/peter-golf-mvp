@@ -4,7 +4,9 @@ import Link from "next/link";
 import { OrderForm } from "@/components/operations/order-form";
 import { listOrderCatalogOptions } from "@/lib/orders/operational-orders";
 
-export const metadata: Metadata = { title: "Nuevo pedido manual | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Nuevo pedido manual | Best Round Pro Shop",
+};
 
 export default async function NewOrderPage() {
   const options = await listOrderCatalogOptions();

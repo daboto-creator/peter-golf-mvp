@@ -6,7 +6,7 @@ import { requireOrdersManager } from "@/lib/auth/order-authorization";
 import { listOperationalNotificationDeliveries } from "@/lib/notifications/operational-notifications";
 
 export const metadata: Metadata = {
-  title: "Notificaciones | Operación | Peter Golf",
+  title: "Notificaciones | Operación | Best Round Pro Shop",
 };
 
 export default async function OperationalNotificationsPage() {

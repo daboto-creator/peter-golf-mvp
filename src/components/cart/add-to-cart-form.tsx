@@ -25,7 +25,7 @@ export function AddToCartForm({
   );
   if (!variants.length) {
     return (
-      <p className="bg-pg-warm-white border-border mt-8 rounded-xl border p-4 text-sm text-pg-charcoal">
+      <p className="bg-pg-warm-white border-border text-pg-charcoal mt-8 rounded-xl border p-4 text-sm">
         Este producto no tiene variantes disponibles.
       </p>
     );

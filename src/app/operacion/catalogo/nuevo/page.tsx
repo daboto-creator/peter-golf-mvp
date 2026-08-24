@@ -10,7 +10,7 @@ import {
 } from "@/lib/catalog/operational-products";
 
 export const metadata: Metadata = {
-  title: "Nuevo producto | Peter Golf",
+  title: "Nuevo producto | Best Round Pro Shop",
 };
 
 export default async function NewProductPage() {

@@ -7,7 +7,7 @@ import { PublicHeader } from "@/components/catalog/public-header";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { getCustomerCart } from "@/lib/cart/customer-cart";
 
-export const metadata: Metadata = { title: "Mi Bolsa | Peter Golf" };
+export const metadata: Metadata = { title: "Mi Bolsa | Best Round Pro Shop" };
 export const dynamic = "force-dynamic";
 
 export default async function CartPage() {

@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test("auth surfaces share the Peter Golf visual system", async ({ page }) => {
+test("auth surfaces share the Best Round Pro Shop visual system", async ({
+  page,
+}) => {
   const browserErrors: string[] = [];
 
   page.on("console", (message) => {
@@ -20,7 +22,7 @@ test("auth surfaces share the Peter Golf visual system", async ({ page }) => {
     await expect(
       page.getByRole("heading", { level: 1, name: heading }),
     ).toBeVisible();
-    await expect(page.getByAltText("Peter Golf Pro Shop")).toBeVisible();
+    await expect(page.getByAltText("Best Round Pro Shop")).toBeVisible();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,

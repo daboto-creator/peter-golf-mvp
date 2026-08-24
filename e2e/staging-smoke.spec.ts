@@ -10,7 +10,7 @@ test.describe("staging read-only smoke", () => {
   }) => {
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Peter Golf Pro Shop" }),
+      page.getByAltText("Best Round Pro Shop").first(),
     ).toBeVisible();
     await expect(page.getByText("Create Next App")).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText(

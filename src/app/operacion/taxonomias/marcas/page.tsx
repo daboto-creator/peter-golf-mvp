@@ -6,7 +6,7 @@ import { BrandList } from "@/components/operations/taxonomy-lists";
 import { Button } from "@/components/ui/button";
 import { listOperationalBrands } from "@/lib/catalog/operational-taxonomies";
 
-export const metadata: Metadata = { title: "Marcas | Peter Golf" };
+export const metadata: Metadata = { title: "Marcas | Best Round Pro Shop" };
 
 export default async function BrandsPage() {
   const result = await listOperationalBrands();

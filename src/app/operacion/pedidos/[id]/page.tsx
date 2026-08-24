@@ -21,7 +21,9 @@ import {
   stripeCheckoutStatusLabel,
 } from "@/lib/payments/payment-rules";
 
-export const metadata: Metadata = { title: "Detalle de pedido | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Detalle de pedido | Best Round Pro Shop",
+};
 
 export default async function OrderDetailPage({
   params,

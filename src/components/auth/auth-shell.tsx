@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { BrandLogo } from "@/components/brand-logo";
+import { BRAND_NAME } from "@/lib/brand";
+
 export function AuthShell({
   title,
   description,
@@ -16,17 +19,10 @@ export function AuthShell({
         <section className="flex flex-col px-6 py-8 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
           <Link
             href="/"
-            aria-label="Peter Golf Pro Shop, inicio"
+            aria-label={`${BRAND_NAME}, inicio`}
             className="focus-visible:ring-pg-gold w-fit rounded-xl focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
           >
-            <Image
-              src="/logos/peter-golf-pro-shop.jpg"
-              alt="Peter Golf Pro Shop"
-              width={375}
-              height={282}
-              preload
-              className="h-auto w-28 sm:w-32"
-            />
+            <BrandLogo background="light" preload className="w-28 sm:w-32" />
           </Link>
 
           <div className="my-auto py-10 lg:py-14">
@@ -58,7 +54,7 @@ export function AuthShell({
           />
           <figcaption className="absolute right-8 bottom-8 left-8 rounded-xl bg-black/65 p-6 text-white backdrop-blur-sm">
             <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
-              Peter Golf Pro Shop
+              {BRAND_NAME}
             </p>
             <p className="font-heading mt-3 max-w-lg text-3xl leading-tight font-bold">
               Tu equipo, tus pedidos y tu juego en un solo lugar.

@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Verificar que Peter Golf cumpla requisitos funcionales futuros, proteja datos y comunique correctamente que el MVP no realiza pagos. Este plan crecerá junto con la implementación.
+Verificar que Best Round Pro Shop cumpla requisitos funcionales futuros, proteja datos y comunique correctamente que el MVP no realiza pagos. Este plan crecerá junto con la implementación.
 
 ## 2. Estado actual
 
@@ -142,7 +142,7 @@ múltiples, snapshot de estado concurrente y autorización customer/operator/adm
 
 ### End-to-end
 
-- Verificar que la portada muestre Peter Golf Pro Shop y enlace al catálogo.
+- Verificar que la portada muestre Best Round Pro Shop y enlace al catálogo.
 - Navegar listado y detalle publicado.
 - Distinguir nuevo/seminuevo y stock/sobre pedido.
 - Enviar una solicitud válida y manejar errores.

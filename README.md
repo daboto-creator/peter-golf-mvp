@@ -1,12 +1,12 @@
-# Peter Golf
+# Best Round Pro Shop
 
-Peter Golf será una tienda online de artículos de golf para México. La operación inicial estará en Querétaro y ofrecerá envíos a todo el país, con productos nuevos y seminuevos, tanto disponibles en stock como sobre pedido.
+Best Round Pro Shop será una tienda online de artículos de golf para México. La operación inicial estará en Querétaro y ofrecerá envíos a todo el país, con productos nuevos y seminuevos, tanto disponibles en stock como sobre pedido.
 
 La propuesta de valor no se limita a vender productos: un equipo inicial de dos personas acompañará y asesorará al cliente durante su decisión de compra.
 
 ## Estado actual
 
-El repositorio contiene una landing funcional de Peter Golf Pro Shop, la
+El repositorio contiene una landing funcional de Best Round Pro Shop, la
 documentación base del MVP, la integración tipada con Supabase de staging, la base de autenticación y
 la primera base funcional del catálogo público, la gestión operativa del
 catálogo, las imágenes de producto con Supabase Storage, una base auditable de

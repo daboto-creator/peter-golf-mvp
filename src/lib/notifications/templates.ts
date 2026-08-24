@@ -73,7 +73,7 @@ export function renderNotificationTemplate(
     ...(amount ? [`Importe: ${amount}`] : []),
     ...(link ? ["", `Consulta tu pedido: ${link}`] : []),
     "",
-    "Peter Golf Pruebas",
+    "Best Round Pro Shop",
   ];
   return {
     subject: `[PRUEBA] ${label} · ${data.order_number}`,
@@ -89,7 +89,7 @@ export function renderNotificationTemplate(
         ${amount ? `<dt><strong>Importe</strong></dt><dd>${escapeHtml(amount)}</dd>` : ""}
       </dl>
       ${link ? `<p><a href="${escapeHtml(link)}">Consulta tu pedido</a></p>` : ""}
-      <p>Peter Golf Pruebas</p>
+      <p>Best Round Pro Shop</p>
     </div>`,
   };
 }

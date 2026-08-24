@@ -1,6 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ShoppingBag, UserRound } from "lucide-react";
+
+import { BrandLogo } from "@/components/brand-logo";
+import { BRAND_NAME } from "@/lib/brand";
 
 export function PublicHeader() {
   return (
@@ -21,15 +23,13 @@ export function PublicHeader() {
       <div className="mx-auto flex min-h-[5.25rem] max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:min-h-24 sm:px-6 lg:px-8">
         <Link
           href="/"
-          aria-label="Peter Golf Pro Shop, inicio"
+          aria-label={`${BRAND_NAME}, inicio`}
           className="shrink-0 rounded-lg focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
         >
-          <Image
-            src="/logos/peter-golf-pro-shop.jpg"
-            alt="Peter Golf Pro Shop"
-            width={375}
-            height={282}
-            className="h-auto w-[5.5rem] sm:w-[6.75rem]"
+          <BrandLogo
+            background="light"
+            preload
+            className="w-[5.5rem] sm:w-[6.75rem]"
           />
         </Link>
         <nav
