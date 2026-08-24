@@ -9,7 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { getCustomerAddress } from "@/lib/customer/customer-data";
 
-export const metadata: Metadata = { title: "Editar dirección | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Editar dirección | Best Round Pro Shop",
+};
 
 export default async function EditAddressPage({
   params,

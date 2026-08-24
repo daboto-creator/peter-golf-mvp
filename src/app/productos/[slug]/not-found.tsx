@@ -21,7 +21,7 @@ export default function ProductNotFound() {
           </p>
           <Link
             href="/productos"
-            className="bg-pg-black focus-visible:ring-pg-gold mt-7 inline-flex min-h-11 items-center rounded-xl px-6 text-sm font-semibold text-white transition-colors duration-200 hover:bg-pg-black-soft focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="bg-pg-black focus-visible:ring-pg-gold hover:bg-pg-black-soft mt-7 inline-flex min-h-11 items-center rounded-xl px-6 text-sm font-semibold text-white transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             Volver al Pro Shop
           </Link>

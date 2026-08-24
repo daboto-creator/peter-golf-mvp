@@ -3,7 +3,7 @@ import { assertMinorUnits } from "@/lib/pricing/money";
 /**
  * Commercial endings are evaluated in every MXN 1,000 block. Repeating `99`
  * each hundred avoids disproportionate jumps for lower prices, while the
- * 490/499/890/899/990/999 endings cover the preferred Peter Golf anchors.
+ * 490/499/890/899/990/999 endings cover the preferred Best Round anchors.
  */
 const COMMERCIAL_OFFSETS_MXN = [
   99, 199, 299, 399, 490, 499, 599, 699, 799, 890, 899, 990, 999,

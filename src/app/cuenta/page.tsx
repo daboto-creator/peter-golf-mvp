@@ -14,7 +14,7 @@ import {
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 
 export const metadata: Metadata = {
-  title: "Mi Golf | Peter Golf",
+  title: "Mi Golf | Best Round Pro Shop",
 };
 
 type SearchParams = Promise<{ confirmado?: string | string[] }>;
@@ -69,7 +69,9 @@ export default async function AccountPage({
         <Card>
           <CardHeader>
             <CardTitle>Datos de acceso</CardTitle>
-            <CardDescription>Tu correo de acceso a Peter Golf.</CardDescription>
+            <CardDescription>
+              Tu correo de acceso a Best Round Pro Shop.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <p className="text-sm break-all">{user.email}</p>

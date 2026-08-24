@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getSafeInternalPath } from "@/lib/auth/redirect";
 
 export const metadata: Metadata = {
-  title: "Iniciar sesión | Peter Golf",
+  title: "Iniciar sesión | Best Round Pro Shop",
 };
 
 type SearchParams = Promise<{

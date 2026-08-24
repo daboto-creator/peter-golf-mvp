@@ -14,7 +14,7 @@ import {
   getCustomerCheckoutContext,
 } from "@/lib/cart/customer-cart";
 
-export const metadata: Metadata = { title: "Checkout | Peter Golf" };
+export const metadata: Metadata = { title: "Checkout | Best Round Pro Shop" };
 export const dynamic = "force-dynamic";
 
 export default async function CheckoutPage() {

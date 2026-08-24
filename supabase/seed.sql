@@ -78,7 +78,7 @@ values
     null,
     null,
     'Set de hierros de iniciación demo',
-    'Producto ficticio para probar el catálogo local de Peter Golf.'
+    'Producto ficticio para probar el catálogo local de Best Round Pro Shop.'
   ),
   (
     'putter-seminuevo-demo',

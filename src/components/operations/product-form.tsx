@@ -1,7 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import {
   useForm,
   useWatch,
@@ -18,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import type { CatalogActionResult } from "@/lib/catalog/catalog-action-state";
 import {
   createProductAction,
+  reserveProductSkuAction,
   updateProductAction,
 } from "@/lib/catalog/operational-actions";
 import type {
@@ -30,6 +38,7 @@ import {
   productFormSchema,
   type ProductFormValues,
 } from "@/lib/catalog/product-validation";
+import { buildProductSkuBase } from "@/lib/catalog/product-sku";
 
 const selectClassName =
   "border-input bg-background focus-visible:border-pg-gold h-11 w-full rounded-xl border px-3 text-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50";
@@ -57,6 +66,8 @@ export function ProductForm({
     status: "idle",
   });
   const [pending, startTransition] = useTransition();
+  const [skuPending, startSkuTransition] = useTransition();
+  const [skuMessage, setSkuMessage] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -68,11 +79,20 @@ export function ProductForm({
     defaultValues,
   });
   const name = useWatch({ control, name: "name" });
+  const brandId = useWatch({ control, name: "brandId" });
   const condition = useWatch({ control, name: "condition" });
   const categoryId = useWatch({ control, name: "categoryId" });
   const productFamily = useWatch({ control, name: "productFamily" });
   const fulfillmentType = useWatch({ control, name: "fulfillmentType" });
+  const clubType = useWatch({ control, name: "clubType" });
+  const bagType = useWatch({ control, name: "bagType" });
+  const model = useWatch({ control, name: "model" });
+  const loftDegrees = useWatch({ control, name: "loftDegrees" });
+  const ironNumber = useWatch({ control, name: "ironNumber" });
+  const shaftFlex = useWatch({ control, name: "shaftFlex" });
+  const acquisitionChannel = useWatch({ control, name: "acquisitionChannel" });
   const previousCategoryId = useRef(categoryId);
+  const skuRequestId = useRef(0);
   const unavailable =
     disabled || brands.length === 0 || categories.length === 0;
   const categoryGroups = groupProductCategoryOptions(
@@ -103,6 +123,67 @@ export function ProductForm({
     if (category?.bagType) setValue("bagType", category.bagType);
     if (category?.setType) setValue("setType", category.setType);
   }, [categories, categoryId, setValue]);
+
+  const selectedBrandName =
+    brands.find((brand) => brand.id === brandId)?.name ?? "";
+  const skuInput = useMemo(
+    () => ({
+      brandId,
+      productFamily,
+      clubType,
+      bagType,
+      model,
+      loftDegrees,
+      ironNumber,
+      shaftFlex,
+      condition,
+      acquisitionChannel,
+    }),
+    [
+      acquisitionChannel,
+      bagType,
+      brandId,
+      clubType,
+      condition,
+      ironNumber,
+      loftDegrees,
+      model,
+      productFamily,
+      shaftFlex,
+    ],
+  );
+  const skuBase = useMemo(
+    () => buildProductSkuBase({ ...skuInput, brandName: selectedBrandName }),
+    [selectedBrandName, skuInput],
+  );
+
+  const reserveSku = useCallback(() => {
+    if (mode !== "create" || !skuBase) return;
+    const requestId = ++skuRequestId.current;
+    setSkuMessage(null);
+    startSkuTransition(async () => {
+      const reservation = await reserveProductSkuAction(skuInput);
+      if (requestId !== skuRequestId.current) return;
+      if (reservation.sku) {
+        setValue("sku", reservation.sku, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+      setSkuMessage(reservation.error);
+    });
+  }, [mode, setValue, skuBase, skuInput]);
+
+  useEffect(() => {
+    skuRequestId.current += 1;
+    if (mode !== "create" || !skuBase) {
+      if (mode === "create") setValue("sku", "", { shouldValidate: false });
+      return;
+    }
+    setValue("sku", "", { shouldValidate: false });
+    const timeout = window.setTimeout(reserveSku, 450);
+    return () => window.clearTimeout(timeout);
+  }, [mode, reserveSku, setValue, skuBase]);
 
   function fieldError(name: keyof ProductFormValues): string | undefined {
     const clientError = errors[name]?.message;
@@ -180,11 +261,36 @@ export function ProductForm({
               </div>
             </FormField>
             <FormField id="sku" label="SKU" error={fieldError("sku")}>
-              <Input
-                id="sku"
-                autoCapitalize="characters"
-                {...register("sku")}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="sku"
+                  autoCapitalize="characters"
+                  readOnly
+                  aria-describedby="sku-help"
+                  placeholder={
+                    mode === "create"
+                      ? "Se genera con marca, categoría y modelo"
+                      : undefined
+                  }
+                  {...register("sku")}
+                />
+                {mode === "create" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={reserveSku}
+                    disabled={!skuBase || skuPending}
+                  >
+                    {skuPending ? "Generando…" : "Regenerar"}
+                  </Button>
+                ) : null}
+              </div>
+              <p id="sku-help" className="text-muted-foreground text-xs">
+                {mode === "create"
+                  ? (skuMessage ??
+                    "Best Round reserva automáticamente un SKU único; la secuencia puede tener saltos.")
+                  : "El SKU es estable y no cambia al editar el producto."}
+              </p>
             </FormField>
             <FormField id="brandId" label="Marca" error={fieldError("brandId")}>
               <select
@@ -453,7 +559,16 @@ export function ProductForm({
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" disabled={unavailable || pending}>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={
+            unavailable ||
+            pending ||
+            skuPending ||
+            (mode === "create" && !skuBase)
+          }
+        >
           {pending
             ? "Guardando…"
             : mode === "create"
@@ -463,7 +578,7 @@ export function ProductForm({
         <p className="text-muted-foreground text-sm">
           {mode === "create"
             ? "Se creará una variante base con el mismo SKU y costo de adquisición; el inventario permanece fuera de este formulario."
-            : "Nombre, SKU, costo y precio se sincronizan atómicamente; no se crean variantes ni se modifica inventario."}
+            : "El SKU permanece fijo; nombre, costo y precio se sincronizan atómicamente sin modificar inventario."}
         </p>
       </div>
     </form>

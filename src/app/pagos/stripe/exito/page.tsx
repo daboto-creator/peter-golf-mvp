@@ -9,7 +9,7 @@ import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { getCustomerOrder } from "@/lib/orders/customer-orders";
 
 export const metadata: Metadata = {
-  title: "Estado del pago | Peter Golf",
+  title: "Estado del pago | Best Round Pro Shop",
 };
 export const dynamic = "force-dynamic";
 

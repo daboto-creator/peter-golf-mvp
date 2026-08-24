@@ -15,6 +15,10 @@ import {
   type ProductFormValues,
 } from "@/lib/catalog/product-validation";
 import {
+  buildProductSkuBase,
+  type ProductSkuReservationInput,
+} from "@/lib/catalog/product-sku";
+import {
   getProductMutationCondition,
   type ProductMutationCondition,
 } from "@/lib/catalog/product-transition";
@@ -25,6 +29,18 @@ type ProductUpdate = Database["public"]["Tables"]["products"]["Update"];
 type GolfProductFamily = Database["public"]["Enums"]["golf_product_family"];
 
 const productIdSchema = z.uuid();
+const skuReservationSchema = z.object({
+  brandId: z.uuid(),
+  productFamily: z.enum(["", "club", "bag", "set"]),
+  clubType: z.string().max(40),
+  bagType: z.string().max(40),
+  model: z.string().trim().max(160),
+  loftDegrees: z.string().trim().max(20),
+  ironNumber: z.string().trim().max(40),
+  shaftFlex: z.string().max(40),
+  condition: z.enum(["new", "used"]),
+  acquisitionChannel: z.enum(["purchase", "trade_in"]),
+});
 
 function validationFailure(
   errors: Record<string, string[] | undefined>,
@@ -176,6 +192,45 @@ function productStateChangedFailure(): CatalogActionResult {
   };
 }
 
+export async function reserveProductSkuAction(
+  input: ProductSkuReservationInput,
+): Promise<{ sku: string | null; error: string | null }> {
+  await requireCatalogManager("/operacion/catalogo/nuevo");
+  const parsed = skuReservationSchema.safeParse(input);
+  if (!parsed.success) {
+    return { sku: null, error: "Completa los datos estructurados del SKU." };
+  }
+
+  const client = await createClient();
+  const brand = await client
+    .from("brands")
+    .select("name, status")
+    .eq("id", parsed.data.brandId)
+    .maybeSingle();
+  if (brand.error || !brand.data || brand.data.status !== "active") {
+    return { sku: null, error: "La marca seleccionada ya no está disponible." };
+  }
+
+  const base = buildProductSkuBase({
+    ...parsed.data,
+    brandName: brand.data.name,
+  });
+  if (!base) {
+    return { sku: null, error: "Completa marca, categoría y modelo." };
+  }
+
+  const reservation = await client.rpc("reserve_brps_product_sku", {
+    requested_base: base,
+  });
+  if (reservation.error || !reservation.data) {
+    return {
+      sku: null,
+      error: "No pudimos reservar un SKU. Inténtalo de nuevo.",
+    };
+  }
+  return { sku: reservation.data, error: null };
+}
+
 export async function createProductAction(
   values: ProductFormValues,
 ): Promise<CatalogActionResult> {
@@ -190,6 +245,11 @@ export async function createProductAction(
       acquisitionCost: [
         "El pricing interno es obligatorio al crear un producto.",
       ],
+    });
+  }
+  if (!validated.data.sku.startsWith("BRPS-")) {
+    return validationFailure({
+      sku: ["Los productos nuevos requieren un SKU generado con prefijo BRPS."],
     });
   }
 
@@ -330,6 +390,11 @@ export async function updateProductAction(
       status: "error",
       message: "No pudimos encontrar el producto para actualizarlo.",
     };
+  }
+  if (validated.data.sku !== existing.data.sku) {
+    return validationFailure({
+      sku: ["El SKU queda fijo después de crear el producto."],
+    });
   }
   const expectedState = getProductMutationCondition("edit", existing.data);
   if (!expectedState) {

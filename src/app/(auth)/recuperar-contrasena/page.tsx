@@ -4,7 +4,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { RecoveryForm } from "@/components/auth/recovery-form";
 
 export const metadata: Metadata = {
-  title: "Recuperar contraseña | Peter Golf",
+  title: "Recuperar contraseña | Best Round Pro Shop",
 };
 
 export default function RecoverPasswordPage() {

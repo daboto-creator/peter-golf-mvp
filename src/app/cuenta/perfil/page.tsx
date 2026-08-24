@@ -13,7 +13,7 @@ import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Mi perfil | Peter Golf",
+  title: "Mi perfil | Best Round Pro Shop",
 };
 
 export default async function ProfilePage() {

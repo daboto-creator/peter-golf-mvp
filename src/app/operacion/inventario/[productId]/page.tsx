@@ -17,7 +17,7 @@ import {
 import { getOperationalInventoryProductOverview } from "@/lib/inventory/operational-inventory";
 
 export const metadata: Metadata = {
-  title: "Variantes de inventario | Peter Golf",
+  title: "Variantes de inventario | Best Round Pro Shop",
 };
 
 export default async function InventoryProductPage({

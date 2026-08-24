@@ -25,7 +25,31 @@ test("loads the home page", async ({ page }) => {
       .getByRole("link", { name: /Explorar el Pro Shop/ })
       .first(),
   ).toHaveAttribute("href", "/productos");
-  await expect(page.getByAltText("Peter Golf Pro Shop")).toHaveCount(2);
+  await expect(page.getByAltText("Best Round Pro Shop")).toHaveCount(2);
+  const brandLogos = page.getByAltText("Best Round Pro Shop");
+  await expect(brandLogos.first()).toHaveAttribute(
+    "src",
+    /best-round-pro-shop-light\.png/,
+  );
+  await expect(brandLogos.last()).toHaveAttribute(
+    "src",
+    /best-round-pro-shop-dark\.png/,
+  );
+  await expect(page).toHaveTitle(
+    "Best Round Pro Shop | Equipo elegido con criterio",
+  );
+  await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute(
+    "content",
+    "Best Round Pro Shop",
+  );
+  await expect
+    .poll(() =>
+      page
+        .locator('script[type="application/ld+json"]')
+        .evaluate((element) => element.textContent),
+    )
+    .toContain('"name":"Best Round Pro Shop"');
+  await expect(page.locator("body")).not.toContainText("Peter Golf");
   await expect(
     page.getByRole("heading", { level: 2, name: "¿Qué quieres mejorar?" }),
   ).toBeVisible();

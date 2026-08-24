@@ -3311,6 +3311,10 @@ export type Database = {
           variant_id: string;
         }[];
       };
+      reserve_brps_product_sku: {
+        Args: { requested_base: string };
+        Returns: string;
+      };
       resolve_product_pricing_rule: {
         Args: {
           requested_acquisition_channel: Database["public"]["Enums"]["acquisition_channel"];

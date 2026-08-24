@@ -12,7 +12,9 @@ import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { getCustomerOrder } from "@/lib/orders/customer-orders";
 import { serverEnv } from "@/env/server";
 
-export const metadata: Metadata = { title: "Pedido recibido | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Pedido recibido | Best Round Pro Shop",
+};
 export const dynamic = "force-dynamic";
 
 export default async function ConfirmedOrderPage({

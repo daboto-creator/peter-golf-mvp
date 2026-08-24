@@ -4,7 +4,9 @@ import Link from "next/link";
 import { BrandForm } from "@/components/operations/taxonomy-forms";
 import { Button } from "@/components/ui/button";
 
-export const metadata: Metadata = { title: "Nueva marca | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Nueva marca | Best Round Pro Shop",
+};
 
 export default function NewBrandPage() {
   return (

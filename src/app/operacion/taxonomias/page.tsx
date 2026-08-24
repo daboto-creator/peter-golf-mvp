@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export const metadata: Metadata = { title: "Taxonomías | Peter Golf" };
+export const metadata: Metadata = { title: "Taxonomías | Best Round Pro Shop" };
 
 export default function TaxonomiesPage() {
   return (

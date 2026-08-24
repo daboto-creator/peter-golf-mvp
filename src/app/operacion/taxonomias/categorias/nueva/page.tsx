@@ -6,7 +6,9 @@ import { CategoryForm } from "@/components/operations/taxonomy-forms";
 import { Button } from "@/components/ui/button";
 import { listOperationalCategories } from "@/lib/catalog/operational-taxonomies";
 
-export const metadata: Metadata = { title: "Nueva categoría | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Nueva categoría | Best Round Pro Shop",
+};
 
 export default async function NewCategoryPage() {
   const categories = await listOperationalCategories();

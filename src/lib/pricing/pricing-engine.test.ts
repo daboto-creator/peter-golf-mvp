@@ -57,7 +57,7 @@ function market(medianPriceMxn: number): MarketReference {
   };
 }
 
-describe("Peter Golf pricing engine", () => {
+describe("Best Round pricing engine", () => {
   it("calculates the exact fee-backed financial floor", () => {
     const result = calculatePricing(input());
 

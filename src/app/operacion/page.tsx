@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Operación | Peter Golf",
+  title: "Operación | Best Round Pro Shop",
 };
 
 export default function OperationsPage() {
@@ -26,7 +26,7 @@ export default function OperationsPage() {
     <div className="space-y-8">
       <div>
         <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
-          Peter Golf profesional
+          Best Round Pro Shop profesional
         </p>
         <h1 className="text-pg-black mt-3 text-4xl font-semibold tracking-[-0.035em]">
           Centro de operaciones

@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/card";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 
-export const metadata: Metadata = { title: "Nueva dirección | Peter Golf" };
+export const metadata: Metadata = {
+  title: "Nueva dirección | Best Round Pro Shop",
+};
 
 export default async function NewAddressPage() {
   await requireAuthenticatedUser("/cuenta/direcciones/nueva");

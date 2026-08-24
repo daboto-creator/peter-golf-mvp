@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getAuthenticatedUser } from "@/lib/auth/user";
 
 export const metadata: Metadata = {
-  title: "Nueva contraseña | Peter Golf",
+  title: "Nueva contraseña | Best Round Pro Shop",
 };
 
 export const dynamic = "force-dynamic";

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 
 export const metadata: Metadata = {
-  title: "Checkout cancelado | Peter Golf",
+  title: "Checkout cancelado | Best Round Pro Shop",
 };
 
 export default async function StripeCanceledPage({

@@ -97,7 +97,7 @@ export async function createStripeCheckoutAction(
               price_data: {
                 currency: prepared.currency.toLowerCase(),
                 unit_amount: prepared.amount_minor_units,
-                product_data: { name: "Pedido Peter Golf" },
+                product_data: { name: "Pedido Best Round Pro Shop" },
               },
             },
           ],

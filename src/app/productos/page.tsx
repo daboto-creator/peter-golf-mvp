@@ -22,7 +22,7 @@ export async function generateMetadata({
     Array.isArray(value) ? value.some(Boolean) : Boolean(value),
   );
   return {
-    title: "Pro Shop | Peter Golf",
+    title: "Pro Shop | Best Round Pro Shop",
     description:
       "Explora equipo de golf nuevo y seminuevo con condición, precio y disponibilidad claramente indicados.",
     alternates: { canonical: "/productos" },
@@ -155,7 +155,7 @@ export default async function ProductsPage({
           <aside className="bg-pg-black-soft mt-20 grid gap-8 rounded-[20px] px-6 py-10 text-white sm:px-10 sm:py-12 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-16">
             <div className="max-w-2xl">
               <p className="text-pg-gold text-xs font-semibold tracking-[0.2em] uppercase">
-                Asesoría Peter Golf
+                Asesoría Best Round
               </p>
               <h2 className="font-heading mt-4 text-3xl leading-[1.05] font-bold tracking-[-0.035em] sm:text-4xl">
                 ¿No estás seguro de cuál elegir?

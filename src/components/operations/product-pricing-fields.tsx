@@ -323,7 +323,7 @@ export function ProductPricingFields({
     return (
       <section className="rounded-xl border border-dashed bg-white p-5 sm:p-6">
         <p className="text-pg-gold text-xs font-semibold tracking-[0.16em] uppercase">
-          Pricing Peter Golf
+          Pricing Best Round
         </p>
         <h2 className="mt-2 text-lg font-semibold">
           Producto legacy sin costos
@@ -335,7 +335,7 @@ export function ProductPricingFields({
         </p>
         <label className="mt-4 flex min-h-11 items-center gap-3 text-sm font-medium">
           <input type="checkbox" {...register("pricingEnabled")} />
-          Activar Pricing Peter Golf
+          Activar Pricing Best Round
         </label>
       </section>
     );
@@ -364,7 +364,7 @@ export function ProductPricingFields({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-pg-gold text-xs font-semibold tracking-[0.16em] uppercase">
-            Pricing Peter Golf
+            Pricing Best Round
           </p>
           <h2 className="mt-2 text-lg font-semibold">
             Costo, mercado y rentabilidad
@@ -486,7 +486,7 @@ export function ProductPricingFields({
                 ? "Actualizar referencia de mercado"
                 : visibleResearchFeedback?.status === "unavailable"
                   ? "Reintentar"
-                  : "Calcular precio Peter Golf"}
+                  : "Calcular precio Best Round"}
           </Button>
         </div>
         {visibleResearchFeedback ? (

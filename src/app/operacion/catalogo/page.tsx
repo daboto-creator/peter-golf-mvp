@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { listOperationalProducts } from "@/lib/catalog/operational-products";
 
 export const metadata: Metadata = {
-  title: "Catálogo operativo | Peter Golf",
+  title: "Catálogo operativo | Best Round Pro Shop",
 };
 
 export default async function OperationalCatalogPage() {

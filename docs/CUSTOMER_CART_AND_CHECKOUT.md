@@ -56,7 +56,7 @@ opcional permanecen dentro de la transacción e idempotencia del pedido.
 
 El método único es `envio_nacional_temporal`, configurado en
 `shipping_methods` con `14900` centavos MXN ($149.00). SQL lo resuelve nuevamente
-y Peter Golf confirma después la logística. El pago web es sólo `bank_transfer`;
+y Best Round Pro Shop confirma después la logística. El pago web es sólo `bank_transfer`;
 el checkout crea atómicamente `order_payments` con importe y moneda derivados.
 El cliente registra una transferencia simulada únicamente cuando el pedido pasa
 a `preparing`. No existe cobro real ni comprobante. Las reglas completas están

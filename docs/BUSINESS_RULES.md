@@ -2,7 +2,7 @@
 
 ## 1. Mercado y operación
 
-- Peter Golf vende y envía únicamente dentro de México durante el MVP.
+- Best Round Pro Shop vende y envía únicamente dentro de México durante el MVP.
 - La operación inicial y el equipo de dos personas se ubican en Querétaro.
 - La cobertura nacional no implica una tarifa ni tiempo uniforme; ambos dependen del destino, producto y paquetería futura.
 - Ninguna fecha de entrega es garantía hasta que el equipo valide disponibilidad y logística.

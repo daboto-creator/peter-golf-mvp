@@ -2,7 +2,7 @@
 
 ## 1. Resumen
 
-Peter Golf es una tienda online de artículos de golf para clientes en México. Iniciará operaciones desde Querétaro, enviará a todo el país y combinará la venta de productos nuevos y seminuevos, disponibles en stock o sobre pedido.
+Best Round Pro Shop es una tienda online de artículos de golf para clientes en México. Iniciará operaciones desde Querétaro, enviará a todo el país y combinará la venta de productos nuevos y seminuevos, disponibles en stock o sobre pedido.
 
 Su diferenciador es la atención consultiva: el equipo acompañará al cliente para que elija una opción adecuada antes de cerrar la compra.
 

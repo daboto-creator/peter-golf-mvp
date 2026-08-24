@@ -4,7 +4,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { RegisterForm } from "@/components/auth/register-form";
 
 export const metadata: Metadata = {
-  title: "Crear Mi Golf | Peter Golf",
+  title: "Crear Mi Golf | Best Round Pro Shop",
 };
 
 export default function RegisterPage() {

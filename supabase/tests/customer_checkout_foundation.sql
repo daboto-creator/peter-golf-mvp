@@ -20,7 +20,7 @@ values
  ('43000000-0000-4000-8000-000000000003','checkout-draft','CHECKOUT-P3','Checkout Draft','new',null,null,'23000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000001','draft','in_stock',9000,false);
 insert into public.product_variants (id,product_id,sku,name,price)
 values
- ('53000000-0000-4000-8000-000000000001','43000000-0000-4000-8000-000000000001','CHECKOUT-V1','Variante uno',null),
+ ('53000000-0000-4000-8000-000000000001','43000000-0000-4000-8000-000000000001','BRPS-CHK-DRV-SNAPSHOT-090-R-N-999','Variante uno',null),
  ('53000000-0000-4000-8000-000000000002','43000000-0000-4000-8000-000000000002','CHECKOUT-V2','Variante dos',26000),
  ('53000000-0000-4000-8000-000000000003','43000000-0000-4000-8000-000000000001','CHECKOUT-INACTIVE','Variante inactiva',null),
  ('53000000-0000-4000-8000-000000000004','43000000-0000-4000-8000-000000000001','CHECKOUT-ARCHIVED','Variante archivada',null),
@@ -218,7 +218,7 @@ begin
   if jsonb_array_length(detail->'order_items') <> 2
     or (select (item->>'unit_price_snapshot')::integer
         from jsonb_array_elements(detail->'order_items') item
-        where item->>'sku_snapshot'='CHECKOUT-V1') <> 12000
+        where item->>'sku_snapshot'='BRPS-CHK-DRV-SNAPSHOT-090-R-N-999') <> 12000
     or (select (item->>'line_total')::integer
         from jsonb_array_elements(detail->'order_items') item
         where item->>'sku_snapshot'='CHECKOUT-V2') <> 26000
