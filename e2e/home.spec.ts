@@ -29,11 +29,11 @@ test("loads the home page", async ({ page }) => {
   const brandLogos = page.getByAltText("Best Round Pro Shop");
   await expect(brandLogos.first()).toHaveAttribute(
     "src",
-    /best-round-pro-shop-light\.png/,
+    /best-round-pro-shop-dark\.png/,
   );
   await expect(brandLogos.last()).toHaveAttribute(
     "src",
-    /best-round-pro-shop-dark\.png/,
+    /best-round-pro-shop-light\.png/,
   );
   await expect(page).toHaveTitle(
     "Best Round Pro Shop | Equipo elegido con criterio",

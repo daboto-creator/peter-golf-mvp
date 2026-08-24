@@ -125,7 +125,7 @@ test.describe("golf product create, edit and reload @mutating", () => {
 
     await expect(page.getByAltText("Best Round Pro Shop")).toHaveAttribute(
       "src",
-      /best-round-pro-shop-dark\.png/,
+      /best-round-pro-shop-light\.png/,
     );
     await expect(page.locator("body")).not.toContainText("Peter Golf");
     await expect(page.getByText("Pricing Best Round").first()).toBeVisible();

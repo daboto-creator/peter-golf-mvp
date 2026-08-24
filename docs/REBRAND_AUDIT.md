@@ -7,7 +7,7 @@ Fecha de corte: 2026-08-24.
 - Nombre comercial visible: **Best Round Pro Shop**.
 - Abreviatura operativa: **BRPS**. Se usa en SKU y documentación técnica, no como sustituto innecesario del nombre comercial.
 - Nombres anteriores: **Peter Golf** y **Peter Golf Pro Shop**.
-- Logos oficiales: `public/logos/best-round-pro-shop-light.png` sobre fondos claros y `public/logos/best-round-pro-shop-dark.png` sobre fondos oscuros.
+- Logos oficiales: `public/logos/best-round-pro-shop-dark.png` sobre fondos claros y `public/logos/best-round-pro-shop-light.png` sobre fondos oscuros.
 
 ## Clasificación de ocurrencias
 
