@@ -3,7 +3,7 @@ import { Montserrat, Playfair_Display } from "next/font/google";
 
 import { serverEnv } from "@/env/server";
 import { publicEnv } from "@/env/public";
-import { BRAND_DESCRIPTION, BRAND_NAME } from "@/lib/brand";
+import { BRAND_DESCRIPTION, BRAND_LOGOS, BRAND_NAME } from "@/lib/brand";
 
 import "./globals.css";
 
@@ -32,9 +32,9 @@ export const metadata: Metadata = {
     description: BRAND_DESCRIPTION,
     images: [
       {
-        url: "/logos/best-round-pro-shop-light.png",
-        width: 928,
-        height: 924,
+        url: BRAND_LOGOS.onLight,
+        width: 1254,
+        height: 1254,
         alt: BRAND_NAME,
       },
     ],
@@ -56,7 +56,7 @@ export default function RootLayout({
     name: BRAND_NAME,
     url: publicEnv.NEXT_PUBLIC_APP_URL,
     logo: new URL(
-      "/logos/best-round-pro-shop-light.png",
+      BRAND_LOGOS.onLight,
       publicEnv.NEXT_PUBLIC_APP_URL,
     ).toString(),
   };
