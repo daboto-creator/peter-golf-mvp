@@ -58,3 +58,26 @@ export async function requirePartnerManager(returnTo: string) {
   if (data !== true) forbidden();
   return { client, user };
 }
+
+export async function requireVerifiedMarketplacePartner(returnTo: string) {
+  const context = await requireMarketplacePartner(returnTo);
+  if (context.partner.status !== "VERIFIED") {
+    redirect("/partner/verificacion?publicaciones=requiere-verificacion");
+  }
+  return context;
+}
+
+export async function requireListingManager(returnTo: string) {
+  const client = await createClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) {
+    redirect(
+      `/iniciar-sesion?next=${encodeURIComponent(getSafeInternalPath(returnTo, "/operacion"))}`,
+    );
+  }
+  const { data } = await client.rpc("can_manage_marketplace_listings");
+  if (data !== true) forbidden();
+  return { client, user };
+}

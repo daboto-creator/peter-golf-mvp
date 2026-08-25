@@ -106,8 +106,9 @@ Marketplace. Cuando se implementen:
 - custody será `PARTNER_CUSTODY` o `BEST_ROUND_CUSTODY`;
 - inventario propiedad de Best Round seguirá en el bounded context first-party.
 
-PR 2 implementa onboarding UI y Portal Partner shell. Siguen fuera de alcance el
-listing wizard, score/tier engine, Marketplace pricing, checkout multi-Partner,
+PR 2 implementa onboarding UI y Portal Partner shell. PR 3 implementa listings
+privados versionados y aprobación humana. Siguen fuera de alcance el score/tier
+engine, Marketplace pricing, checkout multi-Partner,
 fulfillment, shipping, ledger, payouts y disputas.
 
 ## Ejecución de pruebas SQL

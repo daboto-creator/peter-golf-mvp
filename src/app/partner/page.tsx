@@ -123,13 +123,23 @@ export default async function PartnerDashboard() {
           <CardTitle>Próximo paso</CardTitle>
           <CardDescription>
             {partner.status === "VERIFIED"
-              ? "La publicación de productos estará disponible próximamente."
+              ? "Ya puedes preparar publicaciones para revisión de Best Round."
               : partnerStatusCopy[partner.status].description}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link href={nextHref}>{nextLabel}</Link>
+            <Link
+              href={
+                partner.status === "VERIFIED"
+                  ? "/partner/publicaciones"
+                  : nextHref
+              }
+            >
+              {partner.status === "VERIFIED"
+                ? "Administrar publicaciones"
+                : nextLabel}
+            </Link>
           </Button>
         </CardContent>
       </Card>

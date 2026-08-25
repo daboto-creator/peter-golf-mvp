@@ -20,6 +20,11 @@ Modo Partner guarda únicamente contexto UX en una cookie `httpOnly`; no concede
 permisos. La autorización sigue dependiendo de sesión, RLS, Partner status y
 capabilities Operations.
 
+El siguiente bounded context está documentado en
+`MARKETPLACE_PARTNER_LISTINGS.md`: sólo un Partner `VERIFIED` puede enviar un
+listing versionado a revisión. Onboarding y estado Partner continúan siendo la
+fuente de elegibilidad; no se duplican en listings.
+
 ## Datos y progresión
 
 La migration `20260825000000_marketplace_partner_onboarding.sql` agrega columnas

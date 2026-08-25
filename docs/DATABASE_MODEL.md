@@ -13,7 +13,7 @@ La foundation Marketplace es aditiva:
 modo Golfer; Partner no es un rol administrativo. `partner_status_history`
 preserva transiciones, `partner_documents` referencia Storage privado y
 `marketplace_config_versions` agrupa reglas versionadas. Marketplace permanece
-apagado y aún no introduce listings, inventario ni órdenes multi-Partner. Véase
+apagado y aún no introduce órdenes multi-Partner. Véase
 [MARKETPLACE_FOUNDATION.md](./MARKETPLACE_FOUNDATION.md).
 
 PR 2 amplía aditivamente `partner_profiles` con progreso, datos básicos y datos
@@ -21,6 +21,13 @@ fiscales privados, y añade `version` a `partner_documents`. No crea otra tabla
 de identidad. Los RPCs de onboarding son la única superficie de escritura del
 Partner; estado e historial continúan bajo el workflow de la foundation. Véase
 [MARKETPLACE_PARTNER_ONBOARDING.md](./MARKETPLACE_PARTNER_ONBOARDING.md).
+
+PR 3 agrega `catalog_product_models` como identidad canónica mínima referenciada
+por `marketplace_listings` y snapshots inmutables en
+`marketplace_listing_versions`. Fotos, feedback, historial e inventario Partner
+viven en tablas Marketplace separadas; no cambian `products`, variants ni el
+inventory first-party. Véase
+[MARKETPLACE_PARTNER_LISTINGS.md](./MARKETPLACE_PARTNER_LISTINGS.md).
 
 La migración aplicada que habilita `pgcrypto` permanece sin cambios. Las
 migraciones posteriores crean, en orden:

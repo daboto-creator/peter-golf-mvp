@@ -2,6 +2,7 @@ import {
   BriefcaseBusiness,
   FileCheck2,
   LayoutDashboard,
+  PackageSearch,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,44 +41,64 @@ export default async function PartnerLayout({
         </div>
       </header>
       {partner ? (
-        <div className="border-border border-b bg-white">
+        <div className="border-border overflow-x-hidden border-b bg-white">
           <nav
             aria-label="Portal Partner"
-            className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 py-2 sm:px-6 lg:px-8"
+            className="mx-auto grid w-full max-w-full grid-cols-4 gap-1 px-2 py-2 sm:flex sm:max-w-7xl sm:overflow-x-auto sm:px-6 lg:px-8"
           >
-            <Button asChild variant="ghost" className="shrink-0">
+            <Button
+              asChild
+              variant="ghost"
+              className="h-auto min-w-0 flex-col gap-0.5 px-1 py-2 text-[0.65rem] sm:h-11 sm:shrink-0 sm:flex-row sm:gap-2 sm:px-4 sm:text-sm"
+            >
               <Link href="/partner">
                 <LayoutDashboard aria-hidden="true" />
                 Dashboard
               </Link>
             </Button>
-            <Button asChild variant="ghost" className="shrink-0">
+            <Button
+              asChild
+              variant="ghost"
+              className="h-auto min-w-0 flex-col gap-0.5 px-1 py-2 text-[0.65rem] sm:h-11 sm:shrink-0 sm:flex-row sm:gap-2 sm:px-4 sm:text-sm"
+            >
+              <Link href="/partner/publicaciones">
+                <PackageSearch aria-hidden="true" />
+                Publicaciones
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              className="h-auto min-w-0 flex-col gap-0.5 px-1 py-2 text-[0.65rem] sm:h-11 sm:shrink-0 sm:flex-row sm:gap-2 sm:px-4 sm:text-sm"
+            >
               <Link href="/partner/perfil">
                 <UserRound aria-hidden="true" />
                 Perfil
               </Link>
             </Button>
-            <Button asChild variant="ghost" className="shrink-0">
+            <Button
+              asChild
+              variant="ghost"
+              className="h-auto min-w-0 flex-col gap-0.5 px-1 py-2 text-[0.65rem] sm:h-11 sm:shrink-0 sm:flex-row sm:gap-2 sm:px-4 sm:text-sm"
+            >
               <Link href="/partner/verificacion">
                 <FileCheck2 aria-hidden="true" />
                 Verificación
               </Link>
             </Button>
-            {["Publicaciones", "Ventas", "Liquidaciones", "Score", "Tier"].map(
-              (label) => (
-                <Button
-                  key={label}
-                  disabled
-                  variant="ghost"
-                  className="shrink-0"
-                  title="Próximamente"
-                >
-                  <BriefcaseBusiness aria-hidden="true" />
-                  {label}
-                  <span className="sr-only"> (Próximamente)</span>
-                </Button>
-              ),
-            )}
+            {["Ventas", "Liquidaciones", "Score", "Tier"].map((label) => (
+              <Button
+                key={label}
+                disabled
+                variant="ghost"
+                className="hidden shrink-0 sm:inline-flex"
+                title="Próximamente"
+              >
+                <BriefcaseBusiness aria-hidden="true" />
+                {label}
+                <span className="sr-only"> (Próximamente)</span>
+              </Button>
+            ))}
           </nav>
         </div>
       ) : null}
