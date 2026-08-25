@@ -14,7 +14,7 @@ alter table public.partner_score_tier_state
     or (promotion_candidate_tier is not null and promotion_eligible_since is not null)
   );
 
-create or replace function public.recalculate_partner_score_tier(
+create or replace function private.recalculate_partner_score_tier_internal(
   requested_partner_id uuid, requested_as_of_date date,
   requested_calculation_key text, requested_reason text
 ) returns public.partner_score_tier_state
@@ -35,12 +35,6 @@ declare config_id uuid; config_number bigint; rules public.marketplace_score_rul
   critical_bypass boolean := false; expired_record record;
   metric_key text; reason_value text := btrim(requested_reason);
 begin
-  if (select auth.uid()) is not null and not public.can_manage_marketplace_score_tiers() then
-    raise exception 'Marketplace score recalculation denied' using errcode = '42501';
-  end if;
-  if (select auth.uid()) is null and session_user not in ('postgres','supabase_admin') then
-    raise exception 'Marketplace score job denied' using errcode = '42501';
-  end if;
   if char_length(reason_value) not between 3 and 500
     or requested_calculation_key !~ '^[a-zA-Z0-9][a-zA-Z0-9:_-]{5,199}$'
   then raise exception 'Valid calculation key and reason are required' using errcode = '22023'; end if;

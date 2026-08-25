@@ -64,11 +64,20 @@ actual para lectura eficiente.
 
 ## Jobs e idempotencia
 
-`pg_cron` ejecuta `run_marketplace_score_tier_job` diariamente a las 05:15 UTC. Se
-eligió el scheduler transaccional ya disponible en PostgreSQL para no introducir un
-servicio externo ni una credencial privilegiada en Vercel. Cada job y cálculo tiene
-una key única, advisory locks y verificación de payload en replay. Puede reintentarse
-sin duplicar snapshots.
+`pg_cron` ejecuta `private.run_marketplace_score_tier_job_internal` diariamente a
+las 05:15 UTC. El bootstrap de la migración usa el mismo executor interno; ninguno
+depende de `auth.uid()` ni de nombres concretos de roles de infraestructura. Se eligió
+el scheduler transaccional ya disponible en PostgreSQL para no introducir un servicio
+externo ni una credencial privilegiada en Vercel. Cada job y cálculo tiene una key
+única, advisory locks y verificación de payload en replay. Puede reintentarse sin
+duplicar snapshots.
+
+El RPC compatible `public.run_marketplace_score_tier_job` continúa siendo el único
+punto de entrada manual. Valida `can_manage_marketplace_score_tiers()` y delega en
+el executor privado. El cálculo sigue el mismo patrón: el wrapper público autoriza y
+`private.recalculate_partner_score_tier_internal` concentra la implementación. Las
+funciones privadas usan `SECURITY DEFINER`, `search_path = ''` y nombres calificados;
+`PUBLIC`, `anon` y `authenticated` no tienen `EXECUTE` ni exposición PostgREST.
 
 Operations puede ejecutar un recálculo manual con reason. El job expira penalties y
 overrides de manera idempotente, recalcula el estado normal y audita cambios. Los
@@ -91,11 +100,28 @@ docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
   -v ON_ERROR_STOP=1 < supabase/tests/marketplace_partner_score_tiers.sql
 docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
   -v ON_ERROR_STOP=1 < supabase/tests/marketplace_partner_score_tier_promotion_candidate.sql
+docker exec -i supabase_db_peter-golf-mvp psql -U supabase_admin -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/marketplace_score_job_hosted_portability.sql
 ```
 
 La suite termina en `ROLLBACK` y cubre configuración, idempotencia, neutral/provisional,
 promoción, candidate específico, downgrade, rolling average, decay, riesgo crítico,
-inmutabilidad y RLS A/B.
+inmutabilidad, RLS A/B, separación public/internal, identidad hosted no humana,
+bootstrap repetible y configuración única de cron.
+
+## Portabilidad de la migración hosted
+
+Supabase registra el historial por versión en
+`supabase_migrations.schema_migrations`; no existe un checksum de archivo que el CLI
+compare durante `db push`. `20260827000000` hizo rollback completo en el único remoto
+Peter Golf disponible (`peter-golf-staging`) y nunca quedó registrado allí. Por ello,
+la ruta de rollout válida es corregir esa migración todavía pendiente: una migración
+posterior no podría ejecutarse antes del statement de bootstrap que bloqueaba PR 4.
+
+Esta excepción no requiere `migration repair`, SQL manual ni historia ficticia. Un
+entorno que ya hubiera aplicado la versión anterior necesitaría una migración
+forward-only distinta; no existe actualmente tal entorno remoto para Peter Golf. La
+secuencia oficial permanece PR 4 → fix de candidate → PR 5 → fix financiero.
 
 ## Extensiones futuras
 
