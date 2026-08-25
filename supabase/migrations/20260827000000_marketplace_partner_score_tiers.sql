@@ -814,7 +814,7 @@ begin
 end;
 $$;
 
-create or replace function public.recalculate_partner_score_tier(
+create or replace function private.recalculate_partner_score_tier_internal(
   requested_partner_id uuid, requested_as_of_date date,
   requested_calculation_key text, requested_reason text
 ) returns public.partner_score_tier_state
@@ -835,12 +835,6 @@ declare config_id uuid; config_number bigint; rules public.marketplace_score_rul
   critical_bypass boolean := false; expired_record record;
   metric_key text; reason_value text := btrim(requested_reason);
 begin
-  if (select auth.uid()) is not null and not public.can_manage_marketplace_score_tiers() then
-    raise exception 'Marketplace score recalculation denied' using errcode = '42501';
-  end if;
-  if (select auth.uid()) is null and session_user not in ('postgres','supabase_admin') then
-    raise exception 'Marketplace score job denied' using errcode = '42501';
-  end if;
   if char_length(reason_value) not between 3 and 500
     or requested_calculation_key !~ '^[a-zA-Z0-9][a-zA-Z0-9:_-]{5,199}$'
   then raise exception 'Valid calculation key and reason are required' using errcode = '22023'; end if;
@@ -1019,7 +1013,25 @@ begin
 end;
 $$;
 
-create or replace function public.run_marketplace_score_tier_job(
+create or replace function public.recalculate_partner_score_tier(
+  requested_partner_id uuid, requested_as_of_date date,
+  requested_calculation_key text, requested_reason text
+) returns public.partner_score_tier_state
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.can_manage_marketplace_score_tiers() then
+    raise exception 'Marketplace score recalculation denied' using errcode = '42501';
+  end if;
+  return private.recalculate_partner_score_tier_internal(
+    requested_partner_id,
+    requested_as_of_date,
+    requested_calculation_key,
+    requested_reason
+  );
+end;
+$$;
+
+create or replace function private.run_marketplace_score_tier_job_internal(
   requested_as_of_date date, requested_job_key text,
   requested_partner_id uuid default null,
   requested_reason text default 'Daily Marketplace score and tier recalculation'
@@ -1027,12 +1039,6 @@ create or replace function public.run_marketplace_score_tier_job(
 language plpgsql security definer set search_path = '' as $$
 declare run_record public.marketplace_score_job_runs; partner_record record; processed integer := 0;
 begin
-  if (select auth.uid()) is not null and not public.can_manage_marketplace_score_tiers() then
-    raise exception 'Marketplace score job access denied' using errcode = '42501';
-  end if;
-  if (select auth.uid()) is null and session_user not in ('postgres','supabase_admin') then
-    raise exception 'Marketplace score job access denied' using errcode = '42501';
-  end if;
   if requested_job_key !~ '^[a-zA-Z0-9][a-zA-Z0-9:_-]{5,199}$'
     or char_length(btrim(requested_reason)) not between 3 and 500
   then raise exception 'Valid job key and reason are required' using errcode = '22023'; end if;
@@ -1056,7 +1062,7 @@ begin
       and exists (select 1 from public.partner_status_history history where history.partner_id = partner.id and history.to_status = 'VERIFIED')
     order by id
   loop
-    perform public.recalculate_partner_score_tier(
+    perform private.recalculate_partner_score_tier_internal(
       partner_record.id,requested_as_of_date,
       requested_job_key || ':' || partner_record.id::text,requested_reason
     );
@@ -1066,6 +1072,25 @@ begin
     processed_partners = processed, completed_at = now()
   where id = run_record.id returning * into run_record;
   return run_record;
+end;
+$$;
+
+create or replace function public.run_marketplace_score_tier_job(
+  requested_as_of_date date, requested_job_key text,
+  requested_partner_id uuid default null,
+  requested_reason text default 'Daily Marketplace score and tier recalculation'
+) returns public.marketplace_score_job_runs
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.can_manage_marketplace_score_tiers() then
+    raise exception 'Marketplace score job access denied' using errcode = '42501';
+  end if;
+  return private.run_marketplace_score_tier_job_internal(
+    requested_as_of_date,
+    requested_job_key,
+    requested_partner_id,
+    requested_reason
+  );
 end;
 $$;
 
@@ -1098,7 +1123,7 @@ create or replace function private.initialize_verified_partner_score()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   if new.status='VERIFIED' and old.status is distinct from new.status then
-    perform public.recalculate_partner_score_tier(
+    perform private.recalculate_partner_score_tier_internal(
       new.id,(now() at time zone 'UTC')::date,
       'verification:' || new.id::text || ':' || new.version::text,
       'Initialize score after Partner verification'
@@ -1301,6 +1326,8 @@ revoke all on function private.marketplace_tier_rank(public.marketplace_partner_
 revoke all on function private.smoothed_score_bps(bigint,integer,integer,integer) from public, anon, authenticated;
 revoke all on function private.guard_partner_score_snapshot_change() from public, anon, authenticated;
 revoke all on function private.initialize_verified_partner_score() from public, anon, authenticated;
+revoke all on function private.recalculate_partner_score_tier_internal(uuid,date,text,text) from public, anon, authenticated;
+revoke all on function private.run_marketplace_score_tier_job_internal(date,text,uuid,text) from public, anon, authenticated;
 
 grant execute on function public.can_manage_marketplace_score_tiers() to authenticated;
 grant execute on function public.can_override_marketplace_score_tiers() to authenticated;
@@ -1321,7 +1348,7 @@ comment on table public.partner_score_snapshots is 'Immutable, config-versioned 
 comment on table public.partner_daily_listing_metrics is 'Daily eligible listing count; pre-verification days are excluded from rolling averages.';
 comment on table public.partner_score_tier_state is 'Current cache only; snapshots, metrics and tier history remain reconstructible sources.';
 
-select public.run_marketplace_score_tier_job(
+select private.run_marketplace_score_tier_job_internal(
   (now() at time zone 'UTC')::date,
   'bootstrap:' || to_char((now() at time zone 'UTC')::date,'YYYY-MM-DD'),
   null,
@@ -1331,7 +1358,7 @@ select public.run_marketplace_score_tier_job(
 select cron.schedule(
   'best-round-marketplace-score-tiers-daily',
   '15 5 * * *',
-  $cron$select public.run_marketplace_score_tier_job(
+  $cron$select private.run_marketplace_score_tier_job_internal(
     (now() at time zone 'UTC')::date,
     'daily:' || to_char((now() at time zone 'UTC')::date,'YYYY-MM-DD'),
     null,

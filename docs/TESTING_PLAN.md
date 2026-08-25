@@ -62,6 +62,10 @@ penalty decay, riesgo crítico, overrides, snapshots inmutables y RLS Partner A/
 `supabase/tests/marketplace_partner_score_tier_promotion_candidate.sql` cubre la
 estabilidad ligada a un candidate específico, cambios Par/Birdie/Hole in One,
 pérdida del candidate, idempotencia, downgrade y cap provisional.
+`supabase/tests/marketplace_score_job_hosted_portability.sql` reproduce una
+identidad de infraestructura distinta de `postgres`, comprueba que bootstrap y
+cron usan el executor privado, y valida autorización pública, ACL internas,
+baseline neutral, schedule único e idempotencia.
 
 `src/lib/marketplace/score-tier-rules.test.ts` cubre smoothing y matemática en
 bps, bounds, status, elegibilidad simultánea, fallback Bogey, cap provisional,
