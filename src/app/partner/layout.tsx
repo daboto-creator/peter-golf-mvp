@@ -3,6 +3,7 @@ import {
   FileCheck2,
   LayoutDashboard,
   PackageSearch,
+  Star,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -44,7 +45,7 @@ export default async function PartnerLayout({
         <div className="border-border overflow-x-hidden border-b bg-white">
           <nav
             aria-label="Portal Partner"
-            className="mx-auto grid w-full max-w-full grid-cols-4 gap-1 px-2 py-2 sm:flex sm:max-w-7xl sm:overflow-x-auto sm:px-6 lg:px-8"
+            className="mx-auto grid w-full max-w-full grid-cols-5 gap-1 px-2 py-2 sm:flex sm:max-w-7xl sm:overflow-x-auto sm:px-6 lg:px-8"
           >
             <Button
               asChild
@@ -54,6 +55,16 @@ export default async function PartnerLayout({
               <Link href="/partner">
                 <LayoutDashboard aria-hidden="true" />
                 Dashboard
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              className="h-auto min-w-0 flex-col gap-0.5 px-1 py-2 text-[0.6rem] sm:h-11 sm:shrink-0 sm:flex-row sm:gap-2 sm:px-4 sm:text-sm"
+            >
+              <Link href="/partner/score">
+                <Star aria-hidden="true" />
+                Score y nivel
               </Link>
             </Button>
             <Button
@@ -86,7 +97,7 @@ export default async function PartnerLayout({
                 Verificación
               </Link>
             </Button>
-            {["Ventas", "Liquidaciones", "Score", "Tier"].map((label) => (
+            {["Ventas", "Liquidaciones"].map((label) => (
               <Button
                 key={label}
                 disabled

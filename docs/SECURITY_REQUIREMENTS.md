@@ -1,5 +1,16 @@
 # Requisitos de seguridad
 
+## Score/Tier Marketplace
+
+- Un Partner sólo lee su explicación resumida, historial y penalties visibles.
+- El cliente Partner no puede crear evidencia, ratings, métricas, snapshots,
+  penalties, tiers ni overrides.
+- Operations requiere capability específica para recálculo/penalties; overrides
+  y configuración permanecen restringidos a Admin.
+- Los jobs usan funciones transaccionales idempotentes y no requieren exponer una
+  service role key en el navegador ni en rutas públicas.
+- Score, Tier y señales de riesgo no se exponen públicamente en PR 4.
+
 ## 1. Principios
 
 - Mínimo privilegio, denegación por defecto y defensa en profundidad.
