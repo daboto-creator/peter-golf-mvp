@@ -12,6 +12,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireAuthenticatedUser } from "@/lib/auth/user";
+import { getMarketplaceAvailability } from "@/lib/auth/marketplace-authorization";
+import { getCurrentPartnerContext } from "@/lib/marketplace/partner-data";
+import { partnerStatusCopy } from "@/lib/marketplace/partner-rules";
 
 export const metadata: Metadata = {
   title: "Mi Golf | Best Round Pro Shop",
@@ -24,10 +27,14 @@ export default async function AccountPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const [user, query] = await Promise.all([
-    requireAuthenticatedUser("/cuenta"),
-    searchParams,
-  ]);
+  const [user, query, marketplaceAvailable, partnerContext] = await Promise.all(
+    [
+      requireAuthenticatedUser("/cuenta"),
+      searchParams,
+      getMarketplaceAvailability(),
+      getCurrentPartnerContext(),
+    ],
+  );
 
   return (
     <div className="space-y-10">
@@ -109,6 +116,35 @@ export default async function AccountPage({
           </Card>
         </div>
       </div>
+      {marketplaceAvailable ? (
+        <Card className="border-pg-gold/40 rounded-[20px]">
+          <CardHeader>
+            <CardTitle>
+              {partnerContext.partner
+                ? "Tu espacio Best Round Partner"
+                : "¿Tienes equipo para vender?"}
+            </CardTitle>
+            <CardDescription>
+              {partnerContext.partner
+                ? partnerStatusCopy[partnerContext.partner.status].description
+                : "Inicia un perfil Partner con la misma cuenta de Mi Golf."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link
+                href={
+                  partnerContext.partner ? "/partner" : "/partner/onboarding"
+                }
+              >
+                {partnerContext.partner
+                  ? "Entrar a modo Partner"
+                  : "Quiero vender en Best Round"}
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

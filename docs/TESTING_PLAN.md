@@ -34,6 +34,13 @@ transiciones con versión, auditoría inmutable y configuración versionada. Se
 ejecuta manualmente después de `npm run supabase:reset`; su incorporación al CI
 completo queda para el hardening de PR 9.
 
+`supabase/tests/marketplace_partner_onboarding.sql` agrega guardado progresivo,
+mass assignment, readiness, envío, revisión, concurrencia, audit sin KYC,
+Partner A/B, Golfer, anonymous, Operations y Admin. El E2E opt-in
+`marketplace-partner-onboarding.spec.ts` cubre Golfer → Partner → Operations →
+VERIFIED, selector de modo, rutas prohibidas y overflow móvil. Véase
+`docs/MARKETPLACE_PARTNER_ONBOARDING.md` para ejecutarlos.
+
 `e2e/staging-smoke.spec.ts` es de sólo lectura y valida home, catálogo, health,
 redirects anónimos, ausencia del scaffold, errores visibles y patrones de
 secretos. Se ejecutará después de crear el alias de staging.

@@ -39,9 +39,10 @@ use la URL gratuita inicial, Preview y staging reciben como
 staging. Los callbacks terminan allí.
 
 `MARKETPLACE_ENABLED` es exclusivamente server-side y falla cerrado a `false`.
-PR 1 no expone rutas Marketplace. El kill switch privado
-`site_settings['marketplace.enabled']` también inicia apagado; una fase futura
-deberá habilitar explícitamente ambos controles.
+PR 2 incluye rutas autenticadas de onboarding y revisión, pero permanecen
+inaccesibles mientras el flag está apagado. El kill switch privado
+`site_settings['marketplace.enabled']` también inicia apagado; desarrollo o
+staging deben habilitar explícitamente ambos controles para probar el flujo.
 
 ## Validación fail-closed
 

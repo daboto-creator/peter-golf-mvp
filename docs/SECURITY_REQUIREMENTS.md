@@ -45,6 +45,12 @@ limitados. No hay lectura anónima, URL pública ni contenido KYC en `audit_logs
 La foundation no usa `service_role` desde Next.js. Véase
 [MARKETPLACE_FOUNDATION.md](./MARKETPLACE_FOUNDATION.md).
 
+El onboarding mantiene sus escrituras detrás de RPCs con allowlist, sesión,
+estado y `expected_version`. La carga valida MIME, extensión, firma y tamaño en
+servidor. Operations obtiene signed URLs de 60 segundos sólo después de
+`can_review_partner_documents`; el listado nunca descarga binarios. La retención
+KYC permanece `TBD_LEGAL_REVIEW`.
+
 Todas las tablas de `public` tienen RLS activada. La ausencia de política deniega
 la operación. No existe ninguna política `USING (true)`.
 
