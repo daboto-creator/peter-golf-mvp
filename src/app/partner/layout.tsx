@@ -97,19 +97,20 @@ export default async function PartnerLayout({
                 Verificación
               </Link>
             </Button>
-            {["Ventas", "Liquidaciones"].map((label) => (
-              <Button
-                key={label}
-                disabled
-                variant="ghost"
-                className="hidden shrink-0 sm:inline-flex"
-                title="Próximamente"
-              >
+            <Button asChild variant="ghost" className="shrink-0">
+              <Link href="/partner/ventas">
                 <BriefcaseBusiness aria-hidden="true" />
-                {label}
-                <span className="sr-only"> (Próximamente)</span>
-              </Button>
-            ))}
+                Ventas
+              </Link>
+            </Button>
+            <Button
+              disabled
+              variant="ghost"
+              className="hidden shrink-0 sm:inline-flex"
+              title="Próximamente"
+            >
+              Liquidaciones<span className="sr-only"> (Próximamente)</span>
+            </Button>
           </nav>
         </div>
       ) : null}

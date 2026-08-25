@@ -412,3 +412,16 @@ sanitizados es de 90 días. Véase
   are Operations-only; aggregate market analysis is owner-visible.
 - Provider keys remain server-only. No Marketplace pricing RPC accepts an
   authoritative commission, tier, net or median from a Partner.
+
+## Marketplace checkout and fulfillment
+
+- Checkout totals, quote, Partner, tier and fees are resolved server-side.
+- The transactional checkout RPC locks stock before reservation and rejects
+  stale listing/quote versions and ineligible Partners.
+- Partners read only their activated fulfillment through RLS and a safe
+  economics projection; order-wide economics and buyer payment data remain
+  unavailable.
+- Payment success is accepted only by the existing signed Stripe webhook or an
+  authorized manual-payment workflow. Replay cannot duplicate inventory moves.
+- `SECURITY DEFINER` entry points use an empty `search_path`, schema-qualified
+  objects, explicit actor/capability checks and minimal grants.

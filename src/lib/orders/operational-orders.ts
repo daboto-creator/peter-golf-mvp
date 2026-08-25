@@ -332,7 +332,7 @@ export async function getManualOrder(
         address: normalizeManualOrderAddress(data.shipping_address_snapshot),
         items: data.order_items.map((item) => ({
           id: item.id,
-          productId: item.product_id,
+          productId: item.product_id ?? "",
           variantId: item.variant_id ?? "",
           sku: item.sku_snapshot,
           productName: item.product_name_snapshot,

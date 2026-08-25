@@ -10,6 +10,7 @@ import {
   checkoutAddressSchema,
   checkoutAddressToPayload,
 } from "@/lib/cart/cart-rules";
+import { getCustomerCart } from "@/lib/cart/customer-cart";
 import type { CartActionResult } from "@/lib/cart/cart-action-state";
 import { getSafeInternalPath } from "@/lib/auth/redirect";
 import { getAuthenticatedUser } from "@/lib/auth/user";
@@ -238,7 +239,11 @@ export async function checkoutAction(
     };
   }
   const client = await createClient();
-  const { data, error } = await client.rpc("create_customer_checkout_order", {
+  const currentCart = await getCustomerCart();
+  if (!currentCart || currentCart.cart_id !== cartId.data) {
+    return { status: "error", message: "El carrito ya no está disponible." };
+  }
+  const checkoutPayload = {
     requested_cart_id: cartId.data,
     expected_version: parsedVersion.data,
     requested_shipping_method_id: shippingMethodId.data,
@@ -250,7 +255,10 @@ export async function checkoutAction(
       savedAddressId === null && formData.get("saveAddress") === "on",
     requested_idempotency_key: key.data,
     requested_payment_method: paymentMethod as "bank_transfer" | "card",
-  });
+  };
+  const { data, error } = currentCart.has_marketplace_items
+    ? await client.rpc("create_marketplace_checkout_order", checkoutPayload)
+    : await client.rpc("create_customer_checkout_order", checkoutPayload);
   if (error || !data[0]) return safeFailure(error?.code);
   revalidatePath("/carrito");
   revalidatePath("/checkout");

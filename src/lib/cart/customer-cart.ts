@@ -11,11 +11,18 @@ const cartSchema = z.object({
   unit_count: z.number().int().nonnegative(),
   subtotal: z.number().int().nonnegative(),
   has_issues: z.boolean(),
+  has_marketplace_items: z.boolean().default(false),
   items: z.array(
     z.object({
       id: z.string().uuid(),
+      item_source: z
+        .enum(["FIRST_PARTY", "MARKETPLACE_PARTNER"])
+        .default("FIRST_PARTY"),
       product_id: z.string().uuid().nullable(),
       variant_id: z.string().uuid().nullable(),
+      listing_id: z.string().uuid().nullable().optional(),
+      listing_version_id: z.string().uuid().nullable().optional(),
+      pricing_quote_id: z.string().uuid().nullable().optional(),
       slug: z.string().nullable(),
       product_name: z.string(),
       variant_name: z.string(),
