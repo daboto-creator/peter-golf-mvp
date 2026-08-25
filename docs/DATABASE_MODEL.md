@@ -361,3 +361,12 @@ actual. El cache separa `current_tier`, `highest_eligible_tier` y
 `promotion_candidate_tier`; el periodo de estabilidad pertenece al candidate
 específico. Las métricas diarias reconstruyen volumen desde status e inventory
 movements Marketplace, sin tocar inventario first-party.
+
+## Marketplace pricing (PR 5)
+
+`marketplace_market_analyses` and append-only comparables preserve provider or
+manual market evidence for one approved listing version.
+`marketplace_pricing_quotes` preserves tier/config/payment-fee snapshots and
+deterministic Partner/Best Round economics. `marketplace_pricing_status_history`
+records human workflow transitions. These tables do not replace first-party
+`product_pricing`, `pricing_calculations`, or `market_price_researches`.

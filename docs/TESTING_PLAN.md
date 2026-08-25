@@ -311,3 +311,18 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 Copiar el `whsec_...` emitido a `.env.local`; usar tarjetas de prueba de la
 documentación de Stripe, nunca datos reales.
+
+## Marketplace pricing PR 5
+
+Run after `npm run supabase:reset`:
+
+```bash
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/marketplace_partner_pricing.sql
+```
+
+The suite covers financial snapshots, tier commission, VAT, processing split,
+admin fees, inverse pricing, idempotency, listing-version binding, quote
+approval without publication, RLS A/B/Golfer/anonymous and tamper resistance.
+Optional browser coverage uses `RUN_MARKETPLACE_PRICING_E2E=1` together with
+`MARKETPLACE_ENABLED=true`.

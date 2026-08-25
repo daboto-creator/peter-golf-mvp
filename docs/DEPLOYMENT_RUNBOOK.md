@@ -186,3 +186,11 @@ Base:
 3. si hay corrupción o incompatibilidad, restaurar el respaldo previo;
 4. verificar historial, RLS, integridad y aplicación;
 5. documentar impacto y recuperación dentro del RTO objetivo.
+
+## Marketplace pricing staging note
+
+Marketplace stays off by default. Private staging validation requires the
+existing Marketplace flag plus server-only `MARKET_PRICE_PROVIDER` and
+`SERPAPI_API_KEY`. Confirm the published Marketplace pricing rule references an
+active payment fee config. Never expose provider keys or enable public selling
+as part of PR 5.

@@ -95,3 +95,11 @@ IVA y fiscalidad están fuera de esta fase. Antes de incorporarlos se debe defin
 si los importes del dominio son tax-inclusive o tax-exclusive. Hasta entonces el
 motor trabaja solamente con costo directo, fee de procesamiento, target de
 retorno y referencia de mercado.
+
+## Marketplace contextual extension
+
+Marketplace reuses integer money helpers, payment-fee configuration, provider
+matching/statistics and SerpApi resilience. Its economics are implemented as a
+separate context because Partner net is not first-party acquisition cost.
+Financial values remain deterministic; Market Intelligence only supplies a
+commercial reference. See `MARKETPLACE_PRICING_INTELLIGENCE.md`.

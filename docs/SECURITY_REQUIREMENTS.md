@@ -400,3 +400,15 @@ sanitizados es de 90 días. Véase
   monitoreo, control de acceso y hallazgos críticos/altos.
 - El rate limiting adicional a los límites nativos de Supabase permanece como
   decisión pendiente antes de producción.
+
+## Marketplace pricing
+
+- Partner inputs are limited to desired public price, desired net and workflow
+  intent. Tier, commissions, taxes, fees, market reference and outputs are read
+  or recalculated server-side.
+- Quotes are bound to the approved listing version and are immutable outside
+  the authorized status RPC.
+- Partner A cannot read Partner B economics. Raw comparables/manual evidence
+  are Operations-only; aggregate market analysis is owner-visible.
+- Provider keys remain server-only. No Marketplace pricing RPC accepts an
+  authoritative commission, tier, net or median from a Partner.
