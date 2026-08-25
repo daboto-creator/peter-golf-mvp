@@ -379,3 +379,26 @@ The existing `orders` and `order_items` aggregate now uses an explicit
 and `inventory_reservations` coordinates first-party and Marketplace inventory
 without merging their stock tables. Status history and idempotency keys are
 append-only. See `MARKETPLACE_CHECKOUT_FULFILLMENT.md`.
+
+## Marketplace Partner payables and ledger (PR7)
+
+`marketplace_partner_payables` represents one Partner obligation per immutable
+PR6 Marketplace order-item snapshot. Its original amount is copied exactly from
+`marketplace_order_item_snapshots.estimated_partner_net`; current tier, pricing
+rules, and current configuration are never consulted.
+
+`marketplace_partner_ledger_entries` is append-only and stores signed deltas for
+the `PENDING`, `ON_HOLD`, `AVAILABLE`, and future `PAID` buckets. Reversals add a
+negative compensating entry and a positive reporting delta instead of changing
+the original movement. `marketplace_partner_holds` supports multiple concurrent
+holds, while `marketplace_partner_release_authorizations` records the explicit
+acceptance/reconciliation basis required before a release.
+
+The chain is:
+
+```text
+paid order → immutable order snapshot → Partner payable → append-only ledger
+```
+
+PR7 does not create payout batches, bank transfers, Stripe Connect transfers,
+Mexican withholding, or tax documents.

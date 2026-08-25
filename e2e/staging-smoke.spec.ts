@@ -48,7 +48,9 @@ test.describe("staging read-only smoke", () => {
     "/cuenta",
     "/operacion",
     "/partner/ventas",
+    "/partner/pagos",
     "/operacion/marketplace/ordenes",
+    "/operacion/marketplace/pagos",
   ]) {
     test(`${protectedPath} redirects an anonymous visitor`, async ({
       page,

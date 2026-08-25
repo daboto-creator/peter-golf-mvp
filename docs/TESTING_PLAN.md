@@ -339,3 +339,16 @@ fulfillment idempotency, immutable quote snapshots, payment replay, expiry
 release and Partner/anonymous isolation. Unit tests cover readiness, grouping
 and transition rules. Existing payment, order, inventory and Marketplace suites
 remain mandatory regressions.
+
+## PR7 Partner ledger and payables
+
+The Marketplace checkout SQL suite proves exact payable creation from PR6
+snapshots, first-party exclusion, multi-Partner isolation, payment replay,
+multiple holds, active-hold release blocking, idempotent release, partial and
+total compensating reversals, hidden-risk isolation, and exact balance
+reconstruction. `marketplace_partner_payables.sql` separately checks hosted-safe
+internal grants, RLS surface, and ledger immutability.
+
+The browser security shell covers `/partner/pagos` and
+`/operacion/marketplace/pagos` on Desktop, Pixel 7, and iPhone 15 while the
+Marketplace remains disabled publicly.

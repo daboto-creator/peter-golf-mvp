@@ -425,3 +425,18 @@ sanitizados es de 90 días. Véase
   authorized manual-payment workflow. Replay cannot duplicate inventory moves.
 - `SECURITY DEFINER` entry points use an empty `search_path`, schema-qualified
   objects, explicit actor/capability checks and minimal grants.
+
+## Partner finance boundary (PR7)
+
+- Payable amounts are server-derived from the PR6 immutable order snapshot.
+- Browser roles have no insert/update/delete grants on payables, ledger, holds,
+  histories, or release authorizations.
+- Internal executors live in `private`, use `SECURITY DEFINER` with an empty
+  `search_path`, and are revoked from `PUBLIC`, `anon`, `authenticated`, and
+  `service_role`.
+- Partners can read only their own financial rows. Hidden risk holds and their
+  ledger movements are filtered by RLS; Golfer and anonymous roles have no
+  access.
+- Operations mutations require `can_manage_marketplace_payables()`, mandatory
+  reason, actor identity, and an idempotency key. Active holds block release.
+- No PR7 path can mark a payable paid or initiate a payout/transfer.
