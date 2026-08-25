@@ -62,9 +62,16 @@ export default async function PartnerOperationsDetailPage({
             {partnerStatusCopy[partner.status].label}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href="/operacion/marketplace/partners">Volver</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/operacion/marketplace/partners/${partner.id}/score`}>
+              Score y Tier
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/operacion/marketplace/partners">Volver</Link>
+          </Button>
+        </div>
       </header>
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-6">

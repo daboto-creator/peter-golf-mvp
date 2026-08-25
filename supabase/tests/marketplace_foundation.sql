@@ -285,36 +285,48 @@ set local role authenticated;
 do $$
 declare
   draft_id uuid;
+  published_id uuid;
+  retired_before integer;
 begin
+  select id into strict published_id from public.marketplace_config_versions
+  where status = 'PUBLISHED' and effective_to is null;
+  select count(*) into retired_before from public.marketplace_config_versions
+  where status = 'RETIRED' and effective_to is not null;
   if not public.can_manage_marketplace_configuration()
-    or (select count(*) from public.marketplace_tier_rules) <> 5
+    or (select count(*) from public.marketplace_tier_rules
+        where config_version_id = published_id) <> 5
     or (select commission_rate_bps from public.marketplace_tier_rules
-        where tier = 'BOGEY') <> 1500
+        where config_version_id = published_id and tier = 'BOGEY') <> 1500
     or (select commission_rate_bps from public.marketplace_tier_rules
-        where tier = 'PAR') <> 1400
+        where config_version_id = published_id and tier = 'PAR') <> 1400
     or (select commission_rate_bps from public.marketplace_tier_rules
-        where tier = 'BIRDIE') <> 1300
+        where config_version_id = published_id and tier = 'BIRDIE') <> 1300
     or (select commission_rate_bps from public.marketplace_tier_rules
-        where tier = 'ALBATROSS') <> 1200
+        where config_version_id = published_id and tier = 'ALBATROSS') <> 1200
     or (select commission_rate_bps from public.marketplace_tier_rules
-        where tier = 'HOLE_IN_ONE') <> 1100
+        where config_version_id = published_id and tier = 'HOLE_IN_ONE') <> 1100
   then
     raise exception 'Approved commission baseline is incorrect';
   end if;
 
   if not exists (
     select 1 from public.marketplace_financial_rules
-    where partner_processing_share_bps = 5000
+    where config_version_id = published_id
+      and partner_processing_share_bps = 5000
       and admin_fee_bps = 75
       and admin_fixed_fee = 3900
       and minimum_marketplace_revenue is null
   ) or not exists (
     select 1 from public.marketplace_operational_rules
-    where tier_averaging_window_days = 30
-      and score_provisional_completed_orders is null
-  ) or exists (select 1 from public.marketplace_score_weight_rules)
+    where config_version_id = published_id
+      and tier_averaging_window_days = 30
+      and score_provisional_completed_orders = 5
+  ) or (select count(*) from public.marketplace_score_weight_rules
+        where config_version_id = published_id) <> 7
+    or (select sum(weight_bps) from public.marketplace_score_weight_rules
+        where config_version_id = published_id) <> 10000
   then
-    raise exception 'Foundation config or deferred score decisions are incorrect';
+    raise exception 'Foundation and versioned Score config are incorrect';
   end if;
 
   draft_id := public.create_marketplace_config_draft(
@@ -328,7 +340,7 @@ begin
   if (select count(*) from public.marketplace_config_versions
       where status = 'PUBLISHED' and effective_to is null) <> 1
     or (select count(*) from public.marketplace_config_versions
-        where status = 'RETIRED' and effective_to is not null) <> 1
+        where status = 'RETIRED' and effective_to is not null) <> retired_before + 1
     or not exists (
       select 1 from public.audit_logs
       where action = 'marketplace.configuration_published'

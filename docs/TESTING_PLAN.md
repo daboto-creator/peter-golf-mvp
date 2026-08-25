@@ -53,6 +53,23 @@ termina en `ROLLBACK`.
 server validation. El E2E opt-in cubre el wizard desktop, revisión humana,
 corrección/reenvío, aprobación y checks responsive sin habilitar compra.
 
+### Marketplace Partner Score y Tiers
+
+`supabase/tests/marketplace_partner_score_tiers.sql` valida con `ROLLBACK` la
+configuración versionada, prior neutral, status provisional/establecido, siete
+componentes, idempotencia, rolling de días elegibles, promoción, downgrade,
+penalty decay, riesgo crítico, overrides, snapshots inmutables y RLS Partner A/B.
+`supabase/tests/marketplace_partner_score_tier_promotion_candidate.sql` cubre la
+estabilidad ligada a un candidate específico, cambios Par/Birdie/Hole in One,
+pérdida del candidate, idempotencia, downgrade y cap provisional.
+
+`src/lib/marketplace/score-tier-rules.test.ts` cubre smoothing y matemática en
+bps, bounds, status, elegibilidad simultánea, fallback Bogey, cap provisional,
+timers inclusivos y tracking por candidate. El E2E opt-in
+`marketplace-partner-score-tiers.spec.ts` valida
+la vista explicable del Partner, acciones autorizadas de Operations y overflow
+en Desktop, Pixel 7 e iPhone 15.
+
 `e2e/staging-smoke.spec.ts` es de sólo lectura y valida home, catálogo, health,
 redirects anónimos, ausencia del scaffold, errores visibles y patrones de
 secretos. Se ejecutará después de crear el alias de staging.
