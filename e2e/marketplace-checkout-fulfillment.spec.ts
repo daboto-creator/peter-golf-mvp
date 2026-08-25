@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Marketplace checkout and fulfillment security shell", () => {
-  for (const path of ["/partner/ventas", "/operacion/marketplace/ordenes"]) {
+test.describe("Marketplace checkout, fulfillment and Partner finance security shell", () => {
+  for (const path of [
+    "/partner/ventas",
+    "/partner/pagos",
+    "/operacion/marketplace/ordenes",
+    "/operacion/marketplace/pagos",
+  ]) {
     test(`${path} blocks anonymous access without a runtime error`, async ({
       page,
     }) => {

@@ -174,6 +174,19 @@ do $$ begin
   if exists(select 1 from public.order_fulfillments
     where order_id=current_setting('test.checkout_order')::uuid and activated_at is null)
   then raise exception 'Payment did not activate fulfillments'; end if;
+  if (select count(*) from public.marketplace_partner_payables
+    where order_id=current_setting('test.checkout_order')::uuid)<>2
+  then raise exception 'Payment replay did not create exactly one payable per Partner item'; end if;
+  if exists(select 1 from public.marketplace_partner_payables p
+    join public.marketplace_order_item_snapshots s on s.order_item_id=p.order_item_id
+    where p.order_id=current_setting('test.checkout_order')::uuid
+      and (p.original_amount_cents<>s.estimated_partner_net
+        or p.currency<>s.currency or p.status<>'PENDING'))
+  then raise exception 'Partner payable drifted from immutable PR6 snapshot'; end if;
+  if exists(select 1 from public.marketplace_partner_payables p
+    join public.order_items oi on oi.id=p.order_item_id
+    where oi.item_source<>'MARKETPLACE_PARTNER')
+  then raise exception 'First-party item created a Partner payable'; end if;
   begin
     update public.marketplace_order_item_snapshots set commission_rate_bps=1
       where fulfillment_id in(select id from public.order_fulfillments
@@ -188,6 +201,8 @@ set local role authenticated;
 do $$ declare f public.order_fulfillments; replay public.order_fulfillments; begin
   if (select count(distinct fulfillment_id) from public.get_partner_marketplace_sales())<>1
     or exists(select 1 from public.marketplace_order_item_snapshots)
+    or (select count(*) from public.marketplace_partner_payables)<>1
+    or (select count(*) from public.marketplace_partner_ledger_entries)<>1
   then raise exception 'Partner fulfillment/economics isolation failed'; end if;
   select * into strict f from public.order_fulfillments where partner_id='6b000000-0000-4000-8000-000000000001';
   f:=public.transition_partner_fulfillment(f.id,f.version,'CONFIRM_AVAILABILITY','Disponibilidad confirmada',
@@ -199,6 +214,104 @@ do $$ declare f public.order_fulfillments; replay public.order_fulfillments; beg
   begin
     update public.order_fulfillments set status='COMPLETED';
     raise exception 'Partner bypassed fulfillment RPC';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+
+-- Operations financial commands preserve multiple holds, explicit release,
+-- compensating reversals, exact balances and replay idempotency. Use Partner B
+-- so Partner A's fulfillment transition regression above remains untouched.
+select set_config('peter_golf.marketplace_order_write','enabled',true);
+alter table public.order_fulfillments disable trigger order_fulfillments_sync_order;
+update public.order_fulfillments set status='ACCEPTANCE_PENDING',version=version+1
+where partner_id='6b000000-0000-4000-8000-000000000002';
+alter table public.order_fulfillments enable trigger order_fulfillments_sync_order;
+select set_config('peter_golf.marketplace_order_write','disabled',true);
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000005',true);
+set local role authenticated;
+do $$ declare payable public.marketplace_partner_payables;
+  held public.marketplace_partner_payables; released public.marketplace_partner_payables;
+  first_hold uuid; second_hold uuid; remaining bigint; entry_count bigint;
+begin
+  select p.* into strict payable from public.marketplace_partner_payables p
+    where p.partner_id='6b000000-0000-4000-8000-000000000002';
+  held:=public.place_marketplace_partner_payable_hold(payable.id,'OPERATIONS',
+    'Validación operativa visible','true','71000000-0000-4000-8000-000000000001');
+  held:=public.place_marketplace_partner_payable_hold(payable.id,'RISK',
+    'Revisión interna de riesgo','false','71000000-0000-4000-8000-000000000002');
+  select id into strict first_hold from public.marketplace_partner_holds
+    where placed_idempotency_key='71000000-0000-4000-8000-000000000001';
+  select id into strict second_hold from public.marketplace_partner_holds
+    where placed_idempotency_key='71000000-0000-4000-8000-000000000002';
+  if held.status<>'ON_HOLD' or (select count(*) from public.marketplace_partner_holds
+    where payable_id=payable.id and status='ACTIVE')<>2
+  then raise exception 'Multiple holds were not preserved'; end if;
+  begin
+    perform public.release_marketplace_partner_payable(payable.id,'OPERATIONS_APPROVED',
+      'Entrega aceptada por conciliación','71000000-0000-4000-8000-000000000003');
+    raise exception 'Active hold did not block release';
+  exception when check_violation then null; end;
+  held:=public.release_marketplace_partner_payable_hold(first_hold,
+    'Primera revisión completada','71000000-0000-4000-8000-000000000004');
+  if held.status<>'ON_HOLD' then raise exception 'One remaining hold was ignored'; end if;
+  held:=public.release_marketplace_partner_payable_hold(second_hold,
+    'Riesgo descartado','71000000-0000-4000-8000-000000000005');
+  if held.status<>'PENDING' then raise exception 'Last hold did not restore pending'; end if;
+  released:=public.release_marketplace_partner_payable(payable.id,'OPERATIONS_APPROVED',
+    'Entrega aceptada y obligación íntegra','71000000-0000-4000-8000-000000000006');
+  entry_count:=(select count(*) from public.marketplace_partner_ledger_entries
+    where payable_id=payable.id);
+  released:=public.release_marketplace_partner_payable(payable.id,'OPERATIONS_APPROVED',
+    'Entrega aceptada y obligación íntegra','71000000-0000-4000-8000-000000000006');
+  if released.status<>'AVAILABLE' or entry_count<>(select count(*)
+    from public.marketplace_partner_ledger_entries where payable_id=payable.id)
+  then raise exception 'Payable release replay changed ledger impact'; end if;
+  released:=public.reverse_marketplace_partner_payable(payable.id,100,
+    'Ajuste parcial conciliado','71000000-0000-4000-8000-000000000007');
+  if released.status<>'AVAILABLE' or released.reversed_amount_cents<>100
+  then raise exception 'Partial available reversal was incorrect'; end if;
+  remaining:=released.original_amount_cents-released.reversed_amount_cents;
+  released:=public.reverse_marketplace_partner_payable(payable.id,remaining,
+    'Reversión total conciliada','71000000-0000-4000-8000-000000000008');
+  entry_count:=(select count(*) from public.marketplace_partner_ledger_entries
+    where payable_id=payable.id);
+  released:=public.reverse_marketplace_partner_payable(payable.id,remaining,
+    'Reversión total conciliada','71000000-0000-4000-8000-000000000008');
+  if released.status<>'REVERSED' or entry_count<>(select count(*)
+    from public.marketplace_partner_ledger_entries where payable_id=payable.id)
+  then raise exception 'Reversal replay changed ledger impact'; end if;
+  if exists(select 1 from public.marketplace_partner_ledger_entries l
+    where l.payable_id=payable.id and l.amount_cents<>
+      l.pending_delta_cents+l.on_hold_delta_cents+l.available_delta_cents+l.paid_delta_cents)
+  then raise exception 'Ledger money conservation failed'; end if;
+end $$;
+reset role;
+
+-- Partner B can reconstruct only its own zero net position after reversal;
+-- hidden risk hold details never cross the RLS boundary.
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000002',true);
+set local role authenticated;
+do $$ declare balance record; begin
+  select * into balance from public.get_partner_marketplace_balance();
+  if balance.pending_cents<>0 or balance.on_hold_cents<>0
+    or balance.available_cents<>0 or balance.net_position_cents<>0
+    or balance.reversed_cents<=0
+  then raise exception 'Partner balance did not reconstruct from ledger'; end if;
+  if exists(select 1 from public.marketplace_partner_holds where source='RISK')
+    or exists(select 1 from public.marketplace_partner_ledger_entries
+      where entry_type='PAYABLE_HELD' and metadata->>'partner_visible'='false')
+    or exists(select 1 from public.marketplace_partner_payable_status_history
+      where not partner_visible)
+  then raise exception 'Internal hold reason leaked to Partner'; end if;
+  begin
+    update public.marketplace_partner_payables set original_amount_cents=1;
+    raise exception 'Partner mutated financial obligation';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.release_marketplace_partner_payable(
+      (select id from public.marketplace_partner_payables limit 1),
+      'OPERATIONS_APPROVED','Intento Partner','71000000-0000-4000-8000-000000000009');
+    raise exception 'Partner released own payable';
   exception when insufficient_privilege then null; end;
 end $$;
 reset role;

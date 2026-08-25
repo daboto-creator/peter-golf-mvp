@@ -3,6 +3,7 @@ import {
   FileCheck2,
   LayoutDashboard,
   PackageSearch,
+  ReceiptText,
   Star,
   UserRound,
 } from "lucide-react";
@@ -103,13 +104,11 @@ export default async function PartnerLayout({
                 Ventas
               </Link>
             </Button>
-            <Button
-              disabled
-              variant="ghost"
-              className="hidden shrink-0 sm:inline-flex"
-              title="Próximamente"
-            >
-              Liquidaciones<span className="sr-only"> (Próximamente)</span>
+            <Button asChild variant="ghost" className="shrink-0">
+              <Link href="/partner/pagos">
+                <ReceiptText aria-hidden="true" />
+                Pagos
+              </Link>
             </Button>
           </nav>
         </div>

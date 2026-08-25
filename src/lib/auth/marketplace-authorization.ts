@@ -127,6 +127,21 @@ export async function requireMarketplaceOrdersManager(returnTo: string) {
   return { client, user };
 }
 
+export async function requireMarketplacePayablesManager(returnTo: string) {
+  const client = await createClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) {
+    redirect(
+      `/iniciar-sesion?next=${encodeURIComponent(getSafeInternalPath(returnTo, "/operacion"))}`,
+    );
+  }
+  const { data } = await client.rpc("can_manage_marketplace_payables");
+  if (data !== true) forbidden();
+  return { client, user };
+}
+
 export async function getScoreTierCapabilities() {
   const client = await createClient();
   const [{ data: canManage }, { data: canOverride }] = await Promise.all([
