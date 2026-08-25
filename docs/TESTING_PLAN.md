@@ -41,6 +41,18 @@ Partner A/B, Golfer, anonymous, Operations y Admin. El E2E opt-in
 VERIFIED, selector de modo, rutas prohibidas y overflow móvil. Véase
 `docs/MARKETPLACE_PARTNER_ONBOARDING.md` para ejecutarlos.
 
+### Marketplace Partner Listings
+
+`supabase/tests/marketplace_partner_listings.sql` valida aislamiento Partner A/B,
+Partner no verificado, Golfer, anónimo, capability Operations, configuración
+financiera restringida, readiness, snapshots, cambios solicitados, aprobación,
+Storage privado, unidad única/multi-unidad e invariantes de inventario. La suite
+termina en `ROLLBACK`.
+
+`src/lib/marketplace/listing-rules.test.ts` cubre reglas determinísticas de UI y
+server validation. El E2E opt-in cubre el wizard desktop, revisión humana,
+corrección/reenvío, aprobación y checks responsive sin habilitar compra.
+
 `e2e/staging-smoke.spec.ts` es de sólo lectura y valida home, catálogo, health,
 redirects anónimos, ausencia del scaffold, errores visibles y patrones de
 secretos. Se ejecutará después de crear el alias de staging.

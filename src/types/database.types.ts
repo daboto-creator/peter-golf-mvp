@@ -541,6 +541,74 @@ export type Database = {
           },
         ];
       };
+      catalog_product_models: {
+        Row: {
+          brand_id: string;
+          category_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          model_name: string;
+          normalized_model_name: string;
+          source_product_id: string | null;
+          status: Database["public"]["Enums"]["catalog_record_status"];
+          updated_at: string;
+        };
+        Insert: {
+          brand_id: string;
+          category_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          model_name: string;
+          normalized_model_name: string;
+          source_product_id?: string | null;
+          status?: Database["public"]["Enums"]["catalog_record_status"];
+          updated_at?: string;
+        };
+        Update: {
+          brand_id?: string;
+          category_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          model_name?: string;
+          normalized_model_name?: string;
+          source_product_id?: string | null;
+          status?: Database["public"]["Enums"]["catalog_record_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "catalog_product_models_brand_id_fkey";
+            columns: ["brand_id"];
+            isOneToOne: false;
+            referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "catalog_product_models_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "catalog_product_models_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "catalog_product_models_source_product_id_fkey";
+            columns: ["source_product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       categories: {
         Row: {
           created_at: string;
@@ -949,6 +1017,603 @@ export type Database = {
             columns: ["config_version_id"];
             isOneToOne: true;
             referencedRelation: "marketplace_config_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_listing_images: {
+        Row: {
+          height_pixels: number | null;
+          id: string;
+          listing_id: string;
+          mime_type: string;
+          sha256: string;
+          size_bytes: number;
+          storage_path: string;
+          uploaded_at: string;
+          uploaded_by: string;
+          width_pixels: number | null;
+        };
+        Insert: {
+          height_pixels?: number | null;
+          id?: string;
+          listing_id: string;
+          mime_type: string;
+          sha256: string;
+          size_bytes: number;
+          storage_path: string;
+          uploaded_at?: string;
+          uploaded_by: string;
+          width_pixels?: number | null;
+        };
+        Update: {
+          height_pixels?: number | null;
+          id?: string;
+          listing_id?: string;
+          mime_type?: string;
+          sha256?: string;
+          size_bytes?: number;
+          storage_path?: string;
+          uploaded_at?: string;
+          uploaded_by?: string;
+          width_pixels?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_images_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_images_uploaded_by_fkey";
+            columns: ["uploaded_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_listing_inventory: {
+        Row: {
+          created_at: string;
+          custody: Database["public"]["Enums"]["marketplace_listing_custody"];
+          fulfillment: Database["public"]["Enums"]["marketplace_listing_fulfillment"];
+          id: string;
+          listing_id: string;
+          ownership: Database["public"]["Enums"]["marketplace_listing_ownership"];
+          quantity_available: number | null;
+          quantity_on_hand: number;
+          quantity_reserved: number;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          created_at?: string;
+          custody?: Database["public"]["Enums"]["marketplace_listing_custody"];
+          fulfillment?: Database["public"]["Enums"]["marketplace_listing_fulfillment"];
+          id?: string;
+          listing_id: string;
+          ownership?: Database["public"]["Enums"]["marketplace_listing_ownership"];
+          quantity_available?: number | null;
+          quantity_on_hand?: number;
+          quantity_reserved?: number;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          created_at?: string;
+          custody?: Database["public"]["Enums"]["marketplace_listing_custody"];
+          fulfillment?: Database["public"]["Enums"]["marketplace_listing_fulfillment"];
+          id?: string;
+          listing_id?: string;
+          ownership?: Database["public"]["Enums"]["marketplace_listing_ownership"];
+          quantity_available?: number | null;
+          quantity_on_hand?: number;
+          quantity_reserved?: number;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_inventory_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: true;
+            referencedRelation: "marketplace_listings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_listing_inventory_movements: {
+        Row: {
+          actor_id: string | null;
+          created_at: string;
+          id: string;
+          inventory_id: string;
+          listing_version_id: string | null;
+          movement_type: Database["public"]["Enums"]["marketplace_inventory_movement_type"];
+          quantity_on_hand_after: number;
+          quantity_on_hand_delta: number;
+          quantity_reserved_after: number;
+          quantity_reserved_delta: number;
+          reason: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          created_at?: string;
+          id?: string;
+          inventory_id: string;
+          listing_version_id?: string | null;
+          movement_type: Database["public"]["Enums"]["marketplace_inventory_movement_type"];
+          quantity_on_hand_after: number;
+          quantity_on_hand_delta: number;
+          quantity_reserved_after: number;
+          quantity_reserved_delta?: number;
+          reason: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          created_at?: string;
+          id?: string;
+          inventory_id?: string;
+          listing_version_id?: string | null;
+          movement_type?: Database["public"]["Enums"]["marketplace_inventory_movement_type"];
+          quantity_on_hand_after?: number;
+          quantity_on_hand_delta?: number;
+          quantity_reserved_after?: number;
+          quantity_reserved_delta?: number;
+          reason?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_inventory_movements_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_inventory_movements_inventory_id_fkey";
+            columns: ["inventory_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_inventory";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_inventory_movements_listing_version_id_fkey";
+            columns: ["listing_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_listing_photo_requirements: {
+        Row: {
+          category_id: string;
+          condition: Database["public"]["Enums"]["product_condition"] | null;
+          created_at: string;
+          id: string;
+          image_type: string;
+          label: string;
+          requirement: Database["public"]["Enums"]["marketplace_listing_image_requirement"];
+          sort_order: number;
+        };
+        Insert: {
+          category_id: string;
+          condition?: Database["public"]["Enums"]["product_condition"] | null;
+          created_at?: string;
+          id?: string;
+          image_type: string;
+          label: string;
+          requirement: Database["public"]["Enums"]["marketplace_listing_image_requirement"];
+          sort_order?: number;
+        };
+        Update: {
+          category_id?: string;
+          condition?: Database["public"]["Enums"]["product_condition"] | null;
+          created_at?: string;
+          id?: string;
+          image_type?: string;
+          label?: string;
+          requirement?: Database["public"]["Enums"]["marketplace_listing_image_requirement"];
+          sort_order?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_photo_requirements_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_listing_review_requests: {
+        Row: {
+          area: Database["public"]["Enums"]["marketplace_listing_review_area"];
+          comment: string;
+          created_at: string;
+          created_by: string;
+          id: string;
+          listing_id: string;
+          listing_version_id: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          status: Database["public"]["Enums"]["marketplace_listing_review_request_status"];
+          visibility: Database["public"]["Enums"]["marketplace_listing_review_visibility"];
+        };
+        Insert: {
+          area: Database["public"]["Enums"]["marketplace_listing_review_area"];
+          comment: string;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          listing_id: string;
+          listing_version_id: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: Database["public"]["Enums"]["marketplace_listing_review_request_status"];
+          visibility: Database["public"]["Enums"]["marketplace_listing_review_visibility"];
+        };
+        Update: {
+          area?: Database["public"]["Enums"]["marketplace_listing_review_area"];
+          comment?: string;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          listing_id?: string;
+          listing_version_id?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: Database["public"]["Enums"]["marketplace_listing_review_request_status"];
+          visibility?: Database["public"]["Enums"]["marketplace_listing_review_visibility"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_review_requests_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_review_requests_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_review_requests_listing_version_id_fkey";
+            columns: ["listing_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_review_requests_resolved_by_fkey";
+            columns: ["resolved_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_listing_status_history: {
+        Row: {
+          actor_id: string | null;
+          created_at: string;
+          from_status:
+            Database["public"]["Enums"]["marketplace_listing_status"] | null;
+          id: string;
+          listing_id: string;
+          listing_version_id: string | null;
+          lock_version: number;
+          reason: string | null;
+          to_status: Database["public"]["Enums"]["marketplace_listing_status"];
+        };
+        Insert: {
+          actor_id?: string | null;
+          created_at?: string;
+          from_status?:
+            Database["public"]["Enums"]["marketplace_listing_status"] | null;
+          id?: string;
+          listing_id: string;
+          listing_version_id?: string | null;
+          lock_version: number;
+          reason?: string | null;
+          to_status: Database["public"]["Enums"]["marketplace_listing_status"];
+        };
+        Update: {
+          actor_id?: string | null;
+          created_at?: string;
+          from_status?:
+            Database["public"]["Enums"]["marketplace_listing_status"] | null;
+          id?: string;
+          listing_id?: string;
+          listing_version_id?: string | null;
+          lock_version?: number;
+          reason?: string | null;
+          to_status?: Database["public"]["Enums"]["marketplace_listing_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_status_history_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_status_history_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_status_history_listing_version_id_fkey";
+            columns: ["listing_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_listing_version_images: {
+        Row: {
+          alt_text: string;
+          image_id: string;
+          image_type: string;
+          is_sensitive: boolean;
+          requirement: Database["public"]["Enums"]["marketplace_listing_image_requirement"];
+          sort_order: number;
+          version_id: string;
+        };
+        Insert: {
+          alt_text: string;
+          image_id: string;
+          image_type: string;
+          is_sensitive?: boolean;
+          requirement: Database["public"]["Enums"]["marketplace_listing_image_requirement"];
+          sort_order?: number;
+          version_id: string;
+        };
+        Update: {
+          alt_text?: string;
+          image_id?: string;
+          image_type?: string;
+          is_sensitive?: boolean;
+          requirement?: Database["public"]["Enums"]["marketplace_listing_image_requirement"];
+          sort_order?: number;
+          version_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_version_images_image_id_fkey";
+            columns: ["image_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_images";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_version_images_version_id_fkey";
+            columns: ["version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_listing_versions: {
+        Row: {
+          accessories_included: Json;
+          brand_id: string | null;
+          canonical_model_id: string | null;
+          category_id: string;
+          condition: Database["public"]["Enums"]["product_condition"] | null;
+          condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          condition_notes: string | null;
+          created_at: string;
+          created_by: string;
+          custody: Database["public"]["Enums"]["marketplace_listing_custody"];
+          declared_defects: Json;
+          defects_acknowledged: boolean;
+          description: string | null;
+          evaluation_confidence: number | null;
+          evaluation_output: Json | null;
+          evaluation_source: Database["public"]["Enums"]["marketplace_listing_evaluation_source"];
+          evaluation_status: Database["public"]["Enums"]["marketplace_listing_evaluation_status"];
+          evaluation_summary: string | null;
+          fulfillment: Database["public"]["Enums"]["marketplace_listing_fulfillment"];
+          id: string;
+          listing_id: string;
+          ownership: Database["public"]["Enums"]["marketplace_listing_ownership"];
+          proposed_brand: string | null;
+          proposed_model: string | null;
+          quantity: number;
+          reviewed_at: string | null;
+          serial_number_private: string | null;
+          specifications: Json;
+          state: Database["public"]["Enums"]["marketplace_listing_version_state"];
+          submitted_at: string | null;
+          title: string | null;
+          updated_at: string;
+          version_number: number;
+        };
+        Insert: {
+          accessories_included?: Json;
+          brand_id?: string | null;
+          canonical_model_id?: string | null;
+          category_id: string;
+          condition?: Database["public"]["Enums"]["product_condition"] | null;
+          condition_grade?:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          condition_notes?: string | null;
+          created_at?: string;
+          created_by: string;
+          custody?: Database["public"]["Enums"]["marketplace_listing_custody"];
+          declared_defects?: Json;
+          defects_acknowledged?: boolean;
+          description?: string | null;
+          evaluation_confidence?: number | null;
+          evaluation_output?: Json | null;
+          evaluation_source?: Database["public"]["Enums"]["marketplace_listing_evaluation_source"];
+          evaluation_status?: Database["public"]["Enums"]["marketplace_listing_evaluation_status"];
+          evaluation_summary?: string | null;
+          fulfillment?: Database["public"]["Enums"]["marketplace_listing_fulfillment"];
+          id?: string;
+          listing_id: string;
+          ownership?: Database["public"]["Enums"]["marketplace_listing_ownership"];
+          proposed_brand?: string | null;
+          proposed_model?: string | null;
+          quantity?: number;
+          reviewed_at?: string | null;
+          serial_number_private?: string | null;
+          specifications?: Json;
+          state?: Database["public"]["Enums"]["marketplace_listing_version_state"];
+          submitted_at?: string | null;
+          title?: string | null;
+          updated_at?: string;
+          version_number: number;
+        };
+        Update: {
+          accessories_included?: Json;
+          brand_id?: string | null;
+          canonical_model_id?: string | null;
+          category_id?: string;
+          condition?: Database["public"]["Enums"]["product_condition"] | null;
+          condition_grade?:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          condition_notes?: string | null;
+          created_at?: string;
+          created_by?: string;
+          custody?: Database["public"]["Enums"]["marketplace_listing_custody"];
+          declared_defects?: Json;
+          defects_acknowledged?: boolean;
+          description?: string | null;
+          evaluation_confidence?: number | null;
+          evaluation_output?: Json | null;
+          evaluation_source?: Database["public"]["Enums"]["marketplace_listing_evaluation_source"];
+          evaluation_status?: Database["public"]["Enums"]["marketplace_listing_evaluation_status"];
+          evaluation_summary?: string | null;
+          fulfillment?: Database["public"]["Enums"]["marketplace_listing_fulfillment"];
+          id?: string;
+          listing_id?: string;
+          ownership?: Database["public"]["Enums"]["marketplace_listing_ownership"];
+          proposed_brand?: string | null;
+          proposed_model?: string | null;
+          quantity?: number;
+          reviewed_at?: string | null;
+          serial_number_private?: string | null;
+          specifications?: Json;
+          state?: Database["public"]["Enums"]["marketplace_listing_version_state"];
+          submitted_at?: string | null;
+          title?: string | null;
+          updated_at?: string;
+          version_number?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_versions_brand_id_fkey";
+            columns: ["brand_id"];
+            isOneToOne: false;
+            referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_versions_canonical_model_id_fkey";
+            columns: ["canonical_model_id"];
+            isOneToOne: false;
+            referencedRelation: "catalog_product_models";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_versions_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_versions_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_listing_versions_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_listings: {
+        Row: {
+          approved_at: string | null;
+          approved_version_id: string | null;
+          archived_at: string | null;
+          created_at: string;
+          current_version_id: string | null;
+          id: string;
+          last_submitted_at: string | null;
+          lock_version: number;
+          partner_id: string;
+          status: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at: string;
+        };
+        Insert: {
+          approved_at?: string | null;
+          approved_version_id?: string | null;
+          archived_at?: string | null;
+          created_at?: string;
+          current_version_id?: string | null;
+          id?: string;
+          last_submitted_at?: string | null;
+          lock_version?: number;
+          partner_id: string;
+          status?: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at?: string;
+        };
+        Update: {
+          approved_at?: string | null;
+          approved_version_id?: string | null;
+          archived_at?: string | null;
+          created_at?: string;
+          current_version_id?: string | null;
+          id?: string;
+          last_submitted_at?: string | null;
+          lock_version?: number;
+          partner_id?: string;
+          status?: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listings_approved_version_fk";
+            columns: ["id", "approved_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["listing_id", "id"];
+          },
+          {
+            foreignKeyName: "marketplace_listings_current_version_fk";
+            columns: ["id", "current_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["listing_id", "id"];
+          },
+          {
+            foreignKeyName: "marketplace_listings_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -3208,6 +3873,32 @@ export type Database = {
         };
         Returns: Json;
       };
+      archive_marketplace_listing: {
+        Args: {
+          expected_lock_version: number;
+          requested_listing_id: string;
+          requested_reason: string;
+        };
+        Returns: {
+          approved_at: string | null;
+          approved_version_id: string | null;
+          archived_at: string | null;
+          created_at: string;
+          current_version_id: string | null;
+          id: string;
+          last_submitted_at: string | null;
+          lock_version: number;
+          partner_id: string;
+          status: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       backfill_legacy_order_payments: { Args: never; Returns: undefined };
       calculate_product_pricing: {
         Args: {
@@ -3240,6 +3931,7 @@ export type Database = {
         Returns: boolean;
       };
       can_manage_marketplace_configuration: { Args: never; Returns: boolean };
+      can_manage_marketplace_listings: { Args: never; Returns: boolean };
       can_manage_marketplace_partners: { Args: never; Returns: boolean };
       can_manage_orders: { Args: never; Returns: boolean };
       can_override_pricing_floor: { Args: never; Returns: boolean };
@@ -3433,6 +4125,28 @@ export type Database = {
         Args: { requested_reason: string };
         Returns: string;
       };
+      create_marketplace_listing: {
+        Args: { requested_category_id: string };
+        Returns: {
+          approved_at: string | null;
+          approved_version_id: string | null;
+          archived_at: string | null;
+          created_at: string;
+          current_version_id: string | null;
+          id: string;
+          last_submitted_at: string | null;
+          lock_version: number;
+          partner_id: string;
+          status: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       create_priced_golf_product_with_base_variant: {
         Args: {
           requested_brand_id: string;
@@ -3515,6 +4229,19 @@ export type Database = {
           description: string;
           name: string;
           shipping_method_id: string;
+        }[];
+      };
+      get_marketplace_listing_readiness: {
+        Args: { requested_listing_id: string };
+        Returns: {
+          condition_complete: boolean;
+          defects_acknowledged: boolean;
+          missing_fields: string[];
+          product_identity_complete: boolean;
+          quantity_valid: boolean;
+          ready: boolean;
+          required_photos_complete: boolean;
+          required_specs_complete: boolean;
         }[];
       };
       get_or_create_active_cart: {
@@ -3728,6 +4455,39 @@ export type Database = {
         Returns: string;
       };
       recover_expired_notification_leases: { Args: never; Returns: number };
+      register_marketplace_listing_image: {
+        Args: {
+          expected_lock_version: number;
+          requested_alt_text: string;
+          requested_height_pixels?: number;
+          requested_image_id: string;
+          requested_image_type: string;
+          requested_listing_id: string;
+          requested_mime_type: string;
+          requested_sha256: string;
+          requested_size_bytes: number;
+          requested_storage_path: string;
+          requested_width_pixels?: number;
+        };
+        Returns: {
+          height_pixels: number | null;
+          id: string;
+          listing_id: string;
+          mime_type: string;
+          sha256: string;
+          size_bytes: number;
+          storage_path: string;
+          uploaded_at: string;
+          uploaded_by: string;
+          width_pixels: number | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_listing_images";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       register_partner_document: {
         Args: {
           requested_document_id: string;
@@ -3810,6 +4570,17 @@ export type Database = {
         };
         Returns: string;
       };
+      remove_marketplace_listing_image: {
+        Args: {
+          expected_lock_version: number;
+          requested_image_id: string;
+          requested_listing_id: string;
+        };
+        Returns: {
+          delete_storage_object: boolean;
+          removed_storage_path: string;
+        }[];
+      };
       remove_product_image: {
         Args: { requested_image_id: string; requested_product_id: string };
         Returns: {
@@ -3820,6 +4591,32 @@ export type Database = {
           sort_order: number;
           storage_path: string;
         }[];
+      };
+      reorder_marketplace_listing_images: {
+        Args: {
+          expected_lock_version: number;
+          requested_image_ids: string[];
+          requested_listing_id: string;
+        };
+        Returns: {
+          approved_at: string | null;
+          approved_version_id: string | null;
+          archived_at: string | null;
+          created_at: string;
+          current_version_id: string | null;
+          id: string;
+          last_submitted_at: string | null;
+          lock_version: number;
+          partner_id: string;
+          status: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       reorder_product_images: {
         Args: { requested_image_ids: string[]; requested_product_id: string };
@@ -3836,6 +4633,34 @@ export type Database = {
       reserve_brps_product_sku: {
         Args: { requested_base: string };
         Returns: string;
+      };
+      resolve_marketplace_listing_product: {
+        Args: {
+          expected_lock_version: number;
+          requested_brand_id: string | null;
+          requested_listing_id: string;
+          requested_model_id: string | null;
+          requested_model_name: string;
+          requested_reason: string;
+        };
+        Returns: {
+          brand_id: string;
+          category_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          model_name: string;
+          normalized_model_name: string;
+          source_product_id: string | null;
+          status: Database["public"]["Enums"]["catalog_record_status"];
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "catalog_product_models";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       resolve_product_pricing_rule: {
         Args: {
@@ -3909,6 +4734,32 @@ export type Database = {
         Args: { requested_market_upper?: unknown; requested_minimum: unknown };
         Returns: unknown;
       };
+      save_marketplace_listing_draft: {
+        Args: {
+          expected_lock_version: number;
+          requested_listing_id: string;
+          requested_payload: Json;
+        };
+        Returns: {
+          approved_at: string | null;
+          approved_version_id: string | null;
+          archived_at: string | null;
+          created_at: string;
+          current_version_id: string | null;
+          id: string;
+          last_submitted_at: string | null;
+          lock_version: number;
+          partner_id: string;
+          status: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       save_partner_onboarding: {
         Args: {
           expected_version: number;
@@ -3970,6 +4821,28 @@ export type Database = {
           version: number;
         }[];
       };
+      submit_marketplace_listing: {
+        Args: { expected_lock_version: number; requested_listing_id: string };
+        Returns: {
+          approved_at: string | null;
+          approved_version_id: string | null;
+          archived_at: string | null;
+          created_at: string;
+          current_version_id: string | null;
+          id: string;
+          last_submitted_at: string | null;
+          lock_version: number;
+          partner_id: string;
+          status: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       submit_partner_for_review: {
         Args: { expected_version: number };
         Returns: {
@@ -4017,6 +4890,35 @@ export type Database = {
           requested_target_player: Database["public"]["Enums"]["product_target_player"];
         };
         Returns: undefined;
+      };
+      transition_marketplace_listing_status: {
+        Args: {
+          expected_lock_version: number;
+          requested_feedback?: Json;
+          requested_internal_note?: string | null;
+          requested_listing_id: string;
+          requested_reason: string;
+          requested_status: Database["public"]["Enums"]["marketplace_listing_status"];
+        };
+        Returns: {
+          approved_at: string | null;
+          approved_version_id: string | null;
+          archived_at: string | null;
+          created_at: string;
+          current_version_id: string | null;
+          id: string;
+          last_submitted_at: string | null;
+          lock_version: number;
+          partner_id: string;
+          status: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       transition_partner_status: {
         Args: {
@@ -4261,6 +5163,47 @@ export type Database = {
         | "external_terminal_received";
       market_price_confidence: "high" | "medium" | "low" | "unavailable";
       marketplace_config_status: "DRAFT" | "PUBLISHED" | "RETIRED";
+      marketplace_inventory_movement_type:
+        | "INITIAL"
+        | "SET_QUANTITY"
+        | "RESERVE"
+        | "RELEASE"
+        | "SALE"
+        | "RETURN"
+        | "ADJUSTMENT";
+      marketplace_listing_custody: "PARTNER_CUSTODY" | "BEST_ROUND_CUSTODY";
+      marketplace_listing_evaluation_source: "HUMAN" | "AI" | "HYBRID";
+      marketplace_listing_evaluation_status:
+        "NOT_STARTED" | "PENDING" | "COMPLETED" | "FAILED";
+      marketplace_listing_fulfillment:
+        "PARTNER_FULFILLED" | "BEST_ROUND_FULFILLED";
+      marketplace_listing_image_requirement:
+        "REQUIRED" | "RECOMMENDED" | "OPTIONAL";
+      marketplace_listing_ownership: "PARTNER_OWNED";
+      marketplace_listing_review_area:
+        | "PHOTOS"
+        | "SPECS"
+        | "CONDITION"
+        | "DESCRIPTION"
+        | "PRODUCT_IDENTITY"
+        | "QUANTITY"
+        | "OTHER";
+      marketplace_listing_review_request_status: "OPEN" | "RESOLVED";
+      marketplace_listing_review_visibility: "INTERNAL" | "PARTNER_VISIBLE";
+      marketplace_listing_status:
+        | "DRAFT"
+        | "SUBMITTED"
+        | "UNDER_REVIEW"
+        | "CHANGES_REQUESTED"
+        | "APPROVED"
+        | "PUBLISHED"
+        | "PAUSED"
+        | "SOLD"
+        | "REJECTED"
+        | "EXPIRED"
+        | "ARCHIVED";
+      marketplace_listing_version_state:
+        "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
       marketplace_partner_tier:
         "BOGEY" | "PAR" | "BIRDIE" | "ALBATROSS" | "HOLE_IN_ONE";
       notification_channel: "email";
@@ -4526,6 +5469,63 @@ export const Constants = {
       ],
       market_price_confidence: ["high", "medium", "low", "unavailable"],
       marketplace_config_status: ["DRAFT", "PUBLISHED", "RETIRED"],
+      marketplace_inventory_movement_type: [
+        "INITIAL",
+        "SET_QUANTITY",
+        "RESERVE",
+        "RELEASE",
+        "SALE",
+        "RETURN",
+        "ADJUSTMENT",
+      ],
+      marketplace_listing_custody: ["PARTNER_CUSTODY", "BEST_ROUND_CUSTODY"],
+      marketplace_listing_evaluation_source: ["HUMAN", "AI", "HYBRID"],
+      marketplace_listing_evaluation_status: [
+        "NOT_STARTED",
+        "PENDING",
+        "COMPLETED",
+        "FAILED",
+      ],
+      marketplace_listing_fulfillment: [
+        "PARTNER_FULFILLED",
+        "BEST_ROUND_FULFILLED",
+      ],
+      marketplace_listing_image_requirement: [
+        "REQUIRED",
+        "RECOMMENDED",
+        "OPTIONAL",
+      ],
+      marketplace_listing_ownership: ["PARTNER_OWNED"],
+      marketplace_listing_review_area: [
+        "PHOTOS",
+        "SPECS",
+        "CONDITION",
+        "DESCRIPTION",
+        "PRODUCT_IDENTITY",
+        "QUANTITY",
+        "OTHER",
+      ],
+      marketplace_listing_review_request_status: ["OPEN", "RESOLVED"],
+      marketplace_listing_review_visibility: ["INTERNAL", "PARTNER_VISIBLE"],
+      marketplace_listing_status: [
+        "DRAFT",
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "CHANGES_REQUESTED",
+        "APPROVED",
+        "PUBLISHED",
+        "PAUSED",
+        "SOLD",
+        "REJECTED",
+        "EXPIRED",
+        "ARCHIVED",
+      ],
+      marketplace_listing_version_state: [
+        "DRAFT",
+        "SUBMITTED",
+        "APPROVED",
+        "REJECTED",
+      ],
       marketplace_partner_tier: [
         "BOGEY",
         "PAR",

@@ -52,6 +52,15 @@ export default async function OperationsLayout({
               variant="ghost"
               className="shrink-0 text-white/75 hover:bg-white/10 hover:text-white"
             >
+              <Link href="/operacion/marketplace/publicaciones">
+                Publicaciones Partner
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              className="shrink-0 text-white/75 hover:bg-white/10 hover:text-white"
+            >
               <Link href="/operacion/pedidos">Pedidos</Link>
             </Button>
             <Button

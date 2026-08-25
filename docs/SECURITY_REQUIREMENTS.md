@@ -51,6 +51,20 @@ servidor. Operations obtiene signed URLs de 60 segundos sólo después de
 `can_review_partner_documents`; el listado nunca descarga binarios. La retención
 KYC permanece `TBD_LEGAL_REVIEW`.
 
+### Partner Listings
+
+Las publicaciones Partner no tienen lectura pública en PR 3, aun cuando estén
+`APPROVED`. Toda escritura material pasa por RPCs `security definer` que validan
+owner/capability, elegibilidad, estado y `lock_version`; las tablas no otorgan
+insert/update/delete directo a `authenticated`. Partner A no puede leer listings,
+versiones, feedback interno, inventario ni fotos de Partner B.
+
+`marketplace-listing-images` es privado. Upload, delete y lectura están limitados
+por owner y estado del draft; Operations requiere
+`can_manage_marketplace_listings`. Signed URLs se crean server-side con TTL corto.
+MIME, extensión, tamaño y firma se validan antes de registrar metadata. Seriales,
+binarios y notas internas nunca se copian al audit log.
+
 Todas las tablas de `public` tienen RLS activada. La ausencia de política deniega
 la operación. No existe ninguna política `USING (true)`.
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {
   Bell,
   ClipboardList,
+  Images,
   PackageSearch,
   Tags,
   Warehouse,
@@ -38,6 +39,23 @@ export default function OperationsPage() {
         </p>
       </div>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <Card className="rounded-[20px]">
+          <CardHeader>
+            <Images className="text-pg-gold size-5" aria-hidden="true" />
+            <CardTitle>Publicaciones Partner</CardTitle>
+            <CardDescription>
+              Revisa identidad, fotos, condición, cantidad y versiones antes de
+              aprobar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="lg">
+              <Link href="/operacion/marketplace/publicaciones">
+                Abrir cola de revisión
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
         <Card className="rounded-[20px]">
           <CardHeader>
             <UsersRound className="text-pg-gold size-5" aria-hidden="true" />

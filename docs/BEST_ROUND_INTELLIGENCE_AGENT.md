@@ -1,5 +1,12 @@
 # Diseño futuro: Best Round Intelligence Agent
 
+PR 3 deja un contrato estructurado y sin ejecución para **Product Evaluation**:
+identidad, specs, condición, fotos y defectos entran; identificación, daños,
+autenticidad, confidence y recomendación podrán salir. Best Round conserva la
+decisión humana. **Market/Pricing Intelligence** permanece separado para PR 5 y
+consumirá comparables normalizados; ninguna salida probabilística modifica dinero
+directamente.
+
 Estado: **POST-MVP / no implementado en esta rama**.
 
 ## Límite de responsabilidad
