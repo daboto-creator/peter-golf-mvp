@@ -44,7 +44,12 @@ test.describe("staging read-only smoke", () => {
     );
   });
 
-  for (const protectedPath of ["/cuenta", "/operacion"]) {
+  for (const protectedPath of [
+    "/cuenta",
+    "/operacion",
+    "/partner/ventas",
+    "/operacion/marketplace/ordenes",
+  ]) {
     test(`${protectedPath} redirects an anonymous visitor`, async ({
       page,
     }) => {

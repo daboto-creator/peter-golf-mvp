@@ -370,3 +370,12 @@ manual market evidence for one approved listing version.
 deterministic Partner/Best Round economics. `marketplace_pricing_status_history`
 records human workflow transitions. These tables do not replace first-party
 `product_pricing`, `pricing_calculations`, or `market_price_researches`.
+
+## Marketplace checkout and fulfillment (PR 6)
+
+The existing `orders` and `order_items` aggregate now uses an explicit
+`item_source`. `order_fulfillments` groups `BEST_ROUND` and Partner-owned lines;
+`marketplace_order_item_snapshots` freezes the approved listing/pricing version;
+and `inventory_reservations` coordinates first-party and Marketplace inventory
+without merging their stock tables. Status history and idempotency keys are
+append-only. See `MARKETPLACE_CHECKOUT_FULFILLMENT.md`.

@@ -194,3 +194,11 @@ existing Marketplace flag plus server-only `MARKET_PRICE_PROVIDER` and
 `SERPAPI_API_KEY`. Confirm the published Marketplace pricing rule references an
 active payment fee config. Never expose provider keys or enable public selling
 as part of PR 5.
+
+## Marketplace checkout staging note
+
+Apply `20260829000000_marketplace_checkout_orders_fulfillment.sql` only through
+the linked Supabase CLI workflow. Verify migration parity, RLS and the new
+reservation/fulfillment functions before redeploying `main`. Keep Marketplace
+OFF and Stripe in test/safe mode. The migration is additive and contains no
+bootstrap dependent on `auth.uid()` or infrastructure role names.

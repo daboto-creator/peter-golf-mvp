@@ -31,20 +31,21 @@ insert into public.orders (
   confirmed_at,confirmed_by,payment_status,payment_method,origin
 ) values
  ('76000000-0000-4000-8000-000000000001','PG-W-STRIPE-000001','16000000-0000-4000-8000-000000000001',
-  'preparing',12500,12500,'{"recipient_name":"Stripe","street":"Prueba"}',now(),
-  '16000000-0000-4000-8000-000000000003','transfer_pending','bank_transfer','web'),
+  'pending_confirmation',12500,12500,'{"recipient_name":"Stripe","street":"Prueba"}',null,
+  null,'transfer_pending','bank_transfer','web'),
  ('76000000-0000-4000-8000-000000000002','PG-W-STRIPE-000002','16000000-0000-4000-8000-000000000001',
-  'pending_confirmation',12500,12500,'{"recipient_name":"Stripe","street":"Prueba"}',null,null,
+  'preparing',12500,12500,'{"recipient_name":"Stripe","street":"Prueba"}',now(),
+  '16000000-0000-4000-8000-000000000003',
   'transfer_pending','bank_transfer','web'),
  ('76000000-0000-4000-8000-000000000003','PG-W-STRIPE-000003','16000000-0000-4000-8000-000000000002',
   'preparing',12500,12500,'{"recipient_name":"Other","street":"Prueba"}',now(),
   '16000000-0000-4000-8000-000000000003','transfer_pending','bank_transfer','web'),
  ('76000000-0000-4000-8000-000000000004','PG-W-STRIPE-000004','16000000-0000-4000-8000-000000000001',
-  'preparing',12500,12500,'{"recipient_name":"Sequence","street":"Prueba"}',now(),
-  '16000000-0000-4000-8000-000000000003','transfer_pending','bank_transfer','web'),
+  'pending_confirmation',12500,12500,'{"recipient_name":"Sequence","street":"Prueba"}',null,
+  null,'transfer_pending','bank_transfer','web'),
  ('76000000-0000-4000-8000-000000000005','PG-W-MANUAL-000005','16000000-0000-4000-8000-000000000001',
-  'preparing',12500,12500,'{"recipient_name":"Manual","street":"Prueba"}',now(),
-  '16000000-0000-4000-8000-000000000003','transfer_pending','bank_transfer','web');
+  'pending_confirmation',12500,12500,'{"recipient_name":"Manual","street":"Prueba"}',null,
+  null,'transfer_pending','bank_transfer','web');
 
 insert into public.order_items (
   id,order_id,product_id,variant_id,sku_snapshot,product_name_snapshot,
@@ -397,15 +398,15 @@ do $$ declare canceled record; begin
     '76000000-0000-4000-8000-000000000001',1,'Reembolso Stripe completo',
     'c6000000-0000-4000-8000-000000000002');
   if canceled.replayed
-    or (select quantity_on_hand from public.inventory where id='66000000-0000-4000-8000-000000000001')<>9
-    or (select count(*) from public.inventory_movements where reference_id='76000000-0000-4000-8000-000000000001')<>1
+    or (select quantity_on_hand from public.inventory where id='66000000-0000-4000-8000-000000000001')<>8
+    or (select count(*) from public.inventory_movements where reference_id='76000000-0000-4000-8000-000000000001')<>0
   then raise exception 'Cancellation after full refund failed'; end if;
   select * into canceled from public.cancel_operational_order(
     '76000000-0000-4000-8000-000000000001',1,'Reembolso Stripe completo',
     'c6000000-0000-4000-8000-000000000002');
   if not canceled.replayed
-    or (select count(*) from public.inventory_movements where reference_id='76000000-0000-4000-8000-000000000001')<>1
-  then raise exception 'Cancellation replay returned inventory twice'; end if;
+    or (select count(*) from public.inventory_movements where reference_id='76000000-0000-4000-8000-000000000001')<>0
+  then raise exception 'Cancellation replay changed uncommitted inventory'; end if;
 end $$;
 reset role;
 

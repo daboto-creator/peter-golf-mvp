@@ -330,3 +330,12 @@ admin fees, inverse pricing, idempotency, listing-version binding, quote
 approval without publication, RLS A/B/Golfer/anonymous and tamper resistance.
 Optional browser coverage uses `RUN_MARKETPLACE_PRICING_E2E=1` together with
 `MARKETPLACE_ENABLED=true`.
+
+## Marketplace checkout PR 6
+
+`supabase/tests/marketplace_checkout_orders_fulfillment.sql` covers a mixed
+first-party/Partner A/Partner B order, last-unit contention, checkout and
+fulfillment idempotency, immutable quote snapshots, payment replay, expiry
+release and Partner/anonymous isolation. Unit tests cover readiness, grouping
+and transition rules. Existing payment, order, inventory and Marketplace suites
+remain mandatory regressions.
