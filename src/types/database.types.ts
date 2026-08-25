@@ -1975,6 +1975,7 @@ export type Database = {
           desired_partner_net: number | null;
           desired_public_price: number | null;
           effective_partner_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id: string | null;
           estimated_best_round_revenue: number;
           estimated_partner_net: number;
           expires_at: string;
@@ -2034,6 +2035,7 @@ export type Database = {
           desired_partner_net?: number | null;
           desired_public_price?: number | null;
           effective_partner_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id?: string | null;
           estimated_best_round_revenue: number;
           estimated_partner_net: number;
           expires_at: string;
@@ -2093,6 +2095,7 @@ export type Database = {
           desired_partner_net?: number | null;
           desired_public_price?: number | null;
           effective_partner_tier?: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id?: string | null;
           estimated_best_round_revenue?: number;
           estimated_partner_net?: number;
           expires_at?: string;
@@ -2162,6 +2165,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_effective_tier_override_id_fkey";
+            columns: ["effective_tier_override_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_score_tier_overrides";
             referencedColumns: ["id"];
           },
           {
@@ -5809,6 +5819,7 @@ export type Database = {
           desired_partner_net: number | null;
           desired_public_price: number | null;
           effective_partner_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id: string | null;
           estimated_best_round_revenue: number;
           estimated_partner_net: number;
           expires_at: string;
@@ -6926,6 +6937,7 @@ export type Database = {
           desired_partner_net: number | null;
           desired_public_price: number | null;
           effective_partner_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id: string | null;
           estimated_best_round_revenue: number;
           estimated_partner_net: number;
           expires_at: string;

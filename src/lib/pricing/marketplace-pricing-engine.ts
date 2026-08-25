@@ -1,7 +1,8 @@
 import {
   assertBasisPoints,
   assertMinorUnits,
-  multiplyBpsCeil,
+  ceilDivide,
+  toSafeMinorUnits,
 } from "@/lib/pricing/money";
 import type {
   MarketplaceEconomics,
@@ -12,6 +13,8 @@ import type {
 } from "@/lib/pricing/marketplace-pricing-types";
 
 const MAX_MARKETPLACE_PRICE_MINOR = 99_999_999_999_999;
+const BPS_DENOMINATOR = BigInt(10_000);
+const COMPOUND_BPS_DENOMINATOR = BPS_DENOMINATOR * BPS_DENOMINATOR;
 
 function validateConfig(config: MarketplaceEconomicsConfig): void {
   assertBasisPoints(config.commissionBps, "Comisión Marketplace");
@@ -30,6 +33,21 @@ function validateConfig(config: MarketplaceEconomicsConfig): void {
       "Ingreso mínimo Marketplace",
     );
   }
+
+  // The variable Partner deductions must grow by less than one cent for every
+  // additional cent of public price. This makes an economically valid config
+  // monotonic and is also required by the exact inverse-price contract.
+  const variablePartnerDeductionNumerator =
+    BigInt(config.commissionBps) * BPS_DENOMINATOR +
+    BigInt(config.commissionBps) * BigInt(config.commissionVatBps) +
+    BigInt(config.paymentProcessingBps) *
+      BigInt(config.partnerProcessingShareBps) +
+    BigInt(config.adminFeeBps) * BPS_DENOMINATOR;
+  if (variablePartnerDeductionNumerator >= COMPOUND_BPS_DENOMINATOR) {
+    throw new Error(
+      "La configuración de cargos variables debe ser menor que el precio público.",
+    );
+  }
 }
 
 export function calculateMarketplaceEconomics(
@@ -41,34 +59,77 @@ export function calculateMarketplaceEconomics(
     throw new Error("El precio debe ser mayor que cero.");
   validateConfig(config);
 
-  const commissionMinor = multiplyBpsCeil(
-    publicPriceMinor,
-    config.commissionBps,
+  const price = BigInt(publicPriceMinor);
+  const commissionNumerator =
+    price * BigInt(config.commissionBps) * BPS_DENOMINATOR;
+  const commissionVatNumerator =
+    price * BigInt(config.commissionBps) * BigInt(config.commissionVatBps);
+  const processingTotalNumerator =
+    price * BigInt(config.paymentProcessingBps) * BPS_DENOMINATOR +
+    BigInt(config.paymentProcessingFixedMinor) * COMPOUND_BPS_DENOMINATOR;
+  const partnerProcessingNumerator =
+    price *
+      BigInt(config.paymentProcessingBps) *
+      BigInt(config.partnerProcessingShareBps) +
+    BigInt(config.paymentProcessingFixedMinor) *
+      BigInt(config.partnerProcessingShareBps) *
+      BPS_DENOMINATOR;
+  const adminPercentageNumerator =
+    price * BigInt(config.adminFeeBps) * BPS_DENOMINATOR;
+
+  // Round cumulative Partner deductions, then assign each marginal cent to the
+  // next component in a stable waterfall. Independent ceilings can make two or
+  // more deductions jump on the same public-price cent and reduce Partner net.
+  // The waterfall preserves the configured exact rational amounts in aggregate,
+  // makes forward pricing monotonic, and is shared by persisted SQL economics.
+  const roundedCommission = ceilDivide(
+    commissionNumerator,
+    COMPOUND_BPS_DENOMINATOR,
   );
-  const commissionVatMinor = multiplyBpsCeil(
-    commissionMinor,
-    config.commissionVatBps,
+  const roundedCommissionAndVat = ceilDivide(
+    commissionNumerator + commissionVatNumerator,
+    COMPOUND_BPS_DENOMINATOR,
   );
-  const processingTotalMinor =
-    multiplyBpsCeil(publicPriceMinor, config.paymentProcessingBps) +
-    config.paymentProcessingFixedMinor;
-  assertMinorUnits(processingTotalMinor, "Procesamiento total");
-  const partnerProcessingShareMinor = multiplyBpsCeil(
-    processingTotalMinor,
-    config.partnerProcessingShareBps,
+  const roundedThroughPartnerProcessing = ceilDivide(
+    commissionNumerator + commissionVatNumerator + partnerProcessingNumerator,
+    COMPOUND_BPS_DENOMINATOR,
+  );
+  const roundedVariablePartnerDeductions = ceilDivide(
+    commissionNumerator +
+      commissionVatNumerator +
+      partnerProcessingNumerator +
+      adminPercentageNumerator,
+    COMPOUND_BPS_DENOMINATOR,
+  );
+
+  const commissionMinor = toSafeMinorUnits(
+    roundedCommission,
+    "Comisión Marketplace",
+  );
+  const commissionVatMinor = toSafeMinorUnits(
+    roundedCommissionAndVat - roundedCommission,
+    "IVA sobre comisión",
+  );
+  const processingTotalMinor = toSafeMinorUnits(
+    ceilDivide(processingTotalNumerator, COMPOUND_BPS_DENOMINATOR),
+    "Procesamiento total",
+  );
+  const partnerProcessingShareMinor = toSafeMinorUnits(
+    roundedThroughPartnerProcessing - roundedCommissionAndVat,
+    "Procesamiento a cargo del Partner",
   );
   const bestRoundProcessingShareMinor =
     processingTotalMinor - partnerProcessingShareMinor;
-  const adminPercentageFeeMinor = multiplyBpsCeil(
-    publicPriceMinor,
-    config.adminFeeBps,
+  const adminPercentageFeeMinor = toSafeMinorUnits(
+    roundedVariablePartnerDeductions - roundedThroughPartnerProcessing,
+    "Fee administrativo porcentual",
   );
   const otherConfiguredFeesMinor = 0;
   const partnerDeductions =
-    commissionMinor +
-    commissionVatMinor +
-    partnerProcessingShareMinor +
-    adminPercentageFeeMinor +
+    toSafeMinorUnits(
+      roundedVariablePartnerDeductions,
+      "Cargos variables del Partner",
+    ) +
     config.adminFixedFeeMinor +
     otherConfiguredFeesMinor;
   const partnerNetMinor = publicPriceMinor - partnerDeductions;

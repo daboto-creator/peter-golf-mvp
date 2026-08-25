@@ -37,9 +37,15 @@ test.describe("Marketplace Partner Pricing @mutating", () => {
     await page.getByLabel("Precio al cliente (MXN)").fill("10000");
     await page.getByRole("button", { name: "Calcular propuesta" }).click();
     await expect(page.getByText("Economía calculada")).toBeVisible();
+    await expect(page.getByText("ALBATROSS · comisión 12%")).toBeVisible();
     await expect(page.getByText("Comisión Best Round")).toBeVisible();
     await expect(page.getByText("IVA sobre comisión")).toBeVisible();
     await expect(page.getByText("Recibirías aproximadamente")).toBeVisible();
+    expect(
+      sqlValue(
+        `select effective_partner_tier||'|'||tier_source||'|'||commission_rate_bps||'|'||coalesce(effective_tier_override_id::text,'') from public.marketplace_pricing_quotes where listing_id='${listingId}' order by created_at desc limit 1`,
+      ),
+    ).toBe("ALBATROSS|OVERRIDE|1200|45000000-0000-4000-8000-000000000021");
     await page.getByRole("button", { name: "Aceptar esta propuesta" }).click();
     await expect(
       page.getByText("Workflow de pricing actualizado"),
@@ -122,6 +128,10 @@ function preparePricingScenario() {
       from auth.users where id::text like '45000000-0000-4000-8000-00000000000%';
     insert into public.user_roles (user_id,role_id) select '45000000-0000-4000-8000-000000000002',id from public.roles where name='operator';
     insert into public.partner_profiles (id,user_id,legal_type,status,verified_at) values ('45000000-0000-4000-8000-000000000011','45000000-0000-4000-8000-000000000001','INDIVIDUAL','VERIFIED',now());
+    insert into public.partner_score_tier_state (partner_id,current_tier,highest_eligible_tier,current_config_version_id)
+      values ('45000000-0000-4000-8000-000000000011','BIRDIE','BIRDIE',(select id from public.marketplace_config_versions where status='PUBLISHED' and effective_to is null));
+    insert into public.partner_score_tier_overrides (id,partner_id,override_type,tier,status,reason,starts_at,expires_at,created_by)
+      values ('45000000-0000-4000-8000-000000000021','45000000-0000-4000-8000-000000000011','TIER','ALBATROSS','ACTIVE','Authorized E2E tier override',now()-interval '1 hour',now()+interval '1 day','45000000-0000-4000-8000-000000000002');
     do $$ declare brand_id uuid; category_id uuid; model_id uuid:=gen_random_uuid(); version_id uuid:=gen_random_uuid(); begin
       select id into brand_id from public.brands order by name limit 1;
       select id into category_id from public.categories where slug='driver';

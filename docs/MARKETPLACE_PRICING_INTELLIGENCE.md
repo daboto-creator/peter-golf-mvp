@@ -30,28 +30,46 @@ contains no fields that can become financial truth and PR 5 makes no LLM call.
 
 ## Deterministic economics
 
-All values are integer MXN cents. Percentage multiplication rounds up to the
-next cent, consistently with the existing `money.ts` helpers.
+All persisted values are integer MXN cents. The engine calculates exact
+rational numerators with `BigInt`/PostgreSQL `numeric` and applies one
+**cumulative ceiling waterfall** to Partner variable deductions. Each component
+is the difference between two consecutive rounded cumulative totals. This
+prevents independent percentage ceilings from jumping together, conserves
+every cent and guarantees that increasing public price by one cent cannot
+reduce Partner net for a valid fixed configuration.
 
 ```text
-commission = ceil(public_price * tier_commission_bps / 10000)
-commission_vat = ceil(commission * commission_tax_bps / 10000)
-processing_total = ceil(public_price * processing_bps / 10000) + fixed
-partner_processing = ceil(processing_total * partner_share_bps / 10000)
+R1 = ceil(exact_commission)
+R2 = ceil(exact_commission + exact_commission_vat)
+R3 = ceil(exact_commission + exact_commission_vat + exact_partner_processing)
+R4 = ceil(exact_commission + exact_commission_vat
+          + exact_partner_processing + exact_admin_percentage)
+
+commission = R1
+commission_vat = R2 - R1
+partner_processing = R3 - R2
+admin_percentage = R4 - R3
+processing_total = ceil(exact_processing_total)
 best_round_processing = processing_total - partner_processing
-admin_percentage = ceil(public_price * admin_bps / 10000)
 partner_net = public_price - commission - commission_vat
               - partner_processing - admin_percentage - admin_fixed
 estimated_best_round_revenue = commission + admin_percentage + admin_fixed
                                - best_round_processing
 ```
 
+For an odd processing cent, the Partner share is the waterfall amount and Best
+Round receives the exact remaining processing cent. Consequently
+`partner_processing + best_round_processing = processing_total` always, and no
+residual cent is charged twice or lost. Commission VAT remains the configured
+tax applied to exact commission inside the same cumulative rounding policy.
+
 Commission VAT is tax pass-through, not Best Round revenue. Withholding, CFDI
 and entity-specific tax treatment remain `TBD_LEGAL_REVIEW`.
 
-Desired-net pricing uses a bounded integer binary search and validates the
-solution through the same forward calculation. The first price whose net meets
-the target is chosen. Zero, negative, overflow and impossible economics fail.
+Desired-net pricing uses a bounded integer binary search over the monotonic
+forward engine. Its contract is the exact minimum cent: the selected price
+meets the desired net and the immediately preceding valid cent does not. Zero,
+negative, overflow and impossible economics fail.
 
 ## Versioning and approval
 
@@ -60,6 +78,12 @@ commission, payment fee, Marketplace config, market reference and every
 financial result are snapshotted. Submitted/approved/rejected quotes are not
 edited; a new input creates a new quote version and supersedes editable older
 quotes. `APPROVED` pricing is not `PUBLISHED` listing.
+
+An active tier override is resolved atomically when the quote is created. The
+quote stores the effective tier, source, override reference and commission; an
+expired override is ignored and later tier changes never rewrite old quotes.
+Quote market validity ends at the earlier of quote-policy expiry and the
+supporting market analysis expiry, so a quote cannot extend research freshness.
 
 Market analyses are append-only runs. Provider refresh never overwrites prior
 research. A manual reference requires Operations capability, evidence and a
