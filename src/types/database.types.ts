@@ -861,6 +861,194 @@ export type Database = {
           },
         ];
       };
+      marketplace_config_versions: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          effective_from: string | null;
+          effective_to: string | null;
+          id: string;
+          publication_reason: string | null;
+          published_by: string | null;
+          status: Database["public"]["Enums"]["marketplace_config_status"];
+          updated_at: string;
+          version_number: number;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          effective_from?: string | null;
+          effective_to?: string | null;
+          id?: string;
+          publication_reason?: string | null;
+          published_by?: string | null;
+          status?: Database["public"]["Enums"]["marketplace_config_status"];
+          updated_at?: string;
+          version_number?: number;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          effective_from?: string | null;
+          effective_to?: string | null;
+          id?: string;
+          publication_reason?: string | null;
+          published_by?: string | null;
+          status?: Database["public"]["Enums"]["marketplace_config_status"];
+          updated_at?: string;
+          version_number?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_config_versions_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_config_versions_published_by_fkey";
+            columns: ["published_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_financial_rules: {
+        Row: {
+          admin_fee_bps: number;
+          admin_fixed_fee: number;
+          commission_tax_bps: number | null;
+          config_version_id: string;
+          currency: string;
+          minimum_marketplace_revenue: number | null;
+          partner_processing_share_bps: number;
+        };
+        Insert: {
+          admin_fee_bps: number;
+          admin_fixed_fee: number;
+          commission_tax_bps?: number | null;
+          config_version_id: string;
+          currency?: string;
+          minimum_marketplace_revenue?: number | null;
+          partner_processing_share_bps: number;
+        };
+        Update: {
+          admin_fee_bps?: number;
+          admin_fixed_fee?: number;
+          commission_tax_bps?: number | null;
+          config_version_id?: string;
+          currency?: string;
+          minimum_marketplace_revenue?: number | null;
+          partner_processing_share_bps?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_financial_rules_config_version_id_fkey";
+            columns: ["config_version_id"];
+            isOneToOne: true;
+            referencedRelation: "marketplace_config_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_operational_rules: {
+        Row: {
+          acceptance_window_hours: number | null;
+          config_version_id: string;
+          listing_expiry_days: number | null;
+          payout_interval_days: number | null;
+          score_provisional_completed_orders: number | null;
+          tier_averaging_window_days: number;
+        };
+        Insert: {
+          acceptance_window_hours?: number | null;
+          config_version_id: string;
+          listing_expiry_days?: number | null;
+          payout_interval_days?: number | null;
+          score_provisional_completed_orders?: number | null;
+          tier_averaging_window_days: number;
+        };
+        Update: {
+          acceptance_window_hours?: number | null;
+          config_version_id?: string;
+          listing_expiry_days?: number | null;
+          payout_interval_days?: number | null;
+          score_provisional_completed_orders?: number | null;
+          tier_averaging_window_days?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_operational_rules_config_version_id_fkey";
+            columns: ["config_version_id"];
+            isOneToOne: true;
+            referencedRelation: "marketplace_config_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_score_weight_rules: {
+        Row: {
+          config_version_id: string;
+          metric_code: string;
+          weight_bps: number;
+        };
+        Insert: {
+          config_version_id: string;
+          metric_code: string;
+          weight_bps: number;
+        };
+        Update: {
+          config_version_id?: string;
+          metric_code?: string;
+          weight_bps?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_score_weight_rules_config_version_id_fkey";
+            columns: ["config_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_config_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_tier_rules: {
+        Row: {
+          commission_rate_bps: number;
+          config_version_id: string;
+          maximum_average_active_listings: number | null;
+          minimum_average_active_listings: number | null;
+          minimum_score: number | null;
+          tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+        };
+        Insert: {
+          commission_rate_bps: number;
+          config_version_id: string;
+          maximum_average_active_listings?: number | null;
+          minimum_average_active_listings?: number | null;
+          minimum_score?: number | null;
+          tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+        };
+        Update: {
+          commission_rate_bps?: number;
+          config_version_id?: string;
+          maximum_average_active_listings?: number | null;
+          minimum_average_active_listings?: number | null;
+          minimum_score?: number | null;
+          tier?: Database["public"]["Enums"]["marketplace_partner_tier"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_tier_rules_config_version_id_fkey";
+            columns: ["config_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_config_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       notification_deliveries: {
         Row: {
           attempt_count: number;
@@ -1440,6 +1628,174 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      partner_documents: {
+        Row: {
+          created_at: string;
+          document_kind: string;
+          id: string;
+          mime_type: string;
+          partner_id: string;
+          review_reason: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          sha256: string | null;
+          size_bytes: number;
+          status: Database["public"]["Enums"]["partner_document_status"];
+          storage_path: string;
+          updated_at: string;
+          uploaded_by: string;
+        };
+        Insert: {
+          created_at?: string;
+          document_kind: string;
+          id?: string;
+          mime_type: string;
+          partner_id: string;
+          review_reason?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          sha256?: string | null;
+          size_bytes: number;
+          status?: Database["public"]["Enums"]["partner_document_status"];
+          storage_path: string;
+          updated_at?: string;
+          uploaded_by: string;
+        };
+        Update: {
+          created_at?: string;
+          document_kind?: string;
+          id?: string;
+          mime_type?: string;
+          partner_id?: string;
+          review_reason?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          sha256?: string | null;
+          size_bytes?: number;
+          status?: Database["public"]["Enums"]["partner_document_status"];
+          storage_path?: string;
+          updated_at?: string;
+          uploaded_by?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_documents_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_documents_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_documents_uploaded_by_fkey";
+            columns: ["uploaded_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_profiles: {
+        Row: {
+          created_at: string;
+          id: string;
+          legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          rejected_at: string | null;
+          status: Database["public"]["Enums"]["partner_status"];
+          suspended_at: string | null;
+          updated_at: string;
+          user_id: string;
+          verified_at: string | null;
+          version: number;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          rejected_at?: string | null;
+          status?: Database["public"]["Enums"]["partner_status"];
+          suspended_at?: string | null;
+          updated_at?: string;
+          user_id: string;
+          verified_at?: string | null;
+          version?: number;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          legal_type?: Database["public"]["Enums"]["partner_legal_type"];
+          rejected_at?: string | null;
+          status?: Database["public"]["Enums"]["partner_status"];
+          suspended_at?: string | null;
+          updated_at?: string;
+          user_id?: string;
+          verified_at?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_profiles_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_status_history: {
+        Row: {
+          actor_id: string | null;
+          created_at: string;
+          from_status: Database["public"]["Enums"]["partner_status"] | null;
+          id: string;
+          partner_id: string;
+          reason: string | null;
+          to_status: Database["public"]["Enums"]["partner_status"];
+          version: number;
+        };
+        Insert: {
+          actor_id?: string | null;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["partner_status"] | null;
+          id?: string;
+          partner_id: string;
+          reason?: string | null;
+          to_status: Database["public"]["Enums"]["partner_status"];
+          version: number;
+        };
+        Update: {
+          actor_id?: string | null;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["partner_status"] | null;
+          id?: string;
+          partner_id?: string;
+          reason?: string | null;
+          to_status?: Database["public"]["Enums"]["partner_status"];
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_status_history_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_status_history_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       payment_fee_configs: {
         Row: {
@@ -2829,8 +3185,11 @@ export type Database = {
         Args: { requested_brand_id: string; requested_category_id: string };
         Returns: boolean;
       };
+      can_manage_marketplace_configuration: { Args: never; Returns: boolean };
+      can_manage_marketplace_partners: { Args: never; Returns: boolean };
       can_manage_orders: { Args: never; Returns: boolean };
       can_override_pricing_floor: { Args: never; Returns: boolean };
+      can_review_partner_documents: { Args: never; Returns: boolean };
       cancel_manual_order: {
         Args: {
           expected_version: number;
@@ -3016,6 +3375,10 @@ export type Database = {
           replayed: boolean;
         }[];
       };
+      create_marketplace_config_draft: {
+        Args: { requested_reason: string };
+        Returns: string;
+      };
       create_priced_golf_product_with_base_variant: {
         Args: {
           requested_brand_id: string;
@@ -3134,6 +3497,7 @@ export type Database = {
           reorder_point: number;
         }[];
       };
+      is_marketplace_enabled: { Args: never; Returns: boolean };
       link_stripe_checkout_session: {
         Args: {
           requested_checkout_attempt_id: string;
@@ -3255,6 +3619,27 @@ export type Database = {
           replayed: boolean;
         }[];
       };
+      publish_marketplace_config_version: {
+        Args: { requested_config_id: string; requested_reason: string };
+        Returns: {
+          created_at: string;
+          created_by: string | null;
+          effective_from: string | null;
+          effective_to: string | null;
+          id: string;
+          publication_reason: string | null;
+          published_by: string | null;
+          status: Database["public"]["Enums"]["marketplace_config_status"];
+          updated_at: string;
+          version_number: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_config_versions";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       record_market_price_research: {
         Args: {
           requested_average_price: unknown;
@@ -3279,6 +3664,29 @@ export type Database = {
         Returns: string;
       };
       recover_expired_notification_leases: { Args: never; Returns: number };
+      register_partner_profile: {
+        Args: {
+          requested_legal_type: Database["public"]["Enums"]["partner_legal_type"];
+        };
+        Returns: {
+          created_at: string;
+          id: string;
+          legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          rejected_at: string | null;
+          status: Database["public"]["Enums"]["partner_status"];
+          suspended_at: string | null;
+          updated_at: string;
+          user_id: string;
+          verified_at: string | null;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_profiles";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       register_product_image: {
         Args: {
           requested_alt_text: string;
@@ -3384,6 +3792,32 @@ export type Database = {
           requested_target_player: Database["public"]["Enums"]["product_target_player"];
         };
         Returns: undefined;
+      };
+      transition_partner_status: {
+        Args: {
+          expected_version: number;
+          requested_partner_id: string;
+          requested_reason: string;
+          requested_status: Database["public"]["Enums"]["partner_status"];
+        };
+        Returns: {
+          created_at: string;
+          id: string;
+          legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          rejected_at: string | null;
+          status: Database["public"]["Enums"]["partner_status"];
+          suspended_at: string | null;
+          updated_at: string;
+          user_id: string;
+          verified_at: string | null;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_profiles";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       update_customer_profile: {
         Args: {
@@ -3584,6 +4018,9 @@ export type Database = {
         | "cash_received"
         | "external_terminal_received";
       market_price_confidence: "high" | "medium" | "low" | "unavailable";
+      marketplace_config_status: "DRAFT" | "PUBLISHED" | "RETIRED";
+      marketplace_partner_tier:
+        "BOGEY" | "PAR" | "BIRDIE" | "ALBATROSS" | "HOLE_IN_ONE";
       notification_channel: "email";
       notification_delivery_status:
         "pending" | "processing" | "sent" | "failed" | "dead_letter";
@@ -3608,6 +4045,16 @@ export type Database = {
         | "cancelled"
         | "returned";
       page_status: "draft" | "published" | "archived";
+      partner_document_status:
+        "UPLOADED" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED";
+      partner_legal_type: "INDIVIDUAL" | "SOLE_PROPRIETOR" | "LEGAL_ENTITY";
+      partner_status:
+        | "REGISTERED"
+        | "IDENTITY_PENDING"
+        | "UNDER_REVIEW"
+        | "VERIFIED"
+        | "SUSPENDED"
+        | "REJECTED";
       payment_method: "bank_transfer" | "cash" | "external_terminal" | "card";
       payment_provider: "manual" | "stripe";
       payment_status:
@@ -3836,6 +4283,14 @@ export const Constants = {
         "external_terminal_received",
       ],
       market_price_confidence: ["high", "medium", "low", "unavailable"],
+      marketplace_config_status: ["DRAFT", "PUBLISHED", "RETIRED"],
+      marketplace_partner_tier: [
+        "BOGEY",
+        "PAR",
+        "BIRDIE",
+        "ALBATROSS",
+        "HOLE_IN_ONE",
+      ],
       notification_channel: ["email"],
       notification_delivery_status: [
         "pending",
@@ -3867,6 +4322,21 @@ export const Constants = {
         "returned",
       ],
       page_status: ["draft", "published", "archived"],
+      partner_document_status: [
+        "UPLOADED",
+        "UNDER_REVIEW",
+        "VERIFIED",
+        "REJECTED",
+      ],
+      partner_legal_type: ["INDIVIDUAL", "SOLE_PROPRIETOR", "LEGAL_ENTITY"],
+      partner_status: [
+        "REGISTERED",
+        "IDENTITY_PENDING",
+        "UNDER_REVIEW",
+        "VERIFIED",
+        "SUSPENDED",
+        "REJECTED",
+      ],
       payment_method: ["bank_transfer", "cash", "external_terminal", "card"],
       payment_provider: ["manual", "stripe"],
       payment_status: [

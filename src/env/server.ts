@@ -47,6 +47,12 @@ const defaultAppEnvironment =
 
 const serverEnvironmentSchema = z.object({
   APP_ENV: z.enum(["development", "test", "preview", "staging", "production"]),
+  MARKETPLACE_ENABLED: emptyAsUndefined(
+    z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .default(false),
+  ),
   PAYMENTS_MODE: z.enum(["disabled", "test"]).default("disabled"),
   STRIPE_CHECKOUT_MODE: z.enum(["disabled", "test"]).default("disabled"),
   STRIPE_SECRET_KEY: optionalNonEmptyString,
@@ -82,6 +88,7 @@ const localNotificationEmailDefaults: NotificationEmailConfig = {
 
 const rawServerEnvironment = {
   APP_ENV: process.env.APP_ENV || defaultAppEnvironment,
+  MARKETPLACE_ENABLED: process.env.MARKETPLACE_ENABLED,
   PAYMENTS_MODE: process.env.PAYMENTS_MODE,
   STRIPE_CHECKOUT_MODE: process.env.STRIPE_CHECKOUT_MODE,
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,

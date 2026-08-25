@@ -27,6 +27,7 @@ producción futura no la reciben.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable local                                 | publishable de staging            | publishable de staging                  |
 | `NEXT_PUBLIC_APP_URL`           | `http://localhost:3000`                           | URL canónica estable de staging   | URL canónica estable de staging         |
 | `APP_ENV`                       | `development`                                     | `preview`                         | `staging`                               |
+| `MARKETPLACE_ENABLED`           | `false`                                           | `false`                           | `false`                                 |
 | `PAYMENTS_MODE`                 | `disabled`; `test` sólo en prueba local explícita | `disabled`                        | `disabled`; `test` sólo con Stripe test |
 | `NOTIFICATIONS_MODE`            | `disabled`; `test` sólo con Inbucket local        | `disabled`                        | `disabled`                              |
 | `SUPABASE_SERVICE_ROLE_KEY`     | ausente; requerida sólo con Stripe test local     | prohibida                         | sólo con Stripe test habilitado         |
@@ -36,6 +37,11 @@ La URL Preview cambia por deployment, pero Auth no depende de ella. Mientras se
 use la URL gratuita inicial, Preview y staging reciben como
 `NEXT_PUBLIC_APP_URL` el alias canónico estable `vercel.app` del proyecto de
 staging. Los callbacks terminan allí.
+
+`MARKETPLACE_ENABLED` es exclusivamente server-side y falla cerrado a `false`.
+PR 1 no expone rutas Marketplace. El kill switch privado
+`site_settings['marketplace.enabled']` también inicia apagado; una fase futura
+deberá habilitar explícitamente ambos controles.
 
 ## Validación fail-closed
 
