@@ -19,6 +19,7 @@ function setBaseEnvironment(
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "synthetic-publishable-key");
   vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://staging.example.test");
+  vi.stubEnv("MARKETPLACE_ENABLED", "false");
   vi.stubEnv("PAYMENTS_MODE", "disabled");
   vi.stubEnv("STRIPE_CHECKOUT_MODE", "disabled");
   vi.stubEnv("STRIPE_SECRET_KEY", "");
@@ -40,6 +41,7 @@ describe("server environment", () => {
     const { notificationEmailConfig, serverEnv } = await import("./server");
 
     expect(serverEnv.APP_ENV).toBe("preview");
+    expect(serverEnv.MARKETPLACE_ENABLED).toBe(false);
     expect(serverEnv.PAYMENTS_MODE).toBe("disabled");
     expect(serverEnv.STRIPE_CHECKOUT_MODE).toBe("disabled");
     expect(notificationEmailConfig).toBeUndefined();
@@ -96,6 +98,15 @@ describe("server environment", () => {
     expect(serverEnv.STRIPE_CHECKOUT_MODE).toBe("disabled");
     expect(notificationEmailConfig).toBeUndefined();
     for (const field of mailFields) expect(serverEnv[field]).toBeUndefined();
+  });
+
+  test("parses the server-only Marketplace feature flag", async () => {
+    setBaseEnvironment("development");
+    vi.stubEnv("MARKETPLACE_ENABLED", "true");
+
+    const { serverEnv } = await import("./server");
+
+    expect(serverEnv.MARKETPLACE_ENABLED).toBe(true);
   });
 
   test("rejects configured email fields in staging without exposing values", async () => {

@@ -8,6 +8,14 @@ variantes, inventario, carrito, pedidos de prueba, asesoría, configuración y
 auditoría mínima. No incluye pagos reales, datos de tarjeta, Stripe, facturación,
 paqueterías ni reservas automáticas de inventario.
 
+La foundation Marketplace es aditiva:
+`auth.users -> profiles -> partner_profiles (0..1)`. La misma cuenta conserva su
+modo Golfer; Partner no es un rol administrativo. `partner_status_history`
+preserva transiciones, `partner_documents` referencia Storage privado y
+`marketplace_config_versions` agrupa reglas versionadas. Marketplace permanece
+apagado y aún no introduce listings, inventario ni órdenes multi-Partner. Véase
+[MARKETPLACE_FOUNDATION.md](./MARKETPLACE_FOUNDATION.md).
+
 La migración aplicada que habilita `pgcrypto` permanece sin cambios. Las
 migraciones posteriores crean, en orden:
 

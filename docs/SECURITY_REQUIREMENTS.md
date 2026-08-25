@@ -31,6 +31,20 @@
 
 ## 3. RLS implementada
 
+### Marketplace Foundation
+
+Las tablas `partner_profiles`, `partner_status_history`, `partner_documents` y
+las tablas de configuración Marketplace tienen RLS. El Partner sólo lee su
+perfil, historial y documentos; un Golfer sin Partner no ve esos datos;
+Operations puede revisar Partners, y sólo Admin lee configuración financiera.
+Estado y configuración cambian mediante RPCs con capacidad revalidada, motivo y
+audit log.
+
+`partner-kyc` es un bucket privado con rutas Partner/UUID, MIME y tamaño
+limitados. No hay lectura anónima, URL pública ni contenido KYC en `audit_logs`.
+La foundation no usa `service_role` desde Next.js. Véase
+[MARKETPLACE_FOUNDATION.md](./MARKETPLACE_FOUNDATION.md).
+
 Todas las tablas de `public` tienen RLS activada. La ausencia de política deniega
 la operación. No existe ninguna política `USING (true)`.
 

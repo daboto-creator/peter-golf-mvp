@@ -25,6 +25,15 @@ usa la URL proporcionada y no levanta `webServer`. En remoto excluye pruebas cuy
 título incluya `@mutating`, salvo `PLAYWRIGHT_ALLOW_MUTATIONS=1`. Ese flag no se
 usa contra staging en esta fase.
 
+### Marketplace Foundation
+
+`supabase/tests/marketplace_foundation.sql` es una suite adversarial transaccional
+con `ROLLBACK`. Valida registro detrás del kill switch, Partner A contra Partner
+B, Golfer sin Partner, capacidades Operations/Admin, bucket KYC privado,
+transiciones con versión, auditoría inmutable y configuración versionada. Se
+ejecuta manualmente después de `npm run supabase:reset`; su incorporación al CI
+completo queda para el hardening de PR 9.
+
 `e2e/staging-smoke.spec.ts` es de sólo lectura y valida home, catálogo, health,
 redirects anónimos, ausencia del scaffold, errores visibles y patrones de
 secretos. Se ejecutará después de crear el alias de staging.
