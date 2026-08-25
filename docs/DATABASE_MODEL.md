@@ -16,6 +16,12 @@ preserva transiciones, `partner_documents` referencia Storage privado y
 apagado y aún no introduce listings, inventario ni órdenes multi-Partner. Véase
 [MARKETPLACE_FOUNDATION.md](./MARKETPLACE_FOUNDATION.md).
 
+PR 2 amplía aditivamente `partner_profiles` con progreso, datos básicos y datos
+fiscales privados, y añade `version` a `partner_documents`. No crea otra tabla
+de identidad. Los RPCs de onboarding son la única superficie de escritura del
+Partner; estado e historial continúan bajo el workflow de la foundation. Véase
+[MARKETPLACE_PARTNER_ONBOARDING.md](./MARKETPLACE_PARTNER_ONBOARDING.md).
+
 La migración aplicada que habilita `pgcrypto` permanece sin cambios. Las
 migraciones posteriores crean, en orden:
 

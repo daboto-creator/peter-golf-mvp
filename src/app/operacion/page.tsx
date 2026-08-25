@@ -5,6 +5,7 @@ import {
   PackageSearch,
   Tags,
   Warehouse,
+  UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -37,6 +38,22 @@ export default function OperationsPage() {
         </p>
       </div>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <Card className="rounded-[20px]">
+          <CardHeader>
+            <UsersRound className="text-pg-gold size-5" aria-hidden="true" />
+            <CardTitle>Best Round Partners</CardTitle>
+            <CardDescription>
+              Revisa perfiles, documentos privados y estados de verificación.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="lg">
+              <Link href="/operacion/marketplace/partners">
+                Revisar Partners
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
         <Card className="rounded-[20px]">
           <CardHeader>
             <Bell className="text-pg-gold size-5" aria-hidden="true" />

@@ -35,6 +35,7 @@ export async function proxy(request: NextRequest) {
   if (
     (request.nextUrl.pathname.startsWith("/cuenta") ||
       request.nextUrl.pathname.startsWith("/operacion") ||
+      request.nextUrl.pathname.startsWith("/partner") ||
       request.nextUrl.pathname.startsWith("/carrito") ||
       request.nextUrl.pathname.startsWith("/checkout") ||
       request.nextUrl.pathname.startsWith("/pedido-confirmado")) &&
@@ -49,9 +50,11 @@ export async function proxy(request: NextRequest) {
         `${request.nextUrl.pathname}${request.nextUrl.search}`,
         request.nextUrl.pathname.startsWith("/operacion")
           ? "/operacion"
-          : request.nextUrl.pathname.startsWith("/cuenta")
-            ? "/cuenta"
-            : "/productos",
+          : request.nextUrl.pathname.startsWith("/partner")
+            ? "/partner"
+            : request.nextUrl.pathname.startsWith("/cuenta")
+              ? "/cuenta"
+              : "/productos",
       ),
     );
     return NextResponse.redirect(loginUrl);

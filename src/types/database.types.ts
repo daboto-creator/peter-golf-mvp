@@ -1645,6 +1645,7 @@ export type Database = {
           storage_path: string;
           updated_at: string;
           uploaded_by: string;
+          version: number;
         };
         Insert: {
           created_at?: string;
@@ -1661,6 +1662,7 @@ export type Database = {
           storage_path: string;
           updated_at?: string;
           uploaded_by: string;
+          version?: number;
         };
         Update: {
           created_at?: string;
@@ -1677,6 +1679,7 @@ export type Database = {
           storage_path?: string;
           updated_at?: string;
           uploaded_by?: string;
+          version?: number;
         };
         Relationships: [
           {
@@ -1704,36 +1707,87 @@ export type Database = {
       };
       partner_profiles: {
         Row: {
+          city: string | null;
+          commercial_name: string | null;
+          country_code: string | null;
           created_at: string;
+          first_name: string | null;
+          fiscal_address_line_1: string | null;
+          fiscal_address_line_2: string | null;
+          fiscal_city: string | null;
+          fiscal_postal_code: string | null;
+          fiscal_state: string | null;
           id: string;
+          last_name: string | null;
+          legal_name: string | null;
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          onboarding_step: number;
+          phone: string | null;
           rejected_at: string | null;
+          representative_name: string | null;
+          state: string | null;
           status: Database["public"]["Enums"]["partner_status"];
+          submitted_at: string | null;
           suspended_at: string | null;
+          tax_id: string | null;
           updated_at: string;
           user_id: string;
           verified_at: string | null;
           version: number;
         };
         Insert: {
+          city?: string | null;
+          commercial_name?: string | null;
+          country_code?: string | null;
           created_at?: string;
+          first_name?: string | null;
+          fiscal_address_line_1?: string | null;
+          fiscal_address_line_2?: string | null;
+          fiscal_city?: string | null;
+          fiscal_postal_code?: string | null;
+          fiscal_state?: string | null;
           id?: string;
+          last_name?: string | null;
+          legal_name?: string | null;
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          onboarding_step?: number;
+          phone?: string | null;
           rejected_at?: string | null;
+          representative_name?: string | null;
+          state?: string | null;
           status?: Database["public"]["Enums"]["partner_status"];
+          submitted_at?: string | null;
           suspended_at?: string | null;
+          tax_id?: string | null;
           updated_at?: string;
           user_id: string;
           verified_at?: string | null;
           version?: number;
         };
         Update: {
+          city?: string | null;
+          commercial_name?: string | null;
+          country_code?: string | null;
           created_at?: string;
+          first_name?: string | null;
+          fiscal_address_line_1?: string | null;
+          fiscal_address_line_2?: string | null;
+          fiscal_city?: string | null;
+          fiscal_postal_code?: string | null;
+          fiscal_state?: string | null;
           id?: string;
+          last_name?: string | null;
+          legal_name?: string | null;
           legal_type?: Database["public"]["Enums"]["partner_legal_type"];
+          onboarding_step?: number;
+          phone?: string | null;
           rejected_at?: string | null;
+          representative_name?: string | null;
+          state?: string | null;
           status?: Database["public"]["Enums"]["partner_status"];
+          submitted_at?: string | null;
           suspended_at?: string | null;
+          tax_id?: string | null;
           updated_at?: string;
           user_id?: string;
           verified_at?: string | null;
@@ -3482,6 +3536,16 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      get_partner_onboarding_readiness: {
+        Args: { requested_partner_id?: string };
+        Returns: {
+          active_document_count: number;
+          basic_complete: boolean;
+          documents_complete: boolean;
+          fiscal_complete: boolean;
+          review_ready: boolean;
+        }[];
+      };
       get_product_pricing_private: {
         Args: { requested_product_id: string };
         Returns: Json;
@@ -3664,17 +3728,67 @@ export type Database = {
         Returns: string;
       };
       recover_expired_notification_leases: { Args: never; Returns: number };
+      register_partner_document: {
+        Args: {
+          requested_document_id: string;
+          requested_document_kind: string;
+          requested_mime_type: string;
+          requested_sha256: string;
+          requested_size_bytes: number;
+          requested_storage_path: string;
+        };
+        Returns: {
+          created_at: string;
+          document_kind: string;
+          id: string;
+          mime_type: string;
+          partner_id: string;
+          review_reason: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          sha256: string | null;
+          size_bytes: number;
+          status: Database["public"]["Enums"]["partner_document_status"];
+          storage_path: string;
+          updated_at: string;
+          uploaded_by: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_documents";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       register_partner_profile: {
         Args: {
           requested_legal_type: Database["public"]["Enums"]["partner_legal_type"];
         };
         Returns: {
+          city: string | null;
+          commercial_name: string | null;
+          country_code: string | null;
           created_at: string;
+          first_name: string | null;
+          fiscal_address_line_1: string | null;
+          fiscal_address_line_2: string | null;
+          fiscal_city: string | null;
+          fiscal_postal_code: string | null;
+          fiscal_state: string | null;
           id: string;
+          last_name: string | null;
+          legal_name: string | null;
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          onboarding_step: number;
+          phone: string | null;
           rejected_at: string | null;
+          representative_name: string | null;
+          state: string | null;
           status: Database["public"]["Enums"]["partner_status"];
+          submitted_at: string | null;
           suspended_at: string | null;
+          tax_id: string | null;
           updated_at: string;
           user_id: string;
           verified_at: string | null;
@@ -3760,9 +3874,82 @@ export type Database = {
           version: number;
         }[];
       };
+      review_partner_document: {
+        Args: {
+          expected_version: number;
+          requested_document_id: string;
+          requested_reason: string;
+          requested_status: Database["public"]["Enums"]["partner_document_status"];
+        };
+        Returns: {
+          created_at: string;
+          document_kind: string;
+          id: string;
+          mime_type: string;
+          partner_id: string;
+          review_reason: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          sha256: string | null;
+          size_bytes: number;
+          status: Database["public"]["Enums"]["partner_document_status"];
+          storage_path: string;
+          updated_at: string;
+          uploaded_by: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_documents";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       round_up_commercial_price: {
         Args: { requested_market_upper?: unknown; requested_minimum: unknown };
         Returns: unknown;
+      };
+      save_partner_onboarding: {
+        Args: {
+          expected_version: number;
+          requested_payload: Json;
+          requested_section: string;
+        };
+        Returns: {
+          city: string | null;
+          commercial_name: string | null;
+          country_code: string | null;
+          created_at: string;
+          first_name: string | null;
+          fiscal_address_line_1: string | null;
+          fiscal_address_line_2: string | null;
+          fiscal_city: string | null;
+          fiscal_postal_code: string | null;
+          fiscal_state: string | null;
+          id: string;
+          last_name: string | null;
+          legal_name: string | null;
+          legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          onboarding_step: number;
+          phone: string | null;
+          rejected_at: string | null;
+          representative_name: string | null;
+          state: string | null;
+          status: Database["public"]["Enums"]["partner_status"];
+          submitted_at: string | null;
+          suspended_at: string | null;
+          tax_id: string | null;
+          updated_at: string;
+          user_id: string;
+          verified_at: string | null;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_profiles";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       stripe_checkout_test_mode_enabled: { Args: never; Returns: boolean };
       submit_bank_transfer: {
@@ -3783,6 +3970,44 @@ export type Database = {
           version: number;
         }[];
       };
+      submit_partner_for_review: {
+        Args: { expected_version: number };
+        Returns: {
+          city: string | null;
+          commercial_name: string | null;
+          country_code: string | null;
+          created_at: string;
+          first_name: string | null;
+          fiscal_address_line_1: string | null;
+          fiscal_address_line_2: string | null;
+          fiscal_city: string | null;
+          fiscal_postal_code: string | null;
+          fiscal_state: string | null;
+          id: string;
+          last_name: string | null;
+          legal_name: string | null;
+          legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          onboarding_step: number;
+          phone: string | null;
+          rejected_at: string | null;
+          representative_name: string | null;
+          state: string | null;
+          status: Database["public"]["Enums"]["partner_status"];
+          submitted_at: string | null;
+          suspended_at: string | null;
+          tax_id: string | null;
+          updated_at: string;
+          user_id: string;
+          verified_at: string | null;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_profiles";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       sync_product_golf_details: {
         Args: {
           requested_components?: Json;
@@ -3801,12 +4026,29 @@ export type Database = {
           requested_status: Database["public"]["Enums"]["partner_status"];
         };
         Returns: {
+          city: string | null;
+          commercial_name: string | null;
+          country_code: string | null;
           created_at: string;
+          first_name: string | null;
+          fiscal_address_line_1: string | null;
+          fiscal_address_line_2: string | null;
+          fiscal_city: string | null;
+          fiscal_postal_code: string | null;
+          fiscal_state: string | null;
           id: string;
+          last_name: string | null;
+          legal_name: string | null;
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          onboarding_step: number;
+          phone: string | null;
           rejected_at: string | null;
+          representative_name: string | null;
+          state: string | null;
           status: Database["public"]["Enums"]["partner_status"];
+          submitted_at: string | null;
           suspended_at: string | null;
+          tax_id: string | null;
           updated_at: string;
           user_id: string;
           verified_at: string | null;

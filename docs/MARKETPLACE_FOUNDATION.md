@@ -18,9 +18,9 @@ Marketplace queda cerrado por dos controles server-side:
 - `MARKETPLACE_ENABLED=false` por defecto en Next.js;
 - `site_settings['marketplace.enabled'] = {"enabled": false}` en PostgreSQL.
 
-PR 1 no agrega rutas ni navegación públicas. Habilitar una variable no publica
-por sí solo ningún listing: los módulos de listings y venta se implementarán en
-PRs posteriores y deberán exigir ambos controles.
+PR 2 agrega rutas autenticadas de onboarding y revisión, pero habilitar una
+variable no publica ningún listing: los módulos de listings y venta se
+implementarán en PRs posteriores y deberán exigir ambos controles.
 
 ## Estados Partner
 
@@ -106,9 +106,9 @@ Marketplace. Cuando se implementen:
 - custody será `PARTNER_CUSTODY` o `BEST_ROUND_CUSTODY`;
 - inventario propiedad de Best Round seguirá en el bounded context first-party.
 
-Tampoco se implementan onboarding UI, listing wizard, score/tier engine,
-Marketplace pricing, checkout multi-Partner, fulfillment, shipping, ledger,
-payouts ni disputas.
+PR 2 implementa onboarding UI y Portal Partner shell. Siguen fuera de alcance el
+listing wizard, score/tier engine, Marketplace pricing, checkout multi-Partner,
+fulfillment, shipping, ledger, payouts y disputas.
 
 ## Ejecución de pruebas SQL
 
