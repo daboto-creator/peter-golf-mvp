@@ -134,6 +134,12 @@ export default async function PartnerScoreOperationsPage({
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p>
+                  Candidate de promoción:{" "}
+                  {result.state.promotion_candidate_tier
+                    ? tierCopy[result.state.promotion_candidate_tier]
+                    : "Sin candidate activo"}
+                </p>
+                <p>
                   Promoción elegible desde:{" "}
                   {result.state.promotion_eligible_since ?? "Sin timer activo"}
                 </p>

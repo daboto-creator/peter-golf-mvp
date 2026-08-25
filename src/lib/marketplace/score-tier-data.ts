@@ -24,6 +24,7 @@ export async function getPartnerScoreDashboard(partnerId: string) {
       ? {
           current_tier: first.current_tier,
           highest_eligible_tier: first.highest_eligible_tier,
+          promotion_candidate_tier: first.promotion_candidate_tier,
           rolling_average_active_listings:
             first.rolling_average_active_listings,
           promotion_eligible_since: first.promotion_eligible_since,

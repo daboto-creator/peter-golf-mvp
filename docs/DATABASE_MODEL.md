@@ -357,5 +357,7 @@ La extensión Marketplace PR 4 se documenta en
 `docs/MARKETPLACE_PARTNER_SCORE_TIERS.md`. Su fuente primaria es append-only
 (`partner_score_events`, `partner_ratings`, penalties e historial); los snapshots
 explican cada cálculo y `partner_score_tier_state` funciona únicamente como cache
-actual. Las métricas diarias reconstruyen volumen desde status e inventory
+actual. El cache separa `current_tier`, `highest_eligible_tier` y
+`promotion_candidate_tier`; el periodo de estabilidad pertenece al candidate
+específico. Las métricas diarias reconstruyen volumen desde status e inventory
 movements Marketplace, sin tocar inventario first-party.

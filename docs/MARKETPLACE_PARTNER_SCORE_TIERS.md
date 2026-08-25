@@ -50,9 +50,12 @@ verificación y días no elegibles. En esta fase sólo `APPROVED` con modelo can
 inventario disponible cuenta; la regla está centralizada y preparada para migrar a
 `PUBLISHED`. Drafts, rechazados, vendidos, expirados y archivados no cuentan.
 
-Las promociones exigen siete días consecutivos. Si se rompe la elegibilidad, el
-timer se reinicia. Los downgrades esperan catorce días y se cancelan si el Partner se
-recupera. Un riesgo crítico puede omitir el grace operacional y abre
+Las promociones exigen siete días consecutivos para el tier candidato específico.
+`promotion_candidate_tier` y `promotion_eligible_since` se conservan juntos; si el
+highest eligible tier cambia, el candidate y su timer se reinician. Si deja de existir
+una promoción sobre el tier actual, ambos se limpian. Los downgrades esperan catorce
+días y se cancelan si el Partner se recupera. Un riesgo crítico puede omitir el grace
+operacional y abre
 `SUSPENSION_REVIEW`; no suspende automáticamente al Partner.
 
 `partner_tier_history` conserva tier anterior/nuevo, snapshot, promedio, versión de
@@ -86,10 +89,13 @@ Después de `npm run supabase:reset`:
 ```bash
 docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
   -v ON_ERROR_STOP=1 < supabase/tests/marketplace_partner_score_tiers.sql
+docker exec -i supabase_db_peter-golf-mvp psql -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 < supabase/tests/marketplace_partner_score_tier_promotion_candidate.sql
 ```
 
 La suite termina en `ROLLBACK` y cubre configuración, idempotencia, neutral/provisional,
-promoción, downgrade, rolling average, decay, riesgo crítico, inmutabilidad y RLS A/B.
+promoción, candidate específico, downgrade, rolling average, decay, riesgo crítico,
+inmutabilidad y RLS A/B.
 
 ## Extensiones futuras
 

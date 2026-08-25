@@ -3197,6 +3197,8 @@ export type Database = {
           highest_eligible_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
           latest_score_snapshot_id: string | null;
           partner_id: string;
+          promotion_candidate_tier:
+            Database["public"]["Enums"]["marketplace_partner_tier"] | null;
           promotion_eligible_since: string | null;
           rolling_average_active_listings: number;
           tier_at_risk_since: string | null;
@@ -3210,6 +3212,8 @@ export type Database = {
           highest_eligible_tier?: Database["public"]["Enums"]["marketplace_partner_tier"];
           latest_score_snapshot_id?: string | null;
           partner_id: string;
+          promotion_candidate_tier?:
+            Database["public"]["Enums"]["marketplace_partner_tier"] | null;
           promotion_eligible_since?: string | null;
           rolling_average_active_listings?: number;
           tier_at_risk_since?: string | null;
@@ -3223,6 +3227,8 @@ export type Database = {
           highest_eligible_tier?: Database["public"]["Enums"]["marketplace_partner_tier"];
           latest_score_snapshot_id?: string | null;
           partner_id?: string;
+          promotion_candidate_tier?:
+            Database["public"]["Enums"]["marketplace_partner_tier"] | null;
           promotion_eligible_since?: string | null;
           rolling_average_active_listings?: number;
           tier_at_risk_since?: string | null;
@@ -5253,6 +5259,8 @@ export type Database = {
           current_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
           display_score_bps: number;
           highest_eligible_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          promotion_candidate_tier:
+            Database["public"]["Enums"]["marketplace_partner_tier"] | null;
           promotion_eligible_since: string;
           rolling_average_active_listings: number;
           score_status: Database["public"]["Enums"]["partner_score_status"];
@@ -5461,6 +5469,8 @@ export type Database = {
           highest_eligible_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
           latest_score_snapshot_id: string | null;
           partner_id: string;
+          promotion_candidate_tier:
+            Database["public"]["Enums"]["marketplace_partner_tier"] | null;
           promotion_eligible_since: string | null;
           rolling_average_active_listings: number;
           tier_at_risk_since: string | null;

@@ -138,6 +138,23 @@ export function stabilityReached(
   return Math.floor((end - start) / 86_400_000) + 1 >= requiredDays;
 }
 
+export function promotionTrackingForEligibleTier(
+  currentTier: PartnerTier,
+  highestEligibleTier: PartnerTier,
+  existingCandidate: PartnerTier | null,
+  eligibleSince: string | null,
+  asOfDate: string,
+) {
+  if (tierOrder.indexOf(highestEligibleTier) <= tierOrder.indexOf(currentTier))
+    return { candidate: null, eligibleSince: null };
+  if (existingCandidate !== highestEligibleTier)
+    return { candidate: highestEligibleTier, eligibleSince: asOfDate };
+  return {
+    candidate: highestEligibleTier,
+    eligibleSince: eligibleSince ?? asOfDate,
+  };
+}
+
 export function scoreDescriptor(scoreBps: number) {
   if (scoreBps >= 9_000) return "Excelente";
   if (scoreBps >= 8_000) return "Muy bueno";

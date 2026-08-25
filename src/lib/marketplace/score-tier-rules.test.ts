@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   displayScore,
   highestEligibleTier,
+  promotionTrackingForEligibleTier,
   scoreStatusForOrders,
   smoothScoreBps,
   stabilityReached,
@@ -66,6 +67,57 @@ describe("Partner Score and Tier rules", () => {
     expect(stabilityReached("2026-09-01", "2026-09-06", 7)).toBe(false);
     expect(stabilityReached("2026-09-01", "2026-09-07", 7)).toBe(true);
     expect(stabilityReached("2026-09-01", "2026-09-14", 14)).toBe(true);
+  });
+
+  it("binds promotion stability to the specific eligible tier", () => {
+    expect(
+      promotionTrackingForEligibleTier(
+        "BOGEY",
+        "PAR",
+        null,
+        null,
+        "2026-09-01",
+      ),
+    ).toEqual({ candidate: "PAR", eligibleSince: "2026-09-01" });
+    expect(
+      promotionTrackingForEligibleTier(
+        "BOGEY",
+        "PAR",
+        "PAR",
+        "2026-09-01",
+        "2026-09-06",
+      ),
+    ).toEqual({ candidate: "PAR", eligibleSince: "2026-09-01" });
+    expect(
+      promotionTrackingForEligibleTier(
+        "BOGEY",
+        "BIRDIE",
+        "PAR",
+        "2026-09-01",
+        "2026-09-04",
+      ),
+    ).toEqual({ candidate: "BIRDIE", eligibleSince: "2026-09-04" });
+    expect(
+      promotionTrackingForEligibleTier(
+        "BOGEY",
+        "HOLE_IN_ONE",
+        "PAR",
+        "2026-09-01",
+        "2026-09-07",
+      ),
+    ).toEqual({ candidate: "HOLE_IN_ONE", eligibleSince: "2026-09-07" });
+  });
+
+  it("clears promotion tracking when eligibility is not above current tier", () => {
+    expect(
+      promotionTrackingForEligibleTier(
+        "PAR",
+        "PAR",
+        "BIRDIE",
+        "2026-09-01",
+        "2026-09-05",
+      ),
+    ).toEqual({ candidate: null, eligibleSince: null });
   });
 
   it("rounds internal basis points consistently for display", () => {

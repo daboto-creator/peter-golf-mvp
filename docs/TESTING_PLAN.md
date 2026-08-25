@@ -59,10 +59,14 @@ corrección/reenvío, aprobación y checks responsive sin habilitar compra.
 configuración versionada, prior neutral, status provisional/establecido, siete
 componentes, idempotencia, rolling de días elegibles, promoción, downgrade,
 penalty decay, riesgo crítico, overrides, snapshots inmutables y RLS Partner A/B.
+`supabase/tests/marketplace_partner_score_tier_promotion_candidate.sql` cubre la
+estabilidad ligada a un candidate específico, cambios Par/Birdie/Hole in One,
+pérdida del candidate, idempotencia, downgrade y cap provisional.
 
 `src/lib/marketplace/score-tier-rules.test.ts` cubre smoothing y matemática en
-bps, bounds, status, elegibilidad simultánea, fallback Bogey, cap provisional y
-timers inclusivos. El E2E opt-in `marketplace-partner-score-tiers.spec.ts` valida
+bps, bounds, status, elegibilidad simultánea, fallback Bogey, cap provisional,
+timers inclusivos y tracking por candidate. El E2E opt-in
+`marketplace-partner-score-tiers.spec.ts` valida
 la vista explicable del Partner, acciones autorizadas de Operations y overflow
 en Desktop, Pixel 7 e iPhone 15.
 

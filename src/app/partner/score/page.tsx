@@ -105,6 +105,14 @@ export default async function PartnerScorePage() {
               {Number(state.rolling_average_active_listings).toFixed(1)}{" "}
               publicaciones elegibles.
             </p>
+            {state.promotion_candidate_tier &&
+            state.promotion_eligible_since ? (
+              <p className="text-muted-foreground mt-2 text-sm">
+                Estabilidad en curso para{" "}
+                {tierCopy[state.promotion_candidate_tier]} desde{" "}
+                {state.promotion_eligible_since}.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
         <Card>
