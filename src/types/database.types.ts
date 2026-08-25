@@ -53,7 +53,7 @@ export type Database = {
           recipient_name: string;
           state: string;
           updated_at: string;
-          user_id?: string;
+          user_id: string;
           version: number;
         };
         Insert: {
@@ -1618,6 +1618,265 @@ export type Database = {
           },
         ];
       };
+      marketplace_manual_market_references: {
+        Row: {
+          actor_id: string;
+          analysis_id: string;
+          created_at: string;
+          high_market: number | null;
+          id: string;
+          low_market: number | null;
+          reason: string;
+          reference_price: number;
+          source_description: string;
+        };
+        Insert: {
+          actor_id: string;
+          analysis_id: string;
+          created_at?: string;
+          high_market?: number | null;
+          id?: string;
+          low_market?: number | null;
+          reason: string;
+          reference_price: number;
+          source_description: string;
+        };
+        Update: {
+          actor_id?: string;
+          analysis_id?: string;
+          created_at?: string;
+          high_market?: number | null;
+          id?: string;
+          low_market?: number | null;
+          reason?: string;
+          reference_price?: number;
+          source_description?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_manual_market_references_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_manual_market_references_analysis_id_fkey";
+            columns: ["analysis_id"];
+            isOneToOne: true;
+            referencedRelation: "marketplace_market_analyses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_market_analyses: {
+        Row: {
+          analysis_version: string;
+          average_price: number | null;
+          canonical_product_model_id: string;
+          checked_at: string | null;
+          completed_by: string | null;
+          confidence: Database["public"]["Enums"]["marketplace_market_confidence"];
+          created_at: string;
+          excluded_comparable_count: number;
+          expires_at: string | null;
+          flags: Json;
+          high_market: number | null;
+          id: string;
+          idempotency_key: string;
+          input_fingerprint: string | null;
+          input_snapshot: Json;
+          listing_id: string;
+          listing_version_id: string;
+          low_market: number | null;
+          median_price: number | null;
+          partner_id: string;
+          provider: string | null;
+          provider_status: string | null;
+          recommended_price: number | null;
+          requested_at: string;
+          requested_by: string;
+          result_snapshot: Json;
+          source: Database["public"]["Enums"]["marketplace_market_analysis_source"];
+          status: Database["public"]["Enums"]["marketplace_market_analysis_status"];
+          valid_comparable_count: number;
+        };
+        Insert: {
+          analysis_version?: string;
+          average_price?: number | null;
+          canonical_product_model_id: string;
+          checked_at?: string | null;
+          completed_by?: string | null;
+          confidence?: Database["public"]["Enums"]["marketplace_market_confidence"];
+          created_at?: string;
+          excluded_comparable_count?: number;
+          expires_at?: string | null;
+          flags?: Json;
+          high_market?: number | null;
+          id?: string;
+          idempotency_key: string;
+          input_fingerprint?: string | null;
+          input_snapshot?: Json;
+          listing_id: string;
+          listing_version_id: string;
+          low_market?: number | null;
+          median_price?: number | null;
+          partner_id: string;
+          provider?: string | null;
+          provider_status?: string | null;
+          recommended_price?: number | null;
+          requested_at?: string;
+          requested_by: string;
+          result_snapshot?: Json;
+          source?: Database["public"]["Enums"]["marketplace_market_analysis_source"];
+          status?: Database["public"]["Enums"]["marketplace_market_analysis_status"];
+          valid_comparable_count?: number;
+        };
+        Update: {
+          analysis_version?: string;
+          average_price?: number | null;
+          canonical_product_model_id?: string;
+          checked_at?: string | null;
+          completed_by?: string | null;
+          confidence?: Database["public"]["Enums"]["marketplace_market_confidence"];
+          created_at?: string;
+          excluded_comparable_count?: number;
+          expires_at?: string | null;
+          flags?: Json;
+          high_market?: number | null;
+          id?: string;
+          idempotency_key?: string;
+          input_fingerprint?: string | null;
+          input_snapshot?: Json;
+          listing_id?: string;
+          listing_version_id?: string;
+          low_market?: number | null;
+          median_price?: number | null;
+          partner_id?: string;
+          provider?: string | null;
+          provider_status?: string | null;
+          recommended_price?: number | null;
+          requested_at?: string;
+          requested_by?: string;
+          result_snapshot?: Json;
+          source?: Database["public"]["Enums"]["marketplace_market_analysis_source"];
+          status?: Database["public"]["Enums"]["marketplace_market_analysis_status"];
+          valid_comparable_count?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_market_analyses_canonical_product_model_id_fkey";
+            columns: ["canonical_product_model_id"];
+            isOneToOne: false;
+            referencedRelation: "catalog_product_models";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_market_analyses_completed_by_fkey";
+            columns: ["completed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_market_analyses_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_market_analyses_listing_version_id_fkey";
+            columns: ["listing_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_market_analyses_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_market_analyses_requested_by_fkey";
+            columns: ["requested_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_market_analysis_listing_version_fk";
+            columns: ["listing_id", "listing_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["listing_id", "id"];
+          },
+        ];
+      };
+      marketplace_market_comparables: {
+        Row: {
+          analysis_id: string;
+          availability: string;
+          condition: string;
+          created_at: string;
+          currency: string;
+          id: string;
+          match_reasons: Json;
+          match_score: number;
+          observed_at: string;
+          price: number;
+          provider_reference: string | null;
+          reference_url: string | null;
+          seller: string;
+          source: string;
+          title: string;
+        };
+        Insert: {
+          analysis_id: string;
+          availability: string;
+          condition: string;
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          match_reasons?: Json;
+          match_score: number;
+          observed_at: string;
+          price: number;
+          provider_reference?: string | null;
+          reference_url?: string | null;
+          seller: string;
+          source: string;
+          title: string;
+        };
+        Update: {
+          analysis_id?: string;
+          availability?: string;
+          condition?: string;
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          match_reasons?: Json;
+          match_score?: number;
+          observed_at?: string;
+          price?: number;
+          provider_reference?: string | null;
+          reference_url?: string | null;
+          seller?: string;
+          source?: string;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_market_comparables_analysis_id_fkey";
+            columns: ["analysis_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_market_analyses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       marketplace_operational_rules: {
         Row: {
           acceptance_window_hours: number | null;
@@ -1687,6 +1946,370 @@ export type Database = {
             columns: ["config_version_id"];
             isOneToOne: false;
             referencedRelation: "marketplace_config_versions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_pricing_quotes: {
+        Row: {
+          admin_fee_bps: number;
+          admin_fixed_fee: number;
+          admin_fixed_fee_amount: number;
+          admin_percentage_fee: number;
+          approval_reason: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
+          best_round_processing_share: number;
+          calculated_public_price: number;
+          calculation_version: string;
+          canonical_product_model_id: string;
+          commission_amount: number;
+          commission_base: number;
+          commission_rate_bps: number;
+          commission_tax_bps: number;
+          commission_vat: number;
+          config_version_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          desired_partner_net: number | null;
+          desired_public_price: number | null;
+          effective_partner_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id: string | null;
+          estimated_best_round_revenue: number;
+          estimated_partner_net: number;
+          expires_at: string;
+          gross_best_round_revenue: number;
+          id: string;
+          idempotency_key: string;
+          input_mode: Database["public"]["Enums"]["marketplace_pricing_input_mode"];
+          listing_id: string;
+          listing_version_id: string;
+          lock_version: number;
+          market_analysis_id: string | null;
+          market_delta_bps: number | null;
+          market_lower_bound: number | null;
+          market_reference: number | null;
+          market_tolerance_bps: number;
+          market_upper_bound: number | null;
+          meets_minimum_marketplace_revenue: boolean | null;
+          minimum_marketplace_revenue: number | null;
+          other_configured_fees: number;
+          partner_id: string;
+          partner_processing_share: number;
+          partner_processing_share_bps: number;
+          payment_fee_config_code: string;
+          payment_processing_bps: number;
+          payment_processing_fixed_fee: number;
+          processing_total: number;
+          quote_version: number;
+          score_snapshot_id: string | null;
+          status: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+          submitted_at: string | null;
+          tax_pass_through: number;
+          tier_source: Database["public"]["Enums"]["marketplace_tier_source"];
+          updated_at: string;
+          viability: Database["public"]["Enums"]["marketplace_price_viability"];
+        };
+        Insert: {
+          admin_fee_bps: number;
+          admin_fixed_fee: number;
+          admin_fixed_fee_amount: number;
+          admin_percentage_fee: number;
+          approval_reason?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          best_round_processing_share: number;
+          calculated_public_price: number;
+          calculation_version?: string;
+          canonical_product_model_id: string;
+          commission_amount: number;
+          commission_base: number;
+          commission_rate_bps: number;
+          commission_tax_bps: number;
+          commission_vat: number;
+          config_version_id: string;
+          created_at?: string;
+          created_by: string;
+          currency?: string;
+          desired_partner_net?: number | null;
+          desired_public_price?: number | null;
+          effective_partner_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id?: string | null;
+          estimated_best_round_revenue: number;
+          estimated_partner_net: number;
+          expires_at: string;
+          gross_best_round_revenue: number;
+          id?: string;
+          idempotency_key: string;
+          input_mode: Database["public"]["Enums"]["marketplace_pricing_input_mode"];
+          listing_id: string;
+          listing_version_id: string;
+          lock_version?: number;
+          market_analysis_id?: string | null;
+          market_delta_bps?: number | null;
+          market_lower_bound?: number | null;
+          market_reference?: number | null;
+          market_tolerance_bps: number;
+          market_upper_bound?: number | null;
+          meets_minimum_marketplace_revenue?: boolean | null;
+          minimum_marketplace_revenue?: number | null;
+          other_configured_fees?: number;
+          partner_id: string;
+          partner_processing_share: number;
+          partner_processing_share_bps: number;
+          payment_fee_config_code: string;
+          payment_processing_bps: number;
+          payment_processing_fixed_fee: number;
+          processing_total: number;
+          quote_version: number;
+          score_snapshot_id?: string | null;
+          status: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+          submitted_at?: string | null;
+          tax_pass_through: number;
+          tier_source: Database["public"]["Enums"]["marketplace_tier_source"];
+          updated_at?: string;
+          viability: Database["public"]["Enums"]["marketplace_price_viability"];
+        };
+        Update: {
+          admin_fee_bps?: number;
+          admin_fixed_fee?: number;
+          admin_fixed_fee_amount?: number;
+          admin_percentage_fee?: number;
+          approval_reason?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          best_round_processing_share?: number;
+          calculated_public_price?: number;
+          calculation_version?: string;
+          canonical_product_model_id?: string;
+          commission_amount?: number;
+          commission_base?: number;
+          commission_rate_bps?: number;
+          commission_tax_bps?: number;
+          commission_vat?: number;
+          config_version_id?: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          desired_partner_net?: number | null;
+          desired_public_price?: number | null;
+          effective_partner_tier?: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id?: string | null;
+          estimated_best_round_revenue?: number;
+          estimated_partner_net?: number;
+          expires_at?: string;
+          gross_best_round_revenue?: number;
+          id?: string;
+          idempotency_key?: string;
+          input_mode?: Database["public"]["Enums"]["marketplace_pricing_input_mode"];
+          listing_id?: string;
+          listing_version_id?: string;
+          lock_version?: number;
+          market_analysis_id?: string | null;
+          market_delta_bps?: number | null;
+          market_lower_bound?: number | null;
+          market_reference?: number | null;
+          market_tolerance_bps?: number;
+          market_upper_bound?: number | null;
+          meets_minimum_marketplace_revenue?: boolean | null;
+          minimum_marketplace_revenue?: number | null;
+          other_configured_fees?: number;
+          partner_id?: string;
+          partner_processing_share?: number;
+          partner_processing_share_bps?: number;
+          payment_fee_config_code?: string;
+          payment_processing_bps?: number;
+          payment_processing_fixed_fee?: number;
+          processing_total?: number;
+          quote_version?: number;
+          score_snapshot_id?: string | null;
+          status?: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+          submitted_at?: string | null;
+          tax_pass_through?: number;
+          tier_source?: Database["public"]["Enums"]["marketplace_tier_source"];
+          updated_at?: string;
+          viability?: Database["public"]["Enums"]["marketplace_price_viability"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_pricing_quote_listing_version_fk";
+            columns: ["listing_id", "listing_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["listing_id", "id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_approved_by_fkey";
+            columns: ["approved_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_canonical_product_model_id_fkey";
+            columns: ["canonical_product_model_id"];
+            isOneToOne: false;
+            referencedRelation: "catalog_product_models";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_config_version_id_fkey";
+            columns: ["config_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_config_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_effective_tier_override_id_fkey";
+            columns: ["effective_tier_override_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_score_tier_overrides";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_listing_version_id_fkey";
+            columns: ["listing_version_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_listing_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_market_analysis_id_fkey";
+            columns: ["market_analysis_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_market_analyses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_payment_fee_config_code_fkey";
+            columns: ["payment_fee_config_code"];
+            isOneToOne: false;
+            referencedRelation: "payment_fee_configs";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_score_snapshot_id_fkey";
+            columns: ["score_snapshot_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_score_snapshots";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_pricing_rules: {
+        Row: {
+          config_version_id: string;
+          market_tolerance_bps: number;
+          payment_fee_config_code: string;
+          quote_expiry_days: number;
+          required_confidence_for_approval: Database["public"]["Enums"]["marketplace_market_confidence"];
+          research_freshness_hours: number;
+        };
+        Insert: {
+          config_version_id: string;
+          market_tolerance_bps?: number;
+          payment_fee_config_code: string;
+          quote_expiry_days?: number;
+          required_confidence_for_approval?: Database["public"]["Enums"]["marketplace_market_confidence"];
+          research_freshness_hours?: number;
+        };
+        Update: {
+          config_version_id?: string;
+          market_tolerance_bps?: number;
+          payment_fee_config_code?: string;
+          quote_expiry_days?: number;
+          required_confidence_for_approval?: Database["public"]["Enums"]["marketplace_market_confidence"];
+          research_freshness_hours?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_pricing_rules_config_version_id_fkey";
+            columns: ["config_version_id"];
+            isOneToOne: true;
+            referencedRelation: "marketplace_config_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_rules_payment_fee_config_code_fkey";
+            columns: ["payment_fee_config_code"];
+            isOneToOne: false;
+            referencedRelation: "payment_fee_configs";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
+      marketplace_pricing_status_history: {
+        Row: {
+          actor_id: string | null;
+          created_at: string;
+          from_status:
+            | Database["public"]["Enums"]["marketplace_pricing_quote_status"]
+            | null;
+          id: string;
+          lock_version: number;
+          quote_id: string;
+          reason: string | null;
+          to_status: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+        };
+        Insert: {
+          actor_id?: string | null;
+          created_at?: string;
+          from_status?:
+            | Database["public"]["Enums"]["marketplace_pricing_quote_status"]
+            | null;
+          id?: string;
+          lock_version: number;
+          quote_id: string;
+          reason?: string | null;
+          to_status: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+        };
+        Update: {
+          actor_id?: string | null;
+          created_at?: string;
+          from_status?:
+            | Database["public"]["Enums"]["marketplace_pricing_quote_status"]
+            | null;
+          id?: string;
+          lock_version?: number;
+          quote_id?: string;
+          reason?: string | null;
+          to_status?: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_pricing_status_history_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_status_history_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_pricing_quotes";
             referencedColumns: ["id"];
           },
         ];
@@ -4795,6 +5418,7 @@ export type Database = {
       can_manage_marketplace_configuration: { Args: never; Returns: boolean };
       can_manage_marketplace_listings: { Args: never; Returns: boolean };
       can_manage_marketplace_partners: { Args: never; Returns: boolean };
+      can_manage_marketplace_pricing: { Args: never; Returns: boolean };
       can_manage_marketplace_score_tiers: { Args: never; Returns: boolean };
       can_manage_orders: { Args: never; Returns: boolean };
       can_override_marketplace_score_tiers: { Args: never; Returns: boolean };
@@ -4918,6 +5542,55 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      complete_marketplace_market_analysis: {
+        Args: {
+          requested_analysis_id: string;
+          requested_comparables: Json;
+          requested_excluded_count: number;
+          requested_input_fingerprint: string;
+          requested_input_snapshot: Json;
+          requested_provider: string;
+          requested_provider_status: string;
+          requested_result_snapshot: Json;
+        };
+        Returns: {
+          analysis_version: string;
+          average_price: number | null;
+          canonical_product_model_id: string;
+          checked_at: string | null;
+          completed_by: string | null;
+          confidence: Database["public"]["Enums"]["marketplace_market_confidence"];
+          created_at: string;
+          excluded_comparable_count: number;
+          expires_at: string | null;
+          flags: Json;
+          high_market: number | null;
+          id: string;
+          idempotency_key: string;
+          input_fingerprint: string | null;
+          input_snapshot: Json;
+          listing_id: string;
+          listing_version_id: string;
+          low_market: number | null;
+          median_price: number | null;
+          partner_id: string;
+          provider: string | null;
+          provider_status: string | null;
+          recommended_price: number | null;
+          requested_at: string;
+          requested_by: string;
+          result_snapshot: Json;
+          source: Database["public"]["Enums"]["marketplace_market_analysis_source"];
+          status: Database["public"]["Enums"]["marketplace_market_analysis_status"];
+          valid_comparable_count: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_market_analyses";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       complete_notification_delivery: {
         Args: {
           requested_lease_token: string;
@@ -5005,26 +5678,24 @@ export type Database = {
           requested_compare_at_price: unknown;
           requested_components?: Json;
           requested_condition: Database["public"]["Enums"]["product_condition"];
-          requested_condition_grade:
-            Database["public"]["Enums"]["product_condition_grade"] | null;
-          requested_condition_notes: string | null;
-          requested_condition_score: number | null;
+          requested_condition_grade: Database["public"]["Enums"]["product_condition_grade"];
+          requested_condition_notes: string;
+          requested_condition_score: number;
           requested_currency: unknown;
           requested_description: string | null;
           requested_featured: boolean;
           requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
-          requested_lead_time_max_days: number | null;
-          requested_lead_time_min_days: number | null;
+          requested_lead_time_max_days: number;
+          requested_lead_time_min_days: number;
           requested_name: string;
           requested_price: unknown;
           requested_price_is_estimate: boolean;
           requested_published: boolean;
-          requested_short_description: string | null;
+          requested_short_description: string;
           requested_sku: string;
           requested_slug: string;
           requested_specifications: Json;
-          requested_target_player:
-            Database["public"]["Enums"]["product_target_player"] | null;
+          requested_target_player: Database["public"]["Enums"]["product_target_player"];
         };
         Returns: {
           product_id: string;
@@ -5061,6 +5732,132 @@ export type Database = {
         SetofOptions: {
           from: "*";
           to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      create_marketplace_manual_market_reference: {
+        Args: {
+          requested_high_market: unknown;
+          requested_idempotency_key: string;
+          requested_listing_id: string;
+          requested_listing_version_id: string;
+          requested_low_market: unknown;
+          requested_reason: string;
+          requested_reference_price: unknown;
+          requested_source_description: string;
+        };
+        Returns: {
+          analysis_version: string;
+          average_price: number | null;
+          canonical_product_model_id: string;
+          checked_at: string | null;
+          completed_by: string | null;
+          confidence: Database["public"]["Enums"]["marketplace_market_confidence"];
+          created_at: string;
+          excluded_comparable_count: number;
+          expires_at: string | null;
+          flags: Json;
+          high_market: number | null;
+          id: string;
+          idempotency_key: string;
+          input_fingerprint: string | null;
+          input_snapshot: Json;
+          listing_id: string;
+          listing_version_id: string;
+          low_market: number | null;
+          median_price: number | null;
+          partner_id: string;
+          provider: string | null;
+          provider_status: string | null;
+          recommended_price: number | null;
+          requested_at: string;
+          requested_by: string;
+          result_snapshot: Json;
+          source: Database["public"]["Enums"]["marketplace_market_analysis_source"];
+          status: Database["public"]["Enums"]["marketplace_market_analysis_status"];
+          valid_comparable_count: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_market_analyses";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      create_marketplace_pricing_quote: {
+        Args: {
+          requested_desired_partner_net: unknown;
+          requested_desired_public_price: unknown;
+          requested_idempotency_key: string;
+          requested_input_mode: Database["public"]["Enums"]["marketplace_pricing_input_mode"];
+          requested_listing_id: string;
+          requested_listing_version_id: string;
+          requested_market_analysis_id: string | null;
+        };
+        Returns: {
+          admin_fee_bps: number;
+          admin_fixed_fee: number;
+          admin_fixed_fee_amount: number;
+          admin_percentage_fee: number;
+          approval_reason: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
+          best_round_processing_share: number;
+          calculated_public_price: number;
+          calculation_version: string;
+          canonical_product_model_id: string;
+          commission_amount: number;
+          commission_base: number;
+          commission_rate_bps: number;
+          commission_tax_bps: number;
+          commission_vat: number;
+          config_version_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          desired_partner_net: number | null;
+          desired_public_price: number | null;
+          effective_partner_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id: string | null;
+          estimated_best_round_revenue: number;
+          estimated_partner_net: number;
+          expires_at: string;
+          gross_best_round_revenue: number;
+          id: string;
+          idempotency_key: string;
+          input_mode: Database["public"]["Enums"]["marketplace_pricing_input_mode"];
+          listing_id: string;
+          listing_version_id: string;
+          lock_version: number;
+          market_analysis_id: string | null;
+          market_delta_bps: number | null;
+          market_lower_bound: number | null;
+          market_reference: number | null;
+          market_tolerance_bps: number;
+          market_upper_bound: number | null;
+          meets_minimum_marketplace_revenue: boolean | null;
+          minimum_marketplace_revenue: number | null;
+          other_configured_fees: number;
+          partner_id: string;
+          partner_processing_share: number;
+          partner_processing_share_bps: number;
+          payment_fee_config_code: string;
+          payment_processing_bps: number;
+          payment_processing_fixed_fee: number;
+          processing_total: number;
+          quote_version: number;
+          score_snapshot_id: string | null;
+          status: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+          submitted_at: string | null;
+          tax_pass_through: number;
+          tier_source: Database["public"]["Enums"]["marketplace_tier_source"];
+          updated_at: string;
+          viability: Database["public"]["Enums"]["marketplace_price_viability"];
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_pricing_quotes";
           isOneToOne: true;
           isSetofReturn: false;
         };
@@ -5259,8 +6056,7 @@ export type Database = {
           current_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
           display_score_bps: number;
           highest_eligible_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
-          promotion_candidate_tier:
-            Database["public"]["Enums"]["marketplace_partner_tier"] | null;
+          promotion_candidate_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
           promotion_eligible_since: string;
           rolling_average_active_listings: number;
           score_status: Database["public"]["Enums"]["partner_score_status"];
@@ -5749,6 +6545,50 @@ export type Database = {
           variant_id: string;
         }[];
       };
+      request_marketplace_market_analysis: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_listing_id: string;
+          requested_listing_version_id: string;
+        };
+        Returns: {
+          analysis_version: string;
+          average_price: number | null;
+          canonical_product_model_id: string;
+          checked_at: string | null;
+          completed_by: string | null;
+          confidence: Database["public"]["Enums"]["marketplace_market_confidence"];
+          created_at: string;
+          excluded_comparable_count: number;
+          expires_at: string | null;
+          flags: Json;
+          high_market: number | null;
+          id: string;
+          idempotency_key: string;
+          input_fingerprint: string | null;
+          input_snapshot: Json;
+          listing_id: string;
+          listing_version_id: string;
+          low_market: number | null;
+          median_price: number | null;
+          partner_id: string;
+          provider: string | null;
+          provider_status: string | null;
+          recommended_price: number | null;
+          requested_at: string;
+          requested_by: string;
+          result_snapshot: Json;
+          source: Database["public"]["Enums"]["marketplace_market_analysis_source"];
+          status: Database["public"]["Enums"]["marketplace_market_analysis_status"];
+          valid_comparable_count: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_market_analyses";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       reserve_brps_product_sku: {
         Args: { requested_base: string };
         Returns: string;
@@ -6029,10 +6869,11 @@ export type Database = {
       sync_product_golf_details: {
         Args: {
           requested_components?: Json;
-          requested_condition_score: number;
+          requested_condition_score: number | null;
           requested_product_id: string;
           requested_specifications: Json;
-          requested_target_player: Database["public"]["Enums"]["product_target_player"];
+          requested_target_player:
+            Database["public"]["Enums"]["product_target_player"] | null;
         };
         Returns: undefined;
       };
@@ -6042,7 +6883,7 @@ export type Database = {
           requested_feedback?: Json;
           requested_internal_note?: string | null;
           requested_listing_id: string;
-          requested_reason: string;
+          requested_reason: string | null;
           requested_status: Database["public"]["Enums"]["marketplace_listing_status"];
         };
         Returns: {
@@ -6061,6 +6902,80 @@ export type Database = {
         SetofOptions: {
           from: "*";
           to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      transition_marketplace_pricing_quote: {
+        Args: {
+          expected_lock_version: number;
+          requested_quote_id: string;
+          requested_reason: string | null;
+          requested_status: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+        };
+        Returns: {
+          admin_fee_bps: number;
+          admin_fixed_fee: number;
+          admin_fixed_fee_amount: number;
+          admin_percentage_fee: number;
+          approval_reason: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
+          best_round_processing_share: number;
+          calculated_public_price: number;
+          calculation_version: string;
+          canonical_product_model_id: string;
+          commission_amount: number;
+          commission_base: number;
+          commission_rate_bps: number;
+          commission_tax_bps: number;
+          commission_vat: number;
+          config_version_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          desired_partner_net: number | null;
+          desired_public_price: number | null;
+          effective_partner_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id: string | null;
+          estimated_best_round_revenue: number;
+          estimated_partner_net: number;
+          expires_at: string;
+          gross_best_round_revenue: number;
+          id: string;
+          idempotency_key: string;
+          input_mode: Database["public"]["Enums"]["marketplace_pricing_input_mode"];
+          listing_id: string;
+          listing_version_id: string;
+          lock_version: number;
+          market_analysis_id: string | null;
+          market_delta_bps: number | null;
+          market_lower_bound: number | null;
+          market_reference: number | null;
+          market_tolerance_bps: number;
+          market_upper_bound: number | null;
+          meets_minimum_marketplace_revenue: boolean | null;
+          minimum_marketplace_revenue: number | null;
+          other_configured_fees: number;
+          partner_id: string;
+          partner_processing_share: number;
+          partner_processing_share_bps: number;
+          payment_fee_config_code: string;
+          payment_processing_bps: number;
+          payment_processing_fixed_fee: number;
+          processing_total: number;
+          quote_version: number;
+          score_snapshot_id: string | null;
+          status: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+          submitted_at: string | null;
+          tax_pass_through: number;
+          tier_source: Database["public"]["Enums"]["marketplace_tier_source"];
+          updated_at: string;
+          viability: Database["public"]["Enums"]["marketplace_price_viability"];
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_pricing_quotes";
           isOneToOne: true;
           isSetofReturn: false;
         };
@@ -6242,20 +7157,21 @@ export type Database = {
           requested_category_id: string;
           requested_compare_at_price: unknown;
           requested_condition: Database["public"]["Enums"]["product_condition"];
-          requested_condition_grade: Database["public"]["Enums"]["product_condition_grade"];
-          requested_condition_notes: string;
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
           requested_currency: unknown;
-          requested_description: string;
+          requested_description: string | null;
           requested_featured: boolean;
           requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
-          requested_lead_time_max_days: number;
-          requested_lead_time_min_days: number;
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
           requested_name: string;
           requested_price: unknown;
           requested_price_is_estimate: boolean;
           requested_product_id: string;
           requested_published: boolean;
-          requested_short_description: string;
+          requested_short_description: string | null;
           requested_sku: string;
           requested_slug: string;
         };
@@ -6349,9 +7265,37 @@ export type Database = {
         | "ARCHIVED";
       marketplace_listing_version_state:
         "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
+      marketplace_market_analysis_source:
+        "PROVIDER" | "MANUAL" | "HYBRID" | "AI";
+      marketplace_market_analysis_status:
+        | "REQUESTED"
+        | "COMPLETE"
+        | "INSUFFICIENT_DATA"
+        | "PROVIDER_UNAVAILABLE"
+        | "FAILED"
+        | "STALE";
+      marketplace_market_confidence: "HIGH" | "MEDIUM" | "LOW" | "INSUFFICIENT";
       marketplace_partner_tier:
         "BOGEY" | "PAR" | "BIRDIE" | "ALBATROSS" | "HOLE_IN_ONE";
+      marketplace_price_viability:
+        | "COMPETITIVE"
+        | "SLIGHTLY_HIGH"
+        | "OVERPRICED"
+        | "UNDERPRICED"
+        | "INSUFFICIENT_DATA";
+      marketplace_pricing_input_mode: "PUBLIC_PRICE_PRIORITY" | "NET_PRIORITY";
+      marketplace_pricing_quote_status:
+        | "DRAFT"
+        | "ANALYZED"
+        | "PARTNER_ACCEPTED"
+        | "UNDER_REVIEW"
+        | "CHANGES_REQUESTED"
+        | "APPROVED"
+        | "REJECTED"
+        | "SUPERSEDED"
+        | "EXPIRED";
       marketplace_score_job_status: "RUNNING" | "COMPLETED";
+      marketplace_tier_source: "CALCULATED" | "OVERRIDE";
       notification_channel: "email";
       notification_delivery_status:
         "pending" | "processing" | "sent" | "failed" | "dead_letter";
@@ -6695,6 +7639,21 @@ export const Constants = {
         "APPROVED",
         "REJECTED",
       ],
+      marketplace_market_analysis_source: [
+        "PROVIDER",
+        "MANUAL",
+        "HYBRID",
+        "AI",
+      ],
+      marketplace_market_analysis_status: [
+        "REQUESTED",
+        "COMPLETE",
+        "INSUFFICIENT_DATA",
+        "PROVIDER_UNAVAILABLE",
+        "FAILED",
+        "STALE",
+      ],
+      marketplace_market_confidence: ["HIGH", "MEDIUM", "LOW", "INSUFFICIENT"],
       marketplace_partner_tier: [
         "BOGEY",
         "PAR",
@@ -6702,7 +7661,27 @@ export const Constants = {
         "ALBATROSS",
         "HOLE_IN_ONE",
       ],
+      marketplace_price_viability: [
+        "COMPETITIVE",
+        "SLIGHTLY_HIGH",
+        "OVERPRICED",
+        "UNDERPRICED",
+        "INSUFFICIENT_DATA",
+      ],
+      marketplace_pricing_input_mode: ["PUBLIC_PRICE_PRIORITY", "NET_PRIORITY"],
+      marketplace_pricing_quote_status: [
+        "DRAFT",
+        "ANALYZED",
+        "PARTNER_ACCEPTED",
+        "UNDER_REVIEW",
+        "CHANGES_REQUESTED",
+        "APPROVED",
+        "REJECTED",
+        "SUPERSEDED",
+        "EXPIRED",
+      ],
       marketplace_score_job_status: ["RUNNING", "COMPLETED"],
+      marketplace_tier_source: ["CALCULATED", "OVERRIDE"],
       notification_channel: ["email"],
       notification_delivery_status: [
         "pending",

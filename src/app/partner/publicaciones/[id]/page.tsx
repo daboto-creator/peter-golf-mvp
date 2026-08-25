@@ -45,6 +45,12 @@ export default async function PartnerListingDetailPage({
               Continuar edición
             </Link>
           </Button>
+        ) : listing.status === "APPROVED" ? (
+          <Button asChild>
+            <Link href={`/partner/publicaciones/${id}/precio`}>
+              Preparar precio
+            </Link>
+          </Button>
         ) : null}
       </header>
       {visibleFeedback.length ? (
