@@ -316,6 +316,97 @@ do $$ declare balance record; begin
 end $$;
 reset role;
 
+-- PR9 manual payout: exact AVAILABLE selection, claim/hold race protection,
+-- external transfer recording and one immutable AVAILABLE -> PAID movement.
+select set_config('peter_golf.marketplace_order_write','enabled',true);
+alter table public.order_fulfillments disable trigger order_fulfillments_sync_order;
+update public.order_fulfillments set status='ACCEPTANCE_PENDING',version=version+1
+where partner_id='6b000000-0000-4000-8000-000000000001';
+alter table public.order_fulfillments enable trigger order_fulfillments_sync_order;
+select set_config('peter_golf.marketplace_order_write','disabled',true);
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000005',true);
+set local role authenticated;
+do $$ declare payable public.marketplace_partner_payables; payout public.marketplace_partner_payouts;
+  settlement public.marketplace_partner_settlements; payable_hold uuid; payout_hold uuid;
+  entry_count bigint; original bigint;
+begin
+  select * into strict payable from public.marketplace_partner_payables
+    where partner_id='6b000000-0000-4000-8000-000000000001';
+  payable:=public.release_marketplace_partner_payable(payable.id,'OPERATIONS_APPROVED',
+    'Entrega aceptada para prueba de payout','72000000-0000-4000-8000-000000000001');
+  original:=payable.original_amount_cents;
+  payout:=public.create_marketplace_partner_payout(payable.partner_id,array[payable.id],
+    '72000000-0000-4000-8000-000000000002');
+  if payout.total_cents<>original or payout.item_count<>1 or payout.provider<>'MANUAL_BANK_TRANSFER'
+  then raise exception 'Payout total did not equal exact AVAILABLE amount'; end if;
+  perform public.add_marketplace_partner_payout_item(payout.id,payable.id,
+    '72000000-0000-4000-8000-000000000003');
+  if (select count(*) from public.marketplace_partner_payout_items
+    where payout_id=payout.id and released_at is null)<>1
+  then raise exception 'Duplicate payable was attached'; end if;
+  payout:=public.mark_marketplace_partner_payout_ready(payout.id,'Payout revisado y listo',
+    '72000000-0000-4000-8000-000000000004');
+  perform public.place_marketplace_partner_payable_hold(payable.id,'RISK',
+    'Hold tardío bloquea payout','true','72000000-0000-4000-8000-000000000005');
+  select id into strict payable_hold from public.marketplace_partner_holds
+    where placed_idempotency_key='72000000-0000-4000-8000-000000000005';
+  select * into payout from public.marketplace_partner_payouts where id=payout.id;
+  if payout.status<>'ON_HOLD' then raise exception 'Payable hold did not block prepared payout'; end if;
+  begin
+    perform public.record_marketplace_manual_transfer(payout.id,current_date,'Banco test','SPEI-PR9-001',original,
+      'No mueve dinero','72000000-0000-4000-8000-000000000006');
+    raise exception 'Held payout recorded transfer';
+  exception when others then
+    if sqlerrm='Held payout recorded transfer' then raise; end if;
+  end;
+  perform public.release_marketplace_partner_payable_hold(payable_hold,'Reclamo descartado',
+    '72000000-0000-4000-8000-000000000007');
+  select id into strict payout_hold from public.marketplace_partner_payout_holds
+    where payout_id=payout.id and status='ACTIVE';
+  payout:=public.release_marketplace_partner_payout_hold(payout_hold,'Bloqueo de claim retirado',
+    '72000000-0000-4000-8000-000000000008');
+  settlement:=public.record_marketplace_manual_transfer(payout.id,current_date,'Banco test','SPEI-PR9-001',original,
+    'Transferencia externa test','72000000-0000-4000-8000-000000000009');
+  if settlement.amount_cents<>original or settlement.status<>'PENDING'
+  then raise exception 'Manual transfer evidence is invalid'; end if;
+  begin
+    perform public.record_marketplace_manual_transfer(payout.id,current_date,'Banco test','SPEI-WRONG',original-1,
+      'Monto incorrecto','72000000-0000-4000-8000-000000000010');
+    raise exception 'Mismatched transfer replay was accepted';
+  exception when unique_violation then null; end;
+  payout:=public.confirm_marketplace_payout_settlement(payout.id,'72000000-0000-4000-8000-000000000011');
+  entry_count:=(select count(*) from public.marketplace_partner_ledger_entries where payable_id=payable.id and entry_type='PAYABLE_PAID');
+  payout:=public.confirm_marketplace_payout_settlement(payout.id,'72000000-0000-4000-8000-000000000011');
+  select * into payable from public.marketplace_partner_payables where id=payable.id;
+  if payout.status<>'PAID' or payable.status<>'PAID' or payable.paid_amount_cents<>original
+    or entry_count<>1 or entry_count<>(select count(*) from public.marketplace_partner_ledger_entries where payable_id=payable.id and entry_type='PAYABLE_PAID')
+  then raise exception 'Settlement replay duplicated or drifted PAID ledger effect'; end if;
+  if exists(select 1 from public.marketplace_partner_ledger_entries l where l.payable_id=payable.id
+    and l.amount_cents<>l.pending_delta_cents+l.on_hold_delta_cents+l.available_delta_cents+l.paid_delta_cents)
+  then raise exception 'Payout ledger conservation failed'; end if;
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $$ begin
+  if (select count(*) from public.get_partner_marketplace_payouts())<>1
+    or (select status from public.get_partner_marketplace_payouts())<>'PAID'
+  then raise exception 'Partner A cannot read own paid payout'; end if;
+  begin update public.marketplace_partner_payouts set total_cents=1;
+    raise exception 'Partner mutated payout';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000002',true);
+set local role authenticated;
+do $$ begin
+  if exists(select 1 from public.get_partner_marketplace_payouts())
+    or exists(select 1 from public.marketplace_partner_payouts)
+  then raise exception 'Partner B read Partner A payout'; end if;
+end $$;
+reset role;
+
 -- Restock only after proving the last-unit loser. Its same cart can retry and
 -- an expired reservation releases atomically without a duplicate decrement.
 select set_config('peter_golf.marketplace_order_write','enabled',true);
