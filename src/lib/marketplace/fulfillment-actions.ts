@@ -66,6 +66,20 @@ export async function transitionOperationsFulfillmentAction(
   const { client } = await requireMarketplaceOrdersManager(
     "/operacion/marketplace/ordenes",
   );
+  if (parsed.data.action === "RECORD_DELIVERY") {
+    const { error } = await client.rpc("record_marketplace_delivery", {
+      requested_fulfillment_id: parsed.data.fulfillmentId,
+      requested_delivered_at: new Date().toISOString(),
+      requested_reason: parsed.data.reason,
+      requested_idempotency_key: parsed.data.idempotencyKey,
+    });
+    if (error) return failure();
+    revalidatePath("/operacion/marketplace/ordenes");
+    return {
+      status: "success",
+      message: "Entrega registrada; inició la ventana de 48 horas.",
+    };
+  }
   const { error } = await client.rpc("transition_marketplace_fulfillment", {
     requested_fulfillment_id: parsed.data.fulfillmentId,
     expected_version: parsed.data.version,

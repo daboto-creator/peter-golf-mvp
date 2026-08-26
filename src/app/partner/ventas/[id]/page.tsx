@@ -6,6 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import { transitionPartnerFulfillmentAction } from "@/lib/marketplace/fulfillment-actions";
 import { getPartnerSale } from "@/lib/marketplace/fulfillment-data";
+import { ClaimWorkflowForm } from "@/components/marketplace/claim-action-form";
+import { partnerClaimResponseAction } from "@/lib/marketplace/claim-actions";
+import { getPartnerClaims } from "@/lib/marketplace/claim-data";
+import { claimReasonLabel } from "@/lib/marketplace/claim-rules";
 
 export default async function PartnerSaleDetailPage({
   params,
@@ -16,6 +20,10 @@ export default async function PartnerSaleDetailPage({
   const result = await getPartnerSale(id);
   const sale = result.data[0];
   if (!sale) notFound();
+  const claims = await getPartnerClaims();
+  const claim = claims.data.find(
+    (item) => item.fulfillment_id === sale.fulfillment_id,
+  );
   return (
     <div className="space-y-8">
       <header>
@@ -41,6 +49,28 @@ export default async function PartnerSaleDetailPage({
           </p>
         </CardContent>
       </Card>
+      {claim ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Reclamo en revisión</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p>{claimReasonLabel(claim.reason)}</p>
+            <p className="text-muted-foreground text-sm">
+              Estado: {claim.status}. Best Round protege los datos del comprador
+              y toma la decisión final.
+            </p>
+            {claim.status !== "RESOLVED" && claim.status !== "CANCELLED" ? (
+              <ClaimWorkflowForm
+                action={partnerClaimResponseAction}
+                claimId={claim.id}
+                idempotencyKey={randomUUID()}
+                mode="partner-response"
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
       <div className="grid gap-4 md:grid-cols-2">
         {sale.status === "PENDING_CONFIRMATION" ? (
           <>

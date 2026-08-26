@@ -1,5 +1,11 @@
 # Modelo de datos
 
+PR8 separa el estado post-entrega Marketplace en
+`marketplace_delivery_acceptances`, `marketplace_claims`, eventos/resoluciones
+append-only, evidencia privada y devoluciones preparadas. Los efectos
+financieros referencian payables y ledger PR7; reclamos no guardan un saldo
+financiero mutable ni recalculan pricing histórico.
+
 ## 1. Estado y alcance
 
 La versión 1 del esquema del MVP está implementada como migraciones SQL

@@ -75,6 +75,17 @@ export default async function MarketplaceOrderDetailPage({
                     requireReason
                   />
                 ) : null}
+                {fulfillment.status === "SHIPPED" ? (
+                  <FulfillmentActionForm
+                    action={transitionOperationsFulfillmentAction}
+                    fulfillmentId={fulfillment.id}
+                    version={fulfillment.version}
+                    idempotencyKey={randomUUID()}
+                    operation="RECORD_DELIVERY"
+                    label="Confirmar entrega"
+                    requireReason
+                  />
+                ) : null}
                 <FulfillmentActionForm
                   action={transitionOperationsFulfillmentAction}
                   fulfillmentId={fulfillment.id}
