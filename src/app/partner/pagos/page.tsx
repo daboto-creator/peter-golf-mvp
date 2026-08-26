@@ -4,9 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import { getPartnerFinanceOverview } from "@/lib/marketplace/partner-finance-data";
 import { partnerPayableLabel } from "@/lib/marketplace/partner-finance-rules";
+import { getPartnerPayouts } from "@/lib/marketplace/payout-data";
+import { payoutStatusLabel } from "@/lib/marketplace/payout-rules";
 
 export default async function PartnerPaymentsPage() {
-  const result = await getPartnerFinanceOverview();
+  const [result, payoutResult] = await Promise.all([
+    getPartnerFinanceOverview(),
+    getPartnerPayouts(),
+  ]);
   const balance = result.balance ?? {
     pending_cents: 0,
     on_hold_cents: 0,
@@ -51,6 +56,39 @@ export default async function PartnerPaymentsPage() {
             </CardContent>
           </Card>
         ))}
+      </section>
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold">Próximos pagos</h2>
+        <p className="text-muted-foreground text-sm">
+          Best Round prepara los pagos semanalmente. No necesitas solicitar una
+          transferencia.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          {payoutResult.payouts.map((payout) => (
+            <Card key={payout.payout_id}>
+              <CardContent className="space-y-2 p-5">
+                <p className="font-semibold">{payout.payout_reference}</p>
+                <p className="text-pg-gold text-xs font-semibold uppercase">
+                  {payoutStatusLabel(payout.status)}
+                </p>
+                <p className="text-xl font-semibold">
+                  {formatMoneyMinorUnits(Number(payout.total_cents))}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  {payout.item_count} venta{payout.item_count === 1 ? "" : "s"}
+                  {payout.paid_at
+                    ? ` · confirmado ${new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(new Date(payout.paid_at))}`
+                    : ""}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        {!payoutResult.payouts.length && !payoutResult.error ? (
+          <p className="text-muted-foreground rounded-xl border border-dashed bg-white p-8 text-center">
+            Aún no hay pagos programados.
+          </p>
+        ) : null}
       </section>
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold">Movimientos recientes</h2>

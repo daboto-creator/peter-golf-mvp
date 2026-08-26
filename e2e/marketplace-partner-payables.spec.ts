@@ -140,10 +140,20 @@ async function login(page: Page, email: string, next: string) {
 }
 
 function preparePayablesScenario() {
-  const fixture = readFileSync(
+  const source = readFileSync(
     "supabase/tests/marketplace_checkout_orders_fulfillment.sql",
     "utf8",
-  ).replace(/rollback;\s*$/m, "commit;");
+  );
+  const payoutStart = source.indexOf("-- PR9 manual payout:");
+  const payoutEnd = source.indexOf(
+    "-- Restock only after proving",
+    payoutStart,
+  );
+  const fixture =
+    `${source.slice(0, payoutStart)}${source.slice(payoutEnd)}`.replace(
+      /rollback;\s*$/m,
+      "commit;",
+    );
   psql(fixture);
   sql(`
     insert into auth.users(instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,

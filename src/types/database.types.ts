@@ -2591,7 +2591,9 @@ export type Database = {
           config_version_id: string;
           inventory_confirmation_hours: number;
           listing_expiry_days: number | null;
+          payout_hour_utc: number;
           payout_interval_days: number | null;
+          payout_weekday_utc: number;
           score_provisional_completed_orders: number | null;
           tier_averaging_window_days: number;
         };
@@ -2602,7 +2604,9 @@ export type Database = {
           config_version_id: string;
           inventory_confirmation_hours: number;
           listing_expiry_days?: number | null;
+          payout_hour_utc?: number;
           payout_interval_days?: number | null;
+          payout_weekday_utc?: number;
           score_provisional_completed_orders?: number | null;
           tier_averaging_window_days: number;
         };
@@ -2613,7 +2617,9 @@ export type Database = {
           config_version_id?: string;
           inventory_confirmation_hours?: number;
           listing_expiry_days?: number | null;
+          payout_hour_utc?: number;
           payout_interval_days?: number | null;
+          payout_weekday_utc?: number;
           score_provisional_completed_orders?: number | null;
           tier_averaging_window_days?: number;
         };
@@ -3116,6 +3122,7 @@ export type Database = {
           order_id: string;
           order_item_id: string;
           original_amount_cents: number;
+          paid_amount_cents: number;
           partner_id: string;
           payment_id: string;
           pricing_quote_id: string;
@@ -3136,6 +3143,7 @@ export type Database = {
           order_id: string;
           order_item_id: string;
           original_amount_cents: number;
+          paid_amount_cents?: number;
           partner_id: string;
           payment_id: string;
           pricing_quote_id: string;
@@ -3156,6 +3164,7 @@ export type Database = {
           order_id?: string;
           order_item_id?: string;
           original_amount_cents?: number;
+          paid_amount_cents?: number;
           partner_id?: string;
           payment_id?: string;
           pricing_quote_id?: string;
@@ -3206,6 +3215,326 @@ export type Database = {
             columns: ["pricing_quote_id"];
             isOneToOne: false;
             referencedRelation: "marketplace_pricing_quotes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_partner_payout_events: {
+        Row: {
+          actor_id: string | null;
+          actor_source: Database["public"]["Enums"]["marketplace_partner_finance_actor_source"];
+          created_at: string;
+          event_type: Database["public"]["Enums"]["marketplace_partner_payout_event_type"];
+          from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          metadata: Json;
+          partner_id: string;
+          partner_visible: boolean;
+          payout_id: string;
+          reason: string;
+          reference_event_id: string | null;
+          to_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+        };
+        Insert: {
+          actor_id?: string | null;
+          actor_source: Database["public"]["Enums"]["marketplace_partner_finance_actor_source"];
+          created_at?: string;
+          event_type: Database["public"]["Enums"]["marketplace_partner_payout_event_type"];
+          from_status?:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id?: string;
+          idempotency_key: string;
+          metadata?: Json;
+          partner_id: string;
+          partner_visible?: boolean;
+          payout_id: string;
+          reason: string;
+          reference_event_id?: string | null;
+          to_status?:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+        };
+        Update: {
+          actor_id?: string | null;
+          actor_source?: Database["public"]["Enums"]["marketplace_partner_finance_actor_source"];
+          created_at?: string;
+          event_type?: Database["public"]["Enums"]["marketplace_partner_payout_event_type"];
+          from_status?:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id?: string;
+          idempotency_key?: string;
+          metadata?: Json;
+          partner_id?: string;
+          partner_visible?: boolean;
+          payout_id?: string;
+          reason?: string;
+          reference_event_id?: string | null;
+          to_status?:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_partner_payout_events_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_payout_events_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_payout_events_payout_id_fkey";
+            columns: ["payout_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_partner_payouts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_partner_payout_holds: {
+        Row: {
+          actor_id: string | null;
+          created_at: string;
+          id: string;
+          partner_id: string;
+          partner_visible: boolean;
+          payout_id: string;
+          placed_idempotency_key: string;
+          reason: string;
+          release_idempotency_key: string | null;
+          release_reason: string | null;
+          released_at: string | null;
+          released_by: string | null;
+          source: Database["public"]["Enums"]["marketplace_partner_hold_source"];
+          source_reference_key: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_hold_status"];
+        };
+        Insert: {
+          actor_id?: string | null;
+          created_at?: string;
+          id?: string;
+          partner_id: string;
+          partner_visible?: boolean;
+          payout_id: string;
+          placed_idempotency_key: string;
+          reason: string;
+          release_idempotency_key?: string | null;
+          release_reason?: string | null;
+          released_at?: string | null;
+          released_by?: string | null;
+          source: Database["public"]["Enums"]["marketplace_partner_hold_source"];
+          source_reference_key?: string | null;
+          status?: Database["public"]["Enums"]["marketplace_partner_hold_status"];
+        };
+        Update: {
+          actor_id?: string | null;
+          created_at?: string;
+          id?: string;
+          partner_id?: string;
+          partner_visible?: boolean;
+          payout_id?: string;
+          placed_idempotency_key?: string;
+          reason?: string;
+          release_idempotency_key?: string | null;
+          release_reason?: string | null;
+          released_at?: string | null;
+          released_by?: string | null;
+          source?: Database["public"]["Enums"]["marketplace_partner_hold_source"];
+          source_reference_key?: string | null;
+          status?: Database["public"]["Enums"]["marketplace_partner_hold_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_partner_payout_holds_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_payout_holds_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_payout_holds_payout_id_fkey";
+            columns: ["payout_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_partner_payouts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_payout_holds_released_by_fkey";
+            columns: ["released_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_partner_payout_items: {
+        Row: {
+          created_at: string;
+          currency: string;
+          id: string;
+          partner_id: string;
+          payable_id: string;
+          payout_id: string;
+          released_at: string | null;
+          settled_at: string | null;
+          settlement_amount_cents: number;
+        };
+        Insert: {
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          partner_id: string;
+          payable_id: string;
+          payout_id: string;
+          released_at?: string | null;
+          settled_at?: string | null;
+          settlement_amount_cents: number;
+        };
+        Update: {
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          partner_id?: string;
+          payable_id?: string;
+          payout_id?: string;
+          released_at?: string | null;
+          settled_at?: string | null;
+          settlement_amount_cents?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_partner_payout_items_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_payout_items_payable_id_fkey";
+            columns: ["payable_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_partner_payables";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_payout_items_payout_id_fkey";
+            columns: ["payout_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_partner_payouts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_partner_payouts: {
+        Row: {
+          batch_id: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          failed_at: string | null;
+          held_from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          item_count: number;
+          paid_at: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          batch_id?: string | null;
+          cancelled_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          failed_at?: string | null;
+          held_from_status?:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id?: string;
+          idempotency_key: string;
+          item_count?: number;
+          paid_at?: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider?: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at?: string | null;
+          status?: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents?: number;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          batch_id?: string | null;
+          cancelled_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          failed_at?: string | null;
+          held_from_status?:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id?: string;
+          idempotency_key?: string;
+          item_count?: number;
+          paid_at?: string | null;
+          partner_id?: string;
+          payout_reference?: string;
+          provider?: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at?: string | null;
+          status?: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents?: number;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_partner_payouts_batch_id_fkey";
+            columns: ["batch_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_payout_batches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_payouts_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_payouts_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -3270,6 +3599,192 @@ export type Database = {
             columns: ["payable_id"];
             isOneToOne: false;
             referencedRelation: "marketplace_partner_payables";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_partner_settlements: {
+        Row: {
+          amount_cents: number;
+          bank_label: string;
+          confirmation_idempotency_key: string | null;
+          confirmed_at: string | null;
+          confirmed_by: string | null;
+          created_at: string;
+          currency: string;
+          external_reference: string;
+          id: string;
+          operations_note: string | null;
+          partner_id: string;
+          payout_id: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          record_idempotency_key: string;
+          recorded_by: string;
+          status: Database["public"]["Enums"]["marketplace_partner_settlement_status"];
+          transfer_date: string;
+        };
+        Insert: {
+          amount_cents: number;
+          bank_label: string;
+          confirmation_idempotency_key?: string | null;
+          confirmed_at?: string | null;
+          confirmed_by?: string | null;
+          created_at?: string;
+          currency?: string;
+          external_reference: string;
+          id?: string;
+          operations_note?: string | null;
+          partner_id: string;
+          payout_id: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          record_idempotency_key: string;
+          recorded_by: string;
+          status?: Database["public"]["Enums"]["marketplace_partner_settlement_status"];
+          transfer_date: string;
+        };
+        Update: {
+          amount_cents?: number;
+          bank_label?: string;
+          confirmation_idempotency_key?: string | null;
+          confirmed_at?: string | null;
+          confirmed_by?: string | null;
+          created_at?: string;
+          currency?: string;
+          external_reference?: string;
+          id?: string;
+          operations_note?: string | null;
+          partner_id?: string;
+          payout_id?: string;
+          provider?: Database["public"]["Enums"]["marketplace_payout_provider"];
+          record_idempotency_key?: string;
+          recorded_by?: string;
+          status?: Database["public"]["Enums"]["marketplace_partner_settlement_status"];
+          transfer_date?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_partner_settlements_confirmed_by_fkey";
+            columns: ["confirmed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_settlements_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_settlements_payout_id_fkey";
+            columns: ["payout_id"];
+            isOneToOne: true;
+            referencedRelation: "marketplace_partner_payouts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_partner_settlements_recorded_by_fkey";
+            columns: ["recorded_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_payout_batches: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          execution_key: string;
+          id: string;
+          payout_count: number;
+          period_end: string;
+          period_start: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          status: Database["public"]["Enums"]["marketplace_payout_batch_status"];
+          total_cents: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          execution_key: string;
+          id?: string;
+          payout_count?: number;
+          period_end: string;
+          period_start: string;
+          provider?: Database["public"]["Enums"]["marketplace_payout_provider"];
+          status?: Database["public"]["Enums"]["marketplace_payout_batch_status"];
+          total_cents?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          execution_key?: string;
+          id?: string;
+          payout_count?: number;
+          period_end?: string;
+          period_start?: string;
+          provider?: Database["public"]["Enums"]["marketplace_payout_provider"];
+          status?: Database["public"]["Enums"]["marketplace_payout_batch_status"];
+          total_cents?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_payout_batches_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_payout_job_runs: {
+        Row: {
+          batch_id: string | null;
+          calculation_date: string;
+          completed_at: string | null;
+          created_at: string;
+          execution_key: string;
+          id: string;
+          payable_count: number;
+          payout_count: number;
+          status: string;
+        };
+        Insert: {
+          batch_id?: string | null;
+          calculation_date: string;
+          completed_at?: string | null;
+          created_at?: string;
+          execution_key: string;
+          id?: string;
+          payable_count?: number;
+          payout_count?: number;
+          status?: string;
+        };
+        Update: {
+          batch_id?: string | null;
+          calculation_date?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          execution_key?: string;
+          id?: string;
+          payable_count?: number;
+          payout_count?: number;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_payout_job_runs_batch_id_fkey";
+            columns: ["batch_id"];
+            isOneToOne: false;
+            referencedRelation: "marketplace_payout_batches";
             referencedColumns: ["id"];
           },
         ];
@@ -6990,6 +7505,30 @@ export type Database = {
           version: number;
         }[];
       };
+      add_marketplace_partner_payout_item: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_payable_id: string;
+          requested_payout_id: string;
+        };
+        Returns: {
+          created_at: string;
+          currency: string;
+          id: string;
+          partner_id: string;
+          payable_id: string;
+          payout_id: string;
+          released_at: string | null;
+          settled_at: string | null;
+          settlement_amount_cents: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payout_items";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       adjust_inventory: {
         Args: {
           requested_idempotency_key: string;
@@ -7084,6 +7623,7 @@ export type Database = {
       can_manage_marketplace_orders: { Args: never; Returns: boolean };
       can_manage_marketplace_partners: { Args: never; Returns: boolean };
       can_manage_marketplace_payables: { Args: never; Returns: boolean };
+      can_manage_marketplace_payouts: { Args: never; Returns: boolean };
       can_manage_marketplace_pricing: { Args: never; Returns: boolean };
       can_manage_marketplace_score_tiers: { Args: never; Returns: boolean };
       can_manage_orders: { Args: never; Returns: boolean };
@@ -7102,6 +7642,42 @@ export type Database = {
           replayed: boolean;
           status: Database["public"]["Enums"]["order_status"];
         }[];
+      };
+      cancel_marketplace_partner_payout: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_payout_id: string;
+          requested_reason: string;
+        };
+        Returns: {
+          batch_id: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          failed_at: string | null;
+          held_from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          item_count: number;
+          paid_at: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payouts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       cancel_operational_order: {
         Args: {
@@ -7276,6 +7852,41 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"];
         }[];
       };
+      confirm_marketplace_payout_settlement: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_payout_id: string;
+        };
+        Returns: {
+          batch_id: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          failed_at: string | null;
+          held_from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          item_count: number;
+          paid_at: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payouts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       confirm_operational_order: {
         Args: {
           expected_version: number;
@@ -7311,7 +7922,7 @@ export type Database = {
               requested_cart_id: string;
               requested_idempotency_key: string;
               requested_save_address: boolean;
-              requested_saved_address_id: string;
+              requested_saved_address_id: string | null;
               requested_shipping_method_id: string;
             };
             Returns: {
@@ -7328,7 +7939,7 @@ export type Database = {
               requested_idempotency_key: string;
               requested_payment_method: Database["public"]["Enums"]["payment_method"];
               requested_save_address: boolean;
-              requested_saved_address_id: string;
+              requested_saved_address_id: string | null;
               requested_shipping_method_id: string;
             };
             Returns: {
@@ -7464,6 +8075,42 @@ export type Database = {
         SetofOptions: {
           from: "*";
           to: "marketplace_market_analyses";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      create_marketplace_partner_payout: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_partner_id: string;
+          requested_payable_ids: string[];
+        };
+        Returns: {
+          batch_id: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          failed_at: string | null;
+          held_from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          item_count: number;
+          paid_at: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payouts";
           isOneToOne: true;
           isSetofReturn: false;
         };
@@ -7675,6 +8322,42 @@ export type Database = {
           variant_id: string;
         }[];
       };
+      fail_marketplace_partner_payout: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_payout_id: string;
+          requested_reason: string;
+        };
+        Returns: {
+          batch_id: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          failed_at: string | null;
+          held_from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          item_count: number;
+          paid_at: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payouts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       fail_notification_delivery: {
         Args: { requested_error_code: string; requested_lease_token: string };
         Returns: {
@@ -7682,6 +8365,42 @@ export type Database = {
           next_attempt_at: string;
           status: Database["public"]["Enums"]["notification_delivery_status"];
         }[];
+      };
+      flag_marketplace_payout_reconciliation: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_payout_id: string;
+          requested_reason: string;
+        };
+        Returns: {
+          batch_id: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          failed_at: string | null;
+          held_from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          item_count: number;
+          paid_at: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payouts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       get_customer_cart: { Args: never; Returns: Json };
       get_customer_marketplace_claim_context: {
@@ -7913,6 +8632,24 @@ export type Database = {
           status: Database["public"]["Enums"]["marketplace_partner_payable_status"];
         }[];
       };
+      get_partner_marketplace_payouts: {
+        Args: { requested_payout_id?: string };
+        Returns: {
+          bank_label: string;
+          created_at: string;
+          currency: string;
+          external_reference: string;
+          item_count: number;
+          paid_at: string;
+          payout_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          settlement_status: Database["public"]["Enums"]["marketplace_partner_settlement_status"];
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          transfer_date: string;
+        }[];
+      };
       get_partner_marketplace_sales: {
         Args: { requested_fulfillment_id?: string };
         Returns: {
@@ -8035,6 +8772,42 @@ export type Database = {
           version: number;
         }[];
       };
+      mark_marketplace_partner_payout_ready: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_payout_id: string;
+          requested_reason: string;
+        };
+        Returns: {
+          batch_id: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          failed_at: string | null;
+          held_from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          item_count: number;
+          paid_at: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payouts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       mask_notification_email: { Args: { email: string }; Returns: string };
       normalize_checkout_address: { Args: { requested: Json }; Returns: Json };
       normalize_customer_address: { Args: { requested: Json }; Returns: Json };
@@ -8111,6 +8884,7 @@ export type Database = {
           order_id: string;
           order_item_id: string;
           original_amount_cents: number;
+          paid_amount_cents: number;
           partner_id: string;
           payment_id: string;
           pricing_quote_id: string;
@@ -8123,6 +8897,38 @@ export type Database = {
         SetofOptions: {
           from: "*";
           to: "marketplace_partner_payables";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      place_marketplace_partner_payout_hold: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_partner_visible: boolean;
+          requested_payout_id: string;
+          requested_reason: string;
+          requested_source: Database["public"]["Enums"]["marketplace_partner_hold_source"];
+        };
+        Returns: {
+          actor_id: string | null;
+          created_at: string;
+          id: string;
+          partner_id: string;
+          partner_visible: boolean;
+          payout_id: string;
+          placed_idempotency_key: string;
+          reason: string;
+          release_idempotency_key: string | null;
+          release_reason: string | null;
+          released_at: string | null;
+          released_by: string | null;
+          source: Database["public"]["Enums"]["marketplace_partner_hold_source"];
+          source_reference_key: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_hold_status"];
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payout_holds";
           isOneToOne: true;
           isSetofReturn: false;
         };
@@ -8277,6 +9083,41 @@ export type Database = {
         SetofOptions: {
           from: "*";
           to: "marketplace_delivery_acceptances";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      record_marketplace_manual_transfer: {
+        Args: {
+          requested_bank_label: string;
+          requested_confirmed_amount_cents: number;
+          requested_external_reference: string;
+          requested_idempotency_key: string;
+          requested_note: string;
+          requested_payout_id: string;
+          requested_transfer_date: string;
+        };
+        Returns: {
+          amount_cents: number;
+          bank_label: string;
+          confirmation_idempotency_key: string | null;
+          confirmed_at: string | null;
+          confirmed_by: string | null;
+          created_at: string;
+          currency: string;
+          external_reference: string;
+          id: string;
+          operations_note: string | null;
+          partner_id: string;
+          payout_id: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          recorded_by: string;
+          status: Database["public"]["Enums"]["marketplace_partner_settlement_status"];
+          transfer_date: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_settlements";
           isOneToOne: true;
           isSetofReturn: false;
         };
@@ -8517,6 +9358,7 @@ export type Database = {
           order_id: string;
           order_item_id: string;
           original_amount_cents: number;
+          paid_amount_cents: number;
           partner_id: string;
           payment_id: string;
           pricing_quote_id: string;
@@ -8550,6 +9392,7 @@ export type Database = {
           order_id: string;
           order_item_id: string;
           original_amount_cents: number;
+          paid_amount_cents: number;
           partner_id: string;
           payment_id: string;
           pricing_quote_id: string;
@@ -8566,6 +9409,42 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      release_marketplace_partner_payout_hold: {
+        Args: {
+          requested_hold_id: string;
+          requested_idempotency_key: string;
+          requested_reason: string;
+        };
+        Returns: {
+          batch_id: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          failed_at: string | null;
+          held_from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          item_count: number;
+          paid_at: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payouts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       remove_marketplace_listing_image: {
         Args: {
           expected_lock_version: number;
@@ -8576,6 +9455,43 @@ export type Database = {
           delete_storage_object: boolean;
           removed_storage_path: string;
         }[];
+      };
+      remove_marketplace_partner_payout_item: {
+        Args: {
+          requested_idempotency_key: string;
+          requested_payable_id: string;
+          requested_payout_id: string;
+          requested_reason: string;
+        };
+        Returns: {
+          batch_id: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          failed_at: string | null;
+          held_from_status:
+            | Database["public"]["Enums"]["marketplace_partner_payout_status"]
+            | null;
+          id: string;
+          idempotency_key: string;
+          item_count: number;
+          paid_at: string | null;
+          partner_id: string;
+          payout_reference: string;
+          provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          ready_at: string | null;
+          status: Database["public"]["Enums"]["marketplace_partner_payout_status"];
+          total_cents: number;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_partner_payouts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       remove_product_image: {
         Args: { requested_image_id: string; requested_product_id: string };
@@ -8796,6 +9712,7 @@ export type Database = {
           order_id: string;
           order_item_id: string;
           original_amount_cents: number;
+          paid_amount_cents: number;
           partner_id: string;
           payment_id: string;
           pricing_quote_id: string;
@@ -8876,6 +9793,26 @@ export type Database = {
         SetofOptions: {
           from: "*";
           to: "marketplace_acceptance_job_runs";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      run_marketplace_payout_job: {
+        Args: { requested_date: string; requested_execution_key: string };
+        Returns: {
+          batch_id: string | null;
+          calculation_date: string;
+          completed_at: string | null;
+          created_at: string;
+          execution_key: string;
+          id: string;
+          payable_count: number;
+          payout_count: number;
+          status: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_payout_job_runs";
           isOneToOne: true;
           isSetofReturn: false;
         };
@@ -9783,13 +10720,44 @@ export type Database = {
         | "PAYABLE_ADJUSTED";
       marketplace_partner_payable_status:
         "PENDING" | "ON_HOLD" | "AVAILABLE" | "PAID" | "REVERSED";
+      marketplace_partner_payout_event_type:
+        | "PAYOUT_CREATED"
+        | "ITEM_ATTACHED"
+        | "ITEM_REMOVED"
+        | "PAYOUT_READY"
+        | "PAYOUT_HELD"
+        | "PAYOUT_HOLD_RELEASED"
+        | "TRANSFER_RECORDED"
+        | "PAYOUT_FAILED"
+        | "SETTLEMENT_CONFIRMED"
+        | "RECONCILIATION_REQUIRED"
+        | "PAYOUT_CANCELLED";
+      marketplace_partner_payout_status:
+        | "DRAFT"
+        | "READY"
+        | "ON_HOLD"
+        | "AWAITING_CONFIRMATION"
+        | "PAID"
+        | "FAILED"
+        | "CANCELLED"
+        | "RECONCILIATION_REQUIRED";
       marketplace_partner_release_basis:
         | "DELIVERY_ACCEPTED"
         | "AUTO_ACCEPTED"
         | "CLAIM_RESOLVED"
         | "OPERATIONS_APPROVED";
+      marketplace_partner_settlement_status:
+        | "PENDING"
+        | "CONFIRMED"
+        | "FAILED"
+        | "RECONCILIATION_REQUIRED"
+        | "REVERSED_EXTERNALLY";
       marketplace_partner_tier:
         "BOGEY" | "PAR" | "BIRDIE" | "ALBATROSS" | "HOLE_IN_ONE";
+      marketplace_payout_batch_status:
+        "DRAFT" | "READY" | "COMPLETED" | "CANCELLED";
+      marketplace_payout_provider:
+        "MANUAL_BANK_TRANSFER" | "STRIPE_CONNECT" | "OTHER_PROVIDER";
       marketplace_price_viability:
         | "COMPETITIVE"
         | "SLIGHTLY_HIGH"
@@ -10295,11 +11263,41 @@ export const Constants = {
         "PAID",
         "REVERSED",
       ],
+      marketplace_partner_payout_event_type: [
+        "PAYOUT_CREATED",
+        "ITEM_ATTACHED",
+        "ITEM_REMOVED",
+        "PAYOUT_READY",
+        "PAYOUT_HELD",
+        "PAYOUT_HOLD_RELEASED",
+        "TRANSFER_RECORDED",
+        "PAYOUT_FAILED",
+        "SETTLEMENT_CONFIRMED",
+        "RECONCILIATION_REQUIRED",
+        "PAYOUT_CANCELLED",
+      ],
+      marketplace_partner_payout_status: [
+        "DRAFT",
+        "READY",
+        "ON_HOLD",
+        "AWAITING_CONFIRMATION",
+        "PAID",
+        "FAILED",
+        "CANCELLED",
+        "RECONCILIATION_REQUIRED",
+      ],
       marketplace_partner_release_basis: [
         "DELIVERY_ACCEPTED",
         "AUTO_ACCEPTED",
         "CLAIM_RESOLVED",
         "OPERATIONS_APPROVED",
+      ],
+      marketplace_partner_settlement_status: [
+        "PENDING",
+        "CONFIRMED",
+        "FAILED",
+        "RECONCILIATION_REQUIRED",
+        "REVERSED_EXTERNALLY",
       ],
       marketplace_partner_tier: [
         "BOGEY",
@@ -10307,6 +11305,17 @@ export const Constants = {
         "BIRDIE",
         "ALBATROSS",
         "HOLE_IN_ONE",
+      ],
+      marketplace_payout_batch_status: [
+        "DRAFT",
+        "READY",
+        "COMPLETED",
+        "CANCELLED",
+      ],
+      marketplace_payout_provider: [
+        "MANUAL_BANK_TRANSFER",
+        "STRIPE_CONNECT",
+        "OTHER_PROVIDER",
       ],
       marketplace_price_viability: [
         "COMPETITIVE",
