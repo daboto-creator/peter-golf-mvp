@@ -13,10 +13,16 @@ import {
   paymentProviderLabel,
   paymentStatusLabel,
 } from "@/lib/payments/payment-rules";
+import {
+  BuyerAcceptanceForm,
+  ClaimEvidenceForm,
+} from "@/components/marketplace/claim-action-form";
+import type { PartnerActionState } from "@/lib/marketplace/partner-action-state";
 
 export function CustomerOrderDetail({
   order,
   paymentControls,
+  claimControls,
 }: {
   order: Order;
   paymentControls?: {
@@ -24,6 +30,30 @@ export function CustomerOrderDetail({
     idempotencyKey: string;
     stripeMode: "disabled" | "test";
     stripeIdempotencyKey: string;
+  };
+  claimControls?: {
+    items: {
+      fulfillmentId: string;
+      orderItemId: string;
+      listingTitle: string;
+      acceptanceStatus: string | null;
+      acceptanceDeadline: string | null;
+      claimStatus: string | null;
+      claimId: string | null;
+      idempotencyKey: string;
+    }[];
+    acceptAction: (
+      state: PartnerActionState,
+      data: FormData,
+    ) => Promise<PartnerActionState>;
+    claimAction: (
+      state: PartnerActionState,
+      data: FormData,
+    ) => Promise<PartnerActionState>;
+    evidenceAction: (
+      state: PartnerActionState,
+      data: FormData,
+    ) => Promise<PartnerActionState>;
   };
 }) {
   const effectiveStripeStatus = resolveEffectiveStripeCheckoutStatus(
@@ -92,6 +122,53 @@ export function CustomerOrderDetail({
           </strong>
         </div>
       </section>
+      {claimControls?.items.length ? (
+        <section className="space-y-5 rounded-[20px] border bg-white p-5 sm:p-6">
+          <div>
+            <h2 className="font-heading text-2xl font-bold">
+              Entrega Marketplace
+            </h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Best Round media cualquier problema; nunca necesitas contactar al
+              Partner.
+            </p>
+          </div>
+          {claimControls.items.map((item) => (
+            <div key={item.orderItemId} className="space-y-3 border-t pt-4">
+              <p className="font-medium">{item.listingTitle}</p>
+              {item.acceptanceStatus === "PENDING" && !item.claimStatus ? (
+                <BuyerAcceptanceForm
+                  acceptAction={claimControls.acceptAction}
+                  claimAction={claimControls.claimAction}
+                  fulfillmentId={item.fulfillmentId}
+                  orderItemId={item.orderItemId}
+                  idempotencyKey={item.idempotencyKey}
+                />
+              ) : item.claimStatus &&
+                item.claimStatus !== "RESOLVED" &&
+                item.claimStatus !== "CANCELLED" ? (
+                <>
+                  <p className="text-sm">Estado: Reclamo {item.claimStatus}</p>
+                  {item.claimId ? (
+                    <ClaimEvidenceForm
+                      action={claimControls.evidenceAction}
+                      claimId={item.claimId}
+                      idempotencyKey={item.idempotencyKey}
+                    />
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-sm">
+                  Estado:{" "}
+                  {item.claimStatus
+                    ? `Reclamo ${item.claimStatus}`
+                    : item.acceptanceStatus}
+                </p>
+              )}
+            </div>
+          ))}
+        </section>
+      ) : null}
       <section className="space-y-3 rounded-[20px] border bg-white p-5 sm:p-6">
         <h2 className="font-heading text-2xl font-bold">Pago</h2>
         <p className="text-sm">

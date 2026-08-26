@@ -1,5 +1,10 @@
 # Plan de pruebas
 
+PR8 agrega cobertura focalizada para la ventana de 48 horas, motivos elegibles,
+gating de auto-aceptación, permisos de executors privados, cron único, RLS,
+evidencia privada, holds de reclamo y efectos compensatorios en PR7. El dry-run
+hosted debe mostrar únicamente la migración PR8 antes del merge.
+
 ## 1. Objetivo
 
 Verificar que Best Round Pro Shop cumpla requisitos funcionales futuros, proteja datos y comunique correctamente que el MVP no realiza pagos. Este plan crecerá junto con la implementación.
