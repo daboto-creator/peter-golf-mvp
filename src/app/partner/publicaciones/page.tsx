@@ -11,6 +11,7 @@ import {
   isMarketplaceListingStatus,
   listingStatusCopy,
 } from "@/lib/marketplace/listing-rules";
+import { getPartnerPublicationStatus } from "@/lib/marketplace/publication-rules";
 import { getCurrentPartnerContext } from "@/lib/marketplace/partner-data";
 
 export default async function PartnerListingsPage({
@@ -124,7 +125,15 @@ export default async function PartnerListingsPage({
                 )}
                 <CardHeader>
                   <p className="text-pg-gold text-xs font-semibold uppercase">
-                    {listingStatusCopy[listing.status].label}
+                    {listing.publicationReadiness
+                      ? getPartnerPublicationStatus({
+                          listingStatus: listing.status,
+                          publicationReady:
+                            listing.publicationReadiness.publication_ready,
+                          published: listing.publicationReadiness.published,
+                          blockers: listing.publicationReadiness.blockers,
+                        })
+                      : listingStatusCopy[listing.status].label}
                   </p>
                   <CardTitle>{title}</CardTitle>
                 </CardHeader>

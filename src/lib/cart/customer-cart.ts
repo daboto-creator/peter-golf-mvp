@@ -2,6 +2,10 @@ import "server-only";
 
 import { z } from "zod";
 
+import {
+  getMarketplaceCartIssue,
+  type MarketplaceCartIssue,
+} from "@/lib/marketplace/publication-rules";
 import { createClient } from "@/lib/supabase/server";
 
 const cartSchema = z.object({
@@ -33,6 +37,16 @@ const cartSchema = z.object({
       price_changed: z.boolean(),
       availability: z.enum(["available", "low", "insufficient", "unavailable"]),
       image_path: z.string().nullable(),
+      marketplace_issue: z
+        .enum([
+          "none",
+          "price_changed",
+          "listing_changed",
+          "unavailable",
+          "marketplace_disabled",
+        ])
+        .default("none"),
+      marketplace_blockers: z.array(z.string()).default([]),
     }),
   ),
 });
@@ -69,7 +83,45 @@ export async function getCustomerCart(): Promise<CustomerCart | null> {
     const { data, error } = await client.rpc("get_customer_cart");
     if (error) return null;
     const parsed = cartSchema.safeParse(data);
-    return parsed.success ? parsed.data : null;
+    if (!parsed.success) return null;
+    if (!parsed.data.has_marketplace_items) return parsed.data;
+    const readiness = await client.rpc(
+      "get_customer_marketplace_cart_readiness",
+    );
+    const byItemId = new Map(
+      (readiness.data ?? []).map((entry) => [entry.cart_item_id, entry]),
+    );
+    let hasMarketplaceIssue = Boolean(readiness.error);
+    const items = parsed.data.items.map((item) => {
+      if (item.item_source !== "MARKETPLACE_PARTNER") return item;
+      const state = byItemId.get(item.id);
+      const marketplaceIssue: MarketplaceCartIssue = state
+        ? getMarketplaceCartIssue({
+            listingVersionChanged: state.listing_version_changed,
+            priceChanged: state.price_changed || item.price_changed,
+            available: state.available,
+            blockers: state.blocker_codes,
+          })
+        : "unavailable";
+      hasMarketplaceIssue ||= marketplaceIssue !== "none";
+      return {
+        ...item,
+        price_changed:
+          marketplaceIssue === "price_changed" || item.price_changed,
+        availability: state?.available ? item.availability : "unavailable",
+        image_path:
+          state?.image_id && item.listing_id
+            ? `/api/marketplace/images/${item.listing_id}/${state.image_id}`
+            : item.image_path,
+        marketplace_issue: marketplaceIssue,
+        marketplace_blockers: state?.blocker_codes ?? [],
+      };
+    });
+    return {
+      ...parsed.data,
+      items,
+      has_issues: parsed.data.has_issues || hasMarketplaceIssue,
+    };
   } catch {
     return null;
   }

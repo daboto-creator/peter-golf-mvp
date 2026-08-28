@@ -135,6 +135,18 @@ function FilterFields({
           <option value="fair">Con desgaste visible</option>
         </select>
       </Field>
+      <Field label="Origen" id="source">
+        <select
+          id="source"
+          name="source"
+          defaultValue={filters.source ?? ""}
+          className={selectClassName}
+        >
+          <option value="">Todos</option>
+          <option value="FIRST_PARTY">Best Round</option>
+          <option value="MARKETPLACE_PARTNER">Partner verificado</option>
+        </select>
+      </Field>
       <Check
         name="available"
         label="Disponible en stock"

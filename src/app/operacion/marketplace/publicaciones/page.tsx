@@ -11,6 +11,7 @@ import {
   isMarketplaceListingStatus,
   listingStatusCopy,
 } from "@/lib/marketplace/listing-rules";
+import { mapPublicationBlockers } from "@/lib/marketplace/publication-rules";
 
 export default async function MarketplaceListingsOperationsPage({
   searchParams,
@@ -125,6 +126,7 @@ export default async function MarketplaceListingsOperationsPage({
                 <th className="p-4">Partner</th>
                 <th className="p-4">Categoría</th>
                 <th className="p-4">Estado</th>
+                <th className="p-4">Publicación</th>
                 <th className="p-4">Versión</th>
                 <th className="p-4">Actualización</th>
                 <th className="p-4">
@@ -151,6 +153,24 @@ export default async function MarketplaceListingsOperationsPage({
                     <td className="p-4">{version?.categories?.name ?? "—"}</td>
                     <td className="p-4">
                       {listingStatusCopy[listing.status].label}
+                    </td>
+                    <td className="p-4">
+                      <p className="font-semibold">
+                        {listing.publicationReadiness?.published
+                          ? "PUBLICATION_READY · PUBLICADO"
+                          : listing.publicationReadiness?.publication_ready
+                            ? "PUBLICATION_READY"
+                            : "BLOCKED"}
+                      </p>
+                      {listing.publicationReadiness?.blockers.length ? (
+                        <ul className="text-muted-foreground mt-1 max-w-xs list-disc pl-4 text-xs">
+                          {mapPublicationBlockers(
+                            listing.publicationReadiness.blockers,
+                          ).map((blocker) => (
+                            <li key={blocker}>{blocker}</li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </td>
                     <td className="p-4">{version?.version_number ?? "—"}</td>
                     <td className="p-4">

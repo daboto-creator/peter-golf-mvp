@@ -27,9 +27,6 @@ export async function requireMarketplaceUser(returnTo = "/partner") {
       `/iniciar-sesion?next=${encodeURIComponent(getSafeInternalPath(returnTo, "/partner"))}`,
     );
   }
-  if (!(await getMarketplaceAvailability())) {
-    redirect("/cuenta?marketplace=no-disponible");
-  }
   return { client, user };
 }
 
@@ -168,6 +165,21 @@ export async function requireMarketplacePayoutsManager(returnTo: string) {
     );
   }
   const { data } = await client.rpc("can_manage_marketplace_payouts");
+  if (data !== true) forbidden();
+  return { client, user };
+}
+
+export async function requireMarketplaceConfigurationManager(returnTo: string) {
+  const client = await createClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) {
+    redirect(
+      `/iniciar-sesion?next=${encodeURIComponent(getSafeInternalPath(returnTo, "/operacion"))}`,
+    );
+  }
+  const { data } = await client.rpc("can_manage_marketplace_configuration");
   if (data !== true) forbidden();
   return { client, user };
 }

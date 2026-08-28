@@ -43,8 +43,8 @@ export default async function CheckoutPage() {
             Confirma tu pedido
           </h1>
           <p className="text-muted-foreground mt-4 leading-7">
-            Genera un pedido pendiente de revisión. No realizaremos ningún
-            cargo.
+            Confirma una sola orden Best Round. El importe y la disponibilidad
+            se validan nuevamente en el servidor antes del pago.
           </p>
           <ol className="text-muted-foreground mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold tracking-wide uppercase">
             <li className="text-pg-black">1 · Envío</li>

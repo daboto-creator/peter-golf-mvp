@@ -28,20 +28,46 @@ begin
     (listing_a,'6b000000-0000-4000-8000-000000000001','DRAFT',1),
     (listing_b,'6b000000-0000-4000-8000-000000000002','DRAFT',1);
   insert into public.marketplace_listing_versions(
-    id,listing_id,version_number,state,canonical_model_id,brand_id,category_id,title,
+    id,listing_id,version_number,state,canonical_model_id,brand_id,category_id,title,description,
     condition,condition_grade,condition_notes,defects_acknowledged,specifications,
     declared_defects,accessories_included,quantity,fulfillment,custody,submitted_at,reviewed_at,created_by
   ) values
-    (version_a,listing_a,1,'APPROVED',model_id,brand_id,category_id,'Partner A Driver',
-      'used','excellent','Equipo revisado',true,'{}','[]','[]',1,'PARTNER_FULFILLED','PARTNER_CUSTODY',now(),now(),'6a000000-0000-4000-8000-000000000005'),
-    (version_b,listing_b,1,'APPROVED',model_id,brand_id,category_id,'Partner B Driver',
-      'used','good','Equipo revisado',true,'{}','[]','[]',1,'PARTNER_FULFILLED','PARTNER_CUSTODY',now(),now(),'6a000000-0000-4000-8000-000000000005');
+    (version_a,listing_a,1,'APPROVED',model_id,brand_id,category_id,'Partner A Driver','Driver seminuevo aprobado para checkout.',
+      'used','excellent','Equipo revisado',true,'{"handedness":"right","shaftFlex":"regular","loftDegrees":10.5}','[]','[]',1,'PARTNER_FULFILLED','PARTNER_CUSTODY',now(),now(),'6a000000-0000-4000-8000-000000000005'),
+    (version_b,listing_b,1,'APPROVED',model_id,brand_id,category_id,'Partner B Driver','Driver seminuevo aprobado para checkout.',
+      'used','good','Equipo revisado',true,'{"handedness":"right","shaftFlex":"stiff","loftDegrees":9}','[]','[]',1,'PARTNER_FULFILLED','PARTNER_CUSTODY',now(),now(),'6a000000-0000-4000-8000-000000000005');
   update public.marketplace_listings set status='APPROVED',
     current_version_id=case id when listing_a then version_a else version_b end,
     approved_version_id=case id when listing_a then version_a else version_b end,approved_at=now()
     where id in(listing_a,listing_b);
   insert into public.marketplace_listing_inventory(listing_id,quantity_on_hand)
     values(listing_a,1),(listing_b,1);
+  insert into public.marketplace_listing_images(
+    id,listing_id,storage_path,mime_type,size_bytes,sha256,uploaded_by
+  )
+  select image_id, listing_id,
+    'listings/' || partner_id || '/' || listing_id || '/' || version_id || '/' || image_id || '.jpg',
+    'image/jpeg',100,repeat('a',64),'6a000000-0000-4000-8000-000000000005'::uuid
+  from (values
+    (gen_random_uuid(),listing_a,'6b000000-0000-4000-8000-000000000001'::uuid,version_a),
+    (gen_random_uuid(),listing_a,'6b000000-0000-4000-8000-000000000001'::uuid,version_a),
+    (gen_random_uuid(),listing_a,'6b000000-0000-4000-8000-000000000001'::uuid,version_a),
+    (gen_random_uuid(),listing_b,'6b000000-0000-4000-8000-000000000002'::uuid,version_b),
+    (gen_random_uuid(),listing_b,'6b000000-0000-4000-8000-000000000002'::uuid,version_b),
+    (gen_random_uuid(),listing_b,'6b000000-0000-4000-8000-000000000002'::uuid,version_b)
+  ) fixture(image_id,listing_id,partner_id,version_id);
+  insert into public.marketplace_listing_version_images(
+    version_id,image_id,image_type,requirement,sort_order,alt_text,is_sensitive
+  )
+  select image.listing_version_id,image.id,
+    (array['face','crown','sole'])[row_number() over(partition by image.listing_id order by image.id)],
+    'REQUIRED',row_number() over(partition by image.listing_id order by image.id)-1,
+    'Vista aprobada del driver',false
+  from (
+    select metadata.*, (storage.foldername(metadata.storage_path))[4]::uuid listing_version_id
+    from public.marketplace_listing_images metadata
+    where metadata.listing_id in(listing_a,listing_b)
+  ) image;
   select v.id into strict selected_variant_id from public.product_variants v join public.products p on p.id=v.product_id
     where v.active and p.status='active' and p.published order by v.created_at limit 1;
   perform set_config('peter_golf.inventory_rpc_write','enabled',true);
@@ -436,6 +462,28 @@ do $$ begin
   if exists(select 1 from public.inventory_reservations
     where order_id=current_setting('test.checkout_expiring_order')::uuid and status<>'EXPIRED')
   then raise exception 'Expired reservation was not released'; end if;
+end $$;
+reset role;
+
+-- PR10 deactivation stops only new Marketplace commerce. The paid mixed order,
+-- fulfillment groups and downstream PR7-PR9 records remain readable/manageable.
+update public.site_settings set value='{"enabled":false}' where key='marketplace.enabled';
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000003',true);
+set local role authenticated;
+do $$ begin
+  if (select count(*) from public.get_customer_order_fulfillment_summary(
+    current_setting('test.checkout_order')::uuid))<>3
+  then raise exception 'Marketplace OFF damaged an existing mixed order'; end if;
+  begin
+    perform public.add_marketplace_cart_item(
+      current_setting('test.checkout_listing_b')::uuid,
+      current_setting('test.checkout_quote_b')::uuid,1,
+      '6d000000-0000-4000-8000-000000000099'
+    );
+    raise exception 'Marketplace OFF allowed new Partner commerce';
+  exception when others then
+    if sqlerrm not like '%Marketplace is disabled%' then raise; end if;
+  end;
 end $$;
 reset role;
 
