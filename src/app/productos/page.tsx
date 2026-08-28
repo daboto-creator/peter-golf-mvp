@@ -257,5 +257,6 @@ function parseFilters(
     includesHybrid: value("hybrid") === "1" || undefined,
     includesPutter: value("putter") === "1" || undefined,
     includesBag: value("bag") === "1" || undefined,
+    source: oneOf("source", ["FIRST_PARTY", "MARKETPLACE_PARTNER"] as const),
   };
 }

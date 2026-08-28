@@ -251,6 +251,16 @@ export function CheckoutForm({
               : "El registro de transferencias está deshabilitado. No se realizará ningún cargo."}
           </p>
         </div>
+        {cart.has_marketplace_items ? (
+          <div className="rounded-xl border border-amber-700/20 bg-amber-50 p-5 text-sm text-amber-950">
+            <p className="font-semibold">Entrega mediada por Best Round</p>
+            <p className="mt-2 leading-6">
+              Los artículos de tu pedido pueden llegar en envíos separados. En
+              el detalle del pedido podrás seguir cada grupo y reportar
+              cualquier problema sin contactar al Partner.
+            </p>
+          </div>
+        ) : null}
       </section>
       <aside className="h-fit space-y-5 rounded-[20px] border bg-white p-5 sm:p-6 lg:sticky lg:top-36">
         <p className="text-pg-gold text-xs font-semibold tracking-[0.16em] uppercase">

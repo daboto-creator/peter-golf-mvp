@@ -272,3 +272,16 @@ export async function getCustomerOrder(
     return null;
   }
 }
+
+export async function getCustomerFulfillmentSummary(orderId: string) {
+  try {
+    const client = await createClient();
+    const { data, error } = await client.rpc(
+      "get_customer_order_fulfillment_summary",
+      { requested_order_id: orderId },
+    );
+    return error ? [] : data;
+  } catch {
+    return [];
+  }
+}

@@ -14,6 +14,7 @@ import { getCustomerCart } from "@/lib/cart/customer-cart";
 import type { CartActionResult } from "@/lib/cart/cart-action-state";
 import { getSafeInternalPath } from "@/lib/auth/redirect";
 import { getAuthenticatedUser } from "@/lib/auth/user";
+import { marketplaceCartIssueMessage } from "@/lib/marketplace/publication-rules";
 import { createClient } from "@/lib/supabase/server";
 
 const uuid = z.uuid();
@@ -33,7 +34,25 @@ async function requireCartUser(returnTo: string) {
   return user;
 }
 
-function safeFailure(code?: string): CartActionResult {
+function safeFailure(code?: string, hint?: string): CartActionResult {
+  if (hint?.includes("LISTING_VERSION_STALE")) {
+    return {
+      status: "error",
+      message: "Este artículo fue actualizado. Revísalo antes de continuar.",
+    };
+  }
+  if (hint?.includes("PRICING_EXPIRED")) {
+    return {
+      status: "error",
+      message: "El precio aprobado expiró. Este artículo no está disponible.",
+    };
+  }
+  if (hint?.includes("MARKETPLACE_DISABLED") || code === "42501") {
+    return {
+      status: "error",
+      message: "Marketplace no está disponible en este momento.",
+    };
+  }
   if (code === "40001") {
     return {
       status: "error",
@@ -101,13 +120,58 @@ export async function addToCartAction(
     requested_quantity: quantity.data,
     requested_idempotency_key: key.data,
   });
-  if (error) return safeFailure(error.code);
+  if (error) return safeFailure(error.code, error.hint);
   revalidatePath("/carrito");
   revalidatePath("/checkout");
   revalidatePath(`/productos/${slug}`);
   return {
     status: "success",
     message: "Producto agregado. Puedes seguir comprando o ir al carrito.",
+  };
+}
+
+export async function addMarketplaceToCartAction(
+  _state: CartActionResult,
+  formData: FormData,
+): Promise<CartActionResult> {
+  const slug = text(formData, "slug");
+  await requireCartUser(
+    getSafeInternalPath(`/productos/${slug}`, "/productos"),
+  );
+  const listingId = uuid.safeParse(text(formData, "listingId"));
+  const pricingQuoteId = uuid.safeParse(text(formData, "pricingQuoteId"));
+  const quantity = cartQuantitySchema.safeParse(text(formData, "quantity"));
+  const key = uuid.safeParse(text(formData, "idempotencyKey"));
+  if (
+    !listingId.success ||
+    !pricingQuoteId.success ||
+    !quantity.success ||
+    !key.success
+  ) {
+    return { status: "error", message: "La solicitud ya no es válida." };
+  }
+  const client = await createClient();
+  const { error } = await client.rpc("add_marketplace_cart_item", {
+    requested_idempotency_key: key.data,
+    requested_listing_id: listingId.data,
+    requested_pricing_quote_id: pricingQuoteId.data,
+    requested_quantity: quantity.data,
+  });
+  if (error) {
+    console.warn(
+      JSON.stringify({
+        event: "marketplace_add_to_cart_failed",
+        code: error.code,
+      }),
+    );
+    return safeFailure(error.code, error.hint);
+  }
+  revalidatePath("/carrito");
+  revalidatePath("/checkout");
+  revalidatePath(`/productos/${slug}`);
+  return {
+    status: "success",
+    message: "Artículo agregado. Puedes seguir comprando o ir a Mi Bolsa.",
   };
 }
 
@@ -132,14 +196,29 @@ export async function changeCartItemAction(
     };
   }
   const client = await createClient();
-  const { error } = await client.rpc("change_customer_cart", {
-    requested_operation: "update",
-    requested_cart_item_id: itemId.data,
-    requested_quantity: quantity.data,
-    expected_version: parsedVersion.data,
-    requested_idempotency_key: key.data,
-  });
-  if (error) return safeFailure(error.code);
+  const cart = await getCustomerCart();
+  const selectedItem = cart?.items.find((item) => item.id === itemId.data);
+  if (!selectedItem) {
+    return { status: "error", message: "La partida ya no está disponible." };
+  }
+  const { error } =
+    selectedItem.item_source === "MARKETPLACE_PARTNER"
+      ? await client.rpc("refresh_marketplace_cart_item", {
+          expected_version: parsedVersion.data,
+          requested_accept_listing_update:
+            formData.get("acceptListingUpdate") === "on",
+          requested_cart_item_id: itemId.data,
+          requested_idempotency_key: key.data,
+          requested_quantity: quantity.data,
+        })
+      : await client.rpc("change_customer_cart", {
+          requested_operation: "update",
+          requested_cart_item_id: itemId.data,
+          requested_quantity: quantity.data,
+          expected_version: parsedVersion.data,
+          requested_idempotency_key: key.data,
+        });
+  if (error) return safeFailure(error.code, error.hint);
   revalidatePath("/carrito");
   revalidatePath("/checkout");
   return {
@@ -167,7 +246,7 @@ export async function removeCartItemAction(
     expected_version: parsedVersion.data,
     requested_idempotency_key: key.data,
   });
-  if (error) return safeFailure(error.code);
+  if (error) return safeFailure(error.code, error.hint);
   revalidatePath("/carrito");
   revalidatePath("/checkout");
   return { status: "success", message: "Partida eliminada." };
@@ -191,7 +270,7 @@ export async function clearCartAction(
     expected_version: parsedVersion.data,
     requested_idempotency_key: key.data,
   });
-  if (error) return safeFailure(error.code);
+  if (error) return safeFailure(error.code, error.hint);
   revalidatePath("/carrito");
   revalidatePath("/checkout");
   return { status: "success", message: "Carrito vaciado." };
@@ -243,6 +322,22 @@ export async function checkoutAction(
   if (!currentCart || currentCart.cart_id !== cartId.data) {
     return { status: "error", message: "El carrito ya no está disponible." };
   }
+  if (currentCart.has_issues) {
+    const marketplaceIssue = currentCart.items.find(
+      (item) => item.marketplace_issue !== "none",
+    )?.marketplace_issue;
+    return marketplaceIssue
+      ? {
+          status: "error",
+          message:
+            marketplaceCartIssueMessage(marketplaceIssue) ??
+            "Revisa los artículos antes de continuar.",
+        }
+      : {
+          status: "error",
+          message: "Revisa los artículos antes de continuar.",
+        };
+  }
   const checkoutPayload = {
     requested_cart_id: cartId.data,
     expected_version: parsedVersion.data,
@@ -259,7 +354,17 @@ export async function checkoutAction(
   const { data, error } = currentCart.has_marketplace_items
     ? await client.rpc("create_marketplace_checkout_order", checkoutPayload)
     : await client.rpc("create_customer_checkout_order", checkoutPayload);
-  if (error || !data[0]) return safeFailure(error?.code);
+  if (error || !data[0]) {
+    if (currentCart.has_marketplace_items) {
+      console.warn(
+        JSON.stringify({
+          event: "marketplace_checkout_failed",
+          code: error?.code,
+        }),
+      );
+    }
+    return safeFailure(error?.code, error?.hint);
+  }
   revalidatePath("/carrito");
   revalidatePath("/checkout");
   revalidatePath("/cuenta/pedidos");

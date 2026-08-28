@@ -6,6 +6,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ProductAvailability } from "@/components/catalog/product-availability";
+import { AddMarketplaceToCartForm } from "@/components/cart/add-marketplace-to-cart-form";
 import { ProductImage } from "@/components/catalog/product-image";
 import { ProductPrice } from "@/components/catalog/product-price";
 import { ProductSpecifications } from "@/components/catalog/product-specifications";
@@ -14,6 +15,7 @@ import { PublicFooter } from "@/components/catalog/public-footer";
 import { PublicHeader } from "@/components/catalog/public-header";
 import { getConditionLabel } from "@/lib/catalog/presentation";
 import { getPublicProductBySlug } from "@/lib/catalog/public-products";
+import { productSourceLabel } from "@/lib/marketplace/publication-rules";
 
 type ProductDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -160,6 +162,13 @@ export default async function ProductDetailPage({
               <h1 className="font-heading text-pg-black mt-4 text-4xl leading-[1.08] font-bold tracking-[-0.025em] sm:text-5xl lg:text-[3.35rem]">
                 {product.name}
               </h1>
+              <p className="border-pg-gold/40 bg-pg-warm-white mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold">
+                <BadgeCheck
+                  className="text-pg-gold size-4"
+                  aria-hidden="true"
+                />
+                {productSourceLabel[product.source]}
+              </p>
               <div className="mt-5 flex items-center gap-3">
                 <span className="bg-pg-gold h-px w-8" aria-hidden="true" />
                 <p className="text-pg-charcoal text-sm font-semibold tracking-wide">
@@ -194,16 +203,29 @@ export default async function ProductDetailPage({
                 />
               </div>
 
-              <AddToCartForm
-                productId={product.id}
-                slug={product.slug}
-                variants={product.variants.map(({ id, name, sku }) => ({
-                  id,
-                  name,
-                  sku,
-                }))}
-                idempotencyKey={randomUUID()}
-              />
+              {product.source === "MARKETPLACE_PARTNER" &&
+              product.marketplaceListingId &&
+              product.marketplacePricingQuoteId &&
+              product.availableQuantity ? (
+                <AddMarketplaceToCartForm
+                  listingId={product.marketplaceListingId}
+                  pricingQuoteId={product.marketplacePricingQuoteId}
+                  slug={product.slug}
+                  availableQuantity={product.availableQuantity}
+                  idempotencyKey={randomUUID()}
+                />
+              ) : (
+                <AddToCartForm
+                  productId={product.id}
+                  slug={product.slug}
+                  variants={product.variants.map(({ id, name, sku }) => ({
+                    id,
+                    name,
+                    sku,
+                  }))}
+                  idempotencyKey={randomUUID()}
+                />
+              )}
 
               <section
                 aria-labelledby="purchase-confidence-title"
@@ -277,7 +299,66 @@ export default async function ProductDetailPage({
             </div>
           </section>
 
+          {product.source === "MARKETPLACE_PARTNER" ? (
+            <section
+              className="border-border mt-16 grid gap-8 border-t pt-12 md:grid-cols-3 lg:mt-20"
+              aria-labelledby="marketplace-transparency-title"
+            >
+              <div>
+                <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
+                  Transparencia seminuevo
+                </p>
+                <h2
+                  id="marketplace-transparency-title"
+                  className="font-heading mt-3 text-3xl font-bold"
+                >
+                  Lo que debes saber
+                </h2>
+              </div>
+              <div className="space-y-3">
+                <h3 className="font-semibold">Defectos declarados</h3>
+                {product.declaredDefects.length ? (
+                  <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-sm">
+                    {product.declaredDefects.map((defect) => (
+                      <li key={defect}>{defect}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    No se declararon defectos adicionales a la condición
+                    descrita.
+                  </p>
+                )}
+                <h3 className="pt-3 font-semibold">Incluye</h3>
+                <p className="text-muted-foreground text-sm">
+                  {product.accessoriesIncluded.length
+                    ? product.accessoriesIncluded.join(", ")
+                    : "Sin accesorios adicionales declarados."}
+                </p>
+              </div>
+              <div className="space-y-3 text-sm">
+                <h3 className="font-semibold">Venta mediada por Best Round</h3>
+                <p className="text-muted-foreground leading-6">
+                  Un Best Round Partner verificado prepara el artículo. Best
+                  Round media la compra, la entrega y cualquier problema.
+                </p>
+                <p className="text-muted-foreground leading-6">
+                  El equipo usado no admite devolución por cambio de opinión.
+                  Puedes reportar artículo incorrecto, condición o daño no
+                  declarado, especificaciones equivocadas, falla o sospecha de
+                  falsificación.
+                </p>
+              </div>
+            </section>
+          ) : null}
+
           <ProductSpecifications product={product} />
+
+          {product.marketplaceSpecifications ? (
+            <MarketplaceSpecifications
+              specifications={product.marketplaceSpecifications}
+            />
+          ) : null}
 
           {product.variants.length > 0 ? (
             <section
@@ -362,4 +443,52 @@ export default async function ProductDetailPage({
       <PublicFooter />
     </div>
   );
+}
+
+function MarketplaceSpecifications({
+  specifications,
+}: {
+  specifications: Record<string, unknown>;
+}) {
+  const rows = Object.entries(specifications).filter(([, value]) =>
+    ["string", "number", "boolean"].includes(typeof value),
+  );
+  if (!rows.length) return null;
+  return (
+    <section className="border-border mt-16 border-t pt-12 lg:mt-20">
+      <h2 className="font-heading text-3xl font-bold">
+        Especificaciones aprobadas
+      </h2>
+      <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map(([key, value]) => (
+          <div key={key} className="rounded-xl border bg-white p-4">
+            <dt className="text-muted-foreground text-xs uppercase">
+              {marketplaceSpecLabel(key)}
+            </dt>
+            <dd className="mt-1 font-medium">
+              {typeof value === "boolean"
+                ? value
+                  ? "Sí"
+                  : "No"
+                : String(value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function marketplaceSpecLabel(key: string) {
+  const labels: Record<string, string> = {
+    handedness: "Mano",
+    shaftFlex: "Flex",
+    shaftMaterial: "Material del shaft",
+    loftDegrees: "Loft (°)",
+    headcoverIncluded: "Incluye headcover",
+    grip: "Grip",
+    modelYear: "Año",
+    color: "Color",
+  };
+  return labels[key] ?? key.replaceAll(/([A-Z])/g, " $1").trim();
 }

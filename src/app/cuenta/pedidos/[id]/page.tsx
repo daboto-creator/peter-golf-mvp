@@ -5,7 +5,10 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { CustomerOrderDetail } from "@/components/orders/customer-order-detail";
-import { getCustomerOrder } from "@/lib/orders/customer-orders";
+import {
+  getCustomerFulfillmentSummary,
+  getCustomerOrder,
+} from "@/lib/orders/customer-orders";
 import { serverEnv } from "@/env/server";
 import {
   acceptDeliveryAction,
@@ -25,9 +28,12 @@ export default async function CustomerOrderPage({
 }) {
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
-  const order = await getCustomerOrder(id);
+  const [order, fulfillmentSummary, claimContext] = await Promise.all([
+    getCustomerOrder(id),
+    getCustomerFulfillmentSummary(id),
+    getCustomerClaimContext(id),
+  ]);
   if (!order) notFound();
-  const claimContext = await getCustomerClaimContext(id);
   return (
     <div className="space-y-5">
       <Link
@@ -38,6 +44,7 @@ export default async function CustomerOrderPage({
       </Link>
       <CustomerOrderDetail
         order={order}
+        fulfillmentSummary={fulfillmentSummary}
         paymentControls={{
           mode: serverEnv.PAYMENTS_MODE,
           idempotencyKey: randomUUID(),

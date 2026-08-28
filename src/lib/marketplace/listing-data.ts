@@ -79,7 +79,7 @@ export async function listCurrentPartnerListings(
   const versionIds = (listings.data ?? [])
     .map((listing) => listing.current_version_id)
     .filter((entry): entry is string => Boolean(entry));
-  const [versions, imageAssignments] = await Promise.all([
+  const [versions, imageAssignments, publicationReadiness] = await Promise.all([
     versionIds.length
       ? client
           .from("marketplace_listing_versions")
@@ -98,6 +98,7 @@ export async function listCurrentPartnerListings(
           .eq("is_sensitive", false)
           .order("sort_order")
       : Promise.resolve({ data: [], error: null }),
+    client.rpc("get_marketplace_publication_readiness"),
   ]);
   const paths = (imageAssignments.data ?? []).flatMap((assignment) => {
     const image = assignment.marketplace_listing_images;
@@ -111,6 +112,9 @@ export async function listCurrentPartnerListings(
     string,
     { url: string; alt: string } | undefined
   >();
+  const publicationByListing = new Map(
+    (publicationReadiness.data ?? []).map((entry) => [entry.listing_id, entry]),
+  );
   for (const assignment of imageAssignments.data ?? []) {
     if (imageByVersion.has(assignment.version_id) || assignment.is_sensitive)
       continue;
@@ -131,9 +135,14 @@ export async function listCurrentPartnerListings(
       primaryImage: listing.current_version_id
         ? imageByVersion.get(listing.current_version_id)
         : undefined,
+      publicationReadiness: publicationByListing.get(listing.id),
     })),
     count: listings.count ?? 0,
-    error: listings.error ?? versions.error ?? imageAssignments.error,
+    error:
+      listings.error ??
+      versions.error ??
+      imageAssignments.error ??
+      publicationReadiness.error,
     page,
     pageSize: LISTING_PAGE_SIZE,
   };
@@ -253,9 +262,15 @@ export async function listMarketplaceListingsForOperations(
     );
   if (filters.categoryId)
     versionsQuery = versionsQuery.eq("category_id", filters.categoryId);
-  const versions = await versionsQuery;
+  const [versions, publicationReadiness] = await Promise.all([
+    versionsQuery,
+    client.rpc("get_marketplace_publication_readiness"),
+  ]);
   const versionById = new Map(
     (versions.data ?? []).map((version) => [version.id, version]),
+  );
+  const publicationByListing = new Map(
+    (publicationReadiness.data ?? []).map((entry) => [entry.listing_id, entry]),
   );
   const data = (result.data ?? [])
     .filter(
@@ -269,11 +284,12 @@ export async function listMarketplaceListingsForOperations(
       currentVersion: listing.current_version_id
         ? versionById.get(listing.current_version_id)
         : undefined,
+      publicationReadiness: publicationByListing.get(listing.id),
     }));
   return {
     data,
     count: filters.categoryId ? data.length : (result.count ?? 0),
-    error: result.error ?? versions.error,
+    error: result.error ?? versions.error ?? publicationReadiness.error,
     page,
     pageSize: LISTING_PAGE_SIZE,
   };

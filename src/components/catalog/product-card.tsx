@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, BadgeCheck } from "lucide-react";
 
 import { ProductAvailability } from "@/components/catalog/product-availability";
 import { ProductImage } from "@/components/catalog/product-image";
 import { ProductPrice } from "@/components/catalog/product-price";
 import { getConditionLabel } from "@/lib/catalog/presentation";
 import type { PublicProductSummary } from "@/lib/catalog/public-products";
+import { productSourceLabel } from "@/lib/marketplace/publication-rules";
 
 export function ProductCard({ product }: { product: PublicProductSummary }) {
   const primaryImage = product.images[0] ?? null;
@@ -24,6 +25,22 @@ export function ProductCard({ product }: { product: PublicProductSummary }) {
         />
       </Link>
       <div className="flex flex-1 flex-col pt-5">
+        {product.source === "MARKETPLACE_PARTNER" ? (
+          <div className="mb-3 flex flex-wrap gap-2 text-xs font-semibold">
+            <span className="border-pg-gold/40 bg-pg-warm-white inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1">
+              <BadgeCheck
+                aria-hidden="true"
+                className="text-pg-gold size-3.5"
+              />
+              {productSourceLabel[product.source]}
+            </span>
+            {product.availableQuantity === 1 ? (
+              <span className="rounded-full border px-2.5 py-1">
+                Última pieza
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         <div className="text-muted-foreground flex flex-wrap gap-x-2 text-xs leading-5">
           <span>{product.brandName ?? "Marca no disponible"}</span>
           <span aria-hidden="true">·</span>

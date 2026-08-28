@@ -8403,6 +8403,17 @@ export type Database = {
         };
       };
       get_customer_cart: { Args: never; Returns: Json };
+      get_customer_marketplace_cart_readiness: {
+        Args: never;
+        Returns: {
+          available: boolean;
+          blocker_codes: string[];
+          cart_item_id: string;
+          image_id: string | null;
+          listing_version_changed: boolean;
+          price_changed: boolean;
+        }[];
+      };
       get_customer_marketplace_claim_context: {
         Args: { requested_order_id: string };
         Returns: {
@@ -8438,6 +8449,16 @@ export type Database = {
           description: string;
           name: string;
           shipping_method_id: string;
+        }[];
+      };
+      get_marketplace_activation_readiness: {
+        Args: never;
+        Returns: {
+          blockers: string[];
+          eligible_listing_count: number;
+          enabled: boolean;
+          ready: boolean;
+          schema_version: string;
         }[];
       };
       get_marketplace_claims_for_operations: {
@@ -8497,6 +8518,15 @@ export type Database = {
           required_specs_complete: boolean;
         }[];
       };
+      get_marketplace_publication_readiness: {
+        Args: { requested_listing_id?: string };
+        Returns: {
+          blockers: string[];
+          listing_id: string;
+          publication_ready: boolean;
+          published: boolean;
+        }[];
+      };
       get_or_create_active_cart: {
         Args: never;
         Returns: {
@@ -8515,6 +8545,42 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      get_public_marketplace_catalog: {
+        Args: { requested_slug?: string };
+        Returns: {
+          accessories_included: Json;
+          available_quantity: number;
+          bag_type: Database["public"]["Enums"]["golf_bag_type"] | null;
+          brand_id: string | null;
+          brand_name: string | null;
+          category_id: string;
+          category_name: string;
+          club_type: Database["public"]["Enums"]["golf_club_type"] | null;
+          condition: Database["public"]["Enums"]["product_condition"];
+          condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          condition_notes: string;
+          currency: string;
+          declared_defects: Json;
+          description: string;
+          fulfillment: Database["public"]["Enums"]["marketplace_listing_fulfillment"];
+          images: Json;
+          listing_id: string;
+          model_name: string | null;
+          pricing_quote_id: string;
+          product_family:
+            Database["public"]["Enums"]["golf_product_family"] | null;
+          public_price: number;
+          set_type: Database["public"]["Enums"]["golf_set_type"] | null;
+          slug: string;
+          specifications: Json;
+          title: string;
+        }[];
+      };
+      get_public_marketplace_image_path: {
+        Args: { requested_image_id: string; requested_listing_id: string };
+        Returns: { mime_type: string; storage_path: string }[];
       };
       get_own_partner_score_summary: {
         Args: never;
@@ -9189,6 +9255,16 @@ export type Database = {
         };
       };
       recover_expired_notification_leases: { Args: never; Returns: number };
+      refresh_marketplace_cart_item: {
+        Args: {
+          expected_version: number;
+          requested_accept_listing_update: boolean;
+          requested_cart_item_id: string;
+          requested_idempotency_key: string;
+          requested_quantity: number;
+        };
+        Returns: { cart_id: string; replayed: boolean; version: number }[];
+      };
       register_marketplace_claim_evidence: {
         Args: {
           requested_claim_id: string;
@@ -9936,6 +10012,15 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      set_marketplace_enabled: {
+        Args: {
+          expected_enabled: boolean;
+          requested_confirmation: string;
+          requested_enabled: boolean;
+          requested_reason: string;
+        };
+        Returns: { audit_id: string; changed_at: string; enabled: boolean }[];
       };
       stripe_checkout_test_mode_enabled: { Args: never; Returns: boolean };
       submit_bank_transfer: {

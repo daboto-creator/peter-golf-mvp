@@ -21,10 +21,17 @@ import type { PartnerActionState } from "@/lib/marketplace/partner-action-state"
 
 export function CustomerOrderDetail({
   order,
+  fulfillmentSummary = [],
   paymentControls,
   claimControls,
 }: {
   order: Order;
+  fulfillmentSummary?: {
+    fulfillment_id: string;
+    item_count: number;
+    source: "BEST_ROUND" | "PARTNER";
+    status: string;
+  }[];
   paymentControls?: {
     mode: "disabled" | "test";
     idempotencyKey: string;
@@ -122,6 +129,33 @@ export function CustomerOrderDetail({
           </strong>
         </div>
       </section>
+      {fulfillmentSummary.length ? (
+        <section className="space-y-4 rounded-[20px] border bg-white p-5 sm:p-6">
+          <div>
+            <h2 className="font-heading text-2xl font-bold">Entregas</h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Tu compra sigue siendo una sola orden Best Round, aunque algunos
+              artículos puedan llegar por separado.
+            </p>
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {fulfillmentSummary.map((fulfillment, index) => (
+              <li
+                key={fulfillment.fulfillment_id}
+                className="rounded-xl border p-4"
+              >
+                <p className="font-semibold">Envío {index + 1}</p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {fulfillment.item_count}{" "}
+                  {fulfillment.item_count === 1 ? "artículo" : "artículos"}
+                  {" · "}
+                  {fulfillmentStatusLabel(fulfillment.status)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {claimControls?.items.length ? (
         <section className="space-y-5 rounded-[20px] border bg-white p-5 sm:p-6">
           <div>
@@ -270,4 +304,19 @@ function date(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function fulfillmentStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    PENDING_PAYMENT: "Procesando",
+    AWAITING_PARTNER_CONFIRMATION: "Confirmando disponibilidad",
+    PREPARING: "Preparando",
+    READY_FOR_HANDOFF: "Listo para envío",
+    SHIPPED: "Enviado",
+    DELIVERED: "Entregado",
+    ACCEPTANCE_PENDING: "Confirmación de entrega",
+    COMPLETED: "Completado",
+    CLAIM_OPEN: "Problema reportado",
+  };
+  return labels[status] ?? "En proceso";
 }

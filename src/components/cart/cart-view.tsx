@@ -15,6 +15,10 @@ import {
 import { initialCartActionResult } from "@/lib/cart/cart-action-state";
 import type { CustomerCart } from "@/lib/cart/customer-cart";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
+import {
+  marketplaceCartIssueMessage,
+  productSourceLabel,
+} from "@/lib/marketplace/publication-rules";
 
 function ItemForm({
   item,
@@ -53,8 +57,18 @@ function ItemForm({
             defaultValue={item.quantity}
           />
         </label>
+        {item.marketplace_issue === "listing_changed" ? (
+          <label className="flex min-h-11 items-center gap-2 text-xs">
+            <input type="checkbox" name="acceptListingUpdate" required />
+            <span>Revisé la versión actualizada de este artículo.</span>
+          </label>
+        ) : null}
         <Button type="submit" variant="outline" disabled={updating}>
-          {updating ? "Actualizando…" : "Actualizar"}
+          {updating
+            ? "Actualizando…"
+            : item.marketplace_issue === "price_changed"
+              ? "Aceptar precio vigente"
+              : "Actualizar"}
         </Button>
       </form>
       <form action={removeAction}>
@@ -151,11 +165,18 @@ export function CartView({
                 <p className="text-muted-foreground text-sm">
                   {item.variant_name} · SKU {item.sku}
                 </p>
+                <p className="text-pg-gold mt-1 text-xs font-semibold">
+                  {productSourceLabel[item.item_source]}
+                </p>
               </div>
               <p className="text-pg-charcoal font-semibold">
                 {formatMoneyMinorUnits(item.unit_price, cart.currency)} c/u
               </p>
-              {item.price_changed ? (
+              {item.marketplace_issue !== "none" ? (
+                <p className="rounded-xl border border-amber-700/20 bg-amber-50 p-3 text-sm text-amber-900">
+                  {marketplaceCartIssueMessage(item.marketplace_issue)}
+                </p>
+              ) : item.price_changed ? (
                 <p className="rounded-xl border border-amber-700/20 bg-amber-50 p-3 text-sm text-amber-900">
                   El precio cambió. Actualiza la cantidad para aceptar el precio
                   vigente.
