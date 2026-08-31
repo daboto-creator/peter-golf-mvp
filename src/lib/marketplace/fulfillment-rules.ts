@@ -16,6 +16,7 @@ const partnerTransitions: Record<string, FulfillmentStatus> = {
   "CONFIRMED:UNAVAILABLE": "CANCELLED",
   "CONFIRMED:START_PREPARING": "PREPARING",
   "PREPARING:READY_FOR_CARRIER": "READY_FOR_CARRIER",
+  "READY_FOR_CARRIER:CONFIRM_SHIPMENT": "SHIPPED",
 };
 
 export function partnerFulfillmentTransition(

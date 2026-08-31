@@ -22,33 +22,34 @@ export const listingStatusCopy: Record<
     description: "Continúa completando la publicación cuando quieras.",
   },
   SUBMITTED: {
-    label: "Enviado",
+    label: "En revisión por Best Round",
     description: "Best Round recibirá esta versión para revisión.",
   },
   UNDER_REVIEW: {
-    label: "En revisión",
+    label: "En revisión por Best Round",
     description: "Operations está revisando esta versión.",
   },
   CHANGES_REQUESTED: {
-    label: "Cambios solicitados",
+    label: "Requiere ajustes",
     description: "Actualiza los puntos indicados y vuelve a enviar.",
   },
   APPROVED: {
     label: "Aprobado",
     description:
-      "Aprobado por Best Round. Próximamente estará disponible para venta.",
+      "Best Round aprobó la publicación; aparecerá automáticamente cuando cumpla la disponibilidad.",
   },
   PUBLISHED: {
     label: "Publicado",
-    description: "Estado preparado para una fase posterior del Marketplace.",
+    description: "Tu producto está disponible en el catálogo Best Round.",
   },
   PAUSED: {
     label: "Pausado",
     description: "La publicación no está disponible temporalmente.",
   },
   SOLD: {
-    label: "Vendido",
-    description: "Estado preparado para futuras ventas Marketplace.",
+    label: "Agotado",
+    description:
+      "La publicación se conserva en tu historial sin inventario disponible.",
   },
   REJECTED: {
     label: "No aprobado",
@@ -381,9 +382,9 @@ export function listingImagePath(
 }
 
 export function getListingNextStep(status: MarketplaceListingStatus): string {
-  if (status === "CHANGES_REQUESTED") return "Atender cambios";
+  if (status === "CHANGES_REQUESTED") return "Corregir publicación";
   if (status === "DRAFT") return "Continuar borrador";
-  if (status === "APPROVED") return "Esperar activación de Marketplace";
+  if (status === "APPROVED") return "Ver publicación";
   if (status === "REJECTED") return "Revisar decisión";
   if (["SUBMITTED", "UNDER_REVIEW"].includes(status)) return "Esperar revisión";
   return "Ver publicación";

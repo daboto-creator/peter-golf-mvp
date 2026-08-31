@@ -45,7 +45,7 @@ function resolveState({
   if (paymentStatus === "paid") {
     return {
       title: "Pagado",
-      description: "El webhook firmado de Stripe confirmó el pago.",
+      description: "Pago realizado satisfactoriamente por Stripe.",
       className: "bg-emerald-50 text-emerald-950",
     };
   }

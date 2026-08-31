@@ -126,6 +126,25 @@ export async function saveListingIdentityAction(
     },
   });
   if (result.error) return listingFailure(result.error.message);
+  if (result.data.current_version_id) {
+    const analysis = await context.client.rpc(
+      "request_marketplace_market_analysis",
+      {
+        requested_listing_id: context.listingId,
+        requested_listing_version_id: result.data.current_version_id,
+        requested_idempotency_key: randomUUID(),
+      },
+    );
+    if (analysis.error) {
+      console.warn(
+        JSON.stringify({
+          event: "marketplace_draft_analysis_enqueue_failed",
+          listingId: context.listingId,
+          code: analysis.error.code,
+        }),
+      );
+    }
+  }
   revalidatePath(`/partner/publicaciones/${context.listingId}`, "layout");
   redirect(`/partner/publicaciones/${context.listingId}/fotos`);
 }
@@ -246,7 +265,7 @@ export async function saveListingInventoryAction(
   });
   if (result.error) return listingFailure(result.error.message);
   revalidatePath(`/partner/publicaciones/${context.listingId}`, "layout");
-  redirect(`/partner/publicaciones/${context.listingId}/revision`);
+  redirect(`/partner/publicaciones/${context.listingId}/precio`);
 }
 
 export async function uploadListingImageAction(
@@ -361,11 +380,17 @@ export async function submitMarketplaceListingAction(
   formData: FormData,
 ): Promise<PartnerActionState> {
   const context = await verifiedListingActionContext(formData);
-  if (!context) return { status: "error", message: "Publicación inválida." };
-  const result = await context.client.rpc("submit_marketplace_listing", {
-    requested_listing_id: context.listingId,
-    expected_lock_version: context.lockVersion,
-  });
+  const quoteId = z.uuid().safeParse(value(formData, "quote_id"));
+  if (!context || !quoteId.success)
+    return { status: "error", message: "Publicación o precio inválido." };
+  const result = await context.client.rpc(
+    "submit_marketplace_listing_workflow",
+    {
+      requested_listing_id: context.listingId,
+      expected_lock_version: context.lockVersion,
+      requested_quote_id: quoteId.data,
+    },
+  );
   if (result.error) return listingFailure(result.error.message);
   revalidatePath("/partner/publicaciones");
   redirect(`/partner/publicaciones/${context.listingId}`);
@@ -440,6 +465,9 @@ export async function transitionListingReviewAction(
   const reason = value(formData, "reason").trim();
   const feedback = value(formData, "feedback").trim();
   const internalNote = value(formData, "internal_note").trim();
+  const consolidated = formData.get("consolidated") === "true";
+  const marketAnalysisOverride =
+    formData.get("market_analysis_override") === "on";
   if (
     !listingId.success ||
     !lockVersion.success ||
@@ -458,17 +486,29 @@ export async function transitionListingReviewAction(
   const { client } = await requireListingManager(
     `/operacion/marketplace/publicaciones/${listingId.data}`,
   );
-  const result = await client.rpc("transition_marketplace_listing_status", {
-    requested_listing_id: listingId.data,
-    expected_lock_version: lockVersion.data,
-    requested_status: status.data,
-    requested_reason: reason,
-    requested_feedback:
-      status.data === "CHANGES_REQUESTED" && area.success
-        ? [{ area: area.data, comment: feedback }]
-        : [],
-    requested_internal_note: internalNote || null,
-  });
+  const requestedFeedback =
+    status.data === "CHANGES_REQUESTED" && area.success
+      ? [{ area: area.data, comment: feedback }]
+      : [];
+  const result =
+    consolidated && status.data !== "UNDER_REVIEW"
+      ? await client.rpc("review_marketplace_submission", {
+          requested_listing_id: listingId.data,
+          expected_lock_version: lockVersion.data,
+          requested_decision: status.data,
+          requested_reason: reason,
+          requested_feedback: requestedFeedback,
+          requested_market_analysis_override: marketAnalysisOverride,
+          requested_internal_note: internalNote || undefined,
+        })
+      : await client.rpc("transition_marketplace_listing_status", {
+          requested_listing_id: listingId.data,
+          expected_lock_version: lockVersion.data,
+          requested_status: status.data,
+          requested_reason: reason,
+          requested_feedback: requestedFeedback,
+          requested_internal_note: internalNote || undefined,
+        });
   if (result.error) return listingFailure(result.error.message);
   revalidatePath("/operacion/marketplace/publicaciones", "layout");
   return {

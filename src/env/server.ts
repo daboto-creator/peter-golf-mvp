@@ -63,6 +63,16 @@ const serverEnvironmentSchema = z.object({
     z.enum(["serpapi", "unavailable"]).default("unavailable"),
   ),
   SERPAPI_API_KEY: optionalNonEmptyString,
+  IDENTITY_VERIFICATION_PROVIDER: emptyAsUndefined(
+    z.enum(["disabled", "didit"]).default("disabled"),
+  ),
+  DIDIT_API_BASE_URL: emptyAsUndefined(
+    z.url().default("https://verification.didit.me"),
+  ),
+  DIDIT_API_KEY: optionalNonEmptyString,
+  DIDIT_KYC_WORKFLOW_ID: optionalNonEmptyString,
+  DIDIT_KYB_WORKFLOW_ID: optionalNonEmptyString,
+  DIDIT_WEBHOOK_SECRET: optionalNonEmptyString,
   ...notificationEmailEnvironmentSchema.shape,
 });
 
@@ -104,6 +114,12 @@ const rawServerEnvironment = {
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   MARKET_PRICE_PROVIDER: process.env.MARKET_PRICE_PROVIDER,
   SERPAPI_API_KEY: process.env.SERPAPI_API_KEY,
+  IDENTITY_VERIFICATION_PROVIDER: process.env.IDENTITY_VERIFICATION_PROVIDER,
+  DIDIT_API_BASE_URL: process.env.DIDIT_API_BASE_URL,
+  DIDIT_API_KEY: process.env.DIDIT_API_KEY,
+  DIDIT_KYC_WORKFLOW_ID: process.env.DIDIT_KYC_WORKFLOW_ID,
+  DIDIT_KYB_WORKFLOW_ID: process.env.DIDIT_KYB_WORKFLOW_ID,
+  DIDIT_WEBHOOK_SECRET: process.env.DIDIT_WEBHOOK_SECRET,
 };
 
 const parsedServerEnvironment = parseEnvironment(
@@ -232,7 +248,10 @@ function assertHostedEnvironment() {
     for (const field of stripeSecretFields) {
       if (rawServerEnvironment[field]?.trim()) invalidFields.push(field);
     }
-    if (resolvedServerEnvironment.SUPABASE_SERVICE_ROLE_KEY) {
+    if (
+      resolvedServerEnvironment.SUPABASE_SERVICE_ROLE_KEY &&
+      resolvedServerEnvironment.IDENTITY_VERIFICATION_PROVIDER !== "didit"
+    ) {
       invalidFields.push("SUPABASE_SERVICE_ROLE_KEY");
     }
   }
@@ -301,6 +320,18 @@ function assertHostedEnvironment() {
     !resolvedServerEnvironment.SERPAPI_API_KEY
   ) {
     invalidFields.push("SERPAPI_API_KEY");
+  }
+
+  if (resolvedServerEnvironment.IDENTITY_VERIFICATION_PROVIDER === "didit") {
+    for (const field of [
+      "DIDIT_API_KEY",
+      "DIDIT_KYC_WORKFLOW_ID",
+      "DIDIT_KYB_WORKFLOW_ID",
+      "DIDIT_WEBHOOK_SECRET",
+      "SUPABASE_SERVICE_ROLE_KEY",
+    ] as const) {
+      if (!resolvedServerEnvironment[field]) invalidFields.push(field);
+    }
   }
 
   if (invalidFields.length > 0) {

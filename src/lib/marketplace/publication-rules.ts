@@ -37,12 +37,14 @@ export function mapPublicationBlockers(blockers: string[]) {
 
 export type PartnerPublicationStatus =
   | "Borrador"
-  | "En revisión"
+  | "En revisión por Best Round"
   | "Aprobado"
   | "Listo para publicar"
   | "Publicado"
   | "Requiere actualización"
-  | "Sin inventario";
+  | "Agotado"
+  | "No aprobado"
+  | "Requiere ajustes";
 
 export function getPartnerPublicationStatus(input: {
   listingStatus: string;
@@ -51,7 +53,7 @@ export function getPartnerPublicationStatus(input: {
   blockers: string[];
 }): PartnerPublicationStatus {
   if (input.published) return "Publicado";
-  if (input.blockers.includes("INVENTORY_ZERO")) return "Sin inventario";
+  if (input.blockers.includes("INVENTORY_ZERO")) return "Agotado";
   if (input.publicationReady) return "Listo para publicar";
   if (input.listingStatus === "APPROVED") {
     return input.blockers.some((blocker) =>
@@ -66,8 +68,10 @@ export function getPartnerPublicationStatus(input: {
       : "Aprobado";
   }
   if (["SUBMITTED", "UNDER_REVIEW"].includes(input.listingStatus)) {
-    return "En revisión";
+    return "En revisión por Best Round";
   }
+  if (input.listingStatus === "CHANGES_REQUESTED") return "Requiere ajustes";
+  if (input.listingStatus === "REJECTED") return "No aprobado";
   return "Borrador";
 }
 

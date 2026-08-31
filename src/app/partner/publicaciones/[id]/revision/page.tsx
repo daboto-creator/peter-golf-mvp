@@ -6,6 +6,8 @@ import { ListingWizardHeader } from "@/components/marketplace/listing-wizard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireEditableListingPage } from "@/lib/marketplace/listing-page";
+import { getMarketplacePricingDetail } from "@/lib/marketplace/pricing-data";
+import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 
 const readinessCopy: Record<string, string> = {
   product_identity: "Identidad del producto",
@@ -24,7 +26,13 @@ export default async function ListingReviewStep({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const detail = await requireEditableListingPage(id);
+  const [detail, pricing] = await Promise.all([
+    requireEditableListingPage(id),
+    getMarketplacePricingDetail(id),
+  ]);
+  const quote = pricing.quotes.find((entry) =>
+    ["DRAFT", "ANALYZED", "CHANGES_REQUESTED"].includes(entry.status),
+  );
   const missing = detail.readiness?.missing_fields ?? [];
   const ready = detail.readiness?.ready === true;
   return (
@@ -83,6 +91,22 @@ export default async function ListingReviewStep({
                 <dt className="text-muted-foreground">Versión</dt>
                 <dd className="font-medium">{detail.version.version_number}</dd>
               </div>
+              <div>
+                <dt className="text-muted-foreground">Tu precio de venta</dt>
+                <dd className="font-medium">
+                  {quote
+                    ? formatMoneyMinorUnits(quote.calculated_public_price)
+                    : "Pendiente"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Revisión automática</dt>
+                <dd className="font-medium">
+                  {detail.version.evaluation_status === "COMPLETED"
+                    ? (detail.version.evaluation_summary ?? "Completada")
+                    : "En proceso"}
+                </dd>
+              </div>
             </dl>
           </CardContent>
         </Card>
@@ -101,18 +125,25 @@ export default async function ListingReviewStep({
               </ul>
             ) : (
               <p className="text-muted-foreground text-sm">
-                Best Round revisará esta versión específica. Enviarla no la hace
-                pública ni comprable.
+                Best Round revisará en una sola decisión el producto, las fotos,
+                el precio y los resultados automáticos.
               </p>
             )}
             <SubmitListingForm
               listingId={id}
               lockVersion={detail.listing.lock_version}
-              ready={ready}
+              quoteId={quote?.id ?? null}
+              ready={ready && Boolean(quote)}
             />
             {!ready ? (
               <Button asChild variant="outline" className="w-full">
-                <Link href={`/partner/publicaciones/${id}/producto`}>
+                <Link
+                  href={
+                    quote
+                      ? `/partner/publicaciones/${id}/producto`
+                      : `/partner/publicaciones/${id}/precio`
+                  }
+                >
                   Completar publicación
                 </Link>
               </Button>

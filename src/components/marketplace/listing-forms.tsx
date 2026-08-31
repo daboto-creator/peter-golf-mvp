@@ -679,10 +679,12 @@ export function ListingInventoryForm({
 export function SubmitListingForm({
   listingId,
   lockVersion,
+  quoteId,
   ready,
 }: {
   listingId: string;
   lockVersion: number;
+  quoteId: string | null;
   ready: boolean;
 }) {
   const [state, action] = useActionState(
@@ -692,8 +694,13 @@ export function SubmitListingForm({
   return (
     <form action={action} className="space-y-4">
       <HiddenListingIdentity listingId={listingId} lockVersion={lockVersion} />
+      <input type="hidden" name="quote_id" value={quoteId ?? ""} />
       <ActionFeedback state={state} />
-      <SubmitButton disabled={!ready}>Enviar a Best Round</SubmitButton>
+      <SubmitButton disabled={!ready || !quoteId}>
+        {ready && quoteId
+          ? "Enviar para publicación"
+          : "Completa los pendientes"}
+      </SubmitButton>
     </form>
   );
 }
@@ -783,6 +790,7 @@ export function ListingReviewDecisionForm({
   return (
     <form action={action} className="space-y-5">
       <HiddenListingIdentity listingId={listingId} lockVersion={lockVersion} />
+      <input type="hidden" name="consolidated" value="true" />
       <div className="space-y-2">
         <Label htmlFor="review-status">Decisión</Label>
         <select
@@ -799,6 +807,21 @@ export function ListingReviewDecisionForm({
           ))}
         </select>
       </div>
+      <label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm">
+        <input
+          type="checkbox"
+          name="market_analysis_override"
+          className="mt-1"
+        />
+        <span>
+          <strong className="block">
+            Aprobar sin análisis automático de mercado
+          </strong>
+          Marca sólo al aprobar sin datos de mercado. El motivo es obligatorio y
+          quedará auditado con tu usuario, email y fecha. Esto no evita ningún
+          mínimo financiero.
+        </span>
+      </label>
       <div className="space-y-2">
         <Label htmlFor="review-area">Área si solicitas cambios</Label>
         <select id="review-area" name="area" className={fieldClass}>

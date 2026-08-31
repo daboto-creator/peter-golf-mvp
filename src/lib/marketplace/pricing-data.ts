@@ -13,7 +13,7 @@ export async function getMarketplacePricingDetail(listingId: string) {
   const listingResult = await client
     .from("marketplace_listings")
     .select(
-      "id, partner_id, status, approved_version_id, partner_profiles(user_id, status), marketplace_listing_versions!marketplace_listings_approved_version_fk(id, version_number, title, condition, specifications, evaluation_output, canonical_model_id, category_id, brand_id, brands(name), categories(name, category_spec_profiles(family, club_type, bag_type, set_type)), catalog_product_models(model_name))",
+      "id, partner_id, status, lock_version, current_version_id, approved_version_id, partner_profiles(user_id, status)",
     )
     .eq("id", listingId)
     .maybeSingle();
@@ -24,7 +24,14 @@ export async function getMarketplacePricingDetail(listingId: string) {
       analyses: [],
       error: listingResult.error,
     };
-  const [quotes, analyses] = await Promise.all([
+  const [version, quotes, analyses] = await Promise.all([
+    client
+      .from("marketplace_listing_versions")
+      .select(
+        "id, version_number, title, condition, specifications, evaluation_output, canonical_model_id, category_id, brand_id, brands(name), categories(name, category_spec_profiles(family, club_type, bag_type, set_type)), catalog_product_models(model_name)",
+      )
+      .eq("id", listingResult.data.current_version_id!)
+      .maybeSingle(),
     client
       .from("marketplace_pricing_quotes")
       .select("*")
@@ -40,6 +47,7 @@ export async function getMarketplacePricingDetail(listingId: string) {
   ]);
   return {
     listing: listingResult.data,
+    version: version.data,
     quotes: quotes.data ?? [],
     analyses: (analyses.data ?? []).map((analysis) => ({
       ...analysis,
@@ -47,7 +55,8 @@ export async function getMarketplacePricingDetail(listingId: string) {
         analysis.expires_at !== null &&
         new Date(analysis.expires_at).getTime() <= Date.now(),
     })),
-    error: listingResult.error ?? quotes.error ?? analyses.error,
+    error:
+      listingResult.error ?? version.error ?? quotes.error ?? analyses.error,
   };
 }
 

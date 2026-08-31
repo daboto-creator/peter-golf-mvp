@@ -10,12 +10,12 @@ export const BUYER_CLAIM_REASONS = [
 export type BuyerClaimReason = (typeof BUYER_CLAIM_REASONS)[number];
 
 const labels: Record<BuyerClaimReason, string> = {
-  WRONG_ITEM: "Recibí un artículo distinto",
-  CONDITION_NOT_AS_DESCRIBED: "La condición no coincide con la publicación",
-  UNDECLARED_DAMAGE: "Tiene un daño que no fue declarado",
-  COUNTERFEIT_SUSPECTED: "Tengo dudas sobre su autenticidad",
-  WRONG_SPECS: "Las especificaciones no coinciden",
-  NON_FUNCTIONAL: "El artículo no funciona correctamente",
+  WRONG_ITEM: "Producto diferente al publicado",
+  CONDITION_NOT_AS_DESCRIBED: "Estado diferente al descrito",
+  UNDECLARED_DAMAGE: "Producto dañado",
+  COUNTERFEIT_SUSPECTED: "Posible producto no original",
+  WRONG_SPECS: "Especificaciones incorrectas",
+  NON_FUNCTIONAL: "Producto no funciona correctamente",
 };
 
 export function isBuyerClaimReason(value: string): value is BuyerClaimReason {

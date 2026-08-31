@@ -1,10 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { notFound } from "next/navigation";
 
-import { FulfillmentActionForm } from "@/components/marketplace/fulfillment-action-form";
+import {
+  FulfillmentActionForm,
+  ShipmentConfirmationForm,
+} from "@/components/marketplace/fulfillment-action-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
-import { transitionPartnerFulfillmentAction } from "@/lib/marketplace/fulfillment-actions";
+import {
+  confirmPartnerShipmentAction,
+  transitionPartnerFulfillmentAction,
+} from "@/lib/marketplace/fulfillment-actions";
+import { fulfillmentStatusLabel } from "@/lib/marketplace/presentation";
 import { getPartnerSale } from "@/lib/marketplace/fulfillment-data";
 import { ClaimWorkflowForm } from "@/components/marketplace/claim-action-form";
 import { partnerClaimResponseAction } from "@/lib/marketplace/claim-actions";
@@ -31,11 +38,13 @@ export default async function PartnerSaleDetailPage({
           {sale.order_number}
         </p>
         <h1 className="mt-3 text-4xl font-semibold">{sale.listing_title}</h1>
-        <p className="text-muted-foreground mt-3">Estado: {sale.status}</p>
+        <p className="text-muted-foreground mt-3">
+          Estado: {fulfillmentStatusLabel[sale.status]}
+        </p>
       </header>
       <Card>
         <CardHeader>
-          <CardTitle>Tu fulfillment</CardTitle>
+          <CardTitle>Tu envío</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <p>Cantidad: {sale.quantity}</p>
@@ -57,8 +66,8 @@ export default async function PartnerSaleDetailPage({
           <CardContent className="space-y-4">
             <p>{claimReasonLabel(claim.reason)}</p>
             <p className="text-muted-foreground text-sm">
-              Estado: {claim.status}. Best Round protege los datos del comprador
-              y toma la decisión final.
+              Estado: En revisión. Best Round protege los datos del comprador y
+              toma la decisión final.
             </p>
             {claim.status !== "RESOLVED" && claim.status !== "CANCELLED" ? (
               <ClaimWorkflowForm
@@ -113,7 +122,30 @@ export default async function PartnerSaleDetailPage({
             label="Marcar listo"
           />
         ) : null}
+        {sale.status === "READY_FOR_CARRIER" ? (
+          <ShipmentConfirmationForm
+            action={confirmPartnerShipmentAction}
+            fulfillmentId={sale.fulfillment_id}
+            version={sale.version}
+            idempotencyKey={randomUUID()}
+          />
+        ) : null}
       </div>
+      {sale.status === "SHIPPED" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Envío confirmado</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>
+              <strong>Transportista:</strong> {sale.carrier}
+            </p>
+            <p>
+              <strong>Tracking:</strong> {sale.tracking_number}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

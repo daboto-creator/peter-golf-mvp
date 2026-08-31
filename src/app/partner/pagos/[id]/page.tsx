@@ -27,35 +27,17 @@ export default async function PartnerPayableDetailPage({
       </header>
       <Card>
         <CardHeader>
-          <CardTitle>Economía bloqueada de la venta</CardTitle>
+          <CardTitle>Resumen de tu pago</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-          <p>
-            Precio público:{" "}
-            {formatMoneyMinorUnits(Number(payable.public_line_total))}
-          </p>
-          <p>
-            Comisión: {formatMoneyMinorUnits(Number(payable.commission_amount))}
-          </p>
-          <p>
-            IVA sobre comisión:{" "}
-            {formatMoneyMinorUnits(Number(payable.commission_vat))}
-          </p>
-          <p>
-            Tu parte de procesamiento:{" "}
-            {formatMoneyMinorUnits(Number(payable.partner_processing_share))}
-          </p>
-          <p>
-            Fee administrativo porcentual:{" "}
-            {formatMoneyMinorUnits(Number(payable.admin_percentage_fee))}
-          </p>
-          <p>
-            Fee administrativo fijo:{" "}
-            {formatMoneyMinorUnits(Number(payable.admin_fixed_fee))}
-          </p>
-          <p className="border-t pt-3 text-base font-semibold sm:col-span-2">
-            Neto Partner:{" "}
+        <CardContent className="space-y-3 text-sm">
+          <p className="text-base font-semibold">
+            Recibirás:{" "}
             {formatMoneyMinorUnits(Number(payable.payable_amount_cents))}
+          </p>
+          <p>Estado: {partnerPayableLabel(payable.status)}</p>
+          <p className="text-muted-foreground">
+            Los pagos del MVP se preparan mediante transferencia bancaria
+            manual.
           </p>
         </CardContent>
       </Card>
@@ -66,9 +48,7 @@ export default async function PartnerPayableDetailPage({
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             {result.holds.map((hold) => (
-              <p key={hold.hold_id}>
-                {hold.reason} · {hold.status}
-              </p>
+              <p key={hold.hold_id}>{hold.reason} · En revisión</p>
             ))}
           </CardContent>
         </Card>
@@ -80,7 +60,9 @@ export default async function PartnerPayableDetailPage({
         <CardContent className="space-y-3 text-sm">
           {result.history.map((entry) => (
             <div key={entry.id} className="border-b pb-3 last:border-0">
-              <p className="font-medium">{entry.to_status}</p>
+              <p className="font-medium">
+                {partnerPayableLabel(entry.to_status)}
+              </p>
               <p className="text-muted-foreground">{entry.reason}</p>
             </div>
           ))}

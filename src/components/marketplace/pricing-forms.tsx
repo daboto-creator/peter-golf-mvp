@@ -12,6 +12,7 @@ import {
   completeMarketplaceAnalysisAction,
   createManualMarketplaceReferenceAction,
   createMarketplacePricingQuoteAction,
+  prepareMarketplaceListingPriceAction,
   requestMarketplaceAnalysisAction,
   requestMarketplaceAnalysisForOperationsAction,
   transitionMarketplacePricingAction,
@@ -20,6 +21,51 @@ import { initialPartnerActionState } from "@/lib/marketplace/partner-action-stat
 
 const fieldClass =
   "border-input min-h-11 w-full rounded-xl border bg-white px-3 py-2 text-sm";
+
+export function PartnerDesiredPriceForm(props: {
+  listingId: string;
+  lockVersion: number;
+  analysisId: string | null;
+  idempotencyKey: string;
+}) {
+  const [state, action] = useActionState(
+    prepareMarketplaceListingPriceAction,
+    initialPartnerActionState,
+  );
+  return (
+    <form action={action} className="space-y-4">
+      <input type="hidden" name="listing_id" value={props.listingId} />
+      <input type="hidden" name="lock_version" value={props.lockVersion} />
+      <input
+        type="hidden"
+        name="market_analysis_id"
+        value={props.analysisId ?? ""}
+      />
+      <input
+        type="hidden"
+        name="idempotency_key"
+        value={props.idempotencyKey}
+      />
+      <div className="space-y-2">
+        <Label htmlFor="desired-public-price">Tu precio de venta (MXN)</Label>
+        <Input
+          id="desired-public-price"
+          name="desired_public_price"
+          inputMode="decimal"
+          required
+          placeholder="8500.00"
+        />
+      </div>
+      <p className="text-muted-foreground text-xs">
+        Best Round calcula comisión, IVA y procesamiento con reglas
+        determinísticas. Puedes conservar tu precio si cumple los mínimos
+        financieros.
+      </p>
+      <ActionFeedback state={state} />
+      <SubmitButton>Calcular y guardar precio</SubmitButton>
+    </form>
+  );
+}
 
 export function RequestMarketplaceAnalysisForm(props: {
   listingId: string;

@@ -17,12 +17,20 @@ import {
   listingStatusCopy,
   reviewAreaCopy,
 } from "@/lib/marketplace/listing-rules";
+import { getMarketplacePricingDetail } from "@/lib/marketplace/pricing-data";
+import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
+import { canonicalResolutionConfidence } from "@/lib/marketplace/canonical-resolution";
+import { pricingViabilityLabel } from "@/lib/marketplace/presentation";
 
 const reviewOptions = {
-  SUBMITTED: [{ value: "UNDER_REVIEW" as const, label: "Tomar para revisión" }],
+  SUBMITTED: [
+    { value: "APPROVED" as const, label: "Aprobar publicación" },
+    { value: "CHANGES_REQUESTED" as const, label: "Solicitar corrección" },
+    { value: "REJECTED" as const, label: "Rechazar" },
+  ],
   UNDER_REVIEW: [
-    { value: "CHANGES_REQUESTED" as const, label: "Solicitar cambios" },
-    { value: "APPROVED" as const, label: "Aprobar" },
+    { value: "APPROVED" as const, label: "Aprobar publicación" },
+    { value: "CHANGES_REQUESTED" as const, label: "Solicitar corrección" },
     { value: "REJECTED" as const, label: "Rechazar" },
   ],
 };
@@ -34,7 +42,10 @@ export default async function MarketplaceListingOperationsDetail({
 }) {
   const { id } = await params;
   await requireListingManager(`/operacion/marketplace/publicaciones/${id}`);
-  const detail = await getMarketplaceListingForOperations(id);
+  const [detail, pricing] = await Promise.all([
+    getMarketplaceListingForOperations(id),
+    getMarketplacePricingDetail(id),
+  ]);
   if (!detail.listing || !detail.version || !detail.partner || detail.error)
     notFound();
   const taxonomy = await getMarketplaceListingTaxonomy(
@@ -51,6 +62,29 @@ export default async function MarketplaceListingOperationsDetail({
       .filter(Boolean)
       .join(" ") ||
     "Partner";
+  const quote =
+    pricing.quotes.find((entry) => entry.status === "UNDER_REVIEW") ??
+    pricing.quotes[0];
+  const canonical = canonicalResolutionConfidence({
+    canonicalModelId: detail.version.canonical_model_id,
+    proposedBrand: detail.version.proposed_brand,
+    proposedModel: detail.version.proposed_model,
+    candidates: detail.models.map((model) => ({
+      id: model.id,
+      brandName: model.brands?.name ?? "",
+      modelName: model.model_name,
+    })),
+  });
+  const alerts = [
+    [detail.partner.status === "VERIFIED", "Partner verificado"],
+    [quote?.meets_minimum_marketplace_revenue !== false, "Precio viable"],
+    [detail.readiness?.required_photos_complete === true, "Fotos suficientes"],
+    [
+      canonical.confidence === "HIGH",
+      `Canónico confianza ${canonical.confidence.toLowerCase()}`,
+    ],
+    [Boolean(quote?.market_analysis_id), "Mercado analizado"],
+  ] as const;
   return (
     <div className="space-y-8">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -105,6 +139,65 @@ export default async function MarketplaceListingOperationsDetail({
                   .filter(Boolean)
                   .join(", ") || "—"}
               </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Precio y mercado</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {quote ? (
+                <>
+                  <p>
+                    <strong>Precio elegido:</strong>{" "}
+                    {formatMoneyMinorUnits(quote.calculated_public_price)}
+                  </p>
+                  <p>
+                    <strong>Neto Partner:</strong>{" "}
+                    {formatMoneyMinorUnits(quote.estimated_partner_net)}
+                  </p>
+                  <p>
+                    <strong>Revenue Best Round estimado:</strong>{" "}
+                    {formatMoneyMinorUnits(quote.estimated_best_round_revenue)}
+                  </p>
+                  <p>
+                    <strong>Mercado:</strong>{" "}
+                    {pricingViabilityLabel[quote.viability] ?? quote.viability}
+                  </p>
+                  <p>
+                    <strong>Investigación:</strong>{" "}
+                    {quote.market_analysis_id
+                      ? "Persistida y vigente"
+                      : "Pendiente; requiere override explícito"}
+                  </p>
+                  {quote.market_analysis_override ? (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                      <strong>
+                        Aprobado sin análisis automático de mercado
+                      </strong>
+                      <p>
+                        Aprobado por: {quote.market_analysis_override_email}
+                      </p>
+                      <p>
+                        Fecha:{" "}
+                        {quote.market_analysis_override_at
+                          ? new Intl.DateTimeFormat("es-MX", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            }).format(
+                              new Date(quote.market_analysis_override_at),
+                            )
+                          : "—"}
+                      </p>
+                      <p>Motivo: {quote.market_analysis_override_reason}</p>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-destructive">
+                  No hay quote determinística para esta submission.
+                </p>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -252,7 +345,7 @@ export default async function MarketplaceListingOperationsDetail({
           ) : null}
           <Card>
             <CardHeader>
-              <CardTitle>Decisión humana</CardTitle>
+              <CardTitle>Decisión final</CardTitle>
             </CardHeader>
             <CardContent>
               {options.length ? (
@@ -266,6 +359,22 @@ export default async function MarketplaceListingOperationsDetail({
                   No hay acciones para este estado.
                 </p>
               )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Alertas consolidadas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {alerts.map(([passed, label]) => (
+                <p key={label}>
+                  {label} {passed ? "✓" : "⚠"}
+                </p>
+              ))}
+              <p>
+                Resolución canónica: confianza{" "}
+                {canonical.confidence.toLowerCase()}.
+              </p>
             </CardContent>
           </Card>
           <Card>

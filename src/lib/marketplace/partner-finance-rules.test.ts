@@ -71,10 +71,8 @@ describe("Marketplace Partner finance rules", () => {
   });
 
   it("uses Partner-facing, non-banking language", () => {
-    expect(partnerPayableLabel("PENDING")).toBe("Saldo pendiente");
+    expect(partnerPayableLabel("PENDING")).toBe("Pendiente");
     expect(partnerPayableLabel("ON_HOLD")).toBe("En revisión");
-    expect(partnerPayableLabel("AVAILABLE")).toBe(
-      "Disponible para próximo pago",
-    );
+    expect(partnerPayableLabel("AVAILABLE")).toBe("Disponible para pago");
   });
 });

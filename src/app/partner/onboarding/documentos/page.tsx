@@ -9,23 +9,47 @@ import {
   documentKindCopy,
   isPartnerReadOnly,
 } from "@/lib/marketplace/partner-rules";
+import { requiredPartnerDocuments } from "@/lib/identity-verification/document-analysis";
 
 export default async function PartnerDocumentsPage() {
   const { partner, documents } = await getCurrentPartnerContext();
   if (!partner) redirect("/partner/onboarding");
   if (isPartnerReadOnly(partner.status)) redirect("/partner/verificacion");
+  const required = requiredPartnerDocuments({
+    legalType: partner.legal_type,
+    countryCode: partner.country_code,
+  });
   return (
     <div className="mx-auto max-w-3xl space-y-7">
       <header>
         <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
-          Paso 4 de 5
+          Paso 3 de 4 · Documentos
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Documentos</h1>
         <p className="text-muted-foreground mt-3">
-          Sube al menos un documento para iniciar la revisión. Los requisitos
-          legales definitivos se confirmarán posteriormente.
+          Agrega los documentos que corresponden a tu tipo de cuenta. Best Round
+          revisará la evidencia antes de verificarte.
         </p>
       </header>
+      <Card>
+        <CardHeader>
+          <CardTitle>Documentos necesarios</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ul className="list-disc space-y-1 pl-5 text-sm">
+            {required.map((kind) => (
+              <li key={kind}>{documentKindCopy[kind]}</li>
+            ))}
+          </ul>
+          {partner.legal_type !== "INDIVIDUAL" ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/partner/onboarding/fiscal">
+                Completar datos fiscales
+              </Link>
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>

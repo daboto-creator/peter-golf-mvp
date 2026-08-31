@@ -13,6 +13,7 @@ import {
   saveBasicPartnerAction,
   saveFiscalPartnerAction,
   startPartnerAction,
+  startIdentityVerificationAction,
   submitPartnerAction,
   uploadPartnerDocumentAction,
 } from "@/lib/marketplace/partner-actions";
@@ -52,6 +53,7 @@ function Field({
   required,
   type = "text",
   autoComplete,
+  readOnly,
 }: {
   name: string;
   label: string;
@@ -59,6 +61,7 @@ function Field({
   required?: boolean;
   type?: string;
   autoComplete?: string;
+  readOnly?: boolean;
 }) {
   return (
     <div className="space-y-2">
@@ -73,6 +76,7 @@ function Field({
         defaultValue={defaultValue ?? ""}
         required={required}
         autoComplete={autoComplete}
+        readOnly={readOnly}
       />
     </div>
   );
@@ -119,6 +123,7 @@ export function PartnerTypeForm() {
 export function BasicPartnerForm({
   partner,
   defaults,
+  email,
 }: {
   partner: BasicPartnerValues;
   defaults?: {
@@ -126,6 +131,7 @@ export function BasicPartnerForm({
     last_name: string | null;
     phone: string | null;
   } | null;
+  email: string;
 }) {
   const [state, action] = useActionState(
     saveBasicPartnerAction,
@@ -135,11 +141,17 @@ export function BasicPartnerForm({
   return (
     <form action={action} className="space-y-6">
       <div className="grid gap-5 sm:grid-cols-2">
+        <Field
+          name="email_display"
+          label="Email"
+          defaultValue={email}
+          readOnly
+        />
         {company ? (
           <>
             <Field
               name="commercial_name"
-              label="Nombre comercial"
+              label="Razón social o nombre legal"
               defaultValue={partner.commercial_name}
               required
             />
@@ -202,8 +214,32 @@ export function BasicPartnerForm({
           autoComplete="address-level2"
         />
       </div>
+      <fieldset className="space-y-3 rounded-xl border p-4">
+        <legend className="px-1 text-sm font-medium">Confirmaciones</legend>
+        <label className="flex gap-3 text-sm">
+          <input type="checkbox" name="terms_accepted" required />
+          <span>Acepto los términos del programa Best Round Partner.</span>
+        </label>
+        <label className="flex gap-3 text-sm">
+          <input type="checkbox" name="privacy_accepted" required />
+          <span>Acepto el aviso de privacidad.</span>
+        </label>
+      </fieldset>
       <ActionFeedback state={state} />
-      <SubmitButton>Guardar y continuar</SubmitButton>
+      <SubmitButton>Continuar con verificación</SubmitButton>
+    </form>
+  );
+}
+
+export function IdentityVerificationForm() {
+  const [state, action] = useActionState(
+    startIdentityVerificationAction,
+    initialPartnerActionState,
+  );
+  return (
+    <form action={action} className="space-y-4">
+      <ActionFeedback state={state} />
+      <SubmitButton>Iniciar verificación de identidad</SubmitButton>
     </form>
   );
 }

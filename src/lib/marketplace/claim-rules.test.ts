@@ -41,7 +41,9 @@ describe("Marketplace delivery and claim rules", () => {
     expect(isBuyerClaimReason("WRONG_ITEM")).toBe(true);
     expect(isBuyerClaimReason("OTHER_MANUAL_REVIEW")).toBe(false);
     expect(isBuyerClaimReason("CHANGED_MIND")).toBe(false);
-    expect(claimReasonLabel("COUNTERFEIT_SUSPECTED")).toContain("autenticidad");
+    expect(claimReasonLabel("COUNTERFEIT_SUSPECTED")).toBe(
+      "Posible producto no original",
+    );
   });
 
   it("maps decisions to PR7 compensating financial effects", () => {

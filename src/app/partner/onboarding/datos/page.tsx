@@ -14,7 +14,7 @@ export default async function PartnerBasicPage() {
     <div className="mx-auto max-w-3xl space-y-7">
       <header>
         <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
-          Paso 2 de 5
+          Paso 1 de 4 · Datos
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Información básica</h1>
         <p className="text-muted-foreground mt-3">
@@ -35,6 +35,7 @@ export default async function PartnerBasicPage() {
           representative_name: partner.representative_name,
         }}
         defaults={defaults}
+        email={user.email ?? ""}
       />
     </div>
   );

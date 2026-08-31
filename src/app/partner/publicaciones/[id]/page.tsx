@@ -10,6 +10,7 @@ import {
   partnerEditableListingStatuses,
   reviewAreaCopy,
 } from "@/lib/marketplace/listing-rules";
+import { partnerListingStatusLabel } from "@/lib/marketplace/presentation";
 
 export default async function PartnerListingDetailPage({
   params,
@@ -20,6 +21,11 @@ export default async function PartnerListingDetailPage({
   const detail = await getMarketplaceListingDetail(id);
   if (!detail.listing || !detail.version || detail.error) notFound();
   const { listing, version } = detail;
+  const visibleStatus = partnerListingStatusLabel({
+    listingStatus: listing.status,
+    published: detail.publicationReadiness?.published,
+    inventoryAvailable: detail.inventory?.quantity_available,
+  });
   const visibleFeedback = detail.feedback.filter(
     (entry) =>
       entry.visibility === "PARTNER_VISIBLE" && entry.status === "OPEN",
@@ -29,26 +35,25 @@ export default async function PartnerListingDetailPage({
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
-            {listingStatusCopy[listing.status].label} · Versión{" "}
-            {version.version_number}
+            {visibleStatus} · Versión {version.version_number}
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em]">
             {version.title ?? "Publicación en preparación"}
           </h1>
           <p className="text-muted-foreground mt-3">
-            {listingStatusCopy[listing.status].description}
+            {visibleStatus === "Publicado"
+              ? "Tu producto está disponible en el catálogo Best Round."
+              : visibleStatus === "Agotado"
+                ? "La publicación se conserva en tu historial sin inventario disponible."
+                : listingStatusCopy[listing.status].description}
           </p>
         </div>
         {partnerEditableListingStatuses.has(listing.status) ? (
           <Button asChild>
             <Link href={`/partner/publicaciones/${id}/producto`}>
-              Continuar edición
-            </Link>
-          </Button>
-        ) : listing.status === "APPROVED" ? (
-          <Button asChild>
-            <Link href={`/partner/publicaciones/${id}/precio`}>
-              Preparar precio
+              {listing.status === "CHANGES_REQUESTED"
+                ? "Corregir publicación"
+                : "Continuar edición"}
             </Link>
           </Button>
         ) : null}

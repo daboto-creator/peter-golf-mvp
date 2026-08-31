@@ -8,8 +8,8 @@ export default async function PartnerTypePage() {
   if (partner) redirect("/partner/onboarding/datos");
   return (
     <OnboardingPage
-      step="1 de 5"
-      title="¿Cómo quieres vender?"
+      step="1 de 4 · Datos"
+      title="Cuéntanos cómo venderás"
       description="Elige la opción que describe mejor tu actividad."
     >
       <PartnerTypeForm />

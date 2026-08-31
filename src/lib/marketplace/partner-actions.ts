@@ -7,6 +7,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { serverEnv } from "@/env/server";
+import { getIdentityVerificationProvider } from "@/lib/identity-verification/provider";
 import {
   requireMarketplacePartner,
   requireMarketplaceUser,
@@ -103,6 +105,13 @@ export async function saveBasicPartnerAction(
     commercial_name: value(formData, "commercial_name"),
     representative_name: value(formData, "representative_name"),
   });
+  const termsAccepted = formData.get("terms_accepted") === "on";
+  const privacyAccepted = formData.get("privacy_accepted") === "on";
+  if (!termsAccepted || !privacyAccepted)
+    return {
+      status: "error",
+      message: "Debes aceptar los términos y el aviso de privacidad.",
+    };
   if (!parsed.success)
     return {
       status: "error",
@@ -123,8 +132,56 @@ export async function saveBasicPartnerAction(
     },
   });
   if (result.error) return friendlyFailure(result.error.message);
+  const consent = await client.rpc("record_partner_onboarding_consents", {
+    expected_version: result.data.version,
+    requested_terms_accepted: true,
+    requested_privacy_accepted: true,
+  });
+  if (consent.error) return friendlyFailure(consent.error.message);
   revalidatePath("/partner", "layout");
-  redirect("/partner/onboarding/fiscal");
+  redirect("/partner/onboarding/identidad");
+}
+
+export async function startIdentityVerificationAction(
+  _previous: PartnerActionState,
+  _formData: FormData,
+): Promise<PartnerActionState> {
+  void _previous;
+  void _formData;
+  const { client, partner, user } = await requireMarketplacePartner(
+    "/partner/onboarding/identidad",
+  );
+  const provider = getIdentityVerificationProvider();
+  if (!provider)
+    return {
+      status: "error",
+      message:
+        "La verificación de identidad aún no está configurada en este entorno.",
+    };
+  let verificationUrl: string;
+  try {
+    const session = await provider.createSession({
+      partnerId: partner.id,
+      kind: partner.legal_type === "LEGAL_ENTITY" ? "BUSINESS" : "PERSON",
+      callbackUrl: `${serverEnv.NEXT_PUBLIC_APP_URL}/partner/onboarding/identidad`,
+      email: user.email,
+      phone: partner.phone,
+    });
+    const registration = await client.rpc("register_partner_identity_session", {
+      requested_provider: session.provider,
+      requested_external_session_id: session.externalSessionId,
+      requested_session_kind:
+        partner.legal_type === "LEGAL_ENTITY" ? "BUSINESS" : "PERSON",
+    });
+    if (registration.error) return friendlyFailure(registration.error.message);
+    verificationUrl = session.verificationUrl;
+  } catch {
+    return {
+      status: "error",
+      message: "No pudimos iniciar la verificación. Inténtalo nuevamente.",
+    };
+  }
+  redirect(verificationUrl);
 }
 
 export async function saveFiscalPartnerAction(

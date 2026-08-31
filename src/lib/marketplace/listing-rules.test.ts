@@ -142,9 +142,9 @@ describe("Marketplace listing rules", () => {
 
   it("maps partner next steps without implying approved means live", () => {
     expect(getListingNextStep("DRAFT")).toBe("Continuar borrador");
-    expect(getListingNextStep("CHANGES_REQUESTED")).toBe("Atender cambios");
-    expect(getListingNextStep("APPROVED")).toBe(
-      "Esperar activación de Marketplace",
+    expect(getListingNextStep("CHANGES_REQUESTED")).toBe(
+      "Corregir publicación",
     );
+    expect(getListingNextStep("APPROVED")).toBe("Ver publicación");
   });
 });
