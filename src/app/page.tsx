@@ -8,13 +8,11 @@ import {
   Crosshair,
   Flag,
   Gift,
-  MapPin,
   PackageCheck,
   RefreshCw,
   ShieldCheck,
   Sparkles,
   Target,
-  Truck,
 } from "lucide-react";
 
 import { ProductCard } from "@/components/catalog/product-card";
@@ -24,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { listPublicProducts } from "@/lib/catalog/public-products";
 
 export const metadata: Metadata = {
-  title: "Best Round Pro Shop | Equipo elegido con criterio",
+  title: "Best Round Pro Shop | Compra y vende equipo con confianza",
   description:
     "Equipo de golf nuevo y seminuevo con asesoría profesional para comprar con confianza en México.",
 };
@@ -56,10 +54,10 @@ const shoppingPaths = [
 ];
 
 const trustPoints = [
-  { icon: ShieldCheck, label: "Condición transparente" },
-  { icon: PackageCheck, label: "Equipo nuevo y seminuevo" },
-  { icon: Truck, label: "Envíos a todo México" },
-  { icon: MapPin, label: "Atención desde Querétaro" },
+  { icon: ShieldCheck, label: "Partners verificados" },
+  { icon: PackageCheck, label: "Productos revisados" },
+  { icon: Check, label: "Pagos seguros" },
+  { icon: Target, label: "Asesoría para elegir mejor" },
 ];
 
 const improvementGoals = [
@@ -100,16 +98,17 @@ export default async function Home() {
                 Digital Pro Shop · México
               </p>
               <h1 className="font-heading mt-6 max-w-3xl text-[clamp(3.25rem,7vw,6.35rem)] leading-[0.94] font-bold tracking-[-0.045em] text-balance">
-                El equipo correcto cambia tu juego.
+                Compra y vende mejor equipo de golf, con confianza.
               </h1>
               <p className="text-muted-foreground mt-7 max-w-2xl text-base leading-8 sm:text-lg">
-                Equipo nuevo y seminuevo, seleccionado con criterio y acompañado
-                por asesoría profesional para ayudarte a comprar con confianza.
+                Encuentra el equipo correcto con asesoría experta, productos
+                revisados y una experiencia segura y transparente para comprar o
+                vender.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg">
                   <Link href="/productos">
-                    Explorar el Pro Shop
+                    Comprar equipo
                     <ArrowRight aria-hidden="true" />
                   </Link>
                 </Button>
@@ -119,9 +118,15 @@ export default async function Home() {
                   variant="outline"
                   className="border-pg-gold/35 hover:border-pg-gold"
                 >
-                  <Link href="/cuenta">Entrar a Mi Golf</Link>
+                  <Link href="/partner/onboarding">Vender mi equipo</Link>
                 </Button>
               </div>
+              <Link
+                href="#mi-golf"
+                className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4"
+              >
+                Ayúdame a elegir
+              </Link>
               <div className="text-pg-charcoal mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold tracking-wide uppercase">
                 <span>Equipo nuevo</span>
                 <span className="text-pg-gold" aria-hidden="true">
@@ -397,7 +402,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="bg-pg-black-soft text-white">
+        <section id="mi-golf" className="bg-pg-black-soft text-white">
           <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 sm:py-24 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16 lg:px-8 lg:py-28">
             <div className="max-w-2xl">
               <p className="text-pg-gold text-xs font-semibold tracking-[0.2em] uppercase">
@@ -425,6 +430,60 @@ export default async function Home() {
                 className="object-cover object-center"
               />
             </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-20">
+            <div>
+              <p className="text-pg-gold text-xs font-semibold tracking-[0.2em] uppercase">
+                Para comprar
+              </p>
+              <h2 className="mt-4 text-4xl font-semibold">
+                Equipo seleccionado y compra protegida.
+              </h2>
+              <ul className="mt-7 space-y-3 text-sm leading-6">
+                <li>Transparencia en estado y especificaciones.</li>
+                <li>Asesoría antes de comprar.</li>
+                <li>Comunidad Best Round para elegir con mayor claridad.</li>
+              </ul>
+              <Button asChild className="mt-7">
+                <Link href="/productos">Comprar equipo</Link>
+              </Button>
+            </div>
+            <div>
+              <p className="text-pg-gold text-xs font-semibold tracking-[0.2em] uppercase">
+                Para vender
+              </p>
+              <h2 className="mt-4 text-4xl font-semibold">
+                Publica fácil y sigue cada paso.
+              </h2>
+              <ul className="mt-7 space-y-3 text-sm leading-6">
+                <li>Te ayudamos con el precio correcto.</li>
+                <li>Best Round protege la operación.</li>
+                <li>Seguimiento claro de venta, envío y pago.</li>
+              </ul>
+              <Button asChild variant="outline" className="mt-7">
+                <Link href="/partner/onboarding">Vender mi equipo</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-pg-warm-white">
+          <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+            <p className="text-pg-gold text-xs font-semibold tracking-[0.2em] uppercase">
+              Confianza en cada operación
+            </p>
+            <h2 className="mt-4 text-4xl font-semibold">
+              Comprar y vender con información clara.
+            </h2>
+            <p className="text-muted-foreground mt-6 max-w-3xl leading-8">
+              Verificamos a los Partners, revisamos las publicaciones y
+              procesamos los pagos de forma segura con Stripe. La protección de
+              entrega, el proceso de reclamos y la información transparente del
+              producto acompañan cada compra.
+            </p>
           </div>
         </section>
 

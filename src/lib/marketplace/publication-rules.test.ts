@@ -44,7 +44,7 @@ describe("Marketplace publication presentation", () => {
         published: false,
         blockers: ["INVENTORY_ZERO"],
       }),
-    ).toBe("Sin inventario");
+    ).toBe("Agotado");
     expect(
       getPartnerPublicationStatus({
         listingStatus: "APPROVED",

@@ -62,6 +62,7 @@ do $$
 declare
   listing_record public.marketplace_listings;
   version_record public.marketplace_listing_versions;
+  quote_record public.marketplace_pricing_quotes;
   readiness record;
   driver_category_id uuid;
   titleist_id uuid;
@@ -111,7 +112,7 @@ begin
 
   select * into strict version_record from public.marketplace_listing_versions
   where id = listing_record.current_version_id;
-  foreach image_type in array array['face', 'crown', 'sole'] loop
+  foreach image_type in array array['face', 'crown', 'sole', 'shaft', 'grip'] loop
     image_id := gen_random_uuid();
     image_path := 'listings/4b000000-0000-4000-8000-000000000001/'
       || listing_record.id::text || '/' || version_record.id::text || '/'
@@ -133,8 +134,12 @@ begin
     raise exception 'Complete Driver listing readiness is incorrect: %', readiness.missing_fields;
   end if;
 
-  listing_record := public.submit_marketplace_listing(
-    listing_record.id, listing_record.lock_version
+  quote_record:=public.prepare_marketplace_listing_price(
+    listing_record.id,listing_record.lock_version,100000,null,
+    '4f000000-0000-4000-8000-000000000001'
+  );
+  listing_record:=public.submit_marketplace_listing_workflow(
+    listing_record.id,listing_record.lock_version,quote_record.id
   );
   if listing_record.status <> 'SUBMITTED' then
     raise exception 'Verified Partner could not submit listing';
@@ -144,6 +149,11 @@ begin
   where id = listing_record.current_version_id;
   if version_record.state <> 'SUBMITTED' or version_record.submitted_at is null then
     raise exception 'Submission snapshot was not frozen';
+  end if;
+  if version_record.evaluation_source<>'RULES'
+    or version_record.evaluation_status<>'COMPLETED'
+    or coalesce((version_record.evaluation_output->>'authenticityClaimed')::boolean,true) then
+    raise exception 'Rules-first image snapshot was not persisted safely';
   end if;
 
   begin
@@ -266,28 +276,27 @@ begin
   );
   select * into strict listing_record from public.marketplace_listings
   where id = listing_record.id;
-  listing_record := public.transition_marketplace_listing_status(
-    listing_record.id, listing_record.lock_version, 'UNDER_REVIEW',
-    'Operations started human review', '[]'::jsonb, null
-  );
-  listing_record := public.transition_marketplace_listing_status(
+  listing_record := public.review_marketplace_submission(
     listing_record.id, listing_record.lock_version, 'CHANGES_REQUESTED',
     'Crown photo needs better lighting',
     '[{"area":"PHOTOS","comment":"Reemplaza la foto de la corona con mejor luz."}]'::jsonb,
+    false,
     'Internal fraud-safe note not visible to Partner'
   );
 
-  select id into strict internal_comment_id
+  select id into internal_comment_id
   from public.marketplace_listing_review_requests
-  where listing_id = listing_record.id and visibility = 'INTERNAL';
-  perform set_config('test.marketplace_internal_comment', internal_comment_id::text, true);
+  where listing_id = listing_record.id and visibility = 'INTERNAL' limit 1;
+  if internal_comment_id is not null then
+    perform set_config('test.marketplace_internal_comment', internal_comment_id::text, true);
+  end if;
 
   if listing_record.status <> 'CHANGES_REQUESTED'
     or listing_record.current_version_id = old_version_id
     or (select version_number from public.marketplace_listing_versions
         where id = listing_record.current_version_id) <> 2
     or (select count(*) from public.marketplace_listing_version_images
-        where version_id = listing_record.current_version_id) <> 3
+        where version_id = listing_record.current_version_id) <> 5
   then
     raise exception 'Changes requested did not create a new editable version';
   end if;
@@ -306,7 +315,7 @@ select set_config('request.jwt.claim.sub', '4a000000-0000-4000-8000-000000000001
 set local role authenticated;
 
 do $$
-declare listing_record public.marketplace_listings;
+declare listing_record public.marketplace_listings; quote_record public.marketplace_pricing_quotes;
 begin
   select * into strict listing_record from public.marketplace_listings
   where id = current_setting('test.marketplace_listing_a')::uuid;
@@ -325,8 +334,17 @@ begin
     listing_record.id, listing_record.lock_version,
     '{"conditionNotes":"Marcas menores; nueva foto confirma la corona sin daño."}'::jsonb
   );
-  listing_record := public.submit_marketplace_listing(
-    listing_record.id, listing_record.lock_version
+  select * into quote_record from public.marketplace_pricing_quotes
+  where listing_id=listing_record.id
+    and listing_version_id=listing_record.current_version_id
+    and status='DRAFT'
+  order by quote_version desc limit 1;
+  if not found or quote_record.calculated_public_price<>100000
+    or quote_record.market_analysis_id is not null
+  then raise exception 'Correction flow did not preserve deterministic pricing safely (found %, price %, analysis %)',
+    found,quote_record.calculated_public_price,quote_record.market_analysis_id; end if;
+  listing_record:=public.submit_marketplace_listing_workflow(
+    listing_record.id,listing_record.lock_version,quote_record.id
   );
   if listing_record.status <> 'SUBMITTED' then
     raise exception 'Partner could not resubmit corrected version';
@@ -343,13 +361,16 @@ declare listing_record public.marketplace_listings;
 begin
   select * into strict listing_record from public.marketplace_listings
   where id = current_setting('test.marketplace_listing_a')::uuid;
-  listing_record := public.transition_marketplace_listing_status(
-    listing_record.id, listing_record.lock_version, 'UNDER_REVIEW',
-    'Operations reviewed corrected version', '[]'::jsonb, null
-  );
-  listing_record := public.transition_marketplace_listing_status(
-    listing_record.id, listing_record.lock_version, 'APPROVED',
-    'Corrected version approved for future publication', '[]'::jsonb, null
+  begin
+    perform public.review_marketplace_submission(
+      listing_record.id,listing_record.lock_version,'APPROVED',
+      'Override required','[]'::jsonb,false
+    );
+    raise exception 'Approval without market analysis omitted mandatory override';
+  exception when check_violation then null; end;
+  listing_record:=public.review_marketplace_submission(
+    listing_record.id,listing_record.lock_version,'APPROVED',
+    'Manual market review completed by Operations','[]'::jsonb,true
   );
   if listing_record.status <> 'APPROVED'
     or listing_record.approved_version_id is null
@@ -359,6 +380,12 @@ begin
   then
     raise exception 'Approved snapshot did not become immutable and explicit';
   end if;
+  if not exists(select 1 from public.marketplace_pricing_quotes
+    where listing_id=listing_record.id and listing_version_id=listing_record.approved_version_id
+      and status='APPROVED' and market_analysis_override
+      and market_analysis_override_by=auth.uid() and market_analysis_override_email is not null
+      and market_analysis_override_at is not null)
+  then raise exception 'Consolidated approval override audit is incomplete'; end if;
   if exists (
     select 1 from public.marketplace_listings
     where id = listing_record.id and status = 'PUBLISHED'

@@ -60,11 +60,11 @@ export function canReversePayable(status: PartnerPayableStatus) {
 
 export function partnerPayableLabel(status: PartnerPayableStatus) {
   const labels: Record<PartnerPayableStatus, string> = {
-    PENDING: "Saldo pendiente",
+    PENDING: "Pendiente",
     ON_HOLD: "En revisión",
-    AVAILABLE: "Disponible para próximo pago",
-    PAID: "Pago realizado",
-    REVERSED: "Revertido",
+    AVAILABLE: "Disponible para pago",
+    PAID: "Pagado",
+    REVERSED: "Ajuste realizado",
   };
   return labels[status];
 }

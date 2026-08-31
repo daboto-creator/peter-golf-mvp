@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import {
   BUYER_CLAIM_REASONS,
@@ -36,25 +36,52 @@ export function BuyerAcceptanceForm({
     claimAction,
     initial,
   );
+  const [confirmingAcceptance, setConfirmingAcceptance] = useState(false);
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <form
-        action={acceptFormAction}
-        className="rounded-xl border bg-white p-5"
-      >
-        <input type="hidden" name="fulfillmentId" value={fulfillmentId} />
-        <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
-        <h3 className="font-semibold">¿Todo correcto?</h3>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Confirma únicamente cuando hayas revisado el artículo.
-        </p>
-        <button
-          disabled={accepting}
-          className="mt-4 min-h-11 rounded-xl bg-black px-4 text-sm font-semibold text-white disabled:opacity-60"
+      {confirmingAcceptance ? (
+        <form
+          action={acceptFormAction}
+          className="rounded-xl border bg-white p-5"
         >
-          Todo correcto
-        </button>
-      </form>
+          <input type="hidden" name="fulfillmentId" value={fulfillmentId} />
+          <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+          <h3 className="font-semibold">Confirma la recepción</h3>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Al confirmar, indicas que recibiste el producto conforme a la
+            publicación y Best Round podrá continuar con el pago al Partner.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              disabled={accepting}
+              className="min-h-11 rounded-xl bg-black px-4 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              Confirmar que todo está correcto
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingAcceptance(false)}
+              className="min-h-11 rounded-xl border px-4 text-sm font-semibold"
+            >
+              Volver
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="rounded-xl border bg-white p-5">
+          <h3 className="font-semibold">¿Todo correcto?</h3>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Confirma después de revisar el producto recibido.
+          </p>
+          <button
+            type="button"
+            onClick={() => setConfirmingAcceptance(true)}
+            className="mt-4 min-h-11 rounded-xl bg-black px-4 text-sm font-semibold text-white"
+          >
+            Todo correcto
+          </button>
+        </div>
+      )}
       <form
         action={claimFormAction}
         className="space-y-3 rounded-xl border bg-white p-5"

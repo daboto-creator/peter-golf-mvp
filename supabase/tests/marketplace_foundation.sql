@@ -195,6 +195,44 @@ end;
 $$;
 
 reset role;
+
+-- Complete the evidence introduced by the simplified onboarding workflow before
+-- Operations performs the human verification transition. This keeps the
+-- original PR1 capability/RLS assertions while exercising the current guard.
+update public.partner_profiles
+set country_code = 'MX',
+    terms_accepted_at = now(),
+    privacy_accepted_at = now()
+where id = current_setting('test.partner_a_id')::uuid;
+
+insert into public.partner_documents (
+  id, partner_id, document_kind, storage_path, mime_type, size_bytes,
+  sha256, uploaded_by, status, reviewed_by, reviewed_at, review_reason
+) values (
+  '2d000000-0000-4000-8000-000000000003',
+  current_setting('test.partner_a_id')::uuid,
+  'address_proof',
+  'partners/' || current_setting('test.partner_a_id') ||
+    '/2d000000-0000-4000-8000-000000000003.pdf',
+  'application/pdf', 1024, repeat('b', 64),
+  '2a000000-0000-4000-8000-000000000001',
+  'VERIFIED',
+  '2a000000-0000-4000-8000-000000000004',
+  now(),
+  'Evidence verified for workflow regression'
+);
+
+insert into public.partner_identity_verifications (
+  partner_id, provider, external_session_id, session_kind, result,
+  normalized_attributes, warning_codes, liveness_passed, face_match_passed,
+  completed_at, created_by
+) values (
+  current_setting('test.partner_a_id')::uuid,
+  'DIDIT', 'foundation-regression-session', 'PERSON', 'PASSED',
+  '{"documentType":"PASSPORT"}'::jsonb, '{}', true, true, now(),
+  '2a000000-0000-4000-8000-000000000001'
+);
+
 select set_config(
   'request.jwt.claim.sub',
   '2a000000-0000-4000-8000-000000000004',
@@ -213,7 +251,7 @@ begin
   end if;
 
   if (select count(*) from public.partner_profiles) <> 2
-    or (select count(*) from public.partner_documents) <> 1
+    or (select count(*) from public.partner_documents) <> 2
     or exists (select 1 from public.marketplace_financial_rules)
   then
     raise exception 'Operator Marketplace access is incorrect';

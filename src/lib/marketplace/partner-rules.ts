@@ -54,20 +54,25 @@ export const legalTypeCopy: Record<
     description: "Para vender equipo propio de forma ocasional.",
   },
   SOLE_PROPRIETOR: {
-    label: "Persona física con actividad empresarial",
+    label: "Persona Física",
     description: "Para una actividad comercial registrada a tu nombre.",
   },
   LEGAL_ENTITY: {
-    label: "Empresa / persona moral",
+    label: "Persona Moral",
     description: "Para una empresa constituida y su representante.",
   },
 };
 
 export const documentKindCopy = {
-  identification: "Identificación",
-  tax_document: "Documento fiscal",
-  company_document: "Documento de empresa",
-  address_proof: "Comprobante",
+  address_proof: "Comprobante de domicilio",
+  fiscal_certificate: "Constancia de Situación Fiscal",
+  immigration_document: "Documento migratorio mexicano",
+  incorporation_deed: "Acta constitutiva",
+  company_address_proof: "Comprobante de domicilio de la empresa",
+  legal_representative_id: "Identificación del representante legal",
+  identification: "Identificación adicional",
+  tax_document: "Documento fiscal adicional",
+  company_document: "Documento de empresa adicional",
   other: "Otro documento",
 } as const;
 

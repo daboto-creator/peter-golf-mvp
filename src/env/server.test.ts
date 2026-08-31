@@ -26,6 +26,11 @@ function setBaseEnvironment(
   vi.stubEnv("STRIPE_WEBHOOK_SECRET", "");
   vi.stubEnv("NOTIFICATIONS_MODE", "disabled");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+  vi.stubEnv("IDENTITY_VERIFICATION_PROVIDER", "disabled");
+  vi.stubEnv("DIDIT_API_KEY", "");
+  vi.stubEnv("DIDIT_KYC_WORKFLOW_ID", "");
+  vi.stubEnv("DIDIT_KYB_WORKFLOW_ID", "");
+  vi.stubEnv("DIDIT_WEBHOOK_SECRET", "");
   for (const field of mailFields) vi.stubEnv(field, "");
 }
 
@@ -156,6 +161,28 @@ describe("server environment", () => {
 
     expect(serverEnv.STRIPE_CHECKOUT_MODE).toBe("test");
     expect(serverEnv.PAYMENTS_MODE).toBe("test");
+  });
+
+  test("requires every server-only Didit credential when enabled", async () => {
+    setBaseEnvironment("staging");
+    vi.stubEnv("IDENTITY_VERIFICATION_PROVIDER", "didit");
+
+    await expect(import("./server")).rejects.toThrow(
+      /DIDIT_API_KEY, DIDIT_KYC_WORKFLOW_ID, DIDIT_KYB_WORKFLOW_ID, DIDIT_WEBHOOK_SECRET, SUPABASE_SERVICE_ROLE_KEY/,
+    );
+  });
+
+  test("accepts a complete Didit staging sandbox configuration", async () => {
+    setBaseEnvironment("staging");
+    vi.stubEnv("IDENTITY_VERIFICATION_PROVIDER", "didit");
+    vi.stubEnv("DIDIT_API_KEY", "synthetic-didit-api-key");
+    vi.stubEnv("DIDIT_KYC_WORKFLOW_ID", "synthetic-kyc-workflow");
+    vi.stubEnv("DIDIT_KYB_WORKFLOW_ID", "synthetic-kyb-workflow");
+    vi.stubEnv("DIDIT_WEBHOOK_SECRET", "synthetic-webhook-secret");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "synthetic-service-role");
+
+    const { serverEnv } = await import("./server");
+    expect(serverEnv.IDENTITY_VERIFICATION_PROVIDER).toBe("didit");
   });
 
   test("rejects live keys without exposing their value", async () => {

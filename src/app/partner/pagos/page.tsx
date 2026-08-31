@@ -19,10 +19,9 @@ export default async function PartnerPaymentsPage() {
     paid_historical_cents: 0,
   };
   const cards = [
-    ["Saldo pendiente", balance.pending_cents],
-    ["En revisión", balance.on_hold_cents],
-    ["Disponible para próximo pago", balance.available_cents],
-    ["Pagos realizados", balance.paid_historical_cents],
+    ["Pendiente", balance.pending_cents + balance.on_hold_cents],
+    ["Disponible para pago", balance.available_cents],
+    ["Pagado históricamente", balance.paid_historical_cents],
   ] as const;
   return (
     <div className="space-y-8">
@@ -32,9 +31,8 @@ export default async function PartnerPaymentsPage() {
         </p>
         <h1 className="mt-3 text-4xl font-semibold">Pagos</h1>
         <p className="text-muted-foreground mt-3 max-w-3xl">
-          Consulta lo generado por tus ventas. Best Round registra cada
-          movimiento y conserva los fondos hasta que exista una liberación
-          autorizada.
+          Consulta de forma clara lo que recibirás por cada venta y el estado de
+          tus pagos.
         </p>
       </header>
       {result.error ? (

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import { listPartnerSales } from "@/lib/marketplace/fulfillment-data";
+import { fulfillmentStatusLabel } from "@/lib/marketplace/presentation";
 
 export default async function PartnerSalesPage() {
   const sales = await listPartnerSales();
@@ -32,7 +33,7 @@ export default async function PartnerSalesPage() {
             <Card className="h-full transition hover:border-black">
               <CardHeader>
                 <p className="text-pg-gold text-xs font-semibold">
-                  {sale.status}
+                  {fulfillmentStatusLabel[sale.status]}
                 </p>
                 <CardTitle>{sale.listing_title}</CardTitle>
               </CardHeader>

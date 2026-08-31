@@ -2379,7 +2379,7 @@ export type Database = {
         Row: {
           analysis_version: string;
           average_price: number | null;
-          canonical_product_model_id: string;
+          canonical_product_model_id: string | null;
           checked_at: string | null;
           completed_by: string | null;
           confidence: Database["public"]["Enums"]["marketplace_market_confidence"];
@@ -2410,7 +2410,7 @@ export type Database = {
         Insert: {
           analysis_version?: string;
           average_price?: number | null;
-          canonical_product_model_id: string;
+          canonical_product_model_id?: string | null;
           checked_at?: string | null;
           completed_by?: string | null;
           confidence?: Database["public"]["Enums"]["marketplace_market_confidence"];
@@ -2441,7 +2441,7 @@ export type Database = {
         Update: {
           analysis_version?: string;
           average_price?: number | null;
-          canonical_product_model_id?: string;
+          canonical_product_model_id?: string | null;
           checked_at?: string | null;
           completed_by?: string | null;
           confidence?: Database["public"]["Enums"]["marketplace_market_confidence"];
@@ -3033,6 +3033,56 @@ export type Database = {
             columns: ["payable_id"];
             isOneToOne: false;
             referencedRelation: "marketplace_partner_payables";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_partner_notification_outbox: {
+        Row: {
+          body_text: string;
+          channel: string;
+          created_at: string;
+          deduplication_key: string;
+          event_type: string;
+          id: string;
+          recipient_email: string | null;
+          recipient_user_id: string | null;
+          sent_at: string | null;
+          status: string;
+          subject: string;
+        };
+        Insert: {
+          body_text: string;
+          channel: string;
+          created_at?: string;
+          deduplication_key: string;
+          event_type: string;
+          id?: string;
+          recipient_email?: string | null;
+          recipient_user_id?: string | null;
+          sent_at?: string | null;
+          status?: string;
+          subject: string;
+        };
+        Update: {
+          body_text?: string;
+          channel?: string;
+          created_at?: string;
+          deduplication_key?: string;
+          event_type?: string;
+          id?: string;
+          recipient_email?: string | null;
+          recipient_user_id?: string | null;
+          sent_at?: string | null;
+          status?: string;
+          subject?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_partner_notification_outbox_recipient_user_id_fkey";
+            columns: ["recipient_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -3839,7 +3889,7 @@ export type Database = {
           best_round_processing_share: number;
           calculated_public_price: number;
           calculation_version: string;
-          canonical_product_model_id: string;
+          canonical_product_model_id: string | null;
           commission_amount: number;
           commission_base: number;
           commission_rate_bps: number;
@@ -3864,6 +3914,11 @@ export type Database = {
           listing_version_id: string;
           lock_version: number;
           market_analysis_id: string | null;
+          market_analysis_override: boolean;
+          market_analysis_override_at: string | null;
+          market_analysis_override_by: string | null;
+          market_analysis_override_email: string | null;
+          market_analysis_override_reason: string | null;
           market_delta_bps: number | null;
           market_lower_bound: number | null;
           market_reference: number | null;
@@ -3899,7 +3954,7 @@ export type Database = {
           best_round_processing_share: number;
           calculated_public_price: number;
           calculation_version?: string;
-          canonical_product_model_id: string;
+          canonical_product_model_id?: string | null;
           commission_amount: number;
           commission_base: number;
           commission_rate_bps: number;
@@ -3924,6 +3979,11 @@ export type Database = {
           listing_version_id: string;
           lock_version?: number;
           market_analysis_id?: string | null;
+          market_analysis_override?: boolean;
+          market_analysis_override_at?: string | null;
+          market_analysis_override_by?: string | null;
+          market_analysis_override_email?: string | null;
+          market_analysis_override_reason?: string | null;
           market_delta_bps?: number | null;
           market_lower_bound?: number | null;
           market_reference?: number | null;
@@ -3959,7 +4019,7 @@ export type Database = {
           best_round_processing_share?: number;
           calculated_public_price?: number;
           calculation_version?: string;
-          canonical_product_model_id?: string;
+          canonical_product_model_id?: string | null;
           commission_amount?: number;
           commission_base?: number;
           commission_rate_bps?: number;
@@ -3984,6 +4044,11 @@ export type Database = {
           listing_version_id?: string;
           lock_version?: number;
           market_analysis_id?: string | null;
+          market_analysis_override?: boolean;
+          market_analysis_override_at?: string | null;
+          market_analysis_override_by?: string | null;
+          market_analysis_override_email?: string | null;
+          market_analysis_override_reason?: string | null;
           market_delta_bps?: number | null;
           market_lower_bound?: number | null;
           market_reference?: number | null;
@@ -4070,6 +4135,13 @@ export type Database = {
             columns: ["market_analysis_id"];
             isOneToOne: false;
             referencedRelation: "marketplace_market_analyses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_pricing_quotes_market_analysis_override_by_fkey";
+            columns: ["market_analysis_override_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
           {
@@ -4699,7 +4771,9 @@ export type Database = {
           cancellation_reason: string | null;
           cancelled_at: string | null;
           carrier: string | null;
+          carrier_handoff_actor_id: string | null;
           carrier_handoff_due_at: string | null;
+          carrier_handoff_note: string | null;
           completed_at: string | null;
           confirmed_at: string | null;
           created_at: string;
@@ -4729,7 +4803,9 @@ export type Database = {
           cancellation_reason?: string | null;
           cancelled_at?: string | null;
           carrier?: string | null;
+          carrier_handoff_actor_id?: string | null;
           carrier_handoff_due_at?: string | null;
+          carrier_handoff_note?: string | null;
           completed_at?: string | null;
           confirmed_at?: string | null;
           created_at?: string;
@@ -4759,7 +4835,9 @@ export type Database = {
           cancellation_reason?: string | null;
           cancelled_at?: string | null;
           carrier?: string | null;
+          carrier_handoff_actor_id?: string | null;
           carrier_handoff_due_at?: string | null;
+          carrier_handoff_note?: string | null;
           completed_at?: string | null;
           confirmed_at?: string | null;
           created_at?: string;
@@ -4784,6 +4862,13 @@ export type Database = {
           version?: number;
         };
         Relationships: [
+          {
+            foreignKeyName: "order_fulfillments_carrier_handoff_actor_id_fkey";
+            columns: ["carrier_handoff_actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "order_fulfillments_order_id_fkey";
             columns: ["order_id"];
@@ -5305,6 +5390,72 @@ export type Database = {
           },
         ];
       };
+      partner_document_analyses: {
+        Row: {
+          analysis_version: string;
+          analyzed_at: string;
+          analyzed_by: string | null;
+          document_id: string;
+          extracted_address: string | null;
+          extracted_document_date: string | null;
+          extracted_document_type: string | null;
+          extracted_name: string | null;
+          extracted_rfc: string | null;
+          id: string;
+          normalized_output: Json;
+          official_qr_destination: string | null;
+          result: Database["public"]["Enums"]["automatic_document_review_result"];
+          warning_codes: string[];
+        };
+        Insert: {
+          analysis_version: string;
+          analyzed_at?: string;
+          analyzed_by?: string | null;
+          document_id: string;
+          extracted_address?: string | null;
+          extracted_document_date?: string | null;
+          extracted_document_type?: string | null;
+          extracted_name?: string | null;
+          extracted_rfc?: string | null;
+          id?: string;
+          normalized_output?: Json;
+          official_qr_destination?: string | null;
+          result: Database["public"]["Enums"]["automatic_document_review_result"];
+          warning_codes?: string[];
+        };
+        Update: {
+          analysis_version?: string;
+          analyzed_at?: string;
+          analyzed_by?: string | null;
+          document_id?: string;
+          extracted_address?: string | null;
+          extracted_document_date?: string | null;
+          extracted_document_type?: string | null;
+          extracted_name?: string | null;
+          extracted_rfc?: string | null;
+          id?: string;
+          normalized_output?: Json;
+          official_qr_destination?: string | null;
+          result?: Database["public"]["Enums"]["automatic_document_review_result"];
+          warning_codes?: string[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_document_analyses_analyzed_by_fkey";
+            columns: ["analyzed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_document_analyses_document_id_fkey";
+            columns: ["document_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_documents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       partner_documents: {
         Row: {
           created_at: string;
@@ -5377,6 +5528,113 @@ export type Database = {
             columns: ["uploaded_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_identity_verifications: {
+        Row: {
+          completed_at: string | null;
+          created_at: string;
+          created_by: string;
+          external_session_id: string;
+          face_match_passed: boolean | null;
+          id: string;
+          liveness_passed: boolean | null;
+          normalized_attributes: Json;
+          partner_id: string;
+          provider: string;
+          result: Database["public"]["Enums"]["identity_verification_result"];
+          session_kind: string;
+          updated_at: string;
+          warning_codes: string[];
+        };
+        Insert: {
+          completed_at?: string | null;
+          created_at?: string;
+          created_by: string;
+          external_session_id: string;
+          face_match_passed?: boolean | null;
+          id?: string;
+          liveness_passed?: boolean | null;
+          normalized_attributes?: Json;
+          partner_id: string;
+          provider: string;
+          result?: Database["public"]["Enums"]["identity_verification_result"];
+          session_kind: string;
+          updated_at?: string;
+          warning_codes?: string[];
+        };
+        Update: {
+          completed_at?: string | null;
+          created_at?: string;
+          created_by?: string;
+          external_session_id?: string;
+          face_match_passed?: boolean | null;
+          id?: string;
+          liveness_passed?: boolean | null;
+          normalized_attributes?: Json;
+          partner_id?: string;
+          provider?: string;
+          result?: Database["public"]["Enums"]["identity_verification_result"];
+          session_kind?: string;
+          updated_at?: string;
+          warning_codes?: string[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_identity_verifications_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_identity_verifications_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_identity_webhook_events: {
+        Row: {
+          event_id: string;
+          external_session_id: string;
+          occurred_at: string;
+          payload_sha256: string;
+          processed_at: string;
+          provider: string;
+          result: Database["public"]["Enums"]["identity_verification_result"];
+          verification_id: string;
+        };
+        Insert: {
+          event_id: string;
+          external_session_id: string;
+          occurred_at: string;
+          payload_sha256: string;
+          processed_at?: string;
+          provider: string;
+          result: Database["public"]["Enums"]["identity_verification_result"];
+          verification_id: string;
+        };
+        Update: {
+          event_id?: string;
+          external_session_id?: string;
+          occurred_at?: string;
+          payload_sha256?: string;
+          processed_at?: string;
+          provider?: string;
+          result?: Database["public"]["Enums"]["identity_verification_result"];
+          verification_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_identity_webhook_events_verification_id_fkey";
+            columns: ["verification_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_identity_verifications";
             referencedColumns: ["id"];
           },
         ];
@@ -5501,6 +5759,7 @@ export type Database = {
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
           onboarding_step: number;
           phone: string | null;
+          privacy_accepted_at: string | null;
           rejected_at: string | null;
           representative_name: string | null;
           state: string | null;
@@ -5508,6 +5767,7 @@ export type Database = {
           submitted_at: string | null;
           suspended_at: string | null;
           tax_id: string | null;
+          terms_accepted_at: string | null;
           updated_at: string;
           user_id: string;
           verified_at: string | null;
@@ -5530,6 +5790,7 @@ export type Database = {
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
           onboarding_step?: number;
           phone?: string | null;
+          privacy_accepted_at?: string | null;
           rejected_at?: string | null;
           representative_name?: string | null;
           state?: string | null;
@@ -5537,6 +5798,7 @@ export type Database = {
           submitted_at?: string | null;
           suspended_at?: string | null;
           tax_id?: string | null;
+          terms_accepted_at?: string | null;
           updated_at?: string;
           user_id: string;
           verified_at?: string | null;
@@ -5559,6 +5821,7 @@ export type Database = {
           legal_type?: Database["public"]["Enums"]["partner_legal_type"];
           onboarding_step?: number;
           phone?: string | null;
+          privacy_accepted_at?: string | null;
           rejected_at?: string | null;
           representative_name?: string | null;
           state?: string | null;
@@ -5566,6 +5829,7 @@ export type Database = {
           submitted_at?: string | null;
           suspended_at?: string | null;
           tax_id?: string | null;
+          terms_accepted_at?: string | null;
           updated_at?: string;
           user_id?: string;
           verified_at?: string | null;
@@ -7798,7 +8062,7 @@ export type Database = {
         Returns: {
           analysis_version: string;
           average_price: number | null;
-          canonical_product_model_id: string;
+          canonical_product_model_id: string | null;
           checked_at: string | null;
           completed_by: string | null;
           confidence: Database["public"]["Enums"]["marketplace_market_confidence"];
@@ -7899,6 +8163,55 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"];
         }[];
       };
+      confirm_partner_fulfillment_shipment: {
+        Args: {
+          expected_version: number;
+          requested_carrier: string;
+          requested_fulfillment_id: string;
+          requested_handoff_at: string;
+          requested_idempotency_key: string;
+          requested_note: string;
+          requested_tracking_number: string;
+        };
+        Returns: {
+          acceptance_due_at: string | null;
+          activated_at: string | null;
+          cancellation_reason: string | null;
+          cancelled_at: string | null;
+          carrier: string | null;
+          carrier_handoff_actor_id: string | null;
+          carrier_handoff_due_at: string | null;
+          carrier_handoff_note: string | null;
+          completed_at: string | null;
+          confirmed_at: string | null;
+          created_at: string;
+          custody:
+            Database["public"]["Enums"]["marketplace_listing_custody"] | null;
+          delivered_at: string | null;
+          fulfillment_mode:
+            | Database["public"]["Enums"]["marketplace_listing_fulfillment"]
+            | null;
+          hold_reason: string | null;
+          id: string;
+          inventory_confirmation_due_at: string | null;
+          label_status: string | null;
+          order_id: string;
+          partner_id: string | null;
+          ready_for_carrier_at: string | null;
+          shipped_at: string | null;
+          source: Database["public"]["Enums"]["order_fulfillment_source"];
+          status: Database["public"]["Enums"]["marketplace_fulfillment_status"];
+          tracking_number: string | null;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "order_fulfillments";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       create_customer_checkout_order:
         | {
             Args: {
@@ -7922,7 +8235,7 @@ export type Database = {
               requested_cart_id: string;
               requested_idempotency_key: string;
               requested_save_address: boolean;
-              requested_saved_address_id: string | null;
+              requested_saved_address_id: string;
               requested_shipping_method_id: string;
             };
             Returns: {
@@ -7939,7 +8252,7 @@ export type Database = {
               requested_idempotency_key: string;
               requested_payment_method: Database["public"]["Enums"]["payment_method"];
               requested_save_address: boolean;
-              requested_saved_address_id: string | null;
+              requested_saved_address_id: string;
               requested_shipping_method_id: string;
             };
             Returns: {
@@ -8044,7 +8357,7 @@ export type Database = {
         Returns: {
           analysis_version: string;
           average_price: number | null;
-          canonical_product_model_id: string;
+          canonical_product_model_id: string | null;
           checked_at: string | null;
           completed_by: string | null;
           confidence: Database["public"]["Enums"]["marketplace_market_confidence"];
@@ -8136,7 +8449,7 @@ export type Database = {
           best_round_processing_share: number;
           calculated_public_price: number;
           calculation_version: string;
-          canonical_product_model_id: string;
+          canonical_product_model_id: string | null;
           commission_amount: number;
           commission_base: number;
           commission_rate_bps: number;
@@ -8161,6 +8474,11 @@ export type Database = {
           listing_version_id: string;
           lock_version: number;
           market_analysis_id: string | null;
+          market_analysis_override: boolean;
+          market_analysis_override_at: string | null;
+          market_analysis_override_by: string | null;
+          market_analysis_override_email: string | null;
+          market_analysis_override_reason: string | null;
           market_delta_bps: number | null;
           market_lower_bound: number | null;
           market_reference: number | null;
@@ -8409,7 +8727,7 @@ export type Database = {
           available: boolean;
           blocker_codes: string[];
           cart_item_id: string;
-          image_id: string | null;
+          image_id: string;
           listing_version_changed: boolean;
           price_changed: boolean;
         }[];
@@ -8435,10 +8753,13 @@ export type Database = {
       get_customer_order_fulfillment_summary: {
         Args: { requested_order_id: string };
         Returns: {
+          carrier: string;
           fulfillment_id: string;
           item_count: number;
+          shipped_at: string;
           source: Database["public"]["Enums"]["order_fulfillment_source"];
           status: Database["public"]["Enums"]["marketplace_fulfillment_status"];
+          tracking_number: string;
         }[];
       };
       get_customer_shipping_method: {
@@ -8545,42 +8866,6 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
-      };
-      get_public_marketplace_catalog: {
-        Args: { requested_slug?: string };
-        Returns: {
-          accessories_included: Json;
-          available_quantity: number;
-          bag_type: Database["public"]["Enums"]["golf_bag_type"] | null;
-          brand_id: string | null;
-          brand_name: string | null;
-          category_id: string;
-          category_name: string;
-          club_type: Database["public"]["Enums"]["golf_club_type"] | null;
-          condition: Database["public"]["Enums"]["product_condition"];
-          condition_grade:
-            Database["public"]["Enums"]["product_condition_grade"] | null;
-          condition_notes: string;
-          currency: string;
-          declared_defects: Json;
-          description: string;
-          fulfillment: Database["public"]["Enums"]["marketplace_listing_fulfillment"];
-          images: Json;
-          listing_id: string;
-          model_name: string | null;
-          pricing_quote_id: string;
-          product_family:
-            Database["public"]["Enums"]["golf_product_family"] | null;
-          public_price: number;
-          set_type: Database["public"]["Enums"]["golf_set_type"] | null;
-          slug: string;
-          specifications: Json;
-          title: string;
-        }[];
-      };
-      get_public_marketplace_image_path: {
-        Args: { requested_image_id: string; requested_listing_id: string };
-        Returns: { mime_type: string; storage_path: string }[];
       };
       get_own_partner_score_summary: {
         Args: never;
@@ -8719,6 +9004,7 @@ export type Database = {
       get_partner_marketplace_sales: {
         Args: { requested_fulfillment_id?: string };
         Returns: {
+          carrier: string;
           carrier_handoff_due_at: string;
           confirmed_at: string;
           created_at: string;
@@ -8732,7 +9018,9 @@ export type Database = {
           public_line_total: number;
           quantity: number;
           ready_for_carrier_at: string;
+          shipped_at: string;
           status: Database["public"]["Enums"]["marketplace_fulfillment_status"];
+          tracking_number: string;
           version: number;
         }[];
       };
@@ -8759,6 +9047,43 @@ export type Database = {
       get_product_pricing_private: {
         Args: { requested_product_id: string };
         Returns: Json;
+      };
+      get_public_marketplace_catalog: {
+        Args: { requested_slug?: string };
+        Returns: {
+          accessories_included: Json;
+          available_quantity: number;
+          bag_type: Database["public"]["Enums"]["golf_bag_type"];
+          brand_id: string;
+          brand_name: string;
+          category_id: string;
+          category_name: string;
+          club_type: Database["public"]["Enums"]["golf_club_type"];
+          condition: Database["public"]["Enums"]["product_condition"];
+          condition_grade: Database["public"]["Enums"]["product_condition_grade"];
+          condition_notes: string;
+          currency: unknown;
+          declared_defects: Json;
+          description: string;
+          fulfillment: Database["public"]["Enums"]["marketplace_listing_fulfillment"];
+          images: Json;
+          listing_id: string;
+          model_name: string;
+          pricing_quote_id: string;
+          product_family: Database["public"]["Enums"]["golf_product_family"];
+          public_price: unknown;
+          set_type: Database["public"]["Enums"]["golf_set_type"];
+          slug: string;
+          specifications: Json;
+          title: string;
+        }[];
+      };
+      get_public_marketplace_image_path: {
+        Args: { requested_image_id: string; requested_listing_id: string };
+        Returns: {
+          mime_type: string;
+          storage_path: string;
+        }[];
       };
       initialize_inventory: {
         Args: { requested_variant_id: string };
@@ -9007,6 +9332,86 @@ export type Database = {
         };
         Returns: undefined;
       };
+      prepare_marketplace_listing_price: {
+        Args: {
+          expected_lock_version: number;
+          requested_desired_public_price: unknown;
+          requested_idempotency_key: string;
+          requested_listing_id: string;
+          requested_market_analysis_id: string | null;
+        };
+        Returns: {
+          admin_fee_bps: number;
+          admin_fixed_fee: number;
+          admin_fixed_fee_amount: number;
+          admin_percentage_fee: number;
+          approval_reason: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
+          best_round_processing_share: number;
+          calculated_public_price: number;
+          calculation_version: string;
+          canonical_product_model_id: string | null;
+          commission_amount: number;
+          commission_base: number;
+          commission_rate_bps: number;
+          commission_tax_bps: number;
+          commission_vat: number;
+          config_version_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          desired_partner_net: number | null;
+          desired_public_price: number | null;
+          effective_partner_tier: Database["public"]["Enums"]["marketplace_partner_tier"];
+          effective_tier_override_id: string | null;
+          estimated_best_round_revenue: number;
+          estimated_partner_net: number;
+          expires_at: string;
+          gross_best_round_revenue: number;
+          id: string;
+          idempotency_key: string;
+          input_mode: Database["public"]["Enums"]["marketplace_pricing_input_mode"];
+          listing_id: string;
+          listing_version_id: string;
+          lock_version: number;
+          market_analysis_id: string | null;
+          market_analysis_override: boolean;
+          market_analysis_override_at: string | null;
+          market_analysis_override_by: string | null;
+          market_analysis_override_email: string | null;
+          market_analysis_override_reason: string | null;
+          market_delta_bps: number | null;
+          market_lower_bound: number | null;
+          market_reference: number | null;
+          market_tolerance_bps: number;
+          market_upper_bound: number | null;
+          meets_minimum_marketplace_revenue: boolean | null;
+          minimum_marketplace_revenue: number | null;
+          other_configured_fees: number;
+          partner_id: string;
+          partner_processing_share: number;
+          partner_processing_share_bps: number;
+          payment_fee_config_code: string;
+          payment_processing_bps: number;
+          payment_processing_fixed_fee: number;
+          processing_total: number;
+          quote_version: number;
+          score_snapshot_id: string | null;
+          status: Database["public"]["Enums"]["marketplace_pricing_quote_status"];
+          submitted_at: string | null;
+          tax_pass_through: number;
+          tier_source: Database["public"]["Enums"]["marketplace_tier_source"];
+          updated_at: string;
+          viability: Database["public"]["Enums"]["marketplace_price_viability"];
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_pricing_quotes";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       prepare_stripe_checkout_session: {
         Args: { requested_idempotency_key: string; requested_order_id: string };
         Returns: {
@@ -9019,6 +9424,19 @@ export type Database = {
           stripe_checkout_session_id: string;
           stripe_idempotency_key: string;
         }[];
+      };
+      process_partner_identity_webhook: {
+        Args: {
+          requested_attributes: Json;
+          requested_event_id: string;
+          requested_external_session_id: string;
+          requested_occurred_at: string;
+          requested_payload_sha256: string;
+          requested_provider: string;
+          requested_result: Database["public"]["Enums"]["identity_verification_result"];
+          requested_warning_codes: string[];
+        };
+        Returns: boolean;
       };
       process_stripe_webhook_event: {
         Args: {
@@ -9177,6 +9595,7 @@ export type Database = {
           partner_id: string;
           payout_id: string;
           provider: Database["public"]["Enums"]["marketplace_payout_provider"];
+          record_idempotency_key: string;
           recorded_by: string;
           status: Database["public"]["Enums"]["marketplace_partner_settlement_status"];
           transfer_date: string;
@@ -9184,6 +9603,82 @@ export type Database = {
         SetofOptions: {
           from: "*";
           to: "marketplace_partner_settlements";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      record_partner_document_analysis: {
+        Args: {
+          requested_analysis_version: string;
+          requested_document_id: string;
+          requested_extracted: Json;
+          requested_normalized_output: Json;
+          requested_result: Database["public"]["Enums"]["automatic_document_review_result"];
+          requested_warning_codes: string[];
+        };
+        Returns: {
+          analysis_version: string;
+          analyzed_at: string;
+          analyzed_by: string | null;
+          document_id: string;
+          extracted_address: string | null;
+          extracted_document_date: string | null;
+          extracted_document_type: string | null;
+          extracted_name: string | null;
+          extracted_rfc: string | null;
+          id: string;
+          normalized_output: Json;
+          official_qr_destination: string | null;
+          result: Database["public"]["Enums"]["automatic_document_review_result"];
+          warning_codes: string[];
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_document_analyses";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      record_partner_onboarding_consents: {
+        Args: {
+          expected_version: number;
+          requested_privacy_accepted: boolean;
+          requested_terms_accepted: boolean;
+        };
+        Returns: {
+          city: string | null;
+          commercial_name: string | null;
+          country_code: string | null;
+          created_at: string;
+          first_name: string | null;
+          fiscal_address_line_1: string | null;
+          fiscal_address_line_2: string | null;
+          fiscal_city: string | null;
+          fiscal_postal_code: string | null;
+          fiscal_state: string | null;
+          id: string;
+          last_name: string | null;
+          legal_name: string | null;
+          legal_type: Database["public"]["Enums"]["partner_legal_type"];
+          onboarding_step: number;
+          phone: string | null;
+          privacy_accepted_at: string | null;
+          rejected_at: string | null;
+          representative_name: string | null;
+          state: string | null;
+          status: Database["public"]["Enums"]["partner_status"];
+          submitted_at: string | null;
+          suspended_at: string | null;
+          tax_id: string | null;
+          terms_accepted_at: string | null;
+          updated_at: string;
+          user_id: string;
+          verified_at: string | null;
+          version: number;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_profiles";
           isOneToOne: true;
           isSetofReturn: false;
         };
@@ -9263,7 +9758,11 @@ export type Database = {
           requested_idempotency_key: string;
           requested_quantity: number;
         };
-        Returns: { cart_id: string; replayed: boolean; version: number }[];
+        Returns: {
+          cart_id: string;
+          replayed: boolean;
+          version: number;
+        }[];
       };
       register_marketplace_claim_evidence: {
         Args: {
@@ -9359,6 +9858,35 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      register_partner_identity_session: {
+        Args: {
+          requested_external_session_id: string;
+          requested_provider: string;
+          requested_session_kind: string;
+        };
+        Returns: {
+          completed_at: string | null;
+          created_at: string;
+          created_by: string;
+          external_session_id: string;
+          face_match_passed: boolean | null;
+          id: string;
+          liveness_passed: boolean | null;
+          normalized_attributes: Json;
+          partner_id: string;
+          provider: string;
+          result: Database["public"]["Enums"]["identity_verification_result"];
+          session_kind: string;
+          updated_at: string;
+          warning_codes: string[];
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_identity_verifications";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       register_partner_profile: {
         Args: {
           requested_legal_type: Database["public"]["Enums"]["partner_legal_type"];
@@ -9380,6 +9908,7 @@ export type Database = {
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
           onboarding_step: number;
           phone: string | null;
+          privacy_accepted_at: string | null;
           rejected_at: string | null;
           representative_name: string | null;
           state: string | null;
@@ -9387,6 +9916,7 @@ export type Database = {
           submitted_at: string | null;
           suspended_at: string | null;
           tax_id: string | null;
+          terms_accepted_at: string | null;
           updated_at: string;
           user_id: string;
           verified_at: string | null;
@@ -9627,7 +10157,7 @@ export type Database = {
         Returns: {
           analysis_version: string;
           average_price: number | null;
-          canonical_product_model_id: string;
+          canonical_product_model_id: string | null;
           checked_at: string | null;
           completed_by: string | null;
           confidence: Database["public"]["Enums"]["marketplace_market_confidence"];
@@ -9805,6 +10335,36 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      review_marketplace_submission: {
+        Args: {
+          expected_lock_version: number;
+          requested_decision: Database["public"]["Enums"]["marketplace_listing_status"];
+          requested_feedback: Json;
+          requested_internal_note?: string;
+          requested_listing_id: string;
+          requested_market_analysis_override?: boolean;
+          requested_reason: string;
+        };
+        Returns: {
+          approved_at: string | null;
+          approved_version_id: string | null;
+          archived_at: string | null;
+          created_at: string;
+          current_version_id: string | null;
+          id: string;
+          last_submitted_at: string | null;
+          lock_version: number;
+          partner_id: string;
+          status: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       review_order_payment: {
         Args: {
           expected_payment_version: number;
@@ -9968,6 +10528,7 @@ export type Database = {
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
           onboarding_step: number;
           phone: string | null;
+          privacy_accepted_at: string | null;
           rejected_at: string | null;
           representative_name: string | null;
           state: string | null;
@@ -9975,6 +10536,7 @@ export type Database = {
           submitted_at: string | null;
           suspended_at: string | null;
           tax_id: string | null;
+          terms_accepted_at: string | null;
           updated_at: string;
           user_id: string;
           verified_at: string | null;
@@ -10020,7 +10582,11 @@ export type Database = {
           requested_enabled: boolean;
           requested_reason: string;
         };
-        Returns: { audit_id: string; changed_at: string; enabled: boolean }[];
+        Returns: {
+          audit_id: string;
+          changed_at: string;
+          enabled: boolean;
+        }[];
       };
       stripe_checkout_test_mode_enabled: { Args: never; Returns: boolean };
       submit_bank_transfer: {
@@ -10111,6 +10677,32 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      submit_marketplace_listing_workflow: {
+        Args: {
+          expected_lock_version: number;
+          requested_listing_id: string;
+          requested_quote_id: string;
+        };
+        Returns: {
+          approved_at: string | null;
+          approved_version_id: string | null;
+          archived_at: string | null;
+          created_at: string;
+          current_version_id: string | null;
+          id: string;
+          last_submitted_at: string | null;
+          lock_version: number;
+          partner_id: string;
+          status: Database["public"]["Enums"]["marketplace_listing_status"];
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "marketplace_listings";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       submit_partner_for_review: {
         Args: { expected_version: number };
         Returns: {
@@ -10130,6 +10722,7 @@ export type Database = {
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
           onboarding_step: number;
           phone: string | null;
+          privacy_accepted_at: string | null;
           rejected_at: string | null;
           representative_name: string | null;
           state: string | null;
@@ -10137,6 +10730,7 @@ export type Database = {
           submitted_at: string | null;
           suspended_at: string | null;
           tax_id: string | null;
+          terms_accepted_at: string | null;
           updated_at: string;
           user_id: string;
           verified_at: string | null;
@@ -10173,7 +10767,9 @@ export type Database = {
           cancellation_reason: string | null;
           cancelled_at: string | null;
           carrier: string | null;
+          carrier_handoff_actor_id: string | null;
           carrier_handoff_due_at: string | null;
+          carrier_handoff_note: string | null;
           completed_at: string | null;
           confirmed_at: string | null;
           created_at: string;
@@ -10208,7 +10804,7 @@ export type Database = {
         Args: {
           expected_lock_version: number;
           requested_feedback?: Json;
-          requested_internal_note?: string | null;
+          requested_internal_note?: string;
           requested_listing_id: string;
           requested_reason: string;
           requested_status: Database["public"]["Enums"]["marketplace_listing_status"];
@@ -10251,7 +10847,7 @@ export type Database = {
           best_round_processing_share: number;
           calculated_public_price: number;
           calculation_version: string;
-          canonical_product_model_id: string;
+          canonical_product_model_id: string | null;
           commission_amount: number;
           commission_base: number;
           commission_rate_bps: number;
@@ -10276,6 +10872,11 @@ export type Database = {
           listing_version_id: string;
           lock_version: number;
           market_analysis_id: string | null;
+          market_analysis_override: boolean;
+          market_analysis_override_at: string | null;
+          market_analysis_override_by: string | null;
+          market_analysis_override_email: string | null;
+          market_analysis_override_reason: string | null;
           market_delta_bps: number | null;
           market_lower_bound: number | null;
           market_reference: number | null;
@@ -10356,7 +10957,9 @@ export type Database = {
           cancellation_reason: string | null;
           cancelled_at: string | null;
           carrier: string | null;
+          carrier_handoff_actor_id: string | null;
           carrier_handoff_due_at: string | null;
+          carrier_handoff_note: string | null;
           completed_at: string | null;
           confirmed_at: string | null;
           created_at: string;
@@ -10411,6 +11014,7 @@ export type Database = {
           legal_type: Database["public"]["Enums"]["partner_legal_type"];
           onboarding_step: number;
           phone: string | null;
+          privacy_accepted_at: string | null;
           rejected_at: string | null;
           representative_name: string | null;
           state: string | null;
@@ -10418,6 +11022,7 @@ export type Database = {
           submitted_at: string | null;
           suspended_at: string | null;
           tax_id: string | null;
+          terms_accepted_at: string | null;
           updated_at: string;
           user_id: string;
           verified_at: string | null;
@@ -10640,6 +11245,7 @@ export type Database = {
       acquisition_channel: "purchase" | "trade_in";
       advisory_request_status: "new" | "in_contact" | "resolved" | "closed";
       advisory_session_status: "active" | "completed" | "abandoned";
+      automatic_document_review_result: "PASSED" | "REVIEW_REQUIRED" | "FAILED";
       cart_status: "active" | "converted" | "abandoned";
       catalog_record_status: "active" | "archived";
       contact_channel: "email" | "phone" | "whatsapp";
@@ -10655,6 +11261,8 @@ export type Database = {
         "ladies" | "senior" | "regular" | "stiff" | "x_stiff" | "other";
       golf_shaft_material: "graphite" | "steel" | "other";
       golfer_handedness: "right" | "left";
+      identity_verification_result:
+        "PENDING" | "PASSED" | "REVIEW_REQUIRED" | "FAILED";
       inventory_movement_type:
         | "receipt"
         | "adjustment"
@@ -10737,7 +11345,8 @@ export type Database = {
         | "RETURN"
         | "ADJUSTMENT";
       marketplace_listing_custody: "PARTNER_CUSTODY" | "BEST_ROUND_CUSTODY";
-      marketplace_listing_evaluation_source: "HUMAN" | "AI" | "HYBRID";
+      marketplace_listing_evaluation_source:
+        "HUMAN" | "AI" | "HYBRID" | "RULES";
       marketplace_listing_evaluation_status:
         "NOT_STARTED" | "PENDING" | "COMPLETED" | "FAILED";
       marketplace_listing_fulfillment:
@@ -11110,6 +11719,7 @@ export const Constants = {
       acquisition_channel: ["purchase", "trade_in"],
       advisory_request_status: ["new", "in_contact", "resolved", "closed"],
       advisory_session_status: ["active", "completed", "abandoned"],
+      automatic_document_review_result: ["PASSED", "REVIEW_REQUIRED", "FAILED"],
       cart_status: ["active", "converted", "abandoned"],
       catalog_record_status: ["active", "archived"],
       contact_channel: ["email", "phone", "whatsapp"],
@@ -11142,6 +11752,12 @@ export const Constants = {
       ],
       golf_shaft_material: ["graphite", "steel", "other"],
       golfer_handedness: ["right", "left"],
+      identity_verification_result: [
+        "PENDING",
+        "PASSED",
+        "REVIEW_REQUIRED",
+        "FAILED",
+      ],
       inventory_movement_type: [
         "receipt",
         "adjustment",

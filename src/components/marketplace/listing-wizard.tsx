@@ -8,6 +8,7 @@ const steps = [
   ["detalles", "Detalles"],
   ["condicion", "Condición"],
   ["inventario", "Inventario"],
+  ["precio", "Precio"],
   ["revision", "Revisión"],
 ] as const;
 

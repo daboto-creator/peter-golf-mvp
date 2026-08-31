@@ -52,6 +52,10 @@ begin
     (gen_random_uuid(),listing_a,'6b000000-0000-4000-8000-000000000001'::uuid,version_a),
     (gen_random_uuid(),listing_a,'6b000000-0000-4000-8000-000000000001'::uuid,version_a),
     (gen_random_uuid(),listing_a,'6b000000-0000-4000-8000-000000000001'::uuid,version_a),
+    (gen_random_uuid(),listing_a,'6b000000-0000-4000-8000-000000000001'::uuid,version_a),
+    (gen_random_uuid(),listing_a,'6b000000-0000-4000-8000-000000000001'::uuid,version_a),
+    (gen_random_uuid(),listing_b,'6b000000-0000-4000-8000-000000000002'::uuid,version_b),
+    (gen_random_uuid(),listing_b,'6b000000-0000-4000-8000-000000000002'::uuid,version_b),
     (gen_random_uuid(),listing_b,'6b000000-0000-4000-8000-000000000002'::uuid,version_b),
     (gen_random_uuid(),listing_b,'6b000000-0000-4000-8000-000000000002'::uuid,version_b),
     (gen_random_uuid(),listing_b,'6b000000-0000-4000-8000-000000000002'::uuid,version_b)
@@ -60,7 +64,7 @@ begin
     version_id,image_id,image_type,requirement,sort_order,alt_text,is_sensitive
   )
   select image.listing_version_id,image.id,
-    (array['face','crown','sole'])[row_number() over(partition by image.listing_id order by image.id)],
+    (array['face','crown','sole','shaft','grip'])[row_number() over(partition by image.listing_id order by image.id)],
     'REQUIRED',row_number() over(partition by image.listing_id order by image.id)-1,
     'Vista aprobada del driver',false
   from (
@@ -237,6 +241,17 @@ do $$ declare f public.order_fulfillments; replay public.order_fulfillments; beg
     '6f000000-0000-4000-8000-000000000001');
   if replay.id<>f.id or replay.version<>f.version then
     raise exception 'Partner fulfillment transition replay was not idempotent'; end if;
+  f:=public.transition_partner_fulfillment(f.id,f.version,'START_PREPARING','Preparando producto',
+    '6f000000-0000-4000-8000-000000000002');
+  f:=public.transition_partner_fulfillment(f.id,f.version,'READY_FOR_CARRIER','Producto listo',
+    '6f000000-0000-4000-8000-000000000003');
+  f:=public.confirm_partner_fulfillment_shipment(f.id,f.version,'Paquetería Test','TRACK-TEST-001',
+    now(),'Entregado al transportista','6f000000-0000-4000-8000-000000000004');
+  replay:=public.confirm_partner_fulfillment_shipment(f.id,f.version-1,'Paquetería Test','TRACK-TEST-001',
+    now(),'Entregado al transportista','6f000000-0000-4000-8000-000000000004');
+  if f.status<>'SHIPPED' or f.carrier<>'Paquetería Test' or f.tracking_number<>'TRACK-TEST-001'
+    or replay.id<>f.id or replay.version<>f.version then
+    raise exception 'Partner shipment confirmation or replay failed'; end if;
   begin
     update public.order_fulfillments set status='COMPLETED';
     raise exception 'Partner bypassed fulfillment RPC';

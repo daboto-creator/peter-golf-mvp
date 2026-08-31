@@ -159,45 +159,57 @@ export async function getMarketplaceListingDetail(listingId: string) {
   const listing = listingResult.data;
   const currentVersionId = listing.current_version_id;
   if (!currentVersionId) return { listing, error: null };
-  const [version, assignments, feedback, history, inventory, readiness] =
-    await Promise.all([
-      client
-        .from("marketplace_listing_versions")
-        .select(
-          "*, categories(name, slug, category_spec_profiles(family, club_type, bag_type, set_type)), brands(name), catalog_product_models(model_name, brand_id)",
-        )
-        .eq("id", currentVersionId)
-        .maybeSingle(),
-      client
-        .from("marketplace_listing_version_images")
-        .select(
-          "version_id, image_id, image_type, requirement, sort_order, alt_text, is_sensitive, marketplace_listing_images(storage_path, mime_type, size_bytes, width_pixels, height_pixels)",
-        )
-        .eq("version_id", currentVersionId)
-        .order("sort_order"),
-      client
-        .from("marketplace_listing_review_requests")
-        .select("id, area, visibility, status, comment, created_at")
-        .eq("listing_id", listingId)
-        .order("created_at", { ascending: false }),
-      client
-        .from("marketplace_listing_status_history")
-        .select(
-          "id, listing_version_id, from_status, to_status, reason, lock_version, created_at",
-        )
-        .eq("listing_id", listingId)
-        .order("created_at", { ascending: false }),
-      client
-        .from("marketplace_listing_inventory")
-        .select("*")
-        .eq("listing_id", listingId)
-        .maybeSingle(),
-      client
-        .rpc("get_marketplace_listing_readiness", {
-          requested_listing_id: listingId,
-        })
-        .maybeSingle(),
-    ]);
+  const [
+    version,
+    assignments,
+    feedback,
+    history,
+    inventory,
+    readiness,
+    publicationReadiness,
+  ] = await Promise.all([
+    client
+      .from("marketplace_listing_versions")
+      .select(
+        "*, categories(name, slug, category_spec_profiles(family, club_type, bag_type, set_type)), brands(name), catalog_product_models(model_name, brand_id)",
+      )
+      .eq("id", currentVersionId)
+      .maybeSingle(),
+    client
+      .from("marketplace_listing_version_images")
+      .select(
+        "version_id, image_id, image_type, requirement, sort_order, alt_text, is_sensitive, marketplace_listing_images(storage_path, mime_type, size_bytes, width_pixels, height_pixels, sha256)",
+      )
+      .eq("version_id", currentVersionId)
+      .order("sort_order"),
+    client
+      .from("marketplace_listing_review_requests")
+      .select("id, area, visibility, status, comment, created_at")
+      .eq("listing_id", listingId)
+      .order("created_at", { ascending: false }),
+    client
+      .from("marketplace_listing_status_history")
+      .select(
+        "id, listing_version_id, from_status, to_status, reason, lock_version, created_at",
+      )
+      .eq("listing_id", listingId)
+      .order("created_at", { ascending: false }),
+    client
+      .from("marketplace_listing_inventory")
+      .select("*")
+      .eq("listing_id", listingId)
+      .maybeSingle(),
+    client
+      .rpc("get_marketplace_listing_readiness", {
+        requested_listing_id: listingId,
+      })
+      .maybeSingle(),
+    client
+      .rpc("get_marketplace_publication_readiness", {
+        requested_listing_id: listingId,
+      })
+      .maybeSingle(),
+  ]);
   const paths = (assignments.data ?? []).flatMap((assignment) => {
     const path = assignment.marketplace_listing_images?.storage_path;
     return path ? [path] : [];
@@ -214,13 +226,15 @@ export async function getMarketplaceListingDetail(listingId: string) {
     history: history.data ?? [],
     inventory: inventory.data,
     readiness: readiness.data,
+    publicationReadiness: publicationReadiness.data,
     error:
       version.error ??
       assignments.error ??
       feedback.error ??
       history.error ??
       inventory.error ??
-      readiness.error,
+      readiness.error ??
+      publicationReadiness.error,
   };
 }
 

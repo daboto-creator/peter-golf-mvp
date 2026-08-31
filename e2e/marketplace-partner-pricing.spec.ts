@@ -17,12 +17,23 @@ test.describe("Marketplace Partner Pricing @mutating", () => {
 
   test.beforeAll(() => {
     execFileSync("npm", ["run", "supabase:reset"], { stdio: "ignore" });
+    execFileSync(
+      "curl",
+      [
+        "-fsS",
+        "--retry",
+        "20",
+        "--retry-delay",
+        "1",
+        "http://127.0.0.1:54321/auth/v1/health",
+      ],
+      { stdio: "ignore" },
+    );
     preparePricingScenario();
   });
 
-  test("Partner calculates transparent economics and Operations approves without publishing", async ({
+  test("Partner saves deterministic economics inside the single submission flow", async ({
     page,
-    browser,
     isMobile,
   }) => {
     test.skip(isMobile, "The mutating approval path runs once on Desktop.");
@@ -32,57 +43,29 @@ test.describe("Marketplace Partner Pricing @mutating", () => {
       `/partner/publicaciones/${listingId}/precio`,
     );
     await expect(
-      page.getByRole("heading", { name: "Titleist GT3 Driver 9 Regular" }),
+      page.getByRole("heading", { name: "Define tu precio" }),
     ).toBeVisible();
-    await page.getByLabel("Precio al cliente (MXN)").fill("10000");
-    await page.getByRole("button", { name: "Calcular propuesta" }).click();
-    await expect(page.getByText("Economía calculada")).toBeVisible();
-    await expect(page.getByText("ALBATROSS · comisión 12%")).toBeVisible();
+    await page.getByLabel("Tu precio de venta (MXN)").fill("10000");
+    await page
+      .getByRole("button", { name: "Calcular y guardar precio" })
+      .click();
+    await expect(page.getByText("Tu resultado")).toBeVisible();
     await expect(page.getByText("Comisión Best Round")).toBeVisible();
-    await expect(page.getByText("IVA sobre comisión")).toBeVisible();
+    await expect(page.getByText("IVA de comisión")).toBeVisible();
+    await expect(page.getByText("Fee procesamiento")).toBeVisible();
     await expect(page.getByText("Recibirías aproximadamente")).toBeVisible();
+    await expect(page.getByText("parte del Partner")).toHaveCount(0);
+    await expect(page.getByText("parte Best Round")).toHaveCount(0);
     expect(
       sqlValue(
         `select effective_partner_tier||'|'||tier_source||'|'||commission_rate_bps||'|'||coalesce(effective_tier_override_id::text,'') from public.marketplace_pricing_quotes where listing_id='${listingId}' order by created_at desc limit 1`,
       ),
     ).toBe("ALBATROSS|OVERRIDE|1200|45000000-0000-4000-8000-000000000021");
-    await page.getByRole("button", { name: "Aceptar esta propuesta" }).click();
-    await expect(
-      page.getByText("Workflow de pricing actualizado"),
-    ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Solicitar revisión Best Round" })
-      .click();
-
-    const quoteId = sqlValue(
-      `select id from public.marketplace_pricing_quotes where listing_id='${listingId}' order by created_at desc limit 1`,
-    );
-    const operations = await browser.newContext();
-    const operationsPage = await operations.newPage();
-    await login(
-      operationsPage,
-      operatorEmail,
-      `/operacion/marketplace/precios/${quoteId}`,
-    );
-    await expect(
-      operationsPage.getByText("Snapshot financiero determinístico"),
-    ).toBeVisible();
-    await operationsPage
-      .getByLabel("Motivo obligatorio")
-      .first()
-      .fill("Economía determinística aprobada en E2E");
-    await operationsPage
-      .getByRole("button", { name: "Aprobar pricing" })
-      .click();
-    await expect(
-      operationsPage.getByText("Partner · APPROVED · versión listing 1"),
-    ).toBeVisible();
     expect(
       sqlValue(
-        `select status from public.marketplace_listings where id='${listingId}'`,
+        `select status from public.marketplace_pricing_quotes where listing_id='${listingId}' order by created_at desc limit 1`,
       ),
-    ).toBe("APPROVED");
-    await operations.close();
+    ).toBe("DRAFT");
   });
 
   test("Pricing breakdown has no horizontal overflow on phones", async ({
@@ -95,7 +78,7 @@ test.describe("Marketplace Partner Pricing @mutating", () => {
       partnerEmail,
       `/partner/publicaciones/${listingId}/precio`,
     );
-    await expect(page.getByText("Referencia Best Round")).toBeVisible();
+    await expect(page.getByText("Best Round Intelligence")).toBeVisible();
     const overflow = await page.evaluate(() => ({
       width: document.documentElement.scrollWidth,
       viewport: window.innerWidth,
@@ -137,9 +120,9 @@ function preparePricingScenario() {
       select id into category_id from public.categories where slug='driver';
       insert into public.catalog_product_models (id,brand_id,category_id,model_name,normalized_model_name) values (model_id,brand_id,category_id,'E2E GT3','e2e-gt3');
       insert into public.marketplace_listings (id,partner_id,status) values ('${listingId}','45000000-0000-4000-8000-000000000011','DRAFT');
-      insert into public.marketplace_listing_versions (id,listing_id,version_number,state,canonical_model_id,brand_id,category_id,title,condition,condition_grade,condition_notes,defects_acknowledged,specifications,quantity,submitted_at,reviewed_at,created_by)
-        values (version_id,'${listingId}',1,'APPROVED',model_id,brand_id,category_id,'Titleist GT3 Driver 9 Regular','used','excellent','Approved E2E condition',true,'{"loft_degrees":9}',1,now(),now(),'45000000-0000-4000-8000-000000000002');
-      update public.marketplace_listings set status='APPROVED',current_version_id=version_id,approved_version_id=version_id,approved_at=now() where id='${listingId}';
+      insert into public.marketplace_listing_versions (id,listing_id,version_number,state,canonical_model_id,brand_id,category_id,title,condition,condition_grade,condition_notes,defects_acknowledged,specifications,quantity,created_by)
+        values (version_id,'${listingId}',1,'DRAFT',model_id,brand_id,category_id,'Titleist GT3 Driver 9 Regular','used','excellent','Approved E2E condition',true,'{"loft_degrees":9}',1,'45000000-0000-4000-8000-000000000001');
+      update public.marketplace_listings set current_version_id=version_id where id='${listingId}';
       insert into public.marketplace_listing_inventory (listing_id,quantity_on_hand) values ('${listingId}',1);
     end $$;
   `);

@@ -18,6 +18,13 @@ import {
   ClaimEvidenceForm,
 } from "@/components/marketplace/claim-action-form";
 import type { PartnerActionState } from "@/lib/marketplace/partner-action-state";
+import { fulfillmentStatusLabel } from "@/lib/marketplace/presentation";
+
+function customerClaimStatus(status: string) {
+  if (status === "RESOLVED") return "Resuelto";
+  if (status === "CANCELLED") return "Cerrado";
+  return "En revisión";
+}
 
 export function CustomerOrderDetail({
   order,
@@ -30,7 +37,10 @@ export function CustomerOrderDetail({
     fulfillment_id: string;
     item_count: number;
     source: "BEST_ROUND" | "PARTNER";
-    status: string;
+    status: keyof typeof fulfillmentStatusLabel;
+    carrier: string | null;
+    tracking_number: string | null;
+    shipped_at: string | null;
   }[];
   paymentControls?: {
     mode: "disabled" | "test";
@@ -149,8 +159,30 @@ export function CustomerOrderDetail({
                   {fulfillment.item_count}{" "}
                   {fulfillment.item_count === 1 ? "artículo" : "artículos"}
                   {" · "}
-                  {fulfillmentStatusLabel(fulfillment.status)}
+                  {fulfillmentStatusLabel[fulfillment.status]}
                 </p>
+                {fulfillment.tracking_number ? (
+                  <dl className="mt-3 space-y-1 text-sm">
+                    <div>
+                      <dt className="inline font-medium">Transportista: </dt>
+                      <dd className="inline">{fulfillment.carrier}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium">Tracking: </dt>
+                      <dd className="inline">{fulfillment.tracking_number}</dd>
+                    </div>
+                    {fulfillment.shipped_at ? (
+                      <div>
+                        <dt className="inline font-medium">
+                          Entregado al transportista:{" "}
+                        </dt>
+                        <dd className="inline">
+                          {date(fulfillment.shipped_at)}
+                        </dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -170,6 +202,9 @@ export function CustomerOrderDetail({
           {claimControls.items.map((item) => (
             <div key={item.orderItemId} className="space-y-3 border-t pt-4">
               <p className="font-medium">{item.listingTitle}</p>
+              {item.acceptanceStatus === "PENDING" ? (
+                <p className="text-sm font-medium">Tu pedido fue entregado</p>
+              ) : null}
               {item.acceptanceStatus === "PENDING" && !item.claimStatus ? (
                 <BuyerAcceptanceForm
                   acceptAction={claimControls.acceptAction}
@@ -182,7 +217,9 @@ export function CustomerOrderDetail({
                 item.claimStatus !== "RESOLVED" &&
                 item.claimStatus !== "CANCELLED" ? (
                 <>
-                  <p className="text-sm">Estado: Reclamo {item.claimStatus}</p>
+                  <p className="text-sm">
+                    Estado: {customerClaimStatus(item.claimStatus)}
+                  </p>
                   {item.claimId ? (
                     <ClaimEvidenceForm
                       action={claimControls.evidenceAction}
@@ -195,7 +232,7 @@ export function CustomerOrderDetail({
                 <p className="text-sm">
                   Estado:{" "}
                   {item.claimStatus
-                    ? `Reclamo ${item.claimStatus}`
+                    ? customerClaimStatus(item.claimStatus)
                     : item.acceptanceStatus}
                 </p>
               )}
@@ -304,19 +341,4 @@ function date(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
-}
-
-function fulfillmentStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    PENDING_PAYMENT: "Procesando",
-    AWAITING_PARTNER_CONFIRMATION: "Confirmando disponibilidad",
-    PREPARING: "Preparando",
-    READY_FOR_HANDOFF: "Listo para envío",
-    SHIPPED: "Enviado",
-    DELIVERED: "Entregado",
-    ACCEPTANCE_PENDING: "Confirmación de entrega",
-    COMPLETED: "Completado",
-    CLAIM_OPEN: "Problema reportado",
-  };
-  return labels[status] ?? "En proceso";
 }

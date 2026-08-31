@@ -73,6 +73,48 @@ function optionalMoney(raw: string): number | null {
   return parseMoneyToMinorUnits(raw);
 }
 
+export async function prepareMarketplaceListingPriceAction(
+  _previous: PartnerActionState,
+  formData: FormData,
+): Promise<PartnerActionState> {
+  const listingId = uuid.safeParse(value(formData, "listing_id"));
+  const lockVersion = positiveVersion.safeParse(
+    value(formData, "lock_version"),
+  );
+  const analysisId = z
+    .union([z.uuid(), z.literal("")])
+    .safeParse(value(formData, "market_analysis_id"));
+  const idempotencyKey = uuid.safeParse(value(formData, "idempotency_key"));
+  const desiredPublicPrice = optionalMoney(
+    value(formData, "desired_public_price"),
+  );
+  if (
+    !listingId.success ||
+    !lockVersion.success ||
+    !analysisId.success ||
+    !idempotencyKey.success ||
+    !desiredPublicPrice
+  )
+    return { status: "error", message: "Indica un precio de venta válido." };
+  const { client } = await requireVerifiedMarketplacePartner(
+    `/partner/publicaciones/${listingId.data}/precio`,
+  );
+  const result = await client.rpc("prepare_marketplace_listing_price", {
+    requested_listing_id: listingId.data,
+    expected_lock_version: lockVersion.data,
+    requested_desired_public_price: desiredPublicPrice,
+    requested_market_analysis_id: analysisId.data || null,
+    requested_idempotency_key: idempotencyKey.data,
+  });
+  if (result.error) return failure(result.error.message);
+  revalidatePath(`/partner/publicaciones/${listingId.data}/precio`);
+  revalidatePath(`/partner/publicaciones/${listingId.data}/revision`);
+  return {
+    status: "success",
+    message: "Precio y resultado financiero guardados.",
+  };
+}
+
 export async function requestMarketplaceAnalysisAction(
   _previous: PartnerActionState,
   formData: FormData,

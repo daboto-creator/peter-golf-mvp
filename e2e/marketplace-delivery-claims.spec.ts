@@ -32,6 +32,14 @@ test.describe("Marketplace delivery acceptance and claims @mutating", () => {
     await expect(page.getByRole("heading", { name: /PG-/ })).toBeVisible();
     const accept = page.getByRole("button", { name: "Todo correcto" }).first();
     await accept.click();
+    await expect(
+      page.getByText(
+        "Al confirmar, indicas que recibiste el producto conforme a la publicación y Best Round podrá continuar con el pago al Partner.",
+      ),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Confirmar que todo está correcto" })
+      .click();
     await expect(page.getByText("Estado: BUYER_ACCEPTED")).toBeVisible();
 
     const problem = page.getByRole("button", { name: "Enviar a Best Round" });
@@ -41,7 +49,7 @@ test.describe("Marketplace delivery acceptance and claims @mutating", () => {
       .getByPlaceholder("Describe brevemente qué ocurrió")
       .fill("El loft recibido no coincide con el snapshot de compra.");
     await problem.click();
-    await expect(page.getByText("Estado: Reclamo OPEN")).toBeVisible();
+    await expect(page.getByText("Estado: En revisión")).toBeVisible();
     expect(
       sqlValue(
         "select count(*)||'|'||(select count(*) from public.marketplace_partner_holds where source='CLAIM' and status='ACTIVE') from public.marketplace_claims",

@@ -21,8 +21,8 @@ const transitions: Record<PartnerStatus, Array<[string, string]>> = {
   REGISTERED: [["IDENTITY_PENDING", "Solicitar completar identidad"]],
   IDENTITY_PENDING: [],
   UNDER_REVIEW: [
-    ["IDENTITY_PENDING", "Solicitar cambios"],
-    ["VERIFIED", "Verificar"],
+    ["VERIFIED", "Verificar Partner"],
+    ["IDENTITY_PENDING", "Solicitar corrección"],
     ["REJECTED", "Rechazar"],
   ],
   VERIFIED: [["SUSPENDED", "Suspender"]],
@@ -43,6 +43,20 @@ export default async function PartnerOperationsDetailPage({
   const result = await getPartnerForOperations(id);
   if (!result.partner || result.error) notFound();
   const partner = result.partner;
+  const latestIdentity = result.identity[0];
+  const analysesByDocument = new Map<
+    string,
+    (typeof result.analyses)[number]
+  >();
+  for (const analysis of result.analyses) {
+    if (!analysesByDocument.has(analysis.document_id)) {
+      analysesByDocument.set(analysis.document_id, analysis);
+    }
+  }
+  const warnings = [
+    ...(latestIdentity?.warning_codes ?? []),
+    ...result.analyses.flatMap((analysis) => analysis.warning_codes),
+  ];
   return (
     <div className="space-y-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -109,6 +123,80 @@ export default async function PartnerOperationsDetailPage({
           </Card>
           <Card>
             <CardHeader>
+              <CardTitle>Revisión consolidada</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+              <p>
+                <strong>Tipo legal:</strong>{" "}
+                {legalTypeCopy[partner.legal_type].label}
+              </p>
+              <p>
+                <strong>Validación de identidad:</strong>{" "}
+                {latestIdentity?.result ?? "Pendiente"}
+              </p>
+              <p>
+                <strong>Coincidencia de nombre:</strong>{" "}
+                {latestIdentity?.normalized_attributes
+                  ? "Revisar evidencia normalizada"
+                  : "Pendiente"}
+              </p>
+              <p>
+                <strong>Prueba de vida:</strong>{" "}
+                {partner.legal_type === "LEGAL_ENTITY"
+                  ? "No requerida"
+                  : latestIdentity?.liveness_passed
+                    ? "Recibida"
+                    : "Pendiente"}
+              </p>
+              <p>
+                <strong>Face match 1:1:</strong>{" "}
+                {partner.legal_type === "LEGAL_ENTITY"
+                  ? "No requerido"
+                  : latestIdentity?.face_match_passed
+                    ? "Recibido"
+                    : "Pendiente"}
+              </p>
+              <p>
+                <strong>CSF / RFC:</strong>{" "}
+                {result.analyses.some((entry) => entry.extracted_rfc)
+                  ? "Analizado"
+                  : "Pendiente de análisis"}
+              </p>
+              <p>
+                <strong>SAT QR:</strong>{" "}
+                {result.analyses.some((entry) => entry.official_qr_destination)
+                  ? "Destino oficial registrado"
+                  : "Pendiente / no aplica"}
+              </p>
+              <p>
+                <strong>Documento migratorio:</strong>{" "}
+                {partner.country_code === "MX"
+                  ? "No aplica"
+                  : result.documents.some(
+                        (entry) =>
+                          entry.document_kind === "immigration_document",
+                      )
+                    ? "Recibido"
+                    : "Pendiente"}
+              </p>
+              <p className="sm:col-span-2">
+                <strong>Recomendación:</strong>{" "}
+                {warnings.length
+                  ? "Revisión humana requerida"
+                  : latestIdentity?.result === "PASSED" ||
+                      partner.legal_type === "LEGAL_ENTITY"
+                    ? "Evidencia lista para validación humana"
+                    : "Esperar evidencia"}
+              </p>
+              {warnings.length ? (
+                <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 sm:col-span-2">
+                  <strong>Alertas:</strong> {warnings.join(", ")}
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
               <CardTitle>Documentos</CardTitle>
             </CardHeader>
             <CardContent>
@@ -151,6 +239,16 @@ export default async function PartnerOperationsDetailPage({
                           solicitud.
                         </p>
                       )}
+                      {analysesByDocument.get(document.id) ? (
+                        <p className="mt-3 rounded-lg bg-black/5 p-3 text-xs">
+                          Análisis automático:{" "}
+                          {analysesByDocument.get(document.id)!.result}
+                          {analysesByDocument.get(document.id)!.warning_codes
+                            .length
+                            ? ` · ${analysesByDocument.get(document.id)!.warning_codes.join(", ")}`
+                            : ""}
+                        </p>
+                      ) : null}
                     </article>
                   ))}
                 </div>

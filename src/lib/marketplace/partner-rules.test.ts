@@ -17,7 +17,7 @@ import {
 describe("Partner onboarding rules", () => {
   it("maps every backend status and legal type to friendly UI copy", () => {
     expect(Object.keys(partnerStatusCopy)).toHaveLength(6);
-    expect(legalTypeCopy.LEGAL_ENTITY.label).toContain("Empresa");
+    expect(legalTypeCopy.LEGAL_ENTITY.label).toBe("Persona Moral");
   });
 
   it("validates person and company basic profiles", () => {

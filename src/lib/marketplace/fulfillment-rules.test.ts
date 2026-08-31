@@ -21,6 +21,9 @@ describe("Marketplace checkout and fulfillment rules", () => {
       "READY_FOR_CARRIER",
     );
     expect(
+      partnerFulfillmentTransition("READY_FOR_CARRIER", "CONFIRM_SHIPMENT"),
+    ).toBe("SHIPPED");
+    expect(
       partnerFulfillmentTransition("PENDING_CONFIRMATION", "SHIPPED"),
     ).toBeNull();
   });

@@ -24,7 +24,7 @@ export default async function PartnerReviewPage() {
     <div className="mx-auto max-w-3xl space-y-7">
       <header>
         <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
-          Paso 5 de 5
+          Paso 4 de 4 · Listo
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Revisa tu solicitud</h1>
         <p className="text-muted-foreground mt-3">

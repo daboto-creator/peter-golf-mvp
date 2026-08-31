@@ -13,14 +13,14 @@ export default async function PartnerFiscalPage() {
     <div className="mx-auto max-w-3xl space-y-7">
       <header>
         <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
-          Paso 3 de 5
+          Paso 3 de 4 · Documentos
         </p>
         <h1 className="mt-3 text-3xl font-semibold">
-          Información fiscal básica
+          Datos para validar tus documentos
         </h1>
         <p className="text-muted-foreground mt-3">
-          Pedimos únicamente la información técnica necesaria para preparar la
-          revisión.
+          Usaremos esta información para comprobar la consistencia de tu
+          Constancia de Situación Fiscal y tus documentos.
         </p>
       </header>
       <FiscalPartnerForm

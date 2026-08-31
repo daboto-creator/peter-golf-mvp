@@ -43,7 +43,9 @@ test.describe("Marketplace Partner payouts @mutating", () => {
     test.skip(isMobile, "The settlement detail path runs once on Desktop.");
     await login(page, partnerEmail, "/partner/pagos");
     await expect(page.getByText("Próximos pagos")).toBeVisible();
-    await expect(page.getByText("Pagado", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Pagado", { exact: true }).first(),
+    ).toBeVisible();
     await expect(
       page.getByText(/Withdraw|Cash out|Solicitar transferencia/i),
     ).toHaveCount(0);
