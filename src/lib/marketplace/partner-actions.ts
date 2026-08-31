@@ -16,6 +16,10 @@ import {
 } from "@/lib/auth/marketplace-authorization";
 import type { PartnerActionState } from "@/lib/marketplace/partner-action-state";
 import {
+  identityOnboardingNextRoute,
+  resolveIdentityOnboardingState,
+} from "@/lib/marketplace/identity-onboarding";
+import {
   PARTNER_KYC_BUCKET,
   basicPartnerSchema,
   documentKindCopy,
@@ -151,6 +155,30 @@ export async function startIdentityVerificationAction(
   const { client, partner, user } = await requireMarketplacePartner(
     "/partner/onboarding/identidad",
   );
+  const latestVerification = await client
+    .from("partner_identity_verifications")
+    .select("result")
+    .eq("partner_id", partner.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestVerification.error)
+    return {
+      status: "error",
+      message: "No pudimos consultar tu verificación. Inténtalo nuevamente.",
+    };
+  const onboardingState = resolveIdentityOnboardingState(
+    latestVerification.data?.result,
+  );
+  if (onboardingState.shouldAdvance) {
+    redirect(identityOnboardingNextRoute(partner.legal_type));
+  }
+  if (!onboardingState.canStart) {
+    return {
+      status: "success",
+      message: onboardingState.message ?? "Tu verificación ya está en proceso.",
+    };
+  }
   const provider = getIdentityVerificationProvider();
   if (!provider)
     return {
