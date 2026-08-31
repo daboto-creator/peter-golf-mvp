@@ -231,7 +231,7 @@ export function BasicPartnerForm({
   );
 }
 
-export function IdentityVerificationForm() {
+export function IdentityVerificationForm({ label }: { label: string }) {
   const [state, action] = useActionState(
     startIdentityVerificationAction,
     initialPartnerActionState,
@@ -239,7 +239,7 @@ export function IdentityVerificationForm() {
   return (
     <form action={action} className="space-y-4">
       <ActionFeedback state={state} />
-      <SubmitButton>Iniciar verificación de identidad</SubmitButton>
+      <SubmitButton>{label}</SubmitButton>
     </form>
   );
 }

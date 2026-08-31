@@ -8,6 +8,7 @@ const partnerEmail = "e2e.marketplace.partner@example.test";
 const operatorEmail = "e2e.marketplace.operator@example.test";
 const golferEmail = "e2e.marketplace.golfer@example.test";
 const partnerBId = "42000000-0000-4000-8000-000000000002";
+const reuseLocalSupabase = process.env.REUSE_LOCAL_SUPABASE === "1";
 
 test.describe("Marketplace Partner onboarding @mutating", () => {
   test.describe.configure({ mode: "serial" });
@@ -16,19 +17,21 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
     "Set RUN_MARKETPLACE_E2E=1 and MARKETPLACE_ENABLED=true.",
   );
   test.beforeAll(() => {
-    execFileSync("npm", ["run", "supabase:reset"], { stdio: "ignore" });
-    execFileSync(
-      "curl",
-      [
-        "-fsS",
-        "--retry",
-        "20",
-        "--retry-delay",
-        "1",
-        "http://127.0.0.1:54321/auth/v1/health",
-      ],
-      { stdio: "ignore" },
-    );
+    if (!reuseLocalSupabase) {
+      execFileSync("npm", ["run", "supabase:reset"], { stdio: "ignore" });
+      execFileSync(
+        "curl",
+        [
+          "-fsS",
+          "--retry",
+          "20",
+          "--retry-delay",
+          "1",
+          "http://127.0.0.1:54321/auth/v1/health",
+        ],
+        { stdio: "ignore" },
+      );
+    }
     prepareUsers();
   });
 
@@ -58,8 +61,47 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
       .getByRole("button", { name: "Continuar con verificación" })
       .click();
     await expect(page).toHaveURL(/\/partner\/onboarding\/identidad$/);
-    preparePassedIdentity();
-    await page.goto("/partner/onboarding/documentos");
+    await expect(
+      page.getByRole("button", { name: "Iniciar verificación de identidad" }),
+    ).toBeVisible();
+
+    await page.goto("/partner/onboarding/identidad?status=Approved");
+    await expect(
+      page.getByRole("button", { name: "Iniciar verificación de identidad" }),
+    ).toBeVisible();
+    await expect(page.getByText("Continuar con documentos")).toHaveCount(0);
+
+    setIdentityResult("PENDING");
+    await page.reload();
+    await expect(
+      page.getByText("Estamos procesando tu verificación."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Iniciar verificación de identidad" }),
+    ).toHaveCount(0);
+
+    setIdentityResult("REVIEW_REQUIRED");
+    await page.reload();
+    await expect(
+      page.getByText("Necesitamos revisar un detalle de tu verificación."),
+    ).toBeVisible();
+    await expect(page.getByText("REVIEW_REQUIRED")).toHaveCount(0);
+
+    setIdentityResult("FAILED");
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "Reintentar verificación" }),
+    ).toBeVisible();
+
+    setIdentityResult("PENDING");
+    await page.reload();
+    setIdentityResult("PASSED");
+    await expect(page).toHaveURL(/\/partner\/onboarding\/documentos$/, {
+      timeout: 10_000,
+    });
+    await expect(
+      page.getByRole("button", { name: /verificación/i }),
+    ).toHaveCount(0);
     await page.getByLabel("Tipo de documento").selectOption("address_proof");
     await page.getByLabel("Archivo privado").setInputFiles({
       name: "identificacion.pdf",
@@ -207,16 +249,26 @@ function prepareUsers() {
   `);
 }
 
-function preparePassedIdentity() {
+function setIdentityResult(
+  result: "PENDING" | "PASSED" | "REVIEW_REQUIRED" | "FAILED",
+) {
   sql(`
     insert into public.partner_identity_verifications (
       partner_id, provider, external_session_id, session_kind, result,
       normalized_attributes, warning_codes, liveness_passed,
       face_match_passed, completed_at, created_by
-    ) select id, 'DIDIT', 'e2e-onboarding-session', 'PERSON', 'PASSED',
-      '{"documentType":"PASSPORT"}'::jsonb, '{}', true, true, now(), user_id
+    ) select id, 'DIDIT', 'e2e-onboarding-session', 'PERSON', '${result}',
+      '{"documentType":"PASSPORT"}'::jsonb, '{}',
+      case when '${result}'='PASSED' then true else null end,
+      case when '${result}'='PASSED' then true else null end,
+      case when '${result}'='PENDING' then null else now() end, user_id
     from public.partner_profiles
-    where user_id='42000000-0000-4000-8000-000000000001';
+    where user_id='42000000-0000-4000-8000-000000000001'
+    on conflict (provider, external_session_id) do update set
+      result=excluded.result,
+      liveness_passed=excluded.liveness_passed,
+      face_match_passed=excluded.face_match_passed,
+      completed_at=excluded.completed_at;
   `);
 }
 

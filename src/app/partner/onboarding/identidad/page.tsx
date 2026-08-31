@@ -1,9 +1,12 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { IdentityVerificationStatus } from "@/components/marketplace/identity-verification-status";
 import { IdentityVerificationForm } from "@/components/marketplace/partner-forms";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  identityOnboardingNextRoute,
+  resolveIdentityOnboardingState,
+} from "@/lib/marketplace/identity-onboarding";
 import { getCurrentPartnerContext } from "@/lib/marketplace/partner-data";
 import { isPartnerReadOnly } from "@/lib/marketplace/partner-rules";
 
@@ -13,6 +16,10 @@ export default async function PartnerIdentityPage() {
   if (isPartnerReadOnly(partner.status)) redirect("/partner/verificacion");
   const latest = identityVerifications[0];
   const company = partner.legal_type === "LEGAL_ENTITY";
+  const state = resolveIdentityOnboardingState(latest?.result);
+  if (state.shouldAdvance) {
+    redirect(identityOnboardingNextRoute(partner.legal_type));
+  }
   return (
     <div className="mx-auto max-w-3xl space-y-7">
       <header>
@@ -31,27 +38,15 @@ export default async function PartnerIdentityPage() {
           <CardTitle>Validación protegida</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {latest ? (
-            <p className="rounded-xl border p-4 text-sm">
-              {latest.result === "PASSED"
-                ? "Validación recibida. Best Round hará la revisión final."
-                : latest.result === "FAILED"
-                  ? "Necesitamos que revises o repitas tu validación."
-                  : "Tu validación está en proceso o requiere revisión."}
-            </p>
+          {state.message ? (
+            <IdentityVerificationStatus
+              message={state.message}
+              shouldPoll={state.shouldPoll}
+            />
           ) : null}
-          <IdentityVerificationForm />
-          <Button asChild variant="outline">
-            <Link
-              href={
-                company
-                  ? "/partner/onboarding/fiscal"
-                  : "/partner/onboarding/documentos"
-              }
-            >
-              Continuar con documentos
-            </Link>
-          </Button>
+          {state.canStart && state.actionLabel ? (
+            <IdentityVerificationForm label={state.actionLabel} />
+          ) : null}
         </CardContent>
       </Card>
     </div>
