@@ -16,8 +16,13 @@ test("loads the home page", async ({ page }) => {
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Compra y vende mejor equipo de golf, con confianza.",
+      name: "Compra, vende y juega mejor.",
     }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Encuentra el equipo correcto con asesoría experta, productos revisados y una experiencia segura, transparente y confiable para comprar o vender golf en México.",
+    ),
   ).toBeVisible();
   await expect(
     page

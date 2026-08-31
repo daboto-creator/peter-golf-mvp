@@ -92,20 +92,20 @@ export default async function Home() {
 
       <main>
         <section className="relative overflow-hidden border-b">
-          <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-14 sm:min-h-[42rem] sm:px-6 sm:py-20 lg:min-h-[46rem] lg:grid-cols-[0.95fr_1.05fr] lg:gap-20 lg:px-8 lg:py-24">
+          <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:min-h-[36rem] sm:px-6 sm:py-16 lg:min-h-[40rem] lg:grid-cols-[0.95fr_1.05fr] lg:gap-16 lg:px-8 lg:py-18">
             <div className="relative z-10 max-w-3xl">
               <p className="text-pg-charcoal before:bg-pg-gold flex items-center gap-3 text-xs font-semibold tracking-[0.2em] uppercase before:h-px before:w-8 sm:text-sm">
                 Digital Pro Shop · México
               </p>
-              <h1 className="font-heading mt-6 max-w-3xl text-[clamp(3.25rem,7vw,6.35rem)] leading-[0.94] font-bold tracking-[-0.045em] text-balance">
-                Compra y vende mejor equipo de golf, con confianza.
+              <h1 className="font-heading mt-5 max-w-[15ch] text-[clamp(2.625rem,5vw,4.875rem)] leading-[0.98] font-bold tracking-[-0.04em] text-balance">
+                Compra, vende y juega mejor.
               </h1>
-              <p className="text-muted-foreground mt-7 max-w-2xl text-base leading-8 sm:text-lg">
+              <p className="text-muted-foreground mt-5 max-w-xl text-base leading-7 sm:text-lg sm:leading-8">
                 Encuentra el equipo correcto con asesoría experta, productos
-                revisados y una experiencia segura y transparente para comprar o
-                vender.
+                revisados y una experiencia segura, transparente y confiable
+                para comprar o vender golf en México.
               </p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg">
                   <Link href="/productos">
                     Comprar equipo
@@ -123,11 +123,11 @@ export default async function Home() {
               </div>
               <Link
                 href="#mi-golf"
-                className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4"
+                className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4"
               >
                 Ayúdame a elegir
               </Link>
-              <div className="text-pg-charcoal mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold tracking-wide uppercase">
+              <div className="text-pg-charcoal mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold tracking-wide uppercase">
                 <span>Equipo nuevo</span>
                 <span className="text-pg-gold" aria-hidden="true">
                   •
@@ -140,7 +140,7 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="bg-pg-warm-white relative mx-auto aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-[20px] sm:aspect-[16/10] lg:aspect-[5/6] lg:max-w-xl">
+            <div className="bg-pg-warm-white relative mx-auto aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-[20px] sm:aspect-[16/10] lg:aspect-[6/7] lg:max-w-lg">
               <Image
                 src="/images/home/hero-golf-temporary.jpg"
                 alt="Golfista terminando un golpe con driver frente a un campo de golf"
