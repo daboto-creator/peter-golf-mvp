@@ -22,6 +22,18 @@ test.describe("Marketplace Partner listings @mutating", () => {
 
   test.beforeAll(() => {
     execFileSync("npm", ["run", "supabase:reset"], { stdio: "ignore" });
+    execFileSync(
+      "curl",
+      [
+        "-fsS",
+        "--retry",
+        "20",
+        "--retry-delay",
+        "1",
+        "http://127.0.0.1:54321/auth/v1/health",
+      ],
+      { stdio: "ignore" },
+    );
     prepareListingUsers();
   });
 
@@ -31,6 +43,7 @@ test.describe("Marketplace Partner listings @mutating", () => {
     isMobile,
   }) => {
     test.skip(isMobile, "The mutating review workflow runs once on Desktop.");
+    test.setTimeout(90_000);
     await login(page, partnerEmail, "/partner/publicaciones");
     await page.getByRole("link", { name: "Publicar un producto" }).click();
     await page.getByLabel("Categoría").selectOption({ label: "Driver" });
@@ -53,7 +66,13 @@ test.describe("Marketplace Partner listings @mutating", () => {
       .fill("Driver usado en excelente condición para revisión humana.");
     await page.getByRole("button", { name: "Guardar y continuar" }).click();
 
-    for (const [imageIndex, imageType] of ["face", "crown", "sole"].entries()) {
+    for (const [imageIndex, imageType] of [
+      "face",
+      "crown",
+      "sole",
+      "shaft",
+      "grip",
+    ].entries()) {
       await page.getByLabel("Vista de la foto").selectOption(imageType);
       await page.getByLabel("Foto", { exact: true }).setInputFiles({
         name: `${imageType}.png`,
@@ -84,12 +103,24 @@ test.describe("Marketplace Partner listings @mutating", () => {
     await page.getByRole("button", { name: "Guardar y continuar" }).click();
     await page.getByLabel("Cantidad disponible").fill("1");
     await page.getByRole("button", { name: "Guardar y continuar" }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`/partner/publicaciones/${listingId}/precio$`),
+    );
+    await page.getByLabel("Tu precio de venta (MXN)").fill("10000");
+    await page
+      .getByRole("button", { name: "Calcular y guardar precio" })
+      .click();
+    await page
+      .getByRole("link", { name: "Continuar a revisión final" })
+      .click();
     await expect(page.getByText("Lista para revisión")).toBeVisible();
-    await page.getByRole("button", { name: "Enviar a Best Round" }).click();
+    await page.getByRole("button", { name: "Enviar para publicación" }).click();
     await expect(page).toHaveURL(
       new RegExp(`/partner/publicaciones/${listingId}$`),
     );
-    await expect(page.getByText(/Enviado · Versión 1/)).toBeVisible();
+    await expect(
+      page.getByText(/En revisión por Best Round · Versión 1/),
+    ).toBeVisible();
 
     const operationsContext = await browser.newContext();
     const operationsPage = await operationsContext.newPage();
@@ -113,9 +144,6 @@ test.describe("Marketplace Partner listings @mutating", () => {
         name: "Resolver producto canónico",
       }),
     ).toHaveCount(0);
-    await operationsPage.reload();
-    await decide(operationsPage, "UNDER_REVIEW", "Revisión humana iniciada");
-    await operationsPage.reload();
     await operationsPage
       .getByLabel("Decisión", { exact: true })
       .selectOption("CHANGES_REQUESTED");
@@ -135,7 +163,7 @@ test.describe("Marketplace Partner listings @mutating", () => {
       .getByRole("button", { name: "Guardar decisión" })
       .click();
     await expect(
-      operationsPage.getByText(/· Cambios solicitados$/),
+      operationsPage.getByText("Requiere ajustes").first(),
     ).toBeVisible();
 
     await page.reload();
@@ -148,7 +176,7 @@ test.describe("Marketplace Partner listings @mutating", () => {
     await expect(page.getByText("No compartir análisis interno")).toHaveCount(
       0,
     );
-    await page.getByRole("link", { name: "Continuar edición" }).click();
+    await page.getByRole("link", { name: "Corregir publicación" }).click();
     await page
       .getByLabel("Descripción")
       .fill(
@@ -157,14 +185,21 @@ test.describe("Marketplace Partner listings @mutating", () => {
     await page.getByRole("button", { name: "Guardar y continuar" }).click();
     await page.goto(`/partner/publicaciones/${listingId}/revision`);
     await expect(page.getByText("Lista para revisión")).toBeVisible();
-    await page.getByRole("button", { name: "Enviar a Best Round" }).click();
-    await expect(page.getByText(/Enviado · Versión 2/)).toBeVisible();
+    await page.getByRole("button", { name: "Enviar para publicación" }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`/partner/publicaciones/${listingId}$`),
+      { timeout: 15_000 },
+    );
+    await expect(
+      page.getByText(/En revisión por Best Round · Versión 2/),
+    ).toBeVisible();
 
     await operationsPage.goto(
       `/operacion/marketplace/publicaciones/${listingId}`,
     );
-    await decide(operationsPage, "UNDER_REVIEW", "Segunda revisión iniciada");
-    await operationsPage.reload();
+    await operationsPage
+      .getByText("Aprobar sin análisis automático de mercado")
+      .click();
     await decide(
       operationsPage,
       "APPROVED",
@@ -173,12 +208,7 @@ test.describe("Marketplace Partner listings @mutating", () => {
     await operationsContext.close();
 
     await page.reload();
-    await expect(page.getByText(/Aprobado · Versión 2/)).toBeVisible();
-    await expect(
-      page.getByText(
-        "Aprobado por Best Round. Próximamente estará disponible para venta.",
-      ),
-    ).toBeVisible();
+    await expect(page.getByText(/Publicado · Versión 2/)).toBeVisible();
     await expect(page.getByText(/Comprar|Agregar al carrito/)).toHaveCount(0);
 
     const forbidden = await page.goto(
@@ -229,8 +259,9 @@ async function decide(page: Page, status: string, reason: string) {
   await page.getByLabel("Decisión", { exact: true }).selectOption(status);
   await page.getByLabel("Motivo de la decisión").fill(reason);
   await page.getByRole("button", { name: "Guardar decisión" }).click();
-  const label = status === "UNDER_REVIEW" ? "En revisión" : "Aprobado";
-  await expect(page.getByText(new RegExp(`· ${label}$`))).toBeVisible();
+  const label =
+    status === "APPROVED" ? "Aprobado" : "En revisión por Best Round";
+  await expect(page.getByText(label).first()).toBeVisible();
 }
 
 async function expectNoHorizontalOverflow(page: Page) {

@@ -31,7 +31,7 @@ test.describe("Marketplace Partner payables @mutating", () => {
       page.getByRole("heading", { name: "Pagos", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText("Saldo pendiente", { exact: true }).first(),
+      page.getByRole("heading", { name: "Pendiente", exact: true }).first(),
     ).toBeVisible();
     await expect(page.getByText("Partner B Driver")).toHaveCount(0);
 

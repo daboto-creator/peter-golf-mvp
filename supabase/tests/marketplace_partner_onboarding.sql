@@ -87,6 +87,9 @@ begin
     'basic', partner_record.version,
     '{"firstName":"Ana","lastName":"Partner","phone":"5512345678","countryCode":"MX","state":"Jalisco","city":"Guadalajara","commercialName":"","representativeName":""}'::jsonb
   );
+  partner_record := public.record_partner_onboarding_consents(
+    partner_record.version, true, true
+  );
 
   if partner_record.status <> 'IDENTITY_PENDING'
     or partner_record.onboarding_step <> 3
@@ -128,49 +131,54 @@ begin
 
   document_record := public.register_partner_document(
     document_id,
-    'identity_document',
+    'address_proof',
     'partners/' || partner_record.id::text || '/' || document_id::text || '.pdf',
     'application/pdf',
     2048,
     repeat('b', 64)
   );
 
-  select * into strict readiness
-  from public.get_partner_onboarding_readiness(null);
-
-  if not readiness.basic_complete
-    or not readiness.fiscal_complete
-    or not readiness.documents_complete
-    or not readiness.review_ready
-    or readiness.active_document_count <> 1
-  then
-    raise exception 'Individual onboarding readiness is incorrect';
-  end if;
-
-  partner_record := public.save_partner_onboarding(
-    'documents', partner_record.version, '{}'::jsonb
-  );
-  partner_record := public.submit_partner_for_review(partner_record.version);
-
-  if partner_record.status <> 'UNDER_REVIEW'
-    or partner_record.submitted_at is null
-  then
-    raise exception 'Partner submission failed';
-  end if;
-
-  begin
-    perform public.save_partner_onboarding(
-      'legal_type', partner_record.version,
-      '{"legalType":"LEGAL_ENTITY"}'::jsonb
-    );
-    raise exception 'Expected submitted onboarding to be read only';
-  exception when check_violation then null;
-  end;
-
+  perform public.register_partner_identity_session('DIDIT','onboarding-test-session','PERSON');
   perform set_config('test.onboarding_document_a', document_record.id::text, true);
-  perform set_config('test.onboarding_partner_a_version', partner_record.version::text, true);
 end;
 $$;
+
+reset role;
+set local role service_role;
+select public.process_partner_identity_webhook(
+  'DIDIT','3e000000-0000-4000-8000-000000000001',
+  'onboarding-test-session','PASSED',
+  '{"documentType":"PASSPORT","livenessPassed":true,"faceMatchPassed":true}'::jsonb,
+  '{}'::text[],now(),repeat('c',64)
+);
+
+reset role;
+select set_config('request.jwt.claim.sub','3a000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $$
+declare partner_record public.partner_profiles; readiness record;
+begin
+  select * into strict partner_record from public.partner_profiles where user_id=auth.uid();
+  select * into strict readiness from public.get_partner_onboarding_readiness(null);
+  if not readiness.basic_complete or not readiness.fiscal_complete
+    or not readiness.documents_complete or not readiness.review_ready
+    or readiness.active_document_count<>1 then
+    raise exception 'Individual onboarding readiness is incorrect';
+  end if;
+  if partner_record.status='VERIFIED' then
+    raise exception 'Provider PASSED incorrectly auto-verified Partner';
+  end if;
+  partner_record:=public.save_partner_onboarding('documents',partner_record.version,'{}'::jsonb);
+  partner_record:=public.submit_partner_for_review(partner_record.version);
+  if partner_record.status<>'UNDER_REVIEW' or partner_record.submitted_at is null then
+    raise exception 'Partner submission failed'; end if;
+  begin
+    perform public.save_partner_onboarding('legal_type',partner_record.version,
+      '{"legalType":"LEGAL_ENTITY"}'::jsonb);
+    raise exception 'Expected submitted onboarding to be read only';
+  exception when check_violation then null; end;
+  perform set_config('test.onboarding_partner_a_version',partner_record.version::text,true);
+end $$;
 
 reset role;
 select set_config(

@@ -55,7 +55,7 @@ begin
   where id=listing_id;
   insert into public.marketplace_listing_inventory(listing_id,quantity_on_hand)
   values(listing_id,1);
-  foreach image_type in array array['face','crown','sole'] loop
+  foreach image_type in array array['face','crown','sole','shaft','grip'] loop
     image_id := gen_random_uuid();
     insert into public.marketplace_listing_images(
       id,listing_id,storage_path,mime_type,size_bytes,sha256,uploaded_by

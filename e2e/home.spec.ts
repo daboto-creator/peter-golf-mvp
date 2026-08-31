@@ -16,13 +16,13 @@ test("loads the home page", async ({ page }) => {
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "El equipo correcto cambia tu juego.",
+      name: "Compra y vende mejor equipo de golf, con confianza.",
     }),
   ).toBeVisible();
   await expect(
     page
       .getByRole("main")
-      .getByRole("link", { name: /Explorar el Pro Shop/ })
+      .getByRole("link", { name: "Comprar equipo" })
       .first(),
   ).toHaveAttribute("href", "/productos");
   await expect(page.getByAltText("Best Round Pro Shop")).toHaveCount(2);
@@ -36,7 +36,7 @@ test("loads the home page", async ({ page }) => {
     /best-round-pro-shop-light\.png/,
   );
   await expect(page).toHaveTitle(
-    "Best Round Pro Shop | Equipo elegido con criterio",
+    "Best Round Pro Shop | Compra y vende equipo con confianza",
   );
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute(
     "content",

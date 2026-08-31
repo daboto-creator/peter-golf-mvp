@@ -17,6 +17,18 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
   );
   test.beforeAll(() => {
     execFileSync("npm", ["run", "supabase:reset"], { stdio: "ignore" });
+    execFileSync(
+      "curl",
+      [
+        "-fsS",
+        "--retry",
+        "20",
+        "--retry-delay",
+        "1",
+        "http://127.0.0.1:54321/auth/v1/health",
+      ],
+      { stdio: "ignore" },
+    );
     prepareUsers();
   });
 
@@ -27,9 +39,7 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
   }) => {
     test.skip(isMobile, "The mutating transaction runs once on Desktop.");
     await login(page, partnerEmail, "/cuenta");
-    await expect(
-      page.getByRole("link", { name: "Quiero vender en Best Round" }),
-    ).toBeVisible();
+    await waitForMarketplaceCard(page);
     await page
       .getByRole("link", { name: "Quiero vender en Best Round" })
       .click();
@@ -42,11 +52,15 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
     await page.getByLabel("Teléfono *").fill("5512345678");
     await page.getByLabel("Estado *").fill("Jalisco");
     await page.getByLabel("Ciudad *").fill("Guadalajara");
-    await page.getByRole("button", { name: "Guardar y continuar" }).click();
-    await expect(page).toHaveURL(/\/partner\/onboarding\/fiscal$/);
-    await page.getByRole("button", { name: "Guardar y continuar" }).click();
-    await expect(page).toHaveURL(/\/partner\/onboarding\/documentos$/);
-    await page.getByLabel("Tipo de documento").selectOption("identification");
+    await page.getByText("Acepto los términos del programa").click();
+    await page.getByText("Acepto el aviso de privacidad").click();
+    await page
+      .getByRole("button", { name: "Continuar con verificación" })
+      .click();
+    await expect(page).toHaveURL(/\/partner\/onboarding\/identidad$/);
+    preparePassedIdentity();
+    await page.goto("/partner/onboarding/documentos");
+    await page.getByLabel("Tipo de documento").selectOption("address_proof");
     await page.getByLabel("Archivo privado").setInputFiles({
       name: "identificacion.pdf",
       mimeType: "application/pdf",
@@ -98,7 +112,7 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
     await expect(page.getByText("Partner verificado").first()).toBeVisible();
     await expect(
       page.getByText(
-        "La publicación de productos estará disponible próximamente.",
+        "Ya puedes preparar publicaciones para revisión de Best Round.",
       ),
     ).toBeVisible();
     await page.getByRole("button", { name: "Modo Golfer" }).click();
@@ -124,6 +138,7 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
   }) => {
     test.skip(!isMobile, "Responsive Partner coverage.");
     await login(page, partnerEmail, "/cuenta");
+    await waitForMarketplaceCard(page);
     await page
       .getByRole("link", { name: "Quiero vender en Best Round" })
       .click();
@@ -136,7 +151,7 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
       ),
     ).toBe(true);
     await page.getByRole("link", { name: "Comenzar" }).click();
-    await expect(page.getByText("Paso 1 de 5")).toBeVisible();
+    await expect(page.getByText("Paso 1 de 4 · Datos")).toBeVisible();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -153,6 +168,20 @@ async function login(page: Page, email: string, next: string) {
   await page.getByLabel("Contraseña").fill(password);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
   await expect(page).toHaveURL((url) => url.pathname === next);
+}
+
+async function waitForMarketplaceCard(page: Page) {
+  await expect
+    .poll(
+      async () => {
+        await page.reload();
+        return page
+          .getByRole("link", { name: "Quiero vender en Best Round" })
+          .count();
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(1);
 }
 
 function prepareUsers() {
@@ -175,6 +204,19 @@ function prepareUsers() {
     select '42000000-0000-4000-8000-000000000003', id from public.roles where name = 'operator';
     insert into public.partner_profiles (id, user_id, legal_type)
     values ('${partnerBId}', '42000000-0000-4000-8000-000000000002', 'INDIVIDUAL');
+  `);
+}
+
+function preparePassedIdentity() {
+  sql(`
+    insert into public.partner_identity_verifications (
+      partner_id, provider, external_session_id, session_kind, result,
+      normalized_attributes, warning_codes, liveness_passed,
+      face_match_passed, completed_at, created_by
+    ) select id, 'DIDIT', 'e2e-onboarding-session', 'PERSON', 'PASSED',
+      '{"documentType":"PASSPORT"}'::jsonb, '{}', true, true, now(), user_id
+    from public.partner_profiles
+    where user_id='42000000-0000-4000-8000-000000000001';
   `);
 }
 
