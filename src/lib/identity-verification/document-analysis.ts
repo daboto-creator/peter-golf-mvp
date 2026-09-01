@@ -41,8 +41,13 @@ export function analyzeAddressProof(input: AddressProofInput): {
   warningCodes: string[];
 } {
   const warnings: string[] = [];
+  if (!input.documentType) {
+    return {
+      result: "REVIEW_REQUIRED",
+      warningCodes: ["DOCUMENT_TYPE_NOT_EXTRACTED"],
+    };
+  }
   if (
-    !input.documentType ||
     !acceptedAddressProofTypes.includes(
       input.documentType as (typeof acceptedAddressProofTypes)[number],
     )

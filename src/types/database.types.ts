@@ -9639,6 +9639,24 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      record_automatic_partner_document_analysis: {
+        Args: {
+          requested_actor_id: string;
+          requested_analysis_version: string;
+          requested_document_id: string;
+          requested_extracted: Json;
+          requested_normalized_output: Json;
+          requested_result: Database["public"]["Enums"]["automatic_document_review_result"];
+          requested_warning_codes: string[];
+        };
+        Returns: Database["public"]["Tables"]["partner_document_analyses"]["Row"];
+        SetofOptions: {
+          from: "*";
+          to: "partner_document_analyses";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       record_partner_document_analysis: {
         Args: {
           requested_analysis_version: string;

@@ -1,9 +1,5 @@
 import "server-only";
 
-import { createCanvas, loadImage } from "@napi-rs/canvas";
-import jsQR from "jsqr";
-import { createWorker } from "tesseract.js";
-
 import {
   extractCsfDataFromText,
   finalizeCsfAnalysis,
@@ -40,6 +36,7 @@ export type CsfExtractionDiagnostics = {
   qrPagesAttempted: number[];
   qrDecoded: boolean;
   ocrUsed: boolean;
+  runtimeWarnings?: string[];
 };
 
 const MAX_PDF_PAGES = 6;
@@ -47,6 +44,9 @@ const PDF_RENDER_MAX_DIMENSION = 3000;
 const PDF_RENDER_MAX_PIXELS = 8_000_000;
 
 async function rasterFromImage(bytes: Uint8Array): Promise<Raster> {
+  const [{ createCanvas, loadImage }] = await Promise.all([
+    import("@napi-rs/canvas"),
+  ]);
   const image = await loadImage(Buffer.from(bytes));
   const scale = Math.min(1, 2200 / Math.max(image.width, image.height));
   const width = Math.max(1, Math.round(image.width * scale));
@@ -139,6 +139,7 @@ type PdfDocument = LoadedPdf["document"];
 type PdfPage = Awaited<ReturnType<PdfDocument["getPage"]>>;
 
 async function renderPdfPage(page: PdfPage, scaleLimit = 4): Promise<Raster> {
+  const { createCanvas } = await import("@napi-rs/canvas");
   const baseViewport = page.getViewport({ scale: 1 });
   const scale = Math.min(
     scaleLimit,
@@ -170,11 +171,54 @@ async function renderPdfPage(page: PdfPage, scaleLimit = 4): Promise<Raster> {
 
 async function loadPdf(bytes: Uint8Array) {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const loadingTask = pdfjs.getDocument({ data: bytes, useSystemFonts: true });
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(bytes),
+    useSystemFonts: true,
+  });
   return {
     document: await loadingTask.promise,
     destroy: () => loadingTask.destroy(),
   };
+}
+
+export async function extractEmbeddedPdfText(bytes: Uint8Array) {
+  const { document, destroy } = await loadPdf(bytes);
+  const pageCount = Math.min(document.numPages, MAX_PDF_PAGES);
+  const pageTexts: string[] = [];
+  const annotationUrls: string[] = [];
+  try {
+    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      const content = await page.getTextContent();
+      pageTexts.push(textFromPdfItems(content.items));
+      const annotations = await page.getAnnotations();
+      annotationUrls.push(
+        ...annotations.flatMap((annotation) =>
+          "url" in annotation && typeof annotation.url === "string"
+            ? [annotation.url]
+            : [],
+        ),
+      );
+    }
+    return {
+      text: pageTexts.filter(Boolean).join("\n\n"),
+      pagesInspected: pageCount,
+      annotationUrls,
+    };
+  } finally {
+    document.cleanup();
+    await destroy();
+  }
+}
+
+async function renderFirstPdfPage(bytes: Uint8Array) {
+  const { document, destroy } = await loadPdf(bytes);
+  try {
+    return await renderPdfPage(await document.getPage(1));
+  } finally {
+    document.cleanup();
+    await destroy();
+  }
 }
 
 function cropRaster(
@@ -203,7 +247,8 @@ function cropRaster(
   return { data, width: cropWidth, height: cropHeight };
 }
 
-function qrPayloadsFromRaster(raster: Raster) {
+async function qrPayloadsFromRaster(raster: Raster) {
+  const { default: jsQR } = await import("jsqr");
   if (raster.data.length !== raster.width * raster.height * 4) return [];
   const crops = [
     [0, 0, 0.62, 0.62],
@@ -240,50 +285,28 @@ function qrPageOrder(pageCount: number) {
   );
 }
 
-async function extractPdf(bytes: Uint8Array) {
+async function extractPdfQr(
+  bytes: Uint8Array,
+  pageCount: number,
+  annotationUrls: string[],
+) {
   const { document, destroy } = await loadPdf(bytes);
-  const pageCount = Math.min(document.numPages, MAX_PDF_PAGES);
-  const pageTexts: string[] = [];
-  const annotationUrls: string[] = [];
-  let firstPageRaster: Raster | null = null;
   try {
-    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
-      const content = await page.getTextContent();
-      pageTexts.push(textFromPdfItems(content.items));
-      const annotations = await page.getAnnotations();
-      annotationUrls.push(
-        ...annotations.flatMap((annotation) =>
-          "url" in annotation && typeof annotation.url === "string"
-            ? [annotation.url]
-            : [],
-        ),
-      );
-    }
-
     const qrPagesAttempted: number[] = [];
     const decodedPayloads = [...annotationUrls];
     for (const pageNumber of qrPageOrder(pageCount)) {
       const page = await document.getPage(pageNumber);
       const raster = await renderPdfPage(page);
-      if (pageNumber === 1) firstPageRaster = raster;
       qrPagesAttempted.push(pageNumber);
-      decodedPayloads.push(...qrPayloadsFromRaster(raster));
+      decodedPayloads.push(...(await qrPayloadsFromRaster(raster)));
       const preferred = preferredQrPayload(decodedPayloads);
       if (preferred && inspectSatQrPayload(preferred).official) break;
     }
-
-    if (!firstPageRaster) {
-      firstPageRaster = await renderPdfPage(await document.getPage(1));
-    }
     const qrPayload = preferredQrPayload(decodedPayloads);
     return {
-      text: pageTexts.filter(Boolean).join("\n\n"),
-      firstPageRaster,
       qr: qrPayload
         ? ({ status: "DECODED", payload: qrPayload } satisfies CsfQrDetection)
         : ({ status: "MISSING" } satisfies CsfQrDetection),
-      pagesInspected: pageCount,
       qrPagesAttempted,
       qrDecoded: Boolean(qrPayload),
     };
@@ -323,9 +346,16 @@ export async function analyzeCsfDocument(input: {
   }
 > {
   const isPdf = input.mimeType === "application/pdf";
-  const pdf = isPdf ? await extractPdf(input.bytes) : null;
-  const raster = pdf?.firstPageRaster ?? (await rasterFromImage(input.bytes));
-  const embeddedText = pdf?.text.trim() ?? "";
+  const runtimeWarnings: string[] = [];
+  let pdfText: Awaited<ReturnType<typeof extractEmbeddedPdfText>> | null = null;
+  if (isPdf) {
+    try {
+      pdfText = await extractEmbeddedPdfText(input.bytes);
+    } catch {
+      runtimeWarnings.push("PDF_LOAD_FAILED");
+    }
+  }
+  const embeddedText = pdfText?.text.trim() ?? "";
   const embeddedSignals = hasUsefulCsfTextSignals(
     embeddedText,
     input.legalType,
@@ -333,30 +363,59 @@ export async function analyzeCsfDocument(input: {
   let text = embeddedText;
   let confidence: number | null = embeddedSignals.useful ? 100 : null;
   let extractionSource: CsfExtractionSource = embeddedText ? "PDF_TEXT" : "OCR";
-  let ocrUsed = !isPdf;
+  let ocrUsed = false;
+  let qr: CsfQrDetection = { status: "MISSING" };
+  let qrPagesAttempted: number[] = [];
+  let qrDecoded = false;
 
   if (!isPdf || !embeddedSignals.useful) {
-    const ocr = await recognizeText(raster.png);
-    ocrUsed = true;
-    confidence = ocr.confidence;
-    if (embeddedText) {
-      text = `${embeddedText}\n\n${ocr.text}`;
-      extractionSource = "MIXED";
-    } else {
-      text = ocr.text;
-      extractionSource = "OCR";
+    try {
+      const raster = isPdf
+        ? await renderFirstPdfPage(input.bytes)
+        : await rasterFromImage(input.bytes);
+      const ocr = await recognizeText(raster.png);
+      ocrUsed = true;
+      confidence = ocr.confidence;
+      if (embeddedText) {
+        text = `${embeddedText}\n\n${ocr.text}`;
+        extractionSource = "MIXED";
+      } else {
+        text = ocr.text;
+        extractionSource = "OCR";
+      }
+    } catch {
+      runtimeWarnings.push("OCR_RUNTIME_UNAVAILABLE");
     }
   }
 
+  if (isPdf && !pdfText && runtimeWarnings.includes("PDF_LOAD_FAILED")) {
+    throw new Error("PDF_LOAD_FAILED");
+  }
+
   const extracted = extractCsfDataFromText(text, input.legalType);
-  const qr =
-    pdf?.qr ??
-    (() => {
-      const payload = preferredQrPayload(qrPayloadsFromRaster(raster));
-      return payload
-        ? ({ status: "DECODED", payload } satisfies CsfQrDetection)
-        : ({ status: "MISSING" } satisfies CsfQrDetection);
-    })();
+  if (isPdf && pdfText) {
+    try {
+      const qrResult = await extractPdfQr(
+        input.bytes,
+        pdfText.pagesInspected,
+        pdfText.annotationUrls,
+      );
+      qr = qrResult.qr;
+      qrPagesAttempted = qrResult.qrPagesAttempted;
+      qrDecoded = qrResult.qrDecoded;
+    } catch {
+      runtimeWarnings.push("PDF_RENDER_FAILED");
+    }
+  } else if (!isPdf) {
+    try {
+      const raster = await rasterFromImage(input.bytes);
+      const payload = preferredQrPayload(await qrPayloadsFromRaster(raster));
+      qr = payload ? { status: "DECODED", payload } : { status: "MISSING" };
+      qrDecoded = Boolean(payload);
+    } catch {
+      runtimeWarnings.push("CANVAS_RUNTIME_UNAVAILABLE");
+    }
+  }
   const result = finalizeCsfAnalysis({
     registeredRfc: input.registeredRfc,
     registeredName: input.registeredName,
@@ -368,11 +427,13 @@ export async function analyzeCsfDocument(input: {
     extractionSource,
     confidence,
     diagnostics: {
-      pdfPagesInspected: pdf?.pagesInspected ?? 0,
+      pdfPagesInspected: pdfText?.pagesInspected ?? 0,
       usefulTextSignalDetected: embeddedSignals.useful,
-      qrPagesAttempted: pdf?.qrPagesAttempted ?? [],
-      qrDecoded: pdf?.qrDecoded ?? qr.status === "DECODED",
+      qrPagesAttempted,
+      qrDecoded: qrDecoded || qr.status === "DECODED",
       ocrUsed,
+      runtimeWarnings,
     },
   };
 }
+const { createWorker } = await import("tesseract.js");

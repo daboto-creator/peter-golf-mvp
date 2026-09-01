@@ -11,6 +11,7 @@ import { serverEnv } from "@/env/server";
 import { getIdentityVerificationProvider } from "@/lib/identity-verification/provider";
 import { csfPartnerMessage } from "@/lib/identity-verification/csf-analysis";
 import { analyzeCsfDocument } from "@/lib/identity-verification/csf-document-extractor";
+import { analyzeAddressProofDocument } from "@/lib/identity-verification/address-proof-document-extractor";
 import {
   requireMarketplacePartner,
   requireMarketplaceUser,
@@ -373,6 +374,69 @@ export async function uploadPartnerDocumentAction(
         },
       }).catch(() => undefined);
       documentMessage = csfPartnerMessage("REVIEW_REQUIRED");
+    }
+  }
+  if (kind === "address_proof" || kind === "company_address_proof") {
+    try {
+      const registeredAddress = [
+        partner.fiscal_address_line_1,
+        partner.fiscal_address_line_2,
+        partner.fiscal_city,
+        partner.fiscal_state,
+        partner.fiscal_postal_code,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      const analysis = await analyzeAddressProofDocument({
+        bytes,
+        mimeType: file.type,
+        legalType: partner.legal_type,
+        registeredName: partner.legal_name,
+        registeredAddress,
+      });
+      await persistAutomaticPartnerDocumentAnalysis({
+        documentId,
+        actorId: partner.user_id,
+        analysisVersion: "address-proof-rules-v1",
+        result: analysis.result,
+        extractedName: analysis.extractedName,
+        extractedRfc: null,
+        officialQrDestination: null,
+        extractedAddress: analysis.extractedAddress,
+        extractedDocumentDate: analysis.extractedDate,
+        documentType: analysis.documentType,
+        warningCodes: analysis.warningCodes,
+        normalizedOutput: analysis.normalizedOutput,
+      });
+      documentMessage =
+        analysis.result === "PASSED"
+          ? "Comprobante de domicilio validado correctamente."
+          : analysis.result === "FAILED"
+            ? "Encontramos una diferencia en el comprobante de domicilio. Revisa la información o carga un documento actualizado."
+            : "No pudimos validar automáticamente toda la información del comprobante. Best Round lo revisará.";
+    } catch (error) {
+      console.error("marketplace_address_analysis_failed", {
+        stage:
+          error instanceof AutomaticDocumentAnalysisPersistenceError
+            ? "persistence"
+            : "extraction",
+      });
+      await persistAutomaticPartnerDocumentAnalysis({
+        documentId,
+        actorId: partner.user_id,
+        analysisVersion: "address-proof-rules-v1",
+        result: "REVIEW_REQUIRED",
+        extractedName: null,
+        extractedRfc: null,
+        officialQrDestination: null,
+        extractedAddress: null,
+        extractedDocumentDate: null,
+        documentType: null,
+        warningCodes: ["ADDRESS_ANALYSIS_ERROR"],
+        normalizedOutput: { extractionSource: "UNAVAILABLE", ocrUsed: false },
+      }).catch(() => undefined);
+      documentMessage =
+        "No pudimos validar automáticamente toda la información del comprobante. Best Round lo revisará.";
     }
   }
   revalidatePath("/partner", "layout");

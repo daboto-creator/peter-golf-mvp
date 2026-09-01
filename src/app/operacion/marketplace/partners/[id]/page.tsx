@@ -278,6 +278,9 @@ export default async function PartnerOperationsDetailPage({
                     const analysis = analysesByDocument.get(document.id);
                     const isFiscal =
                       document.document_kind === "fiscal_certificate";
+                    const isAddress =
+                      document.document_kind === "address_proof" ||
+                      document.document_kind === "company_address_proof";
                     return (
                       <article
                         key={document.id}
@@ -431,6 +434,68 @@ export default async function PartnerOperationsDetailPage({
                                       "Requiere validación manual.",
                                   )
                                   .join(" ")}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : analysis && isAddress ? (
+                          <div className="mt-3 space-y-2 rounded-lg bg-black/5 p-3 text-xs">
+                            <p>
+                              <strong>Resultado automático:</strong>{" "}
+                              {automaticResultCopy[analysis.result]}
+                            </p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <p>
+                                <strong>Tipo detectado:</strong>{" "}
+                                {analysis.extracted_document_type ||
+                                  "No disponible"}
+                              </p>
+                              <p>
+                                <strong>Titular extraído:</strong>{" "}
+                                {analysis.extracted_name || "—"}
+                              </p>
+                              <p>
+                                <strong>Nombre registrado:</strong>{" "}
+                                {partner.legal_name || "—"}
+                              </p>
+                              <p>
+                                <strong>Dirección extraída:</strong>{" "}
+                                {analysis.extracted_address || "—"}
+                              </p>
+                              <p>
+                                <strong>Fecha:</strong>{" "}
+                                {analysis.extracted_document_date ||
+                                  "No disponible"}
+                              </p>
+                              <p>
+                                <strong>Fuente:</strong>{" "}
+                                {normalizedField(
+                                  analysis.normalized_output,
+                                  "extractionSource",
+                                ) || "No disponible"}
+                              </p>
+                              <p>
+                                <strong>Coincidencia domicilio:</strong>{" "}
+                                {matchCopy(
+                                  normalizedField(
+                                    analysis.normalized_output,
+                                    "addressMatch",
+                                  ),
+                                )}
+                              </p>
+                              <p>
+                                <strong>Coincidencia nombre:</strong>{" "}
+                                {matchCopy(
+                                  normalizedField(
+                                    analysis.normalized_output,
+                                    "nameMatch",
+                                  ),
+                                )}
+                              </p>
+                            </div>
+                            {analysis.warning_codes.length ? (
+                              <p>
+                                <strong>Resumen:</strong> Requiere validación
+                                manual.
                               </p>
                             ) : null}
                           </div>

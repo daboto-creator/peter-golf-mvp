@@ -133,7 +133,7 @@ export async function getPartnerForOperations(partnerId: string) {
     client
       .from("partner_document_analyses")
       .select(
-        "id, document_id, result, extracted_document_type, extracted_name, extracted_document_date, extracted_rfc, official_qr_destination, normalized_output, warning_codes, analyzed_at, partner_documents!inner(partner_id)",
+        "id, document_id, result, extracted_document_type, extracted_name, extracted_address, extracted_document_date, extracted_rfc, official_qr_destination, normalized_output, warning_codes, analyzed_at, partner_documents!inner(partner_id)",
       )
       .eq("partner_documents.partner_id", partnerId)
       .order("analyzed_at", { ascending: false }),
