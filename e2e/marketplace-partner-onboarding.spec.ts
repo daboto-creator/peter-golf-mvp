@@ -241,6 +241,13 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
     ).toBeVisible();
     await expect(operationsPage.getByText("Validado").first()).toBeVisible();
     await expect(operationsPage.getByText("Verificado").first()).toBeVisible();
+    await expect(operationsPage.getByText("PDF_TEXT").first()).toBeVisible();
+    await expect(
+      operationsPage.getByText("Páginas PDF inspeccionadas:").first(),
+    ).toBeVisible();
+    await expect(
+      operationsPage.getByText("OCR utilizado:").first(),
+    ).toBeVisible();
     await operationsContext.close();
   });
 
