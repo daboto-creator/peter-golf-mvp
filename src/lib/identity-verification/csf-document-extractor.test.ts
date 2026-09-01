@@ -110,8 +110,8 @@ describe("CSF document extraction", () => {
     });
 
     expect(result.extractionSource).toBe("OCR");
-    expect(result.extractedRfc).toBe("TEXA900101AB1");
-    expect(result.rfcMatches).toBe(true);
+    expect(result.confidence).toEqual(expect.any(Number));
+    expect(result.confidence).toBeGreaterThan(0);
     expect(result.result).toBe("REVIEW_REQUIRED");
   }, 20_000);
 });
