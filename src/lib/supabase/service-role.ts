@@ -65,6 +65,41 @@ export async function processPartnerIdentityWebhook(input: {
   return data;
 }
 
+export async function persistAutomaticPartnerDocumentAnalysis(input: {
+  documentId: string;
+  actorId: string;
+  result: Database["public"]["Enums"]["automatic_document_review_result"];
+  extractedName: string | null;
+  extractedRfc: string | null;
+  officialQrDestination: string | null;
+  warningCodes: string[];
+  normalizedOutput: Database["public"]["Tables"]["partner_document_analyses"]["Row"]["normalized_output"];
+}) {
+  const client = createServiceRoleClient();
+  const { error } = await client.rpc("record_automatic_partner_csf_analysis", {
+    requested_document_id: input.documentId,
+    requested_actor_id: input.actorId,
+    requested_result: input.result,
+    requested_extracted: {
+      name: input.extractedName,
+      rfc: input.extractedRfc,
+      officialQrDestination: input.officialQrDestination,
+    },
+    requested_warning_codes: input.warningCodes,
+    requested_normalized_output: input.normalizedOutput,
+  });
+  if (error) {
+    throw new AutomaticDocumentAnalysisPersistenceError(error.code);
+  }
+}
+
+export class AutomaticDocumentAnalysisPersistenceError extends Error {
+  constructor(readonly code?: string) {
+    super("Automatic document analysis persistence failed.");
+    this.name = "AutomaticDocumentAnalysisPersistenceError";
+  }
+}
+
 export class StripeWebhookDatabaseError extends Error {
   constructor(
     readonly retryable: boolean,

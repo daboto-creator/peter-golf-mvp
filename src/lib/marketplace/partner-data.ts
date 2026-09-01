@@ -15,6 +15,7 @@ export async function getCurrentPartnerContext() {
       readiness: null,
       documents: [],
       identityVerifications: [],
+      documentAnalyses: [],
     };
   const { data: partner } = await client
     .from("partner_profiles")
@@ -28,34 +29,41 @@ export async function getCurrentPartnerContext() {
       readiness: null,
       documents: [],
       identityVerifications: [],
+      documentAnalyses: [],
     };
-  const [readinessResult, documentsResult, identityResult] = await Promise.all([
-    client
-      .rpc("get_partner_onboarding_readiness", {
-        requested_partner_id: partner.id,
-      })
-      .maybeSingle(),
-    client
-      .from("partner_documents")
-      .select(
-        "id, document_kind, mime_type, size_bytes, status, review_reason, created_at, updated_at, version",
-      )
-      .eq("partner_id", partner.id)
-      .order("created_at", { ascending: false }),
-    client
-      .from("partner_identity_verifications")
-      .select(
-        "id, provider, session_kind, result, warning_codes, liveness_passed, face_match_passed, completed_at, created_at",
-      )
-      .eq("partner_id", partner.id)
-      .order("created_at", { ascending: false }),
-  ]);
+  const [readinessResult, documentsResult, identityResult, analysesResult] =
+    await Promise.all([
+      client
+        .rpc("get_partner_onboarding_readiness", {
+          requested_partner_id: partner.id,
+        })
+        .maybeSingle(),
+      client
+        .from("partner_documents")
+        .select(
+          "id, document_kind, mime_type, size_bytes, status, review_reason, created_at, updated_at, version",
+        )
+        .eq("partner_id", partner.id)
+        .order("created_at", { ascending: false }),
+      client
+        .from("partner_identity_verifications")
+        .select(
+          "id, provider, session_kind, result, warning_codes, liveness_passed, face_match_passed, completed_at, created_at",
+        )
+        .eq("partner_id", partner.id)
+        .order("created_at", { ascending: false }),
+      client
+        .from("partner_document_analyses")
+        .select("id, document_id, result, warning_codes, analyzed_at")
+        .order("analyzed_at", { ascending: false }),
+    ]);
   return {
     user,
     partner,
     readiness: readinessResult.data,
     documents: documentsResult.data ?? [],
     identityVerifications: identityResult.data ?? [],
+    documentAnalyses: analysesResult.data ?? [],
   };
 }
 
@@ -125,7 +133,7 @@ export async function getPartnerForOperations(partnerId: string) {
     client
       .from("partner_document_analyses")
       .select(
-        "id, document_id, result, extracted_document_type, extracted_name, extracted_document_date, extracted_rfc, official_qr_destination, warning_codes, analyzed_at, partner_documents!inner(partner_id)",
+        "id, document_id, result, extracted_document_type, extracted_name, extracted_document_date, extracted_rfc, official_qr_destination, normalized_output, warning_codes, analyzed_at, partner_documents!inner(partner_id)",
       )
       .eq("partner_documents.partner_id", partnerId)
       .order("analyzed_at", { ascending: false }),
