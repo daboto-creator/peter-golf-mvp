@@ -61,6 +61,23 @@ function normalizedField(value: unknown, key: string) {
   return typeof field === "string" || typeof field === "boolean" ? field : null;
 }
 
+function normalizedNumber(value: unknown, key: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const field = (value as Record<string, unknown>)[key];
+  return typeof field === "number" && Number.isFinite(field) ? field : null;
+}
+
+function normalizedNumberArray(value: unknown, key: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  const field = (value as Record<string, unknown>)[key];
+  return Array.isArray(field)
+    ? field.filter(
+        (entry): entry is number =>
+          typeof entry === "number" && Number.isInteger(entry) && entry > 0,
+      )
+    : [];
+}
+
 function matchCopy(value: unknown) {
   return value === true
     ? "Coincide"
@@ -352,6 +369,56 @@ export default async function PartnerOperationsDetailPage({
                                     "nameMatches",
                                   ),
                                 )}
+                              </p>
+                            </div>
+                            <div className="grid gap-2 border-t border-black/10 pt-3 sm:grid-cols-2">
+                              <p>
+                                <strong>Fuente de extracción:</strong>{" "}
+                                {normalizedField(
+                                  analysis.normalized_output,
+                                  "extractionSource",
+                                ) ?? "No disponible"}
+                              </p>
+                              <p>
+                                <strong>Páginas PDF inspeccionadas:</strong>{" "}
+                                {normalizedNumber(
+                                  analysis.normalized_output,
+                                  "pdfPagesInspected",
+                                ) ?? "—"}
+                              </p>
+                              <p>
+                                <strong>Texto fiscal útil:</strong>{" "}
+                                {normalizedField(
+                                  analysis.normalized_output,
+                                  "usefulTextSignalDetected",
+                                ) === true
+                                  ? "Sí"
+                                  : "No"}
+                              </p>
+                              <p>
+                                <strong>OCR utilizado:</strong>{" "}
+                                {normalizedField(
+                                  analysis.normalized_output,
+                                  "ocrUsed",
+                                ) === true
+                                  ? "Sí"
+                                  : "No"}
+                              </p>
+                              <p>
+                                <strong>Páginas intentadas para QR:</strong>{" "}
+                                {normalizedNumberArray(
+                                  analysis.normalized_output,
+                                  "qrPagesAttempted",
+                                ).join(", ") || "—"}
+                              </p>
+                              <p>
+                                <strong>QR decodificado:</strong>{" "}
+                                {normalizedField(
+                                  analysis.normalized_output,
+                                  "qrDecoded",
+                                ) === true
+                                  ? "Sí"
+                                  : "No"}
                               </p>
                             </div>
                             {analysis.warning_codes.length ? (

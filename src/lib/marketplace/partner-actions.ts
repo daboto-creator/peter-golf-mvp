@@ -327,6 +327,12 @@ export async function uploadPartnerDocumentAction(
         normalizedOutput: {
           extractionSource: analysis.extractionSource,
           parseConfidence: analysis.confidence,
+          pdfPagesInspected: analysis.diagnostics.pdfPagesInspected,
+          usefulTextSignalDetected:
+            analysis.diagnostics.usefulTextSignalDetected,
+          qrPagesAttempted: analysis.diagnostics.qrPagesAttempted,
+          qrDecoded: analysis.diagnostics.qrDecoded,
+          ocrUsed: analysis.diagnostics.ocrUsed,
           qrStatus: analysis.qrStatus,
           qrRfc: analysis.qrRfc,
           rfcMatches: analysis.rfcMatches,
@@ -356,6 +362,11 @@ export async function uploadPartnerDocumentAction(
         warningCodes: ["CSF_ANALYSIS_ERROR"],
         normalizedOutput: {
           extractionSource: "UNAVAILABLE",
+          pdfPagesInspected: 0,
+          usefulTextSignalDetected: false,
+          qrPagesAttempted: [],
+          qrDecoded: false,
+          ocrUsed: false,
           qrStatus: "NOT_AVAILABLE",
           rfcMatches: null,
           nameMatches: null,
