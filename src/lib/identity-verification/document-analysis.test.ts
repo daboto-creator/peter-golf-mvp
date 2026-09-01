@@ -24,6 +24,37 @@ describe("rules-first Partner document analysis", () => {
     ).toEqual({ result: "FAILED", warningCodes: ["ADDRESS_PROOF_TOO_OLD"] });
   });
 
+  it("keeps an unclassified provider in Operations review", () => {
+    expect(
+      analyzeAddressProof({
+        legalType: "INDIVIDUAL",
+        documentType: null,
+        documentDate: new Date("2026-08-20T00:00:00Z"),
+        partnerName: "Ana Golf",
+        documentName: "Ana Golf",
+        addressConsistent: true,
+        now,
+      }),
+    ).toEqual({
+      result: "REVIEW_REQUIRED",
+      warningCodes: ["DOCUMENT_TYPE_NOT_EXTRACTED"],
+    });
+  });
+
+  it("fails a clear postal-code mismatch", () => {
+    expect(
+      analyzeAddressProof({
+        legalType: "INDIVIDUAL",
+        documentType: "electricity",
+        documentDate: new Date("2026-08-20T00:00:00Z"),
+        partnerName: "Ana Golf",
+        documentName: "Ana Golf",
+        addressConsistent: false,
+        now,
+      }),
+    ).toEqual({ result: "FAILED", warningCodes: ["ADDRESS_MISMATCH"] });
+  });
+
   it("warns but does not reject a company account-holder name mismatch", () => {
     expect(
       analyzeAddressProof({

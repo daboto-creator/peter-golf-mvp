@@ -74,20 +74,31 @@ export async function persistAutomaticPartnerDocumentAnalysis(input: {
   officialQrDestination: string | null;
   warningCodes: string[];
   normalizedOutput: Database["public"]["Tables"]["partner_document_analyses"]["Row"]["normalized_output"];
+  analysisVersion?: string;
+  documentType?: string | null;
+  extractedAddress?: string | null;
+  extractedDocumentDate?: string | null;
 }) {
   const client = createServiceRoleClient();
-  const { error } = await client.rpc("record_automatic_partner_csf_analysis", {
-    requested_document_id: input.documentId,
-    requested_actor_id: input.actorId,
-    requested_result: input.result,
-    requested_extracted: {
-      name: input.extractedName,
-      rfc: input.extractedRfc,
-      officialQrDestination: input.officialQrDestination,
+  const { error } = await client.rpc(
+    "record_automatic_partner_document_analysis",
+    {
+      requested_document_id: input.documentId,
+      requested_actor_id: input.actorId,
+      requested_analysis_version: input.analysisVersion ?? "rules-v1",
+      requested_result: input.result,
+      requested_extracted: {
+        name: input.extractedName,
+        rfc: input.extractedRfc,
+        officialQrDestination: input.officialQrDestination,
+        documentType: input.documentType,
+        address: input.extractedAddress,
+        documentDate: input.extractedDocumentDate,
+      },
+      requested_warning_codes: input.warningCodes,
+      requested_normalized_output: input.normalizedOutput,
     },
-    requested_warning_codes: input.warningCodes,
-    requested_normalized_output: input.normalizedOutput,
-  });
+  );
   if (error) {
     throw new AutomaticDocumentAnalysisPersistenceError(error.code);
   }

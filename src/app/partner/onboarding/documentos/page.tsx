@@ -86,6 +86,16 @@ export default async function PartnerDocumentsPage() {
                           ? "Encontramos una diferencia entre tu información fiscal y la constancia. Revisa tus datos o vuelve a cargar el documento correcto."
                           : "No pudimos validar automáticamente toda la constancia. Best Round revisará este documento."
                       : null;
+                  const addressMessage =
+                    (document.document_kind === "address_proof" ||
+                      document.document_kind === "company_address_proof") &&
+                    analysis
+                      ? analysis.result === "PASSED"
+                        ? "Comprobante de domicilio validado correctamente."
+                        : analysis.result === "FAILED"
+                          ? "Encontramos una diferencia en el comprobante de domicilio. Revisa la información o carga un documento actualizado."
+                          : "No pudimos validar automáticamente toda la información del comprobante. Best Round lo revisará."
+                      : null;
                   return (
                     <li key={document.id} className="rounded-xl border p-3">
                       <strong className="text-sm">
@@ -102,6 +112,9 @@ export default async function PartnerDocumentsPage() {
                       </span>
                       {csfMessage ? (
                         <p className="mt-2 text-xs">{csfMessage}</p>
+                      ) : null}
+                      {addressMessage ? (
+                        <p className="mt-2 text-xs">{addressMessage}</p>
                       ) : null}
                     </li>
                   );
