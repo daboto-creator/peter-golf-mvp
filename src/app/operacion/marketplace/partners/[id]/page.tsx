@@ -33,6 +33,42 @@ const transitions: Record<PartnerStatus, Array<[string, string]>> = {
   REJECTED: [["IDENTITY_PENDING", "Permitir correcciones"]],
 };
 
+const automaticResultCopy = {
+  PASSED: "Validado",
+  REVIEW_REQUIRED: "Requiere revisión",
+  FAILED: "Inconsistente",
+} as const;
+
+const csfWarningCopy: Record<string, string> = {
+  CSF_EXTRACTION_INCOMPLETE: "No fue posible extraer todos los datos fiscales.",
+  RFC_MISMATCH: "El RFC no coincide con el perfil fiscal.",
+  FISCAL_NAME_MISMATCH: "El nombre fiscal no coincide con el perfil.",
+  SAT_QR_MISSING: "La constancia no contiene un QR detectable.",
+  SAT_QR_UNREADABLE: "No fue posible leer el QR automáticamente.",
+  SAT_QR_DESTINATION_NOT_OFFICIAL:
+    "El QR no dirige al validador oficial permitido del SAT.",
+  SAT_QR_RFC_NOT_EXTRACTED: "No fue posible confirmar el RFC desde el QR.",
+  SAT_QR_RFC_MISMATCH: "El RFC del QR no coincide con el documento.",
+  CSF_ANALYSIS_ERROR: "El análisis automático no pudo completarse.",
+  REGISTERED_FISCAL_DATA_INCOMPLETE:
+    "El perfil aún no tiene todos los datos fiscales para comparar.",
+  AUTOMATIC_CONTENT_EXTRACTION_PENDING: "El análisis está pendiente.",
+};
+
+function normalizedField(value: unknown, key: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const field = (value as Record<string, unknown>)[key];
+  return typeof field === "string" || typeof field === "boolean" ? field : null;
+}
+
+function matchCopy(value: unknown) {
+  return value === true
+    ? "Coincide"
+    : value === false
+      ? "No coincide"
+      : "No determinado";
+}
+
 export default async function PartnerOperationsDetailPage({
   params,
 }: {
@@ -55,8 +91,16 @@ export default async function PartnerOperationsDetailPage({
   }
   const warnings = [
     ...(latestIdentity?.warning_codes ?? []),
-    ...result.analyses.flatMap((analysis) => analysis.warning_codes),
+    ...[...analysesByDocument.values()].flatMap(
+      (analysis) => analysis.warning_codes,
+    ),
   ];
+  const fiscalDocument = result.documents.find(
+    (document) => document.document_kind === "fiscal_certificate",
+  );
+  const fiscalAnalysis = fiscalDocument
+    ? analysesByDocument.get(fiscalDocument.id)
+    : undefined;
   return (
     <div className="space-y-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -158,15 +202,23 @@ export default async function PartnerOperationsDetailPage({
               </p>
               <p>
                 <strong>CSF / RFC:</strong>{" "}
-                {result.analyses.some((entry) => entry.extracted_rfc)
+                {fiscalAnalysis?.extracted_rfc
                   ? "Analizado"
                   : "Pendiente de análisis"}
               </p>
               <p>
                 <strong>SAT QR:</strong>{" "}
-                {result.analyses.some((entry) => entry.official_qr_destination)
-                  ? "Destino oficial registrado"
-                  : "Pendiente / no aplica"}
+                {normalizedField(
+                  fiscalAnalysis?.normalized_output,
+                  "qrStatus",
+                ) === "VERIFIED"
+                  ? "Verificado"
+                  : normalizedField(
+                        fiscalAnalysis?.normalized_output,
+                        "qrStatus",
+                      ) === "NOT_VERIFIED"
+                    ? "No verificado"
+                    : "No disponible"}
               </p>
               <p>
                 <strong>Documento migratorio:</strong>{" "}
@@ -190,7 +242,10 @@ export default async function PartnerOperationsDetailPage({
               </p>
               {warnings.length ? (
                 <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 sm:col-span-2">
-                  <strong>Alertas:</strong> {warnings.join(", ")}
+                  <strong>Alertas:</strong>{" "}
+                  {warnings
+                    .map((warning) => csfWarningCopy[warning] ?? warning)
+                    .join(" ")}
                 </p>
               ) : null}
             </CardContent>
@@ -202,55 +257,125 @@ export default async function PartnerOperationsDetailPage({
             <CardContent>
               {result.documents.length ? (
                 <div className="space-y-5">
-                  {result.documents.map((document) => (
-                    <article
-                      key={document.id}
-                      className="rounded-xl border p-4"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <strong>
-                            {documentKindCopy[
-                              document.document_kind as keyof typeof documentKindCopy
-                            ] ?? "Documento"}
-                          </strong>
-                          <p className="text-muted-foreground text-xs">
-                            {partnerDocumentStatusCopy[document.status]} ·{" "}
-                            {(document.size_bytes / 1024).toFixed(0)} KiB
-                          </p>
+                  {result.documents.map((document) => {
+                    const analysis = analysesByDocument.get(document.id);
+                    const isFiscal =
+                      document.document_kind === "fiscal_certificate";
+                    return (
+                      <article
+                        key={document.id}
+                        className="rounded-xl border p-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <strong>
+                              {documentKindCopy[
+                                document.document_kind as keyof typeof documentKindCopy
+                              ] ?? "Documento"}
+                            </strong>
+                            <p className="text-muted-foreground text-xs">
+                              {partnerDocumentStatusCopy[document.status]} ·{" "}
+                              {(document.size_bytes / 1024).toFixed(0)} KiB
+                            </p>
+                          </div>
+                          <Button asChild size="sm" variant="outline">
+                            <Link
+                              href={`/operacion/marketplace/partners/${partner.id}/documentos/${document.id}`}
+                              target="_blank"
+                            >
+                              Abrir de forma segura
+                            </Link>
+                          </Button>
                         </div>
-                        <Button asChild size="sm" variant="outline">
-                          <Link
-                            href={`/operacion/marketplace/partners/${partner.id}/documentos/${document.id}`}
-                            target="_blank"
-                          >
-                            Abrir de forma segura
-                          </Link>
-                        </Button>
-                      </div>
-                      {partner.status === "UNDER_REVIEW" ? (
-                        <DocumentReviewForm
-                          documentId={document.id}
-                          version={document.version}
-                        />
-                      ) : (
-                        <p className="text-muted-foreground mt-3 text-sm">
-                          La revisión se habilita cuando el Partner envía su
-                          solicitud.
-                        </p>
-                      )}
-                      {analysesByDocument.get(document.id) ? (
-                        <p className="mt-3 rounded-lg bg-black/5 p-3 text-xs">
-                          Análisis automático:{" "}
-                          {analysesByDocument.get(document.id)!.result}
-                          {analysesByDocument.get(document.id)!.warning_codes
-                            .length
-                            ? ` · ${analysesByDocument.get(document.id)!.warning_codes.join(", ")}`
-                            : ""}
-                        </p>
-                      ) : null}
-                    </article>
-                  ))}
+                        {partner.status === "UNDER_REVIEW" ? (
+                          <DocumentReviewForm
+                            documentId={document.id}
+                            version={document.version}
+                          />
+                        ) : (
+                          <p className="text-muted-foreground mt-3 text-sm">
+                            La revisión se habilita cuando el Partner envía su
+                            solicitud.
+                          </p>
+                        )}
+                        {analysis && isFiscal ? (
+                          <div className="mt-3 space-y-3 rounded-lg bg-black/5 p-3 text-xs">
+                            <p>
+                              <strong>Resultado automático:</strong>{" "}
+                              {automaticResultCopy[analysis.result]}
+                            </p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <p>
+                                <strong>RFC registrado:</strong>{" "}
+                                {partner.tax_id || "—"}
+                              </p>
+                              <p>
+                                <strong>RFC extraído:</strong>{" "}
+                                {analysis.extracted_rfc || "—"}
+                              </p>
+                              <p>
+                                <strong>Coincidencia RFC:</strong>{" "}
+                                {matchCopy(
+                                  normalizedField(
+                                    analysis.normalized_output,
+                                    "rfcMatches",
+                                  ),
+                                )}
+                              </p>
+                              <p>
+                                <strong>SAT QR:</strong>{" "}
+                                {normalizedField(
+                                  analysis.normalized_output,
+                                  "qrStatus",
+                                ) === "VERIFIED"
+                                  ? "Verificado"
+                                  : normalizedField(
+                                        analysis.normalized_output,
+                                        "qrStatus",
+                                      ) === "NOT_VERIFIED"
+                                    ? "No verificado"
+                                    : "No disponible"}
+                              </p>
+                              <p>
+                                <strong>Nombre fiscal registrado:</strong>{" "}
+                                {partner.legal_name || "—"}
+                              </p>
+                              <p>
+                                <strong>Nombre fiscal extraído:</strong>{" "}
+                                {analysis.extracted_name || "—"}
+                              </p>
+                              <p>
+                                <strong>Coincidencia de nombre:</strong>{" "}
+                                {matchCopy(
+                                  normalizedField(
+                                    analysis.normalized_output,
+                                    "nameMatches",
+                                  ),
+                                )}
+                              </p>
+                            </div>
+                            {analysis.warning_codes.length ? (
+                              <p>
+                                <strong>Resumen:</strong>{" "}
+                                {analysis.warning_codes
+                                  .map(
+                                    (warning) =>
+                                      csfWarningCopy[warning] ??
+                                      "Requiere validación manual.",
+                                  )
+                                  .join(" ")}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : analysis ? (
+                          <p className="mt-3 rounded-lg bg-black/5 p-3 text-xs">
+                            Análisis automático:{" "}
+                            {automaticResultCopy[analysis.result]}
+                          </p>
+                        ) : null}
+                      </article>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-muted-foreground text-sm">Sin documentos.</p>

@@ -28,7 +28,7 @@ export type AddressProofInput = {
   now: Date;
 };
 
-function normalized(value: string | null) {
+export function normalizeDocumentValue(value: string | null) {
   return value
     ?.normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -63,7 +63,8 @@ export function analyzeAddressProof(input: AddressProofInput): {
   if (input.addressConsistent === null)
     warnings.push("ADDRESS_MATCH_UNCERTAIN");
   const nameMatches =
-    normalized(input.partnerName) === normalized(input.documentName);
+    normalizeDocumentValue(input.partnerName) ===
+    normalizeDocumentValue(input.documentName);
   if (!nameMatches) {
     warnings.push("ACCOUNT_HOLDER_NAME_MISMATCH");
     if (input.legalType !== "LEGAL_ENTITY") {
@@ -83,6 +84,7 @@ export function analyzeFiscalCertificate(input: {
   documentName: string | null;
   qrOfficialRfc: string | null;
   qrDestinationIsOfficial: boolean;
+  qrWarningCode?: string;
 }): { result: AutomaticReviewResult; warningCodes: string[] } {
   if (!input.documentRfc || !input.documentName) {
     return {
@@ -90,18 +92,39 @@ export function analyzeFiscalCertificate(input: {
       warningCodes: ["CSF_EXTRACTION_INCOMPLETE"],
     };
   }
-  if (normalized(input.registeredRfc) !== normalized(input.documentRfc)) {
+  if (!input.registeredRfc || !input.registeredName) {
+    return {
+      result: "REVIEW_REQUIRED",
+      warningCodes: ["REGISTERED_FISCAL_DATA_INCOMPLETE"],
+    };
+  }
+  if (
+    normalizeDocumentValue(input.registeredRfc) !==
+    normalizeDocumentValue(input.documentRfc)
+  ) {
     return { result: "FAILED", warningCodes: ["RFC_MISMATCH"] };
   }
-  if (normalized(input.registeredName) !== normalized(input.documentName)) {
+  if (
+    normalizeDocumentValue(input.registeredName) !==
+    normalizeDocumentValue(input.documentName)
+  ) {
     return { result: "FAILED", warningCodes: ["FISCAL_NAME_MISMATCH"] };
   }
   if (!input.qrDestinationIsOfficial) {
-    return { result: "REVIEW_REQUIRED", warningCodes: ["SAT_QR_NOT_VERIFIED"] };
+    return {
+      result: "REVIEW_REQUIRED",
+      warningCodes: [input.qrWarningCode ?? "SAT_QR_NOT_VERIFIED"],
+    };
+  }
+  if (!input.qrOfficialRfc) {
+    return {
+      result: "REVIEW_REQUIRED",
+      warningCodes: ["SAT_QR_RFC_NOT_EXTRACTED"],
+    };
   }
   if (
-    input.qrOfficialRfc &&
-    normalized(input.qrOfficialRfc) !== normalized(input.documentRfc)
+    normalizeDocumentValue(input.qrOfficialRfc) !==
+    normalizeDocumentValue(input.documentRfc)
   ) {
     return { result: "FAILED", warningCodes: ["SAT_QR_RFC_MISMATCH"] };
   }

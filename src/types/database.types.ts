@@ -9607,6 +9607,38 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      record_automatic_partner_csf_analysis: {
+        Args: {
+          requested_actor_id: string;
+          requested_document_id: string;
+          requested_extracted: Json;
+          requested_normalized_output: Json;
+          requested_result: Database["public"]["Enums"]["automatic_document_review_result"];
+          requested_warning_codes: string[];
+        };
+        Returns: {
+          analysis_version: string;
+          analyzed_at: string;
+          analyzed_by: string | null;
+          document_id: string;
+          extracted_address: string | null;
+          extracted_document_date: string | null;
+          extracted_document_type: string | null;
+          extracted_name: string | null;
+          extracted_rfc: string | null;
+          id: string;
+          normalized_output: Json;
+          official_qr_destination: string | null;
+          result: Database["public"]["Enums"]["automatic_document_review_result"];
+          warning_codes: string[];
+        };
+        SetofOptions: {
+          from: "*";
+          to: "partner_document_analyses";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       record_partner_document_analysis: {
         Args: {
           requested_analysis_version: string;

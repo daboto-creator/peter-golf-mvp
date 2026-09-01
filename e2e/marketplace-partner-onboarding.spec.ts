@@ -1,10 +1,13 @@
 import { execFileSync } from "node:child_process";
 
 import { expect, test, type Page } from "@playwright/test";
+import { PDFDocument, StandardFonts } from "pdf-lib";
+import QRCode from "qrcode";
 
 const enabled = process.env.RUN_MARKETPLACE_E2E === "1";
 const password = "PartnerE2E123!";
 const partnerEmail = "e2e.marketplace.partner@example.test";
+const partnerBEmail = "e2e.marketplace.partner-b@example.test";
 const operatorEmail = "e2e.marketplace.operator@example.test";
 const golferEmail = "e2e.marketplace.golfer@example.test";
 const partnerBId = "42000000-0000-4000-8000-000000000002";
@@ -172,6 +175,73 @@ test.describe("Marketplace Partner onboarding @mutating", () => {
     await login(page, golferEmail, "/cuenta");
     const response = await page.goto("/operacion/marketplace/partners");
     expect(response?.status()).toBe(403);
+  });
+
+  test("Persona Física receives authoritative automatic CSF analysis", async ({
+    page,
+    browser,
+    isMobile,
+  }) => {
+    test.skip(
+      isMobile,
+      "The document analysis transaction runs once on Desktop.",
+    );
+    const rfc = "TEXA900101AB1";
+    sql(`
+      update public.partner_profiles
+      set legal_type='SOLE_PROPRIETOR', tax_id='${rfc}', legal_name='ANA PRUEBA SINTETICA'
+      where id='${partnerBId}';
+    `);
+    const pdf = await PDFDocument.create();
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const destination = `https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=100000_${rfc}`;
+    const qr = await pdf.embedPng(
+      await QRCode.toBuffer(destination, { width: 240 }),
+    );
+    const pdfPage = pdf.addPage([612, 792]);
+    pdfPage.drawText(`RFC: ${rfc}`, { x: 48, y: 690, size: 12, font });
+    pdfPage.drawText("Nombre (s): ANA", { x: 48, y: 660, size: 12, font });
+    pdfPage.drawText("Primer Apellido: PRUEBA", {
+      x: 48,
+      y: 630,
+      size: 12,
+      font,
+    });
+    pdfPage.drawText("Segundo Apellido: SINTETICA", {
+      x: 48,
+      y: 600,
+      size: 12,
+      font,
+    });
+    pdfPage.drawImage(qr, { x: 330, y: 430, width: 200, height: 200 });
+
+    await login(page, partnerBEmail, "/partner/onboarding/documentos");
+    await page
+      .getByLabel("Tipo de documento")
+      .selectOption("fiscal_certificate");
+    await page.getByLabel("Archivo privado").setInputFiles({
+      name: "csf-sintetica.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from(await pdf.save()),
+    });
+    await page.getByRole("button", { name: "Subir documento" }).click();
+    await expect(
+      page.getByText("Constancia validada correctamente.").first(),
+    ).toBeVisible();
+
+    const operationsContext = await browser.newContext();
+    const operationsPage = await operationsContext.newPage();
+    await login(
+      operationsPage,
+      operatorEmail,
+      `/operacion/marketplace/partners/${partnerBId}`,
+    );
+    await expect(
+      operationsPage.getByText("Resultado automático:").first(),
+    ).toBeVisible();
+    await expect(operationsPage.getByText("Validado").first()).toBeVisible();
+    await expect(operationsPage.getByText("Verificado").first()).toBeVisible();
+    await operationsContext.close();
   });
 
   test("Partner onboarding shell is usable without horizontal overflow on mobile", async ({

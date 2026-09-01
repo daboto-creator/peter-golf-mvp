@@ -9,6 +9,8 @@ import { z } from "zod";
 
 import { serverEnv } from "@/env/server";
 import { getIdentityVerificationProvider } from "@/lib/identity-verification/provider";
+import { csfPartnerMessage } from "@/lib/identity-verification/csf-analysis";
+import { analyzeCsfDocument } from "@/lib/identity-verification/csf-document-extractor";
 import {
   requireMarketplacePartner,
   requireMarketplaceUser,
@@ -30,6 +32,10 @@ import {
   validatePartnerDocument,
   validatePartnerDocumentSignature,
 } from "@/lib/marketplace/partner-rules";
+import {
+  AutomaticDocumentAnalysisPersistenceError,
+  persistAutomaticPartnerDocumentAnalysis,
+} from "@/lib/supabase/service-role";
 
 function value(formData: FormData, key: string): string {
   const entry = formData.get(key);
@@ -296,8 +302,70 @@ export async function uploadPartnerDocumentAction(
     requested_section: "documents",
     requested_payload: {},
   });
+  let documentMessage = "Documento recibido de forma segura.";
+  if (
+    kind === "fiscal_certificate" &&
+    (partner.legal_type === "SOLE_PROPRIETOR" ||
+      partner.legal_type === "LEGAL_ENTITY")
+  ) {
+    try {
+      const analysis = await analyzeCsfDocument({
+        bytes,
+        mimeType: file.type,
+        legalType: partner.legal_type,
+        registeredRfc: partner.tax_id,
+        registeredName: partner.legal_name,
+      });
+      await persistAutomaticPartnerDocumentAnalysis({
+        documentId,
+        actorId: partner.user_id,
+        result: analysis.result,
+        extractedName: analysis.extractedName,
+        extractedRfc: analysis.extractedRfc,
+        officialQrDestination: analysis.officialQrDestination,
+        warningCodes: analysis.warningCodes,
+        normalizedOutput: {
+          extractionSource: analysis.extractionSource,
+          parseConfidence: analysis.confidence,
+          qrStatus: analysis.qrStatus,
+          qrRfc: analysis.qrRfc,
+          rfcMatches: analysis.rfcMatches,
+          nameMatches: analysis.nameMatches,
+        },
+      });
+      documentMessage = csfPartnerMessage(analysis.result);
+    } catch (error) {
+      console.error("marketplace_csf_analysis_failed", {
+        stage:
+          error instanceof AutomaticDocumentAnalysisPersistenceError
+            ? "persistence"
+            : "extraction",
+        code:
+          error instanceof AutomaticDocumentAnalysisPersistenceError &&
+          error.code?.match(/^[A-Z0-9]{5,10}$/)
+            ? error.code
+            : undefined,
+      });
+      await persistAutomaticPartnerDocumentAnalysis({
+        documentId,
+        actorId: partner.user_id,
+        result: "REVIEW_REQUIRED",
+        extractedName: null,
+        extractedRfc: null,
+        officialQrDestination: null,
+        warningCodes: ["CSF_ANALYSIS_ERROR"],
+        normalizedOutput: {
+          extractionSource: "UNAVAILABLE",
+          qrStatus: "NOT_AVAILABLE",
+          rfcMatches: null,
+          nameMatches: null,
+        },
+      }).catch(() => undefined);
+      documentMessage = csfPartnerMessage("REVIEW_REQUIRED");
+    }
+  }
   revalidatePath("/partner", "layout");
-  return { status: "success", message: "Documento recibido de forma segura." };
+  return { status: "success", message: documentMessage };
 }
 
 export async function submitPartnerAction(

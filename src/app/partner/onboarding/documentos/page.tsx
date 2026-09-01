@@ -12,13 +12,23 @@ import {
 import { requiredPartnerDocuments } from "@/lib/identity-verification/document-analysis";
 
 export default async function PartnerDocumentsPage() {
-  const { partner, documents } = await getCurrentPartnerContext();
+  const { partner, documents, documentAnalyses } =
+    await getCurrentPartnerContext();
   if (!partner) redirect("/partner/onboarding");
   if (isPartnerReadOnly(partner.status)) redirect("/partner/verificacion");
   const required = requiredPartnerDocuments({
     legalType: partner.legal_type,
     countryCode: partner.country_code,
   });
+  const latestAnalysisByDocument = new Map<
+    string,
+    (typeof documentAnalyses)[number]
+  >();
+  for (const analysis of documentAnalyses) {
+    if (!latestAnalysisByDocument.has(analysis.document_id)) {
+      latestAnalysisByDocument.set(analysis.document_id, analysis);
+    }
+  }
   return (
     <div className="mx-auto max-w-3xl space-y-7">
       <header>
@@ -66,22 +76,36 @@ export default async function PartnerDocumentsPage() {
           <CardContent>
             {documents.length ? (
               <ul className="space-y-3">
-                {documents.map((document) => (
-                  <li key={document.id} className="rounded-xl border p-3">
-                    <strong className="text-sm">
-                      {documentKindCopy[
-                        document.document_kind as keyof typeof documentKindCopy
-                      ] ?? "Documento"}
-                    </strong>
-                    <span className="text-muted-foreground mt-1 block text-xs">
-                      {document.status === "REJECTED"
-                        ? "Necesitamos que actualices este documento"
-                        : document.status === "VERIFIED"
-                          ? "Aprobado"
-                          : "Recibido"}
-                    </span>
-                  </li>
-                ))}
+                {documents.map((document) => {
+                  const analysis = latestAnalysisByDocument.get(document.id);
+                  const csfMessage =
+                    document.document_kind === "fiscal_certificate" && analysis
+                      ? analysis.result === "PASSED"
+                        ? "Constancia validada correctamente."
+                        : analysis.result === "FAILED"
+                          ? "Encontramos una diferencia entre tu información fiscal y la constancia. Revisa tus datos o vuelve a cargar el documento correcto."
+                          : "No pudimos validar automáticamente toda la constancia. Best Round revisará este documento."
+                      : null;
+                  return (
+                    <li key={document.id} className="rounded-xl border p-3">
+                      <strong className="text-sm">
+                        {documentKindCopy[
+                          document.document_kind as keyof typeof documentKindCopy
+                        ] ?? "Documento"}
+                      </strong>
+                      <span className="text-muted-foreground mt-1 block text-xs">
+                        {document.status === "REJECTED"
+                          ? "Necesitamos que actualices este documento"
+                          : document.status === "VERIFIED"
+                            ? "Aprobado"
+                            : "Recibido"}
+                      </span>
+                      {csfMessage ? (
+                        <p className="mt-2 text-xs">{csfMessage}</p>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-muted-foreground text-sm">
