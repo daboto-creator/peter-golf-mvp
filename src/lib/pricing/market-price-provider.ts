@@ -51,7 +51,7 @@ export type MarketPriceResult = MarketReference & {
 export interface MarketPriceProvider {
   getMarketPrice(
     input: MarketPriceInput,
-    options?: { forceRefresh?: boolean },
+    options?: { forceRefresh?: boolean; query?: string; market?: "MX" | "US" },
   ): Promise<MarketPriceResult>;
 }
 

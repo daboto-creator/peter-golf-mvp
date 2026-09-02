@@ -1,7 +1,5 @@
 "use server";
 
-import { createHash } from "node:crypto";
-
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -11,9 +9,12 @@ import {
 } from "@/lib/auth/marketplace-authorization";
 import { parseMoneyToMinorUnits } from "@/lib/catalog/product-validation";
 import type { PartnerActionState } from "@/lib/marketplace/partner-action-state";
-import { normalizeMarketplaceMarketResult } from "@/lib/pricing/marketplace-market-intelligence";
+import {
+  buildResearchFingerprint,
+  researchBestRoundIntelligence,
+  type ResearchProductInput,
+} from "@/lib/pricing/intelligence-research";
 import type { MarketPriceInput } from "@/lib/pricing/market-price-provider";
-import { researchMarketPriceSafely } from "@/lib/pricing/market-price-resilience";
 import { getConfiguredMarketPriceProvider } from "@/lib/pricing/market-price-service";
 
 const uuid = z.uuid();
@@ -342,9 +343,7 @@ export async function completeMarketplaceAnalysisAction(
       message: "La versión aprobada no tiene identidad canónica completa.",
     };
   const configured = getConfiguredMarketPriceProvider();
-  const fingerprint = createHash("sha256")
-    .update(JSON.stringify(input))
-    .digest("hex");
+  const fingerprint = buildResearchFingerprint(input as ResearchProductInput);
   const cached = await client
     .from("marketplace_market_analyses")
     .select(
@@ -376,28 +375,97 @@ export async function completeMarketplaceAnalysisAction(
     revalidatePath(`/partner/publicaciones/${analysis.data.listing_id}/precio`);
     return { status: "success", message: "Referencia reciente reutilizada." };
   }
-  const researched = await researchMarketPriceSafely(input, {
-    provider: configured.provider,
-    forceRefresh: true,
-    failureProviderName: configured.name,
-  });
-  const normalized = normalizeMarketplaceMarketResult(researched.result);
+  const researched = await researchBestRoundIntelligence(
+    input as ResearchProductInput,
+    {
+      provider: configured.provider,
+      forceRefresh: true,
+    },
+  );
+  const normalized = {
+    status:
+      researched.status === "COMPLETE"
+        ? ("COMPLETE" as const)
+        : researched.status === "PROVIDER_UNAVAILABLE"
+          ? ("PROVIDER_UNAVAILABLE" as const)
+          : ("INSUFFICIENT_DATA" as const),
+    validComparableCount: researched.acceptedComparables.length,
+    medianPriceMinor: researched.acceptedComparables.length
+      ? Math.round(
+          researched.acceptedComparables
+            .map((item) => item.priceMinor)
+            .sort((a, b) => a - b)[
+            Math.floor(researched.acceptedComparables.length / 2)
+          ],
+        )
+      : null,
+    averagePriceMinor: researched.acceptedComparables.length
+      ? Math.round(
+          researched.acceptedComparables.reduce(
+            (sum, item) => sum + item.priceMinor,
+            0,
+          ) / researched.acceptedComparables.length,
+        )
+      : null,
+    lowMarketMinor: researched.acceptedComparables.length
+      ? Math.min(
+          ...researched.acceptedComparables.map((item) => item.priceMinor),
+        )
+      : null,
+    highMarketMinor: researched.acceptedComparables.length
+      ? Math.max(
+          ...researched.acceptedComparables.map((item) => item.priceMinor),
+        )
+      : null,
+    recommendedPriceMinor: researched.acceptedComparables.length
+      ? Math.round(
+          researched.acceptedComparables
+            .map((item) => item.priceMinor)
+            .sort((a, b) => a - b)[
+            Math.floor(researched.acceptedComparables.length / 2)
+          ],
+        )
+      : null,
+    confidence: researched.confidence,
+    flags: researched.reasons,
+    analysisVersion: researched.engineVersion,
+    comparables: researched.acceptedComparables.map((item) => ({
+      source: item.source,
+      title: item.title,
+      brand: null,
+      model: null,
+      category: null,
+      condition: item.condition ?? "unknown",
+      priceMinor: item.priceMinor,
+      currency: "MXN" as const,
+      seller: item.seller,
+      referenceUrl: item.url ?? null,
+      availability: item.availability ?? "unknown",
+      shippingMinor: null,
+      totalPriceMinor: null,
+      matchScore: item.similarity ?? 0,
+      matchReasons: item.similarityReasons ?? [],
+      observedAt: item.observedAt,
+    })),
+  };
   const completed = await client.rpc("complete_marketplace_market_analysis", {
     requested_analysis_id: analysisId.data,
-    requested_provider: researched.result.provider,
-    requested_provider_status: researched.failed ? "unavailable" : "complete",
+    requested_provider: configured.name,
+    requested_provider_status: researched.providerUnavailable
+      ? "unavailable"
+      : "complete",
     requested_input_fingerprint: fingerprint,
     requested_input_snapshot: input,
     requested_result_snapshot: normalized,
     requested_comparables: normalized.comparables,
-    requested_excluded_count: researched.result.excludedCount,
+    requested_excluded_count: researched.excludedComparables.length,
   });
   if (completed.error) return failure(completed.error.message);
   revalidatePath("/operacion/marketplace/precios");
   revalidatePath(`/partner/publicaciones/${analysis.data.listing_id}/precio`);
   return {
     status: "success",
-    message: researched.failed
+    message: researched.providerUnavailable
       ? "Provider no disponible; la solicitud quedó lista para referencia manual."
       : "Referencia de mercado actualizada.",
   };
