@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { initialPartnerActionState } from "@/lib/marketplace/partner-action-state";
 import {
   reviewPartnerDocumentAction,
+  reanalyzePartnerDocumentAction,
   transitionPartnerStatusAction,
 } from "@/lib/marketplace/partner-actions";
 
@@ -50,6 +51,20 @@ export function DocumentReviewForm({
       />
       <ActionFeedback state={state} />
       <SubmitButton>Guardar revisión</SubmitButton>
+    </form>
+  );
+}
+
+export function ReanalyzeDocumentForm({ documentId }: { documentId: string }) {
+  const [state, action] = useActionState(
+    reanalyzePartnerDocumentAction,
+    initialPartnerActionState,
+  );
+  return (
+    <form action={action} className="mt-3">
+      <input type="hidden" name="document_id" value={documentId} />
+      <ActionFeedback state={state} />
+      <SubmitButton>Reanalizar documento</SubmitButton>
     </form>
   );
 }

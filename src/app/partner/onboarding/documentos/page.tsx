@@ -10,12 +10,25 @@ import {
   isPartnerReadOnly,
 } from "@/lib/marketplace/partner-rules";
 import { requiredPartnerDocuments } from "@/lib/identity-verification/document-analysis";
+import { validateFiscalInformation } from "@/lib/marketplace/partner-rules";
 
 export default async function PartnerDocumentsPage() {
   const { partner, documents, documentAnalyses } =
     await getCurrentPartnerContext();
   if (!partner) redirect("/partner/onboarding");
   if (isPartnerReadOnly(partner.status)) redirect("/partner/verificacion");
+  const fiscalIncomplete =
+    partner.legal_type !== "INDIVIDUAL" &&
+    validateFiscalInformation(partner.legal_type, {
+      tax_id: partner.tax_id,
+      legal_name: partner.legal_name,
+      fiscal_address_line_1: partner.fiscal_address_line_1,
+      fiscal_address_line_2: partner.fiscal_address_line_2,
+      fiscal_city: partner.fiscal_city,
+      fiscal_state: partner.fiscal_state,
+      fiscal_postal_code: partner.fiscal_postal_code,
+    });
+  if (fiscalIncomplete) redirect("/partner/onboarding/fiscal?from=documentos");
   const required = requiredPartnerDocuments({
     legalType: partner.legal_type,
     countryCode: partner.country_code,
@@ -54,7 +67,7 @@ export default async function PartnerDocumentsPage() {
           {partner.legal_type !== "INDIVIDUAL" ? (
             <Button asChild size="sm" variant="outline">
               <Link href="/partner/onboarding/fiscal">
-                Completar datos fiscales
+                Editar datos fiscales
               </Link>
             </Button>
           ) : null}
@@ -78,6 +91,10 @@ export default async function PartnerDocumentsPage() {
               <ul className="space-y-3">
                 {documents.map((document) => {
                   const analysis = latestAnalysisByDocument.get(document.id);
+                  const analysisIsStale =
+                    analysis &&
+                    new Date(analysis.analyzed_at).getTime() <
+                      new Date(partner.updated_at).getTime();
                   const csfMessage =
                     document.document_kind === "fiscal_certificate" && analysis
                       ? analysis.result === "PASSED"
@@ -115,6 +132,12 @@ export default async function PartnerDocumentsPage() {
                       ) : null}
                       {addressMessage ? (
                         <p className="mt-2 text-xs">{addressMessage}</p>
+                      ) : null}
+                      {analysisIsStale ? (
+                        <p className="text-muted-foreground mt-2 text-xs">
+                          Este análisis requiere actualizarse porque modificaste
+                          tus datos fiscales.
+                        </p>
                       ) : null}
                     </li>
                   );

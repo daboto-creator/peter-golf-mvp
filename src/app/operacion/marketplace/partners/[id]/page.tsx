@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   DocumentReviewForm,
   PartnerStatusForm,
+  ReanalyzeDocumentForm,
 } from "@/components/marketplace/operations-review-forms";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -446,6 +447,13 @@ export default async function PartnerOperationsDetailPage({
                                   .join(" ")}
                               </p>
                             ) : null}
+                            <p className="text-muted-foreground border-t border-black/10 pt-2">
+                              {new Date(analysis.analyzed_at).getTime() <
+                              new Date(partner.updated_at).getTime()
+                                ? "Análisis anterior: requiere actualizarse"
+                                : "Análisis vigente"}
+                            </p>
+                            <ReanalyzeDocumentForm documentId={document.id} />
                           </div>
                         ) : analysis && isAddress ? (
                           <div className="mt-3 space-y-2 rounded-lg bg-black/5 p-3 text-xs">
@@ -508,6 +516,13 @@ export default async function PartnerOperationsDetailPage({
                                 manual.
                               </p>
                             ) : null}
+                            <p className="border-t border-black/10 pt-2">
+                              {new Date(analysis.analyzed_at).getTime() <
+                              new Date(partner.updated_at).getTime()
+                                ? "Análisis anterior: requiere actualizarse"
+                                : "Análisis vigente"}
+                            </p>
+                            <ReanalyzeDocumentForm documentId={document.id} />
                           </div>
                         ) : analysis ? (
                           <p className="mt-3 rounded-lg bg-black/5 p-3 text-xs">

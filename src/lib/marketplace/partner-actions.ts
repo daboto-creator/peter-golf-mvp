@@ -268,6 +268,27 @@ export async function uploadPartnerDocumentAction(
   const file = formData.get("document");
   if (!(kind in documentKindCopy))
     return { status: "error", message: "Selecciona el tipo de documento." };
+  if (
+    ["fiscal_certificate", "address_proof", "company_address_proof"].includes(
+      kind,
+    ) &&
+    partner.legal_type !== "INDIVIDUAL" &&
+    validateFiscalInformation(partner.legal_type, {
+      tax_id: partner.tax_id,
+      legal_name: partner.legal_name,
+      fiscal_address_line_1: partner.fiscal_address_line_1,
+      fiscal_address_line_2: partner.fiscal_address_line_2,
+      fiscal_city: partner.fiscal_city,
+      fiscal_state: partner.fiscal_state,
+      fiscal_postal_code: partner.fiscal_postal_code,
+    })
+  ) {
+    return {
+      status: "error",
+      message:
+        "Completa primero tus datos fiscales antes de cargar los documentos.",
+    };
+  }
   if (!(file instanceof File))
     return { status: "error", message: "Selecciona un documento." };
   const metadataError = validatePartnerDocument(file);
@@ -315,7 +336,12 @@ export async function uploadPartnerDocumentAction(
         mimeType: file.type,
         legalType: partner.legal_type,
         registeredRfc: partner.tax_id,
-        registeredName: partner.legal_name,
+        registeredName:
+          (partner.legal_name ??
+            [partner.first_name, partner.last_name]
+              .filter(Boolean)
+              .join(" ")) ||
+          null,
       });
       await persistAutomaticPartnerDocumentAnalysis({
         documentId,
@@ -391,7 +417,12 @@ export async function uploadPartnerDocumentAction(
         bytes,
         mimeType: file.type,
         legalType: partner.legal_type,
-        registeredName: partner.legal_name,
+        registeredName:
+          (partner.legal_name ??
+            [partner.first_name, partner.last_name]
+              .filter(Boolean)
+              .join(" ")) ||
+          null,
         registeredAddress,
       });
       await persistAutomaticPartnerDocumentAnalysis({
@@ -440,7 +471,130 @@ export async function uploadPartnerDocumentAction(
     }
   }
   revalidatePath("/partner", "layout");
+  revalidatePath("/partner/onboarding/documentos");
   return { status: "success", message: documentMessage };
+}
+
+export async function reanalyzePartnerDocumentAction(
+  _previous: PartnerActionState,
+  formData: FormData,
+): Promise<PartnerActionState> {
+  const documentId = z.uuid().safeParse(value(formData, "document_id"));
+  if (!documentId.success)
+    return { status: "error", message: "Documento inválido." };
+  const { client } = await requirePartnerManager(
+    "/operacion/marketplace/partners",
+  );
+  const { data: document } = await client
+    .from("partner_documents")
+    .select("id, partner_id, document_kind, mime_type, storage_path")
+    .eq("id", documentId.data)
+    .maybeSingle();
+  if (
+    !document ||
+    !["fiscal_certificate", "address_proof", "company_address_proof"].includes(
+      document.document_kind,
+    )
+  )
+    return {
+      status: "error",
+      message: "Documento no disponible para análisis.",
+    };
+  const { data: partner } = await client
+    .from("partner_profiles")
+    .select("*")
+    .eq("id", document.partner_id)
+    .maybeSingle();
+  if (!partner) return { status: "error", message: "Partner no encontrado." };
+  const file = await client.storage
+    .from(PARTNER_KYC_BUCKET)
+    .download(document.storage_path);
+  if (file.error || !file.data)
+    return {
+      status: "error",
+      message: "No pudimos leer el documento privado.",
+    };
+  const bytes = new Uint8Array(await file.data.arrayBuffer());
+  try {
+    if (document.document_kind === "fiscal_certificate") {
+      const analysis = await analyzeCsfDocument({
+        bytes,
+        mimeType: document.mime_type,
+        legalType: partner.legal_type,
+        registeredRfc: partner.tax_id,
+        registeredName: partner.legal_name,
+      });
+      const result = await client.rpc("record_partner_document_analysis", {
+        requested_analysis_version: "csf-rules-v2",
+        requested_document_id: document.id,
+        requested_result: analysis.result,
+        requested_extracted: {
+          documentType: "fiscal_certificate",
+          name: analysis.extractedName,
+          rfc: analysis.extractedRfc,
+          officialQrDestination: analysis.officialQrDestination,
+        },
+        requested_warning_codes: analysis.warningCodes,
+        requested_normalized_output: {
+          extractionSource: analysis.extractionSource,
+          parseConfidence: analysis.confidence,
+          pdfPagesInspected: analysis.diagnostics.pdfPagesInspected,
+          usefulTextSignalDetected:
+            analysis.diagnostics.usefulTextSignalDetected,
+          qrStatus: analysis.qrStatus,
+          qrPagesAttempted: analysis.diagnostics.qrPagesAttempted,
+          qrDecoded: analysis.diagnostics.qrDecoded,
+          ocrUsed: analysis.diagnostics.ocrUsed,
+          rfcMatches: analysis.rfcMatches,
+          nameMatches: analysis.nameMatches,
+        },
+      });
+      if (result.error) return friendlyFailure(result.error.message);
+    } else {
+      const registeredAddress = [
+        partner.fiscal_address_line_1,
+        partner.fiscal_address_line_2,
+        partner.fiscal_city,
+        partner.fiscal_state,
+        partner.fiscal_postal_code,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      const analysis = await analyzeAddressProofDocument({
+        bytes,
+        mimeType: document.mime_type,
+        legalType: partner.legal_type,
+        registeredName:
+          (partner.legal_name ??
+            [partner.first_name, partner.last_name]
+              .filter(Boolean)
+              .join(" ")) ||
+          null,
+        registeredAddress,
+      });
+      const result = await client.rpc("record_partner_document_analysis", {
+        requested_analysis_version: "address-proof-rules-v2",
+        requested_document_id: document.id,
+        requested_result: analysis.result,
+        requested_extracted: {
+          documentType: analysis.documentType,
+          name: analysis.extractedName,
+          address: analysis.extractedAddress,
+          documentDate: analysis.extractedDate,
+        },
+        requested_warning_codes: analysis.warningCodes,
+        requested_normalized_output: analysis.normalizedOutput,
+      });
+      if (result.error) return friendlyFailure(result.error.message);
+    }
+  } catch {
+    return {
+      status: "error",
+      message: "No pudimos reanalizar el documento. Inténtalo de nuevo.",
+    };
+  }
+  revalidatePath(`/operacion/marketplace/partners/${partner.id}`);
+  return { status: "success", message: "Análisis actualizado correctamente." };
 }
 
 export async function submitPartnerAction(
