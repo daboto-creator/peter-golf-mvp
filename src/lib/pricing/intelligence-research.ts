@@ -296,18 +296,30 @@ export function evaluateEvidenceSufficiency(
   };
 }
 
-function sourceQualityDetail(candidate: ResearchCandidate): {
+function sourceQualityDetail(
+  candidate: ResearchCandidate,
+  reliability?: Readonly<Record<string, number>>,
+): {
   score: number;
   reasons: string[];
 } {
   const seller = norm(candidate.seller);
   if (candidate.market === "BEST_ROUND_SALE")
     return { score: 100, reasons: ["BEST_ROUND_COMPLETED_SALE"] };
-  if (/golf|proshop|golf galaxy|pga/.test(seller))
-    return { score: 85, reasons: ["SPECIALIST_RETAILER"] };
-  if (seller && seller !== "unknown")
-    return { score: 65, reasons: ["SELLER_CONTEXT_PRESENT"] };
-  return { score: 45, reasons: ["UNKNOWN_SOURCE"] };
+  const observed = reliability?.[candidate.source];
+  const adjust = (base: number) =>
+    observed === undefined
+      ? { score: base, reasons: ["BASE_SOURCE_QUALITY"] }
+      : {
+          score: Math.max(
+            0,
+            Math.min(100, Math.round(base * 0.7 + observed * 0.3)),
+          ),
+          reasons: ["BASE_SOURCE_QUALITY", "LEARNED_SOURCE_RELIABILITY"],
+        };
+  if (/golf|proshop|golf galaxy|pga/.test(seller)) return adjust(85);
+  if (seller && seller !== "unknown") return adjust(65);
+  return adjust(45);
 }
 
 function marketPriority(candidate: ResearchCandidate): number {
@@ -368,6 +380,7 @@ export type ResearchDependencies = {
   forceRefresh?: boolean;
   maxMexicoQueries?: number;
   maxUsaQueries?: number;
+  sourceReliability?: Readonly<Record<string, number>>;
 };
 
 function externalCandidates(
@@ -468,7 +481,10 @@ export async function researchBestRoundIntelligence(
     const key = dedupeKey(candidate);
     if (accepted.some((item) => dedupeKey(item) === key))
       return excluded.push({ ...candidate, exclusion: "DUPLICATE" });
-    const qualityDetail = sourceQualityDetail(candidate);
+    const qualityDetail = sourceQualityDetail(
+      candidate,
+      deps.sourceReliability,
+    );
     const priority = marketPriority(candidate);
     const freshness = recency(candidate, now);
     accepted.push({
