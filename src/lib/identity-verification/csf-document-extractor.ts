@@ -211,7 +211,8 @@ async function loadPdf(bytes: Uint8Array) {
     loadingTask = pdfjs.getDocument({
       data: new Uint8Array(bytes),
       useSystemFonts: true,
-    });
+      disableWorker: true,
+    } as Parameters<typeof pdfjs.getDocument>[0]);
   } catch (error) {
     throw new PdfTextExtractionError("PDF_DOCUMENT_LOAD_FAILED", error);
   }
