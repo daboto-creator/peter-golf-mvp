@@ -114,4 +114,95 @@ describe("Best Round intelligence research", () => {
       ]).level,
     ).toBe("SUFFICIENT_HIGH");
   });
+
+  it("excludes incompatible components, promotions, auctions and stockouts", async () => {
+    const provider = {
+      getMarketPrice: vi.fn(),
+    } as unknown as MarketPriceProvider;
+    const result = await researchBestRoundIntelligence(input, {
+      provider,
+      internalSales: [
+        candidate({ id: "head", title: "Titleist GT3 Driver Head Only" }),
+        candidate({ id: "shaft", title: "Titleist GT3 shaft only" }),
+        candidate({
+          id: "promo",
+          title: "Titleist GT3 Driver coupon required",
+        }),
+        candidate({ id: "auction", title: "Titleist GT3 Driver auction" }),
+        candidate({ id: "stock", availability: "out_of_stock" }),
+      ],
+    });
+    expect(result.acceptedComparables).toHaveLength(0);
+    expect(result.excludedComparables.map((item) => item.exclusion)).toEqual(
+      expect.arrayContaining([
+        "HEAD_ONLY",
+        "SHAFT_ONLY",
+        "COUPON_PRICE",
+        "AUCTION_UNRESOLVED",
+        "OUT_OF_STOCK",
+      ]),
+    );
+  });
+
+  it("penalizes loft and flex changes while treating putter flex as irrelevant", () => {
+    const loft = scoreResearchSimilarity(
+      input,
+      candidate({ product: { loftDegrees: 10.5 } }),
+    );
+    const flex = scoreResearchSimilarity(
+      input,
+      candidate({ product: { shaftFlex: "stiff" } }),
+    );
+    const putter = scoreResearchSimilarity(
+      {
+        ...input,
+        brand: "Scotty Cameron",
+        clubType: "putter",
+        model: "Newport",
+      },
+      candidate({ title: "Scotty Cameron Newport putter x stiff" }),
+    );
+    expect(loft.score).toBeLessThan(
+      scoreResearchSimilarity(input, candidate()).score,
+    );
+    expect(flex.score).toBeLessThan(
+      scoreResearchSimilarity(input, candidate()).score,
+    );
+    expect(putter.score).toBeGreaterThanOrEqual(75);
+  });
+
+  it("expires saved research and preserves bounded call counts", async () => {
+    const provider = {
+      getMarketPrice: vi.fn(async () => ({
+        medianPriceMxn: null,
+        averagePriceMxn: null,
+        lowPriceMxn: null,
+        highPriceMxn: null,
+        sampleSize: 0,
+        confidence: "unavailable" as const,
+        source: null,
+        sourceUrl: null,
+        checkedAt: new Date().toISOString(),
+        provider: "qa",
+        searchQuery: null,
+        sources: [],
+        excludedCount: 0,
+      })),
+    } as unknown as MarketPriceProvider;
+    const result = await researchBestRoundIntelligence(input, {
+      provider,
+      now: new Date("2026-09-01T00:00:00Z"),
+      savedResearch: [
+        candidate({
+          market: "SAVED_RESEARCH",
+          observedAt: "2026-01-01T00:00:00Z",
+        }),
+      ],
+      maxMexicoQueries: 2,
+      maxUsaQueries: 1,
+    });
+    expect(result.cachedResearchUsed).toBe(false);
+    expect(result.mexicoQueriesExecuted).toBe(2);
+    expect(result.usaQueriesExecuted).toBe(1);
+  });
 });

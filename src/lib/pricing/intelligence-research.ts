@@ -39,6 +39,9 @@ export type ResearchCandidate = {
   similarityReasons?: string[];
   sourceQuality?: number;
   evidenceScore?: number;
+  sourceQualityReasons?: string[];
+  marketPriorityScore?: number;
+  recencyScore?: number;
 };
 
 export type ExcludedCandidate = ResearchCandidate & { exclusion: string };
@@ -146,6 +149,15 @@ function categoryOf(input: ResearchProductInput): string {
   return norm(input.clubType ?? input.category ?? input.productFamily);
 }
 
+function hand(value: unknown): string {
+  const normalized = norm(value);
+  return ["right", "rh", "derecho", "derecha"].includes(normalized)
+    ? "right"
+    : ["left", "lh", "izquierdo", "izquierda"].includes(normalized)
+      ? "left"
+      : normalized;
+}
+
 /** Rules-first similarity score. Missing attributes never manufacture a mismatch. */
 export function scoreResearchSimilarity(
   input: ResearchProductInput,
@@ -177,7 +189,7 @@ export function scoreResearchSimilarity(
   if (
     input.handedness &&
     product.handedness &&
-    norm(input.handedness) !== norm(product.handedness)
+    hand(input.handedness) !== hand(product.handedness)
   ) {
     return { score: 0, reasons: ["WRONG_HAND"], hardMismatch: true };
   }
@@ -194,15 +206,37 @@ export function scoreResearchSimilarity(
   if (input.modelYear !== null && input.modelYear !== undefined)
     score += numericMention(title, input.modelYear) ? 5 : 2;
   if (family !== "putter" && input.shaftFlex)
-    score += hasToken(title, input.shaftFlex) ? 5 : 1;
+    score += product.shaftFlex
+      ? norm(input.shaftFlex) === norm(product.shaftFlex)
+        ? 5
+        : 1
+      : hasToken(title, input.shaftFlex)
+        ? 5
+        : 1;
   if (
     ["driver", "fairway wood", "fairway_wood", "hybrid", "wedge"].includes(
       family,
     )
   ) {
     if (input.loftDegrees !== null && input.loftDegrees !== undefined)
-      score += numericMention(title, input.loftDegrees) ? 5 : 2;
-    if (input.clubNumber) score += hasToken(title, input.clubNumber) ? 3 : 1;
+      score +=
+        product.loftDegrees !== null && product.loftDegrees !== undefined
+          ? Number(product.loftDegrees) === input.loftDegrees
+            ? 5
+            : Math.abs(Number(product.loftDegrees) - input.loftDegrees) <= 2
+              ? 2
+              : 0
+          : numericMention(title, input.loftDegrees)
+            ? 5
+            : 2;
+    if (input.clubNumber)
+      score += product.clubNumber
+        ? norm(input.clubNumber) === norm(product.clubNumber)
+          ? 3
+          : 0
+        : hasToken(title, input.clubNumber)
+          ? 3
+          : 1;
   }
   if (family === "iron" && input.setComposition)
     score += hasToken(title, input.setComposition) ? 5 : 2;
@@ -233,10 +267,22 @@ export function evaluateEvidenceSufficiency(
     };
   const strong = candidates.filter((c) => (c.similarity ?? 0) >= 75);
   const markets = new Set(strong.map((c) => c.market));
-  if (strong.length >= 5 && markets.size >= 1)
+  const averageEvidence = strong.length
+    ? strong.reduce(
+        (sum, candidate) =>
+          sum + (candidate.evidenceScore ?? candidate.similarity ?? 0),
+        0,
+      ) / strong.length
+    : 0;
+  if (strong.length >= 5 && averageEvidence >= 65 && markets.size >= 1)
     return {
       level: "SUFFICIENT_MEDIUM",
       reasons: ["FIVE_COMPATIBLE_COMPARABLES"],
+    };
+  if (strong.length >= 3 && averageEvidence >= 65)
+    return {
+      level: "SUFFICIENT_MEDIUM",
+      reasons: ["THREE_GOOD_COMPATIBLE_COMPARABLES"],
     };
   return {
     level: "INSUFFICIENT",
@@ -244,12 +290,42 @@ export function evaluateEvidenceSufficiency(
   };
 }
 
-function sourceQuality(candidate: ResearchCandidate): number {
+function sourceQualityDetail(candidate: ResearchCandidate): {
+  score: number;
+  reasons: string[];
+} {
   const seller = norm(candidate.seller);
-  if (candidate.market === "BEST_ROUND_SALE") return 100;
-  if (/golf|proshop|golf galaxy|pga/.test(seller)) return 85;
-  if (seller && seller !== "unknown") return 65;
-  return 45;
+  if (candidate.market === "BEST_ROUND_SALE")
+    return { score: 100, reasons: ["BEST_ROUND_COMPLETED_SALE"] };
+  if (/golf|proshop|golf galaxy|pga/.test(seller))
+    return { score: 85, reasons: ["SPECIALIST_RETAILER"] };
+  if (seller && seller !== "unknown")
+    return { score: 65, reasons: ["SELLER_CONTEXT_PRESENT"] };
+  return { score: 45, reasons: ["UNKNOWN_SOURCE"] };
+}
+
+function marketPriority(candidate: ResearchCandidate): number {
+  return candidate.market === "BEST_ROUND_SALE"
+    ? 100
+    : candidate.market === "SAVED_RESEARCH"
+      ? 90
+      : candidate.market === "MEXICO"
+        ? 80
+        : 55;
+}
+
+function recency(candidate: ResearchCandidate, now: Date): number {
+  const days = Math.max(
+    0,
+    (now.getTime() - Date.parse(candidate.observedAt)) / 86_400_000,
+  );
+  if (!Number.isFinite(days)) return 40;
+  if (days <= 30) return 100;
+  if (days <= 60) return 90;
+  if (days <= 90) return 80;
+  return candidate.market === "BEST_ROUND_SALE"
+    ? Math.max(50, 80 - Math.floor(days / 30))
+    : 0;
 }
 
 function dedupeKey(candidate: ResearchCandidate): string {
@@ -303,7 +379,33 @@ function externalCandidates(
     condition: source.condition,
     availability: source.availability,
     observedAt: source.checkedAt,
+    product: inferProductHints(source.productName),
   }));
+}
+
+function inferProductHints(title: string): Partial<ResearchProductInput> {
+  const value = norm(title);
+  const flex =
+    /\b(x stiff|extra stiff|stiff|regular|senior|ladies)\b/.exec(value)?.[1] ??
+    null;
+  const clubType =
+    /\b(driver|fairway wood|wood|hybrid|iron|wedge|putter)\b/.exec(
+      value,
+    )?.[1] ?? null;
+  const loft = /\b(\d{1,2}(?:\.\d)?)\s*(?:degree|degrees|deg|°)\b/.exec(
+    value,
+  )?.[1];
+  const clubNumber =
+    /\b([3-9])\s*(?:wood|iron|hybrid)\b/.exec(value)?.[1] ?? null;
+  const handedness =
+    /\b(left|lh|left hand|right|rh|right hand)\b/.exec(value)?.[1] ?? null;
+  return {
+    clubType: clubType === "wood" ? "fairway_wood" : clubType,
+    loftDegrees: loft ? Number(loft) : null,
+    clubNumber,
+    handedness,
+    shaftFlex: flex,
+  };
 }
 
 export async function researchBestRoundIntelligence(
@@ -325,6 +427,25 @@ export async function researchBestRoundIntelligence(
   const add = (candidate: ResearchCandidate) => {
     if (candidate.availability === "out_of_stock")
       return excluded.push({ ...candidate, exclusion: "OUT_OF_STOCK" });
+    const title = norm(candidate.title);
+    if (
+      /\b(head only|cabeza sola|shaft only|solo shaft|varilla sola)\b/.test(
+        title,
+      )
+    )
+      return excluded.push({
+        ...candidate,
+        exclusion: /shaft|varilla/.test(title) ? "SHAFT_ONLY" : "HEAD_ONLY",
+      });
+    if (/\bcoupon|promo code|codigo promocional|cupon\b/.test(title))
+      return excluded.push({ ...candidate, exclusion: "COUPON_PRICE" });
+    if (
+      /\bbundle|pack|set de|paquete\b/.test(title) &&
+      categoryOf(input) !== "set"
+    )
+      return excluded.push({ ...candidate, exclusion: "BUNDLE" });
+    if (/\bauction|subasta\b/.test(title))
+      return excluded.push({ ...candidate, exclusion: "AUCTION_UNRESOLVED" });
     const match = scoreResearchSimilarity(input, candidate);
     if (match.hardMismatch || match.score < 55)
       return excluded.push({
@@ -336,13 +457,23 @@ export async function researchBestRoundIntelligence(
     const key = dedupeKey(candidate);
     if (accepted.some((item) => dedupeKey(item) === key))
       return excluded.push({ ...candidate, exclusion: "DUPLICATE" });
-    const quality = sourceQuality(candidate);
+    const qualityDetail = sourceQualityDetail(candidate);
+    const priority = marketPriority(candidate);
+    const freshness = recency(candidate, now);
     accepted.push({
       ...candidate,
       similarity: match.score,
       similarityReasons: match.reasons,
-      sourceQuality: quality,
-      evidenceScore: Math.round((match.score * quality) / 100),
+      sourceQuality: qualityDetail.score,
+      sourceQualityReasons: qualityDetail.reasons,
+      marketPriorityScore: priority,
+      recencyScore: freshness,
+      evidenceScore: Math.round(
+        match.score * 0.45 +
+          qualityDetail.score * 0.2 +
+          priority * 0.2 +
+          freshness * 0.15,
+      ),
     });
   };
   for (const candidate of [
