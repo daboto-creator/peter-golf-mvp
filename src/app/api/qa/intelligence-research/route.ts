@@ -5,6 +5,7 @@ import {
   researchBestRoundIntelligence,
   type ResearchProductInput,
 } from "@/lib/pricing/intelligence-research";
+import { getConfiguredMarketPriceProvider } from "@/lib/pricing/market-price-service";
 import type {
   MarketPriceProvider,
   MarketPriceResult,
@@ -81,8 +82,49 @@ export async function GET(request: Request) {
   const isStaging = serverEnv.NEXT_PUBLIC_SUPABASE_URL?.includes(
     "xdulakstgsgdujjylhox",
   );
-  if (!isStaging || url.searchParams.get("synthetic") !== "1") {
+  if (
+    !isStaging ||
+    (url.searchParams.get("synthetic") !== "1" &&
+      url.searchParams.get("real") !== "1")
+  ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (url.searchParams.get("real") === "1") {
+    const configured = getConfiguredMarketPriceProvider();
+    const result = await researchBestRoundIntelligence(input, {
+      provider: configured.provider,
+      maxMexicoQueries: 3,
+      maxUsaQueries: 2,
+      forceRefresh: true,
+    });
+    return NextResponse.json({
+      provider: configured.name,
+      mexicoQueries: result.mexicoQueriesExecuted,
+      usaQueries: result.usaQueriesExecuted,
+      accepted: result.acceptedComparables.length,
+      excluded: result.excludedComparables.length,
+      evidenceLevel: result.evidenceLevel,
+      confidence: result.confidence,
+      resolutionSource: result.resolutionSource,
+      topComparables: result.acceptedComparables.slice(0, 5).map((item) => ({
+        source: item.source,
+        seller: item.seller,
+        title: item.title,
+        priceMinor: item.priceMinor,
+        market: item.market,
+        similarity: item.similarity,
+        sourceQuality: item.sourceQuality,
+        marketPriority: item.marketPriorityScore,
+        recency: item.recencyScore,
+        evidenceScore: item.evidenceScore,
+      })),
+      exclusionReasons: result.excludedComparables.reduce<
+        Record<string, number>
+      >((acc, item) => {
+        acc[item.exclusion] = (acc[item.exclusion] ?? 0) + 1;
+        return acc;
+      }, {}),
+    });
   }
   const usa = await researchBestRoundIntelligence(input, {
     provider: provider(),
