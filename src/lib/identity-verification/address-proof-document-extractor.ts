@@ -68,6 +68,17 @@ function afterLabel(text: string, labels: RegExp[]) {
     const match = flattened.match(label);
     if (match?.[1] && clean(match[1])) return clean(match[1]);
   }
+  for (let index = 0; index < rows.length; index += 1) {
+    if (labels.some((label) => label.test(rows[index] ?? ""))) {
+      const candidate = rows[index + 1];
+      if (
+        candidate &&
+        !/^(?:fecha|periodo|saldo|numero|cuenta)/i.test(candidate)
+      ) {
+        return clean(candidate);
+      }
+    }
+  }
   return null;
 }
 
@@ -139,11 +150,7 @@ function compareAddress(
 async function extractText(bytes: Uint8Array, mimeType: string) {
   if (mimeType === "application/pdf") {
     const pdf = await extractEmbeddedPdfText(bytes);
-    if (
-      /\b(?:domicilio|direcci[oó]n|titular|cliente|estado de cuenta|recibo)\b/i.test(
-        pdf.text,
-      )
-    ) {
+    if (pdf.text.trim()) {
       return {
         text: pdf.text,
         source: "PDF_TEXT",
@@ -224,9 +231,17 @@ export async function analyzeAddressProofDocument(input: {
   const extractedName = afterLabel(text, [
     /\b(?:titular|nombre del titular|cliente|a nombre de|nombre)\s*[:\-]?\s*(.*)/i,
   ]);
-  const extractedAddress = afterLabel(text, [
+  let extractedAddress = afterLabel(text, [
     /\b(?:domicilio|direcci[oó]n(?: de suministro)?|domicilio de servicio)\s*[:\-]?\s*(.*)/i,
   ]);
+  if (!extractedAddress) {
+    const candidateLines = lines(text).filter((line) =>
+      /\b(?:av(?:enida)?|calle|cl\.?|boulevard|blvd|col(?:onia)?|cp\.?\s*\d{5})\b/i.test(
+        line,
+      ),
+    );
+    extractedAddress = candidateLines.slice(0, 3).join(", ") || null;
+  }
   const parsedDate = parseDate(text);
   const registered = input.registeredAddress;
   const addressConsistent = compareAddress(extractedAddress, registered);
