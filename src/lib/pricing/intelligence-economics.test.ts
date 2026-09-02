@@ -72,6 +72,23 @@ describe("Best Round economics decision", () => {
     });
     expect(result.semaphore).toBe("RED");
   });
+  it("covers healthy and tight commercial scenarios", () => {
+    const market = research([
+      [800000, "MEXICO"],
+      [850000, "MEXICO"],
+      [900000, "MEXICO"],
+    ]);
+    const healthy = calculateFirstPartyDecision({
+      research: market,
+      costs: { acquisitionCostMinor: 400000 },
+    });
+    const tight = calculateFirstPartyDecision({
+      research: market,
+      costs: { acquisitionCostMinor: 800000 },
+    });
+    expect(healthy.semaphore).toBe("GREEN");
+    expect(tight.semaphore).toBe("YELLOW");
+  });
   it("solves inverse acquisition cost without floating point", () => {
     const result = calculateFirstPartyDecision({
       research: research([
