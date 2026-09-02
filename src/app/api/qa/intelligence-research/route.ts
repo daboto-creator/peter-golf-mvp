@@ -96,18 +96,16 @@ export async function GET(request: Request) {
         throw new Error("external provider must not be called for cache hit");
       },
     },
-    savedResearch: [
-      {
-        title: "Titleist GT3 Driver 9 right regular",
-        seller: "Best Round",
-        priceMinor: 100000,
-        market: "SAVED_RESEARCH",
-        source: "saved",
-        condition: "used",
-        observedAt: new Date().toISOString(),
-        similarity: 95,
-      },
-    ],
+    savedResearch: Array.from({ length: 5 }, (_, index) => ({
+      title: "Titleist GT3 Driver 9 right regular",
+      seller: `Saved retailer ${index + 1}`,
+      priceMinor: 100000 + index * 1000,
+      market: "SAVED_RESEARCH" as const,
+      source: "saved",
+      condition: "used" as const,
+      observedAt: new Date().toISOString(),
+      similarity: 95,
+    })),
   });
   return NextResponse.json({
     driver: {
