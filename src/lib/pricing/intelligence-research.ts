@@ -27,7 +27,13 @@ export type ResearchCandidate = {
   title: string;
   seller: string;
   priceMinor: number;
-  currency?: string;
+  /** Always MXN for monetary values used by the engine. */
+  currency?: "MXN";
+  originalPriceMinor?: number | null;
+  originalCurrency?: string | null;
+  normalizedPriceMxnMinor?: number | null;
+  normalizationSource?: string | null;
+  normalizationObservedAt?: string | null;
   market: ResearchMarket;
   source: string;
   url?: string | null;
@@ -372,7 +378,12 @@ function externalCandidates(
     title: source.productName,
     seller: source.merchant,
     priceMinor: source.priceMxn,
-    currency: source.originalCurrency,
+    currency: "MXN",
+    originalPriceMinor: source.originalPriceMinor ?? null,
+    originalCurrency: source.originalCurrency,
+    normalizedPriceMxnMinor: source.priceMxn,
+    normalizationSource: source.normalizationSource ?? null,
+    normalizationObservedAt: source.normalizationObservedAt ?? null,
     market,
     source: result.provider,
     url: source.url,

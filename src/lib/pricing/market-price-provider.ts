@@ -29,8 +29,11 @@ export type MarketPriceSource = {
   merchant: string;
   productName: string;
   priceMxn: number;
+  originalPriceMinor?: number;
   originalCurrency: string;
   originalPrice: string;
+  normalizationSource?: string;
+  normalizationObservedAt?: string;
   url: string | null;
   identifier: string | null;
   availability: "in_stock" | "out_of_stock" | "unknown";

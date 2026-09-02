@@ -86,7 +86,14 @@ export function summarizeResearchMarket(
   research: ResearchResult,
 ): MarketSummary {
   const candidates = research.acceptedComparables.filter(
-    (c) => Number.isSafeInteger(c.priceMinor) && c.priceMinor > 0,
+    (c) =>
+      (c.currency === undefined || c.currency === "MXN") &&
+      Number.isSafeInteger(c.priceMinor) &&
+      c.priceMinor > 0 &&
+      (c.originalCurrency === undefined ||
+        c.originalCurrency === null ||
+        c.originalCurrency.toUpperCase() === "MXN" ||
+        c.normalizedPriceMxnMinor === c.priceMinor),
   );
   if (!candidates.length) {
     return {
@@ -312,5 +319,42 @@ export function convertUsdToMxn(priceMinor: number, fx: FxRate): number {
   return toSafeMinorUnits(
     ceilDivide(BigInt(priceMinor) * fx.rateNumerator, fx.rateDenominator),
     "Precio MXN",
+  );
+}
+
+export type UsaLandedAssumptions = {
+  shippingMinor: number;
+  importTaxBps: number;
+  handlingMinor: number;
+  version: string;
+};
+
+export function calculateUsaLandedReference(input: {
+  observedUsdMinor: number;
+  fx: FxRate;
+  assumptions: UsaLandedAssumptions;
+}): number {
+  const base = convertUsdToMxn(input.observedUsdMinor, input.fx);
+  assertMoney(input.assumptions.shippingMinor);
+  assertMoney(input.assumptions.handlingMinor);
+  if (
+    !Number.isSafeInteger(input.assumptions.importTaxBps) ||
+    input.assumptions.importTaxBps < 0 ||
+    input.assumptions.importTaxBps >= 10_000
+  )
+    throw new Error("Supuesto de importación inválido.");
+  const tax = toSafeMinorUnits(
+    ceilDivide(
+      BigInt(base) * BigInt(input.assumptions.importTaxBps),
+      BigInt(10_000),
+    ),
+    "Impuesto estimado",
+  );
+  return toSafeMinorUnits(
+    BigInt(base) +
+      BigInt(tax) +
+      BigInt(input.assumptions.shippingMinor) +
+      BigInt(input.assumptions.handlingMinor),
+    "Referencia puesta en México",
   );
 }
