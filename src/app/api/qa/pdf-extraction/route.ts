@@ -74,17 +74,23 @@ export async function GET(request: Request) {
       error instanceof PdfTextExtractionError
         ? error.code
         : "PDF_TEXT_EXTRACTION_FAILED";
+    const detailCode =
+      error instanceof PdfTextExtractionError
+        ? error.detailCode
+        : "PDFJS_RUNTIME_ERROR";
     return NextResponse.json(
       {
         csf: {
           pagesInspected: 0,
           textExtractionStatus: "FAILED",
           errorCode: code,
+          detailCode,
         },
         address: {
           pagesInspected: 0,
           textExtractionStatus: "FAILED",
           errorCode: code,
+          detailCode,
         },
       },
       { status: 500 },

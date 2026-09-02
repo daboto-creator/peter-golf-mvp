@@ -35,12 +35,25 @@ export type PdfTextExtractionCode =
   | "PDF_TEXT_EXTRACTION_FAILED";
 
 export class PdfTextExtractionError extends Error {
+  readonly detailCode: string;
+
   constructor(
     readonly code: PdfTextExtractionCode,
     cause?: unknown,
   ) {
     super(`PDF text extraction failed: ${code}`);
     this.name = "PdfTextExtractionError";
+    const message = cause instanceof Error ? cause.message : "";
+    this.detailCode = /DOMMatrix|ImageData|Path2D/i.test(message)
+      ? "PDFJS_RUNTIME_MISSING_DOMMATRIX"
+      : /worker|standardFontData|wasm/i.test(message)
+        ? "PDFJS_PACKAGE_NOT_TRACED"
+        : cause instanceof Error && cause.name
+          ? `PDFJS_${cause.name
+              .toUpperCase()
+              .replace(/[^A-Z0-9]+/g, "_")
+              .slice(0, 40)}`
+          : "PDFJS_RUNTIME_ERROR";
     if (cause) this.cause = cause;
   }
 }
