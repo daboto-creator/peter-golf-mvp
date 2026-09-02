@@ -28,6 +28,23 @@ type PdfTextSpan = {
   hasEol: boolean;
 };
 
+export type PdfTextExtractionCode =
+  | "PDF_IMPORT_FAILED"
+  | "PDF_DOCUMENT_LOAD_FAILED"
+  | "PDF_PAGE_READ_FAILED"
+  | "PDF_TEXT_EXTRACTION_FAILED";
+
+export class PdfTextExtractionError extends Error {
+  constructor(
+    readonly code: PdfTextExtractionCode,
+    cause?: unknown,
+  ) {
+    super(`PDF text extraction failed: ${code}`);
+    this.name = "PdfTextExtractionError";
+    if (cause) this.cause = cause;
+  }
+}
+
 export type CsfExtractionSource = "PDF_TEXT" | "OCR" | "MIXED";
 
 export type CsfExtractionDiagnostics = {
@@ -170,35 +187,52 @@ async function renderPdfPage(page: PdfPage, scaleLimit = 4): Promise<Raster> {
 }
 
 async function loadPdf(bytes: Uint8Array) {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(bytes),
-    useSystemFonts: true,
-  });
+  let pdfjs: typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+  try {
+    pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  } catch (error) {
+    throw new PdfTextExtractionError("PDF_IMPORT_FAILED", error);
+  }
+  let loadingTask: ReturnType<typeof pdfjs.getDocument>;
+  try {
+    loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(bytes),
+      useSystemFonts: true,
+    });
+  } catch (error) {
+    throw new PdfTextExtractionError("PDF_DOCUMENT_LOAD_FAILED", error);
+  }
   return {
-    document: await loadingTask.promise,
+    document: await loadingTask.promise.catch((error) => {
+      throw new PdfTextExtractionError("PDF_DOCUMENT_LOAD_FAILED", error);
+    }),
     destroy: () => loadingTask.destroy(),
   };
 }
 
-export async function extractEmbeddedPdfText(bytes: Uint8Array) {
+export async function extractPdfText(bytes: Uint8Array) {
   const { document, destroy } = await loadPdf(bytes);
   const pageCount = Math.min(document.numPages, MAX_PDF_PAGES);
   const pageTexts: string[] = [];
   const annotationUrls: string[] = [];
   try {
     for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
-      const content = await page.getTextContent();
-      pageTexts.push(textFromPdfItems(content.items));
-      const annotations = await page.getAnnotations();
-      annotationUrls.push(
-        ...annotations.flatMap((annotation) =>
-          "url" in annotation && typeof annotation.url === "string"
-            ? [annotation.url]
-            : [],
-        ),
-      );
+      let page: Awaited<ReturnType<typeof document.getPage>>;
+      try {
+        page = await document.getPage(pageNumber);
+        const content = await page.getTextContent();
+        pageTexts.push(textFromPdfItems(content.items));
+        const annotations = await page.getAnnotations();
+        annotationUrls.push(
+          ...annotations.flatMap((annotation) =>
+            "url" in annotation && typeof annotation.url === "string"
+              ? [annotation.url]
+              : [],
+          ),
+        );
+      } catch (error) {
+        throw new PdfTextExtractionError("PDF_PAGE_READ_FAILED", error);
+      }
     }
     return {
       text: pageTexts.filter(Boolean).join("\n\n"),
@@ -210,6 +244,8 @@ export async function extractEmbeddedPdfText(bytes: Uint8Array) {
     await destroy();
   }
 }
+
+export const extractEmbeddedPdfText = extractPdfText;
 
 async function renderFirstPdfPage(bytes: Uint8Array) {
   const { document, destroy } = await loadPdf(bytes);
@@ -362,8 +398,12 @@ export async function analyzeCsfDocument(input: {
   if (isPdf) {
     try {
       pdfText = await extractEmbeddedPdfText(input.bytes);
-    } catch {
-      runtimeWarnings.push("PDF_LOAD_FAILED");
+    } catch (error) {
+      runtimeWarnings.push(
+        error instanceof PdfTextExtractionError
+          ? error.code
+          : "PDF_TEXT_EXTRACTION_FAILED",
+      );
     }
   }
   const embeddedText = pdfText?.text.trim() ?? "";
@@ -399,8 +439,12 @@ export async function analyzeCsfDocument(input: {
     }
   }
 
-  if (isPdf && !pdfText && runtimeWarnings.includes("PDF_LOAD_FAILED")) {
-    throw new Error("PDF_LOAD_FAILED");
+  if (
+    isPdf &&
+    !pdfText &&
+    runtimeWarnings.some((code) => code.startsWith("PDF_"))
+  ) {
+    throw new Error(runtimeWarnings.find((code) => code.startsWith("PDF_")));
   }
 
   const extracted = extractCsfDataFromText(text, input.legalType);
