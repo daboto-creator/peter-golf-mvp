@@ -15,6 +15,7 @@ import {
   researchBestRoundIntelligence,
   type ResearchProductInput,
 } from "@/lib/pricing/intelligence-research";
+import { summarizeResearchMarket } from "@/lib/pricing/intelligence-economics";
 import type { MarketPriceInput } from "@/lib/pricing/market-price-provider";
 import { getConfiguredMarketPriceProvider } from "@/lib/pricing/market-price-service";
 
@@ -591,6 +592,8 @@ export async function completeMarketplaceAnalysisAction(
         exclusion: item.exclusion,
         title: item.title,
       })),
+      marketSummary: summarizeResearchMarket(researched),
+      economicsEngineReady: true,
     },
     comparables: researched.acceptedComparables.map((item) => ({
       source: item.source,

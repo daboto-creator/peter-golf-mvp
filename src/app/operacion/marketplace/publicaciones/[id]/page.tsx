@@ -65,6 +65,25 @@ export default async function MarketplaceListingOperationsDetail({
   const quote =
     pricing.quotes.find((entry) => entry.status === "UNDER_REVIEW") ??
     pricing.quotes[0];
+  const latestAnalysis = pricing.analyses[0];
+  const marketSummary =
+    latestAnalysis?.result_snapshot &&
+    typeof latestAnalysis.result_snapshot === "object" &&
+    latestAnalysis.result_snapshot !== null &&
+    "researchMetadata" in latestAnalysis.result_snapshot
+      ? (
+          latestAnalysis.result_snapshot as {
+            researchMetadata?: {
+              marketSummary?: {
+                marketReferenceMinor?: number | null;
+                marketLowMinor?: number | null;
+                marketHighMinor?: number | null;
+                dispersion?: string;
+              };
+            };
+          }
+        ).researchMetadata?.marketSummary
+      : null;
   const canonical = canonicalResolutionConfidence({
     canonicalModelId: detail.version.canonical_model_id,
     proposedBrand: detail.version.proposed_brand,
@@ -170,6 +189,15 @@ export default async function MarketplaceListingOperationsDetail({
                       ? "Persistida y vigente"
                       : "Pendiente; requiere override explícito"}
                   </p>
+                  {marketSummary ? (
+                    <p>
+                      <strong>Referencia ponderada:</strong>{" "}
+                      {marketSummary.marketReferenceMinor ?? "—"} · rango{" "}
+                      {marketSummary.marketLowMinor ?? "—"}–
+                      {marketSummary.marketHighMinor ?? "—"} · dispersión{" "}
+                      {marketSummary.dispersion ?? "—"}
+                    </p>
+                  ) : null}
                   {quote.market_analysis_override ? (
                     <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
                       <strong>

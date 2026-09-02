@@ -40,7 +40,7 @@ export async function getMarketplacePricingDetail(listingId: string) {
     client
       .from("marketplace_market_analyses")
       .select(
-        "id, source, status, provider, provider_status, valid_comparable_count, excluded_comparable_count, median_price, average_price, low_market, high_market, recommended_price, confidence, flags, checked_at, expires_at, created_at",
+        "id, source, status, provider, provider_status, valid_comparable_count, excluded_comparable_count, median_price, average_price, low_market, high_market, recommended_price, confidence, flags, result_snapshot, checked_at, expires_at, created_at",
       )
       .eq("listing_id", listingId)
       .order("created_at", { ascending: false }),
