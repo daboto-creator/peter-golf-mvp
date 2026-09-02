@@ -5,6 +5,7 @@ import {
   researchBestRoundIntelligence,
   type ResearchProductInput,
 } from "@/lib/pricing/intelligence-research";
+import { calculateFirstPartyDecision } from "@/lib/pricing/intelligence-economics";
 import { getConfiguredMarketPriceProvider } from "@/lib/pricing/market-price-service";
 import type {
   MarketPriceProvider,
@@ -97,6 +98,10 @@ export async function GET(request: Request) {
       maxUsaQueries: 2,
       forceRefresh: true,
     });
+    const economics = calculateFirstPartyDecision({
+      research: result,
+      costs: { acquisitionCostMinor: 500000, shippingMinor: 10000 },
+    });
     return NextResponse.json({
       provider: configured.name,
       mexicoQueries: result.mexicoQueriesExecuted,
@@ -106,6 +111,20 @@ export async function GET(request: Request) {
       evidenceLevel: result.evidenceLevel,
       confidence: result.confidence,
       resolutionSource: result.resolutionSource,
+      economics: {
+        marketLowMinor: economics.marketLowMinor,
+        marketReferenceMinor: economics.marketReferenceMinor,
+        marketHighMinor: economics.marketHighMinor,
+        minimumSafePriceMinor: economics.minimumSafePriceMinor,
+        targetEconomicPriceMinor: economics.targetEconomicPriceMinor,
+        recommendedPriceMinor: economics.recommendedPriceMinor,
+        expectedMarginBps: economics.expectedMarginBps,
+        semaphore: economics.semaphore,
+        confidence: economics.confidence,
+        rotation: economics.rotation,
+        idealAcquisitionCostMinor: economics.idealAcquisitionCostMinor,
+        maximumAcquisitionCostMinor: economics.maximumAcquisitionCostMinor,
+      },
       topComparables: result.acceptedComparables.slice(0, 5).map((item) => ({
         source: item.source,
         seller: item.seller,
@@ -149,6 +168,10 @@ export async function GET(request: Request) {
       similarity: 95,
     })),
   });
+  const cachedEconomics = calculateFirstPartyDecision({
+    research: cached,
+    costs: { acquisitionCostMinor: 500000 },
+  });
   return NextResponse.json({
     driver: {
       mexicoQueries: usa.mexicoQueriesExecuted,
@@ -164,6 +187,7 @@ export async function GET(request: Request) {
     cacheHit: {
       cachedResearchUsed: cached.cachedResearchUsed,
       externalQueries: cached.mexicoQueriesExecuted + cached.usaQueriesExecuted,
+      recommendedPriceMinor: cachedEconomics.recommendedPriceMinor,
     },
   });
 }
