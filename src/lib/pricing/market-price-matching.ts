@@ -9,7 +9,10 @@ export type RawMarketComparable = {
   productName: string;
   priceMxn: number;
   originalCurrency: string;
+  originalPriceMinor?: number;
   originalPrice: string;
+  normalizationSource?: string;
+  normalizationObservedAt?: string;
   url: string | null;
   identifier: string | null;
   availability: MarketPriceSource["availability"];

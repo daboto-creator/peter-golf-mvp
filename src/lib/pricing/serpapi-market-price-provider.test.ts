@@ -107,4 +107,37 @@ describe("SerpApiMarketPriceProvider", () => {
     ).toBeNull();
     expect(JSON.stringify(result)).not.toContain("secret-test-key");
   });
+
+  it("normalizes USA native USD amounts to MXN before returning evidence", async () => {
+    const requests: string[] = [];
+    const fetchMock = vi.fn(async (request: URL | RequestInfo) => {
+      const url = String(request);
+      requests.push(url);
+      if (url.includes("frankfurter"))
+        return response({ rates: { MXN: 18.5 } });
+      return response({
+        shopping_results: [
+          {
+            title: "Titleist GT3 Driver 9 Regular Right Hand",
+            source: "Specialty Golf US",
+            extracted_price: 369.99,
+            product_id: "usd-one",
+            link: "https://merchant.example/gt3-us",
+            extensions: ["In stock"],
+          },
+        ],
+      });
+    });
+    const provider = new SerpApiMarketPriceProvider(
+      "secret-test-key",
+      fetchMock as typeof fetch,
+    );
+    const result = await provider.getMarketPrice(input, { market: "US" });
+    expect(requests.some((url) => url.includes("gl=us"))).toBe(true);
+    expect(requests.some((url) => url.includes("frankfurter"))).toBe(true);
+    expect(result.sources[0]?.originalCurrency).toBe("USD");
+    expect(result.sources[0]?.originalPriceMinor).toBe(36999);
+    expect(result.sources[0]?.priceMxn).toBe(684482);
+    expect(result.sources[0]?.normalizationSource).toBe("frankfurter");
+  });
 });

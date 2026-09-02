@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calculateUsaLandedReference,
   calculateFirstPartyDecision,
   convertUsdToMxn,
   evaluateMarketplaceDesiredPrice,
@@ -144,6 +145,35 @@ describe("Best Round economics decision", () => {
         observedAt: new Date().toISOString(),
       }),
     ).toBe(170000);
+  });
+  it("preserves factor-100 semantics and computes landed cost in MXN", () => {
+    const fx = {
+      rateNumerator: BigInt(1850),
+      rateDenominator: BigInt(100),
+      source: "test",
+      observedAt: new Date().toISOString(),
+    };
+    expect(convertUsdToMxn(36999, fx)).toBe(684482);
+    expect(
+      calculateUsaLandedReference({
+        observedUsdMinor: 36999,
+        fx,
+        assumptions: {
+          shippingMinor: 50000,
+          importTaxBps: 1600,
+          handlingMinor: 10000,
+          version: "test",
+        },
+      }),
+    ).toBe(854000);
+    expect(
+      convertUsdToMxn(849900, {
+        rateNumerator: BigInt(1),
+        rateDenominator: BigInt(1),
+        source: "mxn",
+        observedAt: new Date().toISOString(),
+      }),
+    ).toBe(849900);
   });
   it("returns unknown market when research has no accepted evidence", () => {
     expect(summarizeResearchMarket(research([])).dispersion).toBe("UNKNOWN");

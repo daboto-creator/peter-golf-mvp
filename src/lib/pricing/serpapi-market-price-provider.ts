@@ -9,6 +9,7 @@ import type {
 } from "@/lib/pricing/market-price-provider";
 import type { RawMarketComparable } from "@/lib/pricing/market-price-matching";
 import { buildMarketPriceResult } from "@/lib/pricing/market-price-statistics";
+import { ceilDivide } from "@/lib/pricing/money";
 
 const SERPAPI_ENDPOINT = "https://serpapi.com/search.json";
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -118,25 +119,88 @@ export function buildMarketSearchQuery(input: MarketPriceInput): string {
     .slice(0, 300);
 }
 
+type FxRate = {
+  numerator: bigint;
+  denominator: bigint;
+  source: string;
+  observedAt: string;
+};
+let cachedFx: { expiresAt: number; rate: FxRate } | null = null;
+
+async function usdToMxn(fetchImpl: typeof fetch): Promise<FxRate | null> {
+  if (cachedFx && cachedFx.expiresAt > Date.now()) return cachedFx.rate;
+  const configured = process.env.USD_MXN_RATE?.trim();
+  let rate: number | null = configured ? Number(configured) : null;
+  let source = "configured";
+  if (!rate || !Number.isFinite(rate) || rate <= 0) {
+    try {
+      const response = await fetchImpl(
+        "https://api.frankfurter.app/latest?from=USD&to=MXN",
+        {
+          signal: AbortSignal.timeout(3_000),
+          headers: { Accept: "application/json" },
+        },
+      );
+      if (response.ok) {
+        const payload = (await response.json()) as { rates?: { MXN?: number } };
+        rate =
+          typeof payload.rates?.MXN === "number" ? payload.rates.MXN : null;
+        source = "frankfurter";
+      }
+    } catch {
+      rate = null;
+    }
+  }
+  if (!rate) return null;
+  const [whole, fraction = ""] = String(rate).split(".");
+  const denominator = BigInt(10 ** Math.min(6, fraction.length));
+  const numerator =
+    BigInt(whole) * denominator +
+    BigInt(fraction.padEnd(Number(Math.log10(Number(denominator))), "0"));
+  const result = {
+    numerator,
+    denominator,
+    source,
+    observedAt: new Date().toISOString(),
+  };
+  cachedFx = { rate: result, expiresAt: Date.now() + 86_400_000 };
+  return result;
+}
+
 function toComparable(
   item: z.infer<typeof shoppingItemSchema>,
+  market: "MX" | "US",
+  fx: FxRate | null,
 ): RawMarketComparable | null {
   if (item.installment && !item.extracted_price) return null;
   const rawPrice = item.extracted_price ?? item.price?.replace(/[^0-9.,]/g, "");
   if (rawPrice === undefined) return null;
-  const priceMxn = parseDecimalToMinorUnits(String(rawPrice));
-  if (priceMxn === null) return null;
+  const originalMinor = parseDecimalToMinorUnits(String(rawPrice));
+  if (originalMinor === null) return null;
+  const priceMxn =
+    market === "MX"
+      ? originalMinor
+      : fx
+        ? Number(
+            ceilDivide(BigInt(originalMinor) * fx.numerator, fx.denominator),
+          )
+        : null;
+  if (priceMxn === null || !Number.isSafeInteger(priceMxn)) return null;
   return {
     merchant: item.source?.trim() || "Comercio no identificado",
     productName: item.title,
     priceMxn,
-    originalCurrency: "MXN",
+    originalPriceMinor: originalMinor,
+    originalCurrency: market === "US" ? "USD" : "MXN",
     originalPrice: String(rawPrice),
     url: safeSourceUrl(item.link ?? item.product_link),
     identifier: item.product_id === undefined ? null : String(item.product_id),
     availability: availabilityFrom(item),
     condition: conditionFrom(item),
     marketScope: marketScopeFrom(item),
+    normalizationSource: market === "US" ? fx?.source : "native_mxn",
+    normalizationObservedAt:
+      market === "US" ? fx?.observedAt : new Date().toISOString(),
   };
 }
 
@@ -180,8 +244,9 @@ export class SerpApiMarketPriceProvider implements MarketPriceProvider {
       ...(parsed.shopping_results ?? []),
       ...(parsed.inline_shopping_results ?? []),
     ];
+    const fx = market === "US" ? await usdToMxn(this.fetchImpl) : null;
     const comparables = items
-      .map(toComparable)
+      .map((item) => toComparable(item, market, fx))
       .filter((value): value is RawMarketComparable => value !== null);
     return buildMarketPriceResult({
       product: input,
