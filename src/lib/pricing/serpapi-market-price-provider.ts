@@ -151,16 +151,17 @@ export class SerpApiMarketPriceProvider implements MarketPriceProvider {
 
   async getMarketPrice(
     input: MarketPriceInput,
-    options?: { forceRefresh?: boolean },
+    options?: { forceRefresh?: boolean; query?: string; market?: "MX" | "US" },
   ): Promise<MarketPriceResult> {
-    const searchQuery = buildMarketSearchQuery(input);
+    const searchQuery = options?.query ?? buildMarketSearchQuery(input);
+    const market = options?.market ?? "MX";
     const url = new URL(SERPAPI_ENDPOINT);
     url.search = new URLSearchParams({
       engine: "google_shopping",
       q: searchQuery,
-      gl: "mx",
+      gl: market === "US" ? "us" : "mx",
       hl: "es",
-      location: "Mexico City, Mexico",
+      location: market === "US" ? "United States" : "Mexico City, Mexico",
       device: "desktop",
       api_key: this.apiKey,
       ...(options?.forceRefresh ? { no_cache: "true" } : {}),
