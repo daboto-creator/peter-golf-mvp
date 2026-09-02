@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/marketplace-authorization";
 import { parseMoneyToMinorUnits } from "@/lib/catalog/product-validation";
 import type { PartnerActionState } from "@/lib/marketplace/partner-action-state";
+import type { Json } from "@/types/database.types";
 import {
   buildResearchFingerprint,
   researchBestRoundIntelligence,
@@ -30,6 +31,11 @@ const cachedComparableSchema = z.object({
   matchScore: z.number().int().min(0).max(100),
   matchReasons: z.array(z.string()),
   observedAt: z.string(),
+  market: z.string().optional(),
+  sourceQualityScore: z.number().int().min(0).max(100).optional(),
+  marketPriorityScore: z.number().int().min(0).max(100).optional(),
+  recencyScore: z.number().int().min(0).max(100).optional(),
+  finalEvidenceScore: z.number().int().min(0).max(100).optional(),
 });
 const cachedAnalysisSchema = z.object({
   status: z.enum(["COMPLETE", "INSUFFICIENT_DATA", "PROVIDER_UNAVAILABLE"]),
@@ -43,6 +49,7 @@ const cachedAnalysisSchema = z.object({
   flags: z.array(z.string()),
   analysisVersion: z.string(),
   comparables: z.array(cachedComparableSchema),
+  researchMetadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 function value(formData: FormData, key: string): string {
@@ -290,6 +297,129 @@ function numberSpec(
   return typeof result === "number" && Number.isFinite(result) ? result : null;
 }
 
+type ResearchEvidenceRow = {
+  title?: string | null;
+  seller?: string | null;
+  price?: number | null;
+  observedAt?: string | null;
+  product?: Record<string, unknown>;
+};
+
+function candidateFromSnapshot(
+  snapshot: Record<string, unknown>,
+  market: "BEST_ROUND_SALE" | "SAVED_RESEARCH",
+): ResearchEvidenceRow | null {
+  const price = Number(
+    snapshot.publicUnitPrice ?? snapshot.priceMinor ?? snapshot.unitPrice,
+  );
+  const title = String(snapshot.listingTitle ?? snapshot.title ?? "").trim();
+  if (!title || !Number.isSafeInteger(price) || price <= 0) return null;
+  return {
+    title,
+    seller:
+      market === "BEST_ROUND_SALE" ? "Best Round" : "Investigación guardada",
+    price,
+    observedAt: String(
+      snapshot.observedAt ??
+        snapshot.checkedAt ??
+        snapshot.createdAt ??
+        new Date().toISOString(),
+    ),
+    product: (snapshot.specificationsSnapshot ??
+      snapshot.inputSnapshot ??
+      {}) as Record<string, unknown>,
+  };
+}
+
+async function loadResearchEvidence(
+  client: Awaited<
+    ReturnType<typeof import("@/lib/supabase/server").createClient>
+  >,
+  canonicalModelId: string,
+): Promise<{
+  internalSales: ResearchEvidenceRow[];
+  savedResearch: ResearchEvidenceRow[];
+}> {
+  const since = new Date(Date.now() - 90 * 86_400_000).toISOString();
+  const [sales, firstPartySales, analyses] = await Promise.all([
+    client
+      .from("marketplace_order_item_snapshots")
+      .select(
+        "listing_title, public_unit_price, specifications_snapshot, created_at, order_items!inner(item_source, orders!inner(status))",
+      )
+      .eq("canonical_product_model_id", canonicalModelId)
+      .eq("order_items.item_source", "MARKETPLACE_PARTNER")
+      .eq("order_items.orders.status", "delivered")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    client
+      .from("order_items")
+      .select(
+        "product_name_snapshot, unit_price_snapshot, created_at, item_source, orders!inner(status)",
+      )
+      .eq("item_source", "FIRST_PARTY")
+      .eq("orders.status", "delivered")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    client
+      .from("marketplace_market_analyses")
+      .select("result_snapshot, checked_at, status, canonical_product_model_id")
+      .eq("canonical_product_model_id", canonicalModelId)
+      .eq("status", "COMPLETE")
+      .gte("checked_at", since)
+      .order("checked_at", { ascending: false })
+      .limit(10),
+  ]);
+  const internalSales = (sales.data ?? []).flatMap((row) => {
+    const value = row as unknown as Record<string, unknown>;
+    return (
+      candidateFromSnapshot(
+        {
+          title: value.listing_title,
+          publicUnitPrice: value.public_unit_price,
+          specificationsSnapshot: value.specifications_snapshot,
+          createdAt: value.created_at,
+        },
+        "BEST_ROUND_SALE",
+      ) ?? []
+    );
+  });
+  internalSales.push(
+    ...(firstPartySales.data ?? []).flatMap((row) => {
+      const value = row as unknown as Record<string, unknown>;
+      return (
+        candidateFromSnapshot(
+          {
+            title: value.product_name_snapshot,
+            publicUnitPrice: value.unit_price_snapshot,
+            createdAt: value.created_at,
+          },
+          "BEST_ROUND_SALE",
+        ) ?? []
+      );
+    }),
+  );
+  const savedResearch = (analyses.data ?? []).flatMap((row) => {
+    const value = row as unknown as Record<string, unknown>;
+    const snapshot = value.result_snapshot as Record<string, unknown> | null;
+    const comparables = Array.isArray(snapshot?.comparables)
+      ? snapshot.comparables
+      : [];
+    return comparables.flatMap((item) => {
+      const comparable = item as Record<string, unknown>;
+      return (
+        candidateFromSnapshot(
+          { ...comparable, checkedAt: value.checked_at },
+          "SAVED_RESEARCH",
+        ) ?? []
+      );
+    });
+  });
+  return { internalSales, savedResearch };
+}
+
 export async function completeMarketplaceAnalysisAction(
   _previous: PartnerActionState,
   formData: FormData,
@@ -303,7 +433,7 @@ export async function completeMarketplaceAnalysisAction(
   const analysis = await client
     .from("marketplace_market_analyses")
     .select(
-      "id, listing_id, listing_version_id, listing_version:marketplace_listing_versions!marketplace_market_analysis_listing_version_fk(condition, condition_grade, specifications, brands(name), catalog_product_models(model_name), categories(category_spec_profiles(family, club_type, bag_type, set_type)))",
+      "id, listing_id, listing_version_id, listing_version:marketplace_listing_versions!marketplace_market_analysis_listing_version_fk(condition, condition_grade, specifications, brands(name), catalog_product_models(id, model_name), categories(category_spec_profiles(family, club_type, bag_type, set_type)))",
     )
     .eq("id", analysisId.data)
     .eq("status", "REQUESTED")
@@ -366,7 +496,7 @@ export async function completeMarketplaceAnalysisAction(
       requested_provider_status: "cache_hit",
       requested_input_fingerprint: fingerprint,
       requested_input_snapshot: input,
-      requested_result_snapshot: cachedResult.data,
+      requested_result_snapshot: cachedResult.data as unknown as Json,
       requested_comparables: cachedResult.data.comparables,
       requested_excluded_count: cached.data.excluded_comparable_count,
     });
@@ -375,11 +505,32 @@ export async function completeMarketplaceAnalysisAction(
     revalidatePath(`/partner/publicaciones/${analysis.data.listing_id}/precio`);
     return { status: "success", message: "Referencia reciente reutilizada." };
   }
+  const evidence = version.catalog_product_models?.id
+    ? await loadResearchEvidence(client, version.catalog_product_models.id)
+    : { internalSales: [], savedResearch: [] };
   const researched = await researchBestRoundIntelligence(
     input as ResearchProductInput,
     {
       provider: configured.provider,
-      forceRefresh: true,
+      forceRefresh: false,
+      internalSales: evidence.internalSales.map((candidate) => ({
+        title: candidate.title!,
+        seller: candidate.seller ?? "Best Round",
+        priceMinor: candidate.price!,
+        market: "BEST_ROUND_SALE" as const,
+        source: "Best Round",
+        observedAt: candidate.observedAt!,
+        product: candidate.product,
+      })),
+      savedResearch: evidence.savedResearch.map((candidate) => ({
+        title: candidate.title!,
+        seller: candidate.seller ?? "Investigación guardada",
+        priceMinor: candidate.price!,
+        market: "SAVED_RESEARCH" as const,
+        source: "saved-research",
+        observedAt: candidate.observedAt!,
+        product: candidate.product,
+      })),
     },
   );
   const normalized = {
@@ -429,6 +580,18 @@ export async function completeMarketplaceAnalysisAction(
     confidence: researched.confidence,
     flags: researched.reasons,
     analysisVersion: researched.engineVersion,
+    researchMetadata: {
+      resolutionSource: researched.resolutionSource,
+      evidenceLevel: researched.evidenceLevel,
+      internalSalesUsed: researched.internalSalesUsed,
+      cachedResearchUsed: researched.cachedResearchUsed,
+      mexicoQueriesExecuted: researched.mexicoQueriesExecuted,
+      usaQueriesExecuted: researched.usaQueriesExecuted,
+      excludedComparables: researched.excludedComparables.map((item) => ({
+        exclusion: item.exclusion,
+        title: item.title,
+      })),
+    },
     comparables: researched.acceptedComparables.map((item) => ({
       source: item.source,
       title: item.title,
@@ -446,6 +609,11 @@ export async function completeMarketplaceAnalysisAction(
       matchScore: item.similarity ?? 0,
       matchReasons: item.similarityReasons ?? [],
       observedAt: item.observedAt,
+      market: item.market,
+      sourceQualityScore: item.sourceQuality,
+      marketPriorityScore: item.marketPriorityScore,
+      recencyScore: item.recencyScore,
+      finalEvidenceScore: item.evidenceScore,
     })),
   };
   const completed = await client.rpc("complete_marketplace_market_analysis", {
@@ -456,7 +624,7 @@ export async function completeMarketplaceAnalysisAction(
       : "complete",
     requested_input_fingerprint: fingerprint,
     requested_input_snapshot: input,
-    requested_result_snapshot: normalized,
+    requested_result_snapshot: normalized as unknown as Json,
     requested_comparables: normalized.comparables,
     requested_excluded_count: researched.excludedComparables.length,
   });
