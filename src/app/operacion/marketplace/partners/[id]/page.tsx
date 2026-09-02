@@ -53,6 +53,16 @@ const csfWarningCopy: Record<string, string> = {
   REGISTERED_FISCAL_DATA_INCOMPLETE:
     "El perfil aún no tiene todos los datos fiscales para comparar.",
   AUTOMATIC_CONTENT_EXTRACTION_PENDING: "El análisis está pendiente.",
+  DOCUMENT_TYPE_NOT_EXTRACTED:
+    "No pudimos identificar automáticamente el tipo de documento.",
+  DOCUMENT_EXTRACTION_RUNTIME_FAILED:
+    "No fue posible leer automáticamente el documento.",
+  PDF_IMPORT_FAILED: "La lectura automática del PDF requiere revisión.",
+  PDF_DOCUMENT_LOAD_FAILED: "La lectura automática del PDF requiere revisión.",
+  PDF_PAGE_READ_FAILED: "La lectura automática del PDF requiere revisión.",
+  PDF_TEXT_EXTRACTION_FAILED:
+    "La lectura automática del PDF requiere revisión.",
+  ADDRESS_ANALYSIS_ERROR: "El análisis automático no pudo completarse.",
 };
 
 function normalizedField(value: unknown, key: string) {

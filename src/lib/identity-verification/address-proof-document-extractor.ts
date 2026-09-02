@@ -8,6 +8,7 @@ import {
 import {
   extractEmbeddedPdfText,
   extractFallbackOcrText,
+  PdfTextExtractionError,
 } from "@/lib/identity-verification/csf-document-extractor";
 import type { PartnerLegalType } from "@/lib/marketplace/partner-rules";
 import type { Json } from "@/types/database.types";
@@ -213,8 +214,11 @@ export async function analyzeAddressProofDocument(input: {
     pagesInspected = extracted.pagesInspected;
     ocrUsed = extracted.ocrUsed;
     confidence = extracted.confidence ?? null;
-  } catch {
-    runtimeWarning = "DOCUMENT_EXTRACTION_RUNTIME_FAILED";
+  } catch (error) {
+    runtimeWarning =
+      error instanceof PdfTextExtractionError
+        ? error.code
+        : "PDF_TEXT_EXTRACTION_FAILED";
   }
   const documentType = detectType(text);
   const extractedName = afterLabel(text, [
