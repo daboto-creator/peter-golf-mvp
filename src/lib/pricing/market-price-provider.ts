@@ -42,6 +42,13 @@ export type MarketPriceSource = {
   matchScore: number;
   checkedAt: string;
   matchConfidence: Exclude<MarketConfidence, "unavailable">;
+  sourceType?:
+    | "OFFICIAL_MANUFACTURER"
+    | "AUTHORIZED_RETAILER"
+    | "SPECIALIST_RETAILER"
+    | "MARKETPLACE"
+    | "OTHER";
+  providerCategory?: string | null;
 };
 
 export type MarketPriceResult = MarketReference & {
