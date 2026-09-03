@@ -21,6 +21,15 @@ export type ResearchProductInput = MarketPriceInput & {
   grind?: string | null;
   putterStyle?: string | null;
   setComposition?: string | null;
+  researchFamily?: string | null;
+  productType?: string | null;
+  variant?: string | null;
+  setPieceCount?: number | null;
+  genderConfiguration?: string | null;
+  ageGroup?: string | null;
+  size?: string | null;
+  color?: string | null;
+  quantity?: number | null;
 };
 
 export type ResearchMarket =
@@ -67,7 +76,38 @@ export type ResearchCandidate = {
 };
 
 export type ComparableProductKind =
-  "FULL_PRODUCT" | "COMPONENT" | "ACCESSORY" | "BUNDLE" | "UNKNOWN";
+  | "FULL_PRODUCT"
+  | "COMPLETE_SET"
+  | "IRON_SET"
+  | "PARTIAL_SET"
+  | "SINGLE_CLUB"
+  | "BAG_ONLY"
+  | "COMPONENT"
+  | "ACCESSORY"
+  | "BUNDLE"
+  | "UNKNOWN";
+
+export type ComparisonProfileFamily =
+  | "CLUB"
+  | "SET"
+  | "BAG"
+  | "APPAREL"
+  | "FOOTWEAR"
+  | "GLOVE"
+  | "HAT"
+  | "SOFT_ACCESSORY"
+  | "HARD_ACCESSORY"
+  | "ELECTRONIC_ACCESSORY"
+  | "OTHER_ACCESSORY";
+
+export type ComparableProfile = {
+  family: ComparisonProfileFamily;
+  productType: string | null;
+  requiredDimensions: readonly string[];
+  hardDimensions: readonly string[];
+  softDimensions: readonly string[];
+  irrelevantDimensions: readonly string[];
+};
 
 export type ComparableProductClassification = {
   kind: ComparableProductKind;
@@ -162,9 +202,17 @@ function numericMention(
 /** Stable, category-aware identity used for cache reuse (not exact row equality). */
 export function buildResearchFingerprint(input: ResearchProductInput): string {
   const family = input.category ?? input.productFamily ?? "other";
+  const profile = resolveComparableProfile(input);
   const relevant: Record<string, unknown> = {
-    fingerprintVersion: RESEARCH_FINGERPRINT_VERSION,
+    fingerprintVersion:
+      profile.family === "CLUB" ||
+      profile.family === "BAG" ||
+      profile.family === "SET"
+        ? RESEARCH_FINGERPRINT_VERSION
+        : `${RESEARCH_FINGERPRINT_VERSION}-category-aware`,
     family,
+    profileFamily: profile.family,
+    productType: profile.productType,
     brand: norm(input.brand),
     model: norm(input.model),
     modelYear: input.modelYear,
@@ -188,11 +236,210 @@ export function buildResearchFingerprint(input: ResearchProductInput): string {
   }
   if (family === "bag") relevant.bagType = norm(input.bagType);
   if (family === "set") relevant.setType = norm(input.setType);
+  if (profile.family === "SET")
+    Object.assign(relevant, {
+      variant: norm(input.variant),
+      setPieceCount: input.setPieceCount,
+      setComposition: norm(input.setComposition),
+      genderConfiguration: norm(input.genderConfiguration),
+      ageGroup: norm(input.ageGroup),
+    });
+  if (
+    profile.family !== "CLUB" &&
+    profile.family !== "BAG" &&
+    profile.family !== "SET"
+  )
+    Object.assign(relevant, {
+      variant: norm(input.variant),
+      productType: norm(input.productType),
+      genderConfiguration: norm(input.genderConfiguration),
+    });
   return createHash("sha256").update(JSON.stringify(relevant)).digest("hex");
 }
 
 function categoryOf(input: ResearchProductInput): string {
   return norm(input.clubType ?? input.category ?? input.productFamily);
+}
+
+const ACCESSORY_TYPES = new Set([
+  "shoe",
+  "shoes",
+  "golf shoe",
+  "footwear",
+  "polo",
+  "shirt",
+  "t shirt",
+  "shorts",
+  "pants",
+  "skirt",
+  "jacket",
+  "vest",
+  "rain jacket",
+  "sweater",
+  "hoodie",
+  "apparel",
+  "glove",
+  "gloves",
+  "hat",
+  "cap",
+  "visor",
+  "belt",
+  "sock",
+  "socks",
+  "towel",
+  "umbrella",
+  "rangefinder",
+  "gps",
+  "training aid",
+  "headcover",
+]);
+
+/** Resolves a comparison profile without introducing a second taxonomy. */
+export function resolveComparableProfile(
+  input: ResearchProductInput,
+): ComparableProfile {
+  const explicit = norm(input.researchFamily ?? input.category);
+  const type = norm(input.productType ?? input.clubType ?? input.setType);
+  if (
+    input.productFamily === "set" ||
+    explicit === "set" ||
+    explicit === "complete set"
+  )
+    return {
+      family: "SET",
+      productType: type || "complete_set",
+      requiredDimensions: ["brand", "model", "completeSet"],
+      hardDimensions: ["composition", "ageGroup"],
+      softDimensions: [
+        "pieceCount",
+        "variant",
+        "handedness",
+        "genderConfiguration",
+        "condition",
+      ],
+      irrelevantDimensions: ["size", "color"],
+    };
+  if (input.productFamily === "bag" || explicit === "bag")
+    return {
+      family: "BAG",
+      productType: input.bagType ?? "bag",
+      requiredDimensions: ["brand", "model", "productType"],
+      hardDimensions: ["productType"],
+      softDimensions: ["variant", "condition"],
+      irrelevantDimensions: ["size", "color"],
+    };
+  if (
+    input.productFamily === "club" ||
+    ["driver", "fairway_wood", "hybrid", "iron", "wedge", "putter"].includes(
+      type,
+    )
+  )
+    return {
+      family: "CLUB",
+      productType: input.clubType,
+      requiredDimensions: ["brand", "model", "productType"],
+      hardDimensions: ["productKind", "condition", "model"],
+      softDimensions: ["handedness", "loft", "flex", "year", "composition"],
+      irrelevantDimensions: ["size", "color"],
+    };
+  if (
+    type.includes("shoe") ||
+    type.includes("footwear") ||
+    explicit.includes("shoe") ||
+    explicit === "footwear"
+  )
+    return {
+      family: "FOOTWEAR",
+      productType: type || "golf_shoe",
+      requiredDimensions: ["brand", "model", "productType"],
+      hardDimensions: ["productType", "condition"],
+      softDimensions: [
+        "size",
+        "width",
+        "color",
+        "genderConfiguration",
+        "spiked",
+      ],
+      irrelevantDimensions: ["handedness", "flex"],
+    };
+  if (type === "glove" || type === "gloves" || explicit === "glove")
+    return {
+      family: "GLOVE",
+      productType: "glove",
+      requiredDimensions: ["brand", "model", "productType"],
+      hardDimensions: ["productType", "condition"],
+      softDimensions: ["size", "handedness", "color"],
+      irrelevantDimensions: ["flex"],
+    };
+  if (
+    [
+      "polo",
+      "shirt",
+      "t shirt",
+      "shorts",
+      "pants",
+      "skirt",
+      "jacket",
+      "vest",
+      "rain jacket",
+      "sweater",
+      "hoodie",
+      "apparel",
+    ].includes(type) ||
+    explicit === "apparel"
+  )
+    return {
+      family: "APPAREL",
+      productType: type || "apparel",
+      requiredDimensions: ["brand", "model", "productType"],
+      hardDimensions: ["productType", "condition"],
+      softDimensions: ["size", "color", "genderConfiguration", "ageGroup"],
+      irrelevantDimensions: ["handedness", "flex"],
+    };
+  if (
+    type === "hat" ||
+    type === "cap" ||
+    type === "visor" ||
+    explicit === "hat"
+  )
+    return {
+      family: "HAT",
+      productType: type,
+      requiredDimensions: ["brand", "productType"],
+      hardDimensions: ["productType", "condition"],
+      softDimensions: ["size", "color", "model"],
+      irrelevantDimensions: ["handedness", "flex"],
+    };
+  if (["rangefinder", "gps"].includes(type) || explicit.includes("electronic"))
+    return {
+      family: "ELECTRONIC_ACCESSORY",
+      productType: type,
+      requiredDimensions: ["brand", "model", "productType"],
+      hardDimensions: ["productType", "model", "condition"],
+      softDimensions: ["generation", "bundle"],
+      irrelevantDimensions: ["size", "color"],
+    };
+  if (
+    ACCESSORY_TYPES.has(type) ||
+    explicit.includes("accessory") ||
+    explicit.includes("soft")
+  )
+    return {
+      family: "SOFT_ACCESSORY",
+      productType: type || "accessory",
+      requiredDimensions: ["brand", "productType"],
+      hardDimensions: ["productType", "condition"],
+      softDimensions: ["model", "size", "color", "quantity"],
+      irrelevantDimensions: ["handedness", "flex"],
+    };
+  return {
+    family: "OTHER_ACCESSORY",
+    productType: type || null,
+    requiredDimensions: ["brand", "productType"],
+    hardDimensions: ["condition"],
+    softDimensions: ["model"],
+    irrelevantDimensions: [],
+  };
 }
 
 function hand(value: unknown): string {
@@ -209,6 +456,59 @@ function hand(value: unknown): string {
 const accessoryPattern =
   /\b(weight|weights|sliding weight|replacement weight|peso|pesas?|contrapeso|tornillo|repuesto|reemplazo|accesorio|adaptador|adapter|adaptor|sleeve|funda|cubierta|headcover|cover|llave|wrench|manguito|casquillo|grip|empuñadura|varilla|shaft|eje|tip|ferrule)\b/;
 
+function inferAccessoryType(title: string): string | null {
+  const value = norm(title);
+  if (/\b(shoe|shoes|golf shoe|footwear)\b/.test(value)) return "shoes";
+  if (
+    /\b(polo|shirt|t shirt|shorts|pants|skirt|jacket|vest|sweater|hoodie)\b/.test(
+      value,
+    )
+  )
+    return "apparel";
+  if (/\b(glove|gloves)\b/.test(value)) return "glove";
+  if (/\b(cap|hat|visor)\b/.test(value)) return "hat";
+  if (/\b(belt|sock|socks|towel|umbrella)\b/.test(value))
+    return value.match(/belt|sock|socks|towel|umbrella/)?.[0] ?? "accessory";
+  if (/\b(rangefinder|gps)\b/.test(value)) return "rangefinder";
+  return null;
+}
+
+function sameAccessoryType(target: string, candidate: string): boolean {
+  const t = norm(target);
+  const c = norm(candidate);
+  if (t === c) return true;
+  if ((t.includes("shoe") || t === "footwear") && c.includes("shoe"))
+    return true;
+  if (
+    (t.includes("apparel") ||
+      [
+        "polo",
+        "shirt",
+        "shorts",
+        "pants",
+        "skirt",
+        "jacket",
+        "vest",
+        "sweater",
+        "hoodie",
+      ].includes(t)) &&
+    (c.includes("apparel") ||
+      [
+        "polo",
+        "shirt",
+        "shorts",
+        "pants",
+        "skirt",
+        "jacket",
+        "vest",
+        "sweater",
+        "hoodie",
+      ].includes(c))
+  )
+    return t === c || t === "apparel" || c === "apparel";
+  return false;
+}
+
 /** Classifies the object being sold before any brand/model similarity is scored. */
 export function classifyComparableProductKind(
   input: ResearchProductInput,
@@ -216,7 +516,95 @@ export function classifyComparableProductKind(
 ): ComparableProductClassification {
   const title = norm(candidate.title);
   const family = categoryOf(input);
+  const profile = resolveComparableProfile(input);
   const reasons: string[] = [];
+  const candidateProductType = norm(
+    candidate.providerCategory ??
+      candidate.product?.productType ??
+      candidate.product?.clubType ??
+      candidate.product?.setType,
+  );
+  if (profile.family === "SET") {
+    if (
+      /\b(iron set|juego de hierros|5 pw|4 pw)\b/.test(title) ||
+      candidateProductType === "iron_set"
+    )
+      return {
+        kind: "IRON_SET",
+        confidence: "HIGH",
+        reasons: ["IRON_SET_NOT_COMPLETE_SET"],
+      };
+    if (
+      /\b(driver|fairway|hybrid|iron|wedge|putter)\b/.test(title) &&
+      !/\b(set|juego|complete|package)\b/.test(title)
+    )
+      return {
+        kind: "SINGLE_CLUB",
+        confidence: "HIGH",
+        reasons: ["SINGLE_CLUB"],
+      };
+    if (
+      /\b(bag|bolsa)\b/.test(title) &&
+      !/\b(set|juego|complete|package)\b/.test(title)
+    )
+      return { kind: "BAG_ONLY", confidence: "HIGH", reasons: ["BAG_ONLY"] };
+    if (/\b(partial|half set|medio set|incomplete|incompleto)\b/.test(title))
+      return {
+        kind: "PARTIAL_SET",
+        confidence: "HIGH",
+        reasons: ["PARTIAL_SET"],
+      };
+    if (
+      candidateProductType === "complete_set" ||
+      /\b(complete|package set|starter set|juego completo|set completo|golf set|club set|\d{1,2}\s*piece)\b/.test(
+        title,
+      )
+    )
+      return {
+        kind: "COMPLETE_SET",
+        confidence: candidateProductType === "complete_set" ? "HIGH" : "MEDIUM",
+        reasons: ["COMPLETE_SET_SIGNAL"],
+      };
+    return {
+      kind: "UNKNOWN",
+      confidence: "LOW",
+      reasons: ["SET_COMPOSITION_UNCONFIRMED"],
+    };
+  }
+  if (profile.family !== "CLUB" && profile.family !== "BAG") {
+    const targetType = norm(input.productType ?? input.category);
+    if (
+      /\b(shoe bag|spike replacement|replacement spikes|protective case|carrying case|phone case)\b/.test(
+        title,
+      )
+    )
+      return {
+        kind: "ACCESSORY",
+        confidence: "HIGH",
+        reasons: ["WRONG_PRODUCT_TYPE"],
+      };
+    const candidateTextType = candidateProductType || inferAccessoryType(title);
+    if (
+      !candidateTextType ||
+      (targetType && !sameAccessoryType(targetType, candidateTextType))
+    )
+      return {
+        kind: "UNKNOWN",
+        confidence: "LOW",
+        reasons: ["WRONG_PRODUCT_TYPE"],
+      };
+    if (
+      /\b(2|3|4|5)[ -]?(pack|packs|pieza|piezas|piece|pieces)\b|\bpack of [2-9]\b|\b(paquete|juego) de [2-9]\b/.test(
+        title,
+      )
+    )
+      return { kind: "BUNDLE", confidence: "HIGH", reasons: ["BUNDLE"] };
+    return {
+      kind: "ACCESSORY",
+      confidence: candidateProductType ? "HIGH" : "MEDIUM",
+      reasons: ["ACCESSORY_PRODUCT_SIGNAL"],
+    };
+  }
   const componentOnly =
     /\b(head only|club head|cabeza sola|shaft only|solo shaft|varilla sola|grip only|solo grip)\b/.test(
       title,
@@ -343,7 +731,16 @@ export function classifyComparableCertainty(
   candidate: ResearchCandidate,
   classification = classifyComparableProductKind(input, candidate),
 ): { certainty: ComparableCertainty; reasons: string[] } {
-  if (classification.kind !== "FULL_PRODUCT")
+  const profile = resolveComparableProfile(input);
+  const compatibleKind =
+    (profile.family === "SET" && classification.kind === "COMPLETE_SET") ||
+    (profile.family === "CLUB" && classification.kind === "FULL_PRODUCT") ||
+    (profile.family === "BAG" && classification.kind === "FULL_PRODUCT") ||
+    (profile.family !== "SET" &&
+      profile.family !== "CLUB" &&
+      profile.family !== "BAG" &&
+      classification.kind === "ACCESSORY");
+  if (!compatibleKind)
     return { certainty: "REJECT", reasons: classification.reasons };
   const title = norm(candidate.title);
   const product = candidate.product ?? {};
@@ -375,8 +772,13 @@ export function classifyComparableCertainty(
       reasons: [brand ? "WRONG_MODEL" : "WRONG_BRAND"],
     };
   const hasConfiguration =
-    Boolean(product.clubType || candidate.providerCategory) ||
-    /\b(driver|fairway|wood|hybrid|iron|wedge|putter|bag|golf club)\b/.test(
+    Boolean(
+      product.clubType ||
+      product.productType ||
+      product.category ||
+      candidate.providerCategory,
+    ) ||
+    /\b(driver|fairway|wood|hybrid|iron|wedge|putter|bag|golf club|complete|package set|polo|shirt|shoe|glove|cap|hat|rangefinder)\b/.test(
       title,
     );
   if (!hasConfiguration)
@@ -388,7 +790,10 @@ export function classifyComparableCertainty(
     Boolean(
       candidate.product &&
       (candidate.product.clubType || candidate.product.category),
-    ) || /\b(driver|fairway|hybrid|wedge|putter)\b/.test(title);
+    ) ||
+    /\b(driver|fairway|hybrid|wedge|putter|complete|package set|polo|shirt|shoe|glove|cap|hat|rangefinder)\b/.test(
+      title,
+    );
   return {
     certainty: explicitIdentity ? "STRONG" : "AMBIGUOUS",
     reasons: explicitIdentity
@@ -417,6 +822,7 @@ export function scoreResearchSimilarity(
   if (input.model && !hasToken(title, input.model))
     return { score: 0, reasons: ["WRONG_MODEL"], hardMismatch: true };
   const family = categoryOf(input);
+  const profile = resolveComparableProfile(input);
   const candidateFamily = norm(
     String(product.clubType ?? product.category ?? ""),
   );
@@ -433,13 +839,64 @@ export function scoreResearchSimilarity(
       "bag",
       "set",
     ].includes(targetKind) &&
-    classification.kind !== "FULL_PRODUCT"
+    classification.kind !== "FULL_PRODUCT" &&
+    !(profile.family === "SET" && classification.kind === "COMPLETE_SET")
   ) {
     return {
       score: 0,
       reasons: classification.reasons,
       hardMismatch: true,
     };
+  }
+  if (profile.family === "SET" && classification.kind !== "COMPLETE_SET")
+    return { score: 0, reasons: classification.reasons, hardMismatch: true };
+  if (profile.family === "SET") {
+    const age = norm(input.ageGroup ?? input.targetPlayer);
+    if (age && /\b(junior|youth|kids|junior)\b/.test(title) && age !== "junior")
+      return {
+        score: 0,
+        reasons: ["ADULT_JUNIOR_MISMATCH"],
+        hardMismatch: true,
+      };
+    if (age === "junior" && /\b(mens|men|womens|women|adult)\b/.test(title))
+      return {
+        score: 0,
+        reasons: ["ADULT_JUNIOR_MISMATCH"],
+        hardMismatch: true,
+      };
+    const gender = norm(input.genderConfiguration ?? input.targetPlayer);
+    if (gender === "men" && /\b(womens|women|ladies)\b/.test(title))
+      return {
+        score: 0,
+        reasons: ["SET_CONFIGURATION_MISMATCH"],
+        hardMismatch: true,
+      };
+    if (gender === "women" && /\b(mens|men)\b/.test(title))
+      return {
+        score: 0,
+        reasons: ["SET_CONFIGURATION_MISMATCH"],
+        hardMismatch: true,
+      };
+  }
+  if (
+    profile.family !== "CLUB" &&
+    profile.family !== "BAG" &&
+    profile.family !== "SET"
+  ) {
+    if (classification.kind !== "ACCESSORY")
+      return { score: 0, reasons: classification.reasons, hardMismatch: true };
+    if (classification.reasons.includes("WRONG_PRODUCT_TYPE"))
+      return { score: 0, reasons: classification.reasons, hardMismatch: true };
+    const targetType = norm(input.productType ?? input.category);
+    const candidateType = norm(
+      product.productType ?? product.category ?? product.clubType,
+    );
+    if (
+      targetType &&
+      candidateType &&
+      !sameAccessoryType(targetType, candidateType)
+    )
+      return { score: 0, reasons: ["WRONG_PRODUCT_TYPE"], hardMismatch: true };
   }
   if (
     family &&
@@ -616,14 +1073,24 @@ function dedupeKey(candidate: ResearchCandidate): string {
 
 function queryPlan(input: ResearchProductInput, market: "MX" | "US"): string[] {
   const prefix = [input.brand, input.model].filter(Boolean).join(" ");
+  const profile = resolveComparableProfile(input);
   const type =
-    input.clubType ?? input.bagType ?? input.setType ?? input.productFamily;
+    profile.family === "SET"
+      ? "complete golf set"
+      : (input.productType ??
+        input.clubType ??
+        input.bagType ??
+        input.setType ??
+        input.productFamily);
   const queries = [
     prefix,
     [prefix, type].filter(Boolean).join(" "),
     [prefix, input.loftDegrees ? `${input.loftDegrees}°` : input.clubNumber]
       .filter(Boolean)
       .join(" "),
+    profile.family === "SET" && input.setPieceCount
+      ? `${prefix} complete set ${input.setPieceCount} piece`
+      : [prefix, type, "complete"].filter(Boolean).join(" "),
   ];
   return queries
     .map((query) => `${query} ${market === "MX" ? "México" : "USA"}`.trim())

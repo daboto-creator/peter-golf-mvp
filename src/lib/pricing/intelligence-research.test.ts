@@ -5,6 +5,7 @@ import {
   classifyComparableProductKind,
   classifyComparableCertainty,
   AiComparableAmbiguityResolver,
+  resolveComparableProfile,
   COMPARABLE_CLASSIFIER_VERSION,
   evaluateEvidenceSufficiency,
   researchBestRoundIntelligence,
@@ -283,6 +284,90 @@ describe("Best Round intelligence research", () => {
       "ambiguous",
     );
     expect(result.acceptedComparables[0]?.certainty).toBe("STRONG");
+  });
+
+  it("uses complete-set product kind and rejects clubs, bags and partial sets", () => {
+    const setInput = {
+      ...input,
+      productFamily: "set" as const,
+      clubType: null,
+      setType: "complete_set",
+      category: "set",
+    };
+    expect(resolveComparableProfile(setInput).family).toBe("SET");
+    expect(
+      classifyComparableProductKind(
+        setInput,
+        candidate({ title: "Callaway Strata complete golf set with bag" }),
+      ).kind,
+    ).toBe("COMPLETE_SET");
+    expect(
+      classifyComparableProductKind(
+        setInput,
+        candidate({ title: "Callaway Strata 7 iron" }),
+      ).kind,
+    ).toBe("SINGLE_CLUB");
+    expect(
+      classifyComparableProductKind(
+        setInput,
+        candidate({ title: "Callaway Strata iron set 5-PW" }),
+      ).kind,
+    ).toBe("IRON_SET");
+    expect(
+      classifyComparableProductKind(
+        setInput,
+        candidate({ title: "Callaway Strata partial set" }),
+      ).kind,
+    ).toBe("PARTIAL_SET");
+  });
+
+  it("keeps category-specific accessory comparability conservative", () => {
+    const shoeInput = {
+      ...input,
+      productFamily: null,
+      clubType: null,
+      category: "footwear",
+      productType: "shoes",
+      condition: "new" as const,
+    };
+    expect(
+      classifyComparableProductKind(
+        shoeInput,
+        candidate({
+          title: "FootJoy Pro SL golf shoes size 9",
+          condition: "new",
+        }),
+      ).kind,
+    ).toBe("ACCESSORY");
+    expect(
+      scoreResearchSimilarity(
+        shoeInput,
+        candidate({ title: "FootJoy shoe bag", condition: "new" }),
+      ).hardMismatch,
+    ).toBe(true);
+    expect(
+      scoreResearchSimilarity(
+        shoeInput,
+        candidate({
+          title: "Replacement spikes for FootJoy shoes",
+          condition: "new",
+        }),
+      ).hardMismatch,
+    ).toBe(true);
+    const gloveInput = {
+      ...input,
+      productFamily: null,
+      clubType: null,
+      category: "accessory",
+      productType: "glove",
+      condition: "new" as const,
+    };
+    expect(
+      scoreResearchSimilarity(
+        gloveInput,
+        candidate({ title: "Titleist Players glove 3-pack", condition: "new" }),
+      ).hardMismatch,
+    ).toBe(true);
   });
 
   it("penalizes loft and flex changes while treating putter flex as irrelevant", () => {
