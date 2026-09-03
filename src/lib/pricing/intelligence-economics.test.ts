@@ -178,4 +178,14 @@ describe("Best Round economics decision", () => {
   it("returns unknown market when research has no accepted evidence", () => {
     expect(summarizeResearchMarket(research([])).dispersion).toBe("UNKNOWN");
   });
+
+  it("never reports a green recommendation without market evidence", () => {
+    const result = calculateFirstPartyDecision({
+      research: research([]),
+      costs: { acquisitionCostMinor: 800000 },
+    });
+    expect(result.marketReferenceMinor).toBeNull();
+    expect(result.recommendedPriceMinor).toBeNull();
+    expect(result.semaphore).toBe("YELLOW");
+  });
 });

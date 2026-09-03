@@ -14,11 +14,21 @@ import type {
   MarketPriceInput,
   MarketPriceResult,
 } from "@/lib/pricing/market-price-provider";
-import { researchMarketPriceSafely } from "@/lib/pricing/market-price-resilience";
 import { getConfiguredMarketPriceProvider } from "@/lib/pricing/market-price-service";
+import {
+  calculateFirstPartyDecision,
+  type EconomicsCosts,
+} from "@/lib/pricing/intelligence-economics";
+import {
+  researchBestRoundIntelligence,
+  type ResearchCandidate,
+  type ResearchProductInput,
+  type ResearchResult,
+} from "@/lib/pricing/intelligence-research";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
-const CACHE_TTL_MS = 15 * 60 * 1_000;
+const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1_000;
 
 const requestSchema = z.object({
   productId: z.uuid().nullable(),
@@ -38,47 +48,148 @@ const requestSchema = z.object({
   shaftModel: z.string().trim().max(160).nullable(),
   shaftFlex: z.string().trim().max(40).nullable(),
   acquisitionCost: z.string().trim(),
-});
-
-const sourceSchema = z.object({
-  merchant: z.string(),
-  productName: z.string(),
-  priceMxn: z.number().int().positive(),
-  originalCurrency: z.string(),
-  originalPrice: z.string(),
-  url: z.string().url().nullable(),
-  identifier: z.string().nullable(),
-  availability: z.enum(["in_stock", "out_of_stock", "unknown"]),
-  condition: z.enum(["new", "used", "refurbished", "unknown"]),
-  marketScope: z.enum([
-    "mexico",
-    "ships_to_mexico",
-    "international",
-    "unknown",
-  ]),
-  matchScore: z.number().int().min(0).max(100),
-  checkedAt: z.string(),
-  matchConfidence: z.enum(["high", "medium", "low"]),
-});
-
-const resultSchema = z.object({
-  medianPriceMxn: z.number().int().positive().nullable(),
-  averagePriceMxn: z.number().int().positive().nullable(),
-  lowPriceMxn: z.number().int().positive().nullable(),
-  highPriceMxn: z.number().int().positive().nullable(),
-  sampleSize: z.number().int().nonnegative(),
-  confidence: z.enum(["high", "medium", "low", "unavailable"]),
-  source: z.string().nullable(),
-  sourceUrl: z.string().nullable(),
-  checkedAt: z.string().nullable(),
-  provider: z.string(),
-  searchQuery: z.string().nullable(),
-  sources: z.array(sourceSchema).max(100),
-  excludedCount: z.number().int().nonnegative(),
+  conditioningCost: z.string().trim().default("0"),
+  packagingCost: z.string().trim().default("0"),
+  shippingSubsidy: z.string().trim().default("0"),
 });
 
 function fingerprint(input: MarketPriceInput): string {
   return createHash("sha256").update(JSON.stringify(input)).digest("hex");
+}
+
+function minor(value: string): number {
+  return parseMoneyToMinorUnits(value) ?? 0;
+}
+
+function candidateFromSnapshot(
+  row: Record<string, unknown>,
+  market: "BEST_ROUND_SALE" | "SAVED_RESEARCH",
+): ResearchCandidate | null {
+  const price = Number(
+    market === "BEST_ROUND_SALE" ? row.final_sold_price_minor : row.priceMinor,
+  );
+  const observedAt = String(row.sold_at ?? row.observedAt ?? "");
+  if (!Number.isSafeInteger(price) || price <= 0 || !observedAt) return null;
+  const title = String(row.title ?? row.product_name ?? row.productName ?? "");
+  if (!title) return null;
+  return {
+    title,
+    seller: String(row.seller ?? "Best Round"),
+    priceMinor: price,
+    currency: "MXN",
+    originalPriceMinor: price,
+    originalCurrency: "MXN",
+    normalizedPriceMxnMinor: price,
+    normalizationSource: "stored-mxn",
+    market,
+    source: String(
+      row.source ?? (market === "SAVED_RESEARCH" ? "saved" : "best-round"),
+    ),
+    url: typeof row.url === "string" ? row.url : null,
+    condition:
+      row.condition === "new" || row.condition === "used"
+        ? row.condition
+        : "unknown",
+    availability: "in_stock",
+    observedAt,
+    product: {
+      brand: typeof row.brand === "string" ? row.brand : null,
+      model:
+        typeof row.canonical_model === "string" ? row.canonical_model : null,
+      category: typeof row.category === "string" ? row.category : null,
+    },
+  };
+}
+
+function savedCandidates(snapshot: unknown): ResearchCandidate[] {
+  if (!snapshot || typeof snapshot !== "object") return [];
+  const sources = (snapshot as { sources?: unknown }).sources;
+  if (!Array.isArray(sources)) return [];
+  return sources.flatMap((source) => {
+    if (!source || typeof source !== "object") return [];
+    const row = source as Record<string, unknown>;
+    const price = Number(row.priceMxn);
+    if (!Number.isSafeInteger(price) || price <= 0) return [];
+    return [
+      candidateFromSnapshot(
+        {
+          ...row,
+          priceMinor: price,
+          observedAt: row.checkedAt,
+        },
+        "SAVED_RESEARCH",
+      ),
+    ].filter((value): value is ResearchCandidate => value !== null);
+  });
+}
+
+function toMarketResult(research: ResearchResult): MarketPriceResult {
+  const candidates = research.acceptedComparables;
+  const ordered = candidates
+    .map((candidate) => candidate.priceMinor)
+    .sort((a, b) => a - b);
+  const median = ordered.length
+    ? ordered[Math.floor(ordered.length / 2)]
+    : null;
+  const average = ordered.length
+    ? Math.round(
+        ordered.reduce((sum, value) => sum + value, 0) / ordered.length,
+      )
+    : null;
+  const sources = candidates.map((candidate) => ({
+    merchant: candidate.seller,
+    productName: candidate.title,
+    priceMxn: candidate.priceMinor,
+    originalCurrency: candidate.originalCurrency ?? "MXN",
+    originalPrice: String(
+      (candidate.originalPriceMinor ?? candidate.priceMinor) / 100,
+    ),
+    normalizationSource: candidate.normalizationSource ?? undefined,
+    normalizationObservedAt: candidate.normalizationObservedAt ?? undefined,
+    url: candidate.url ?? null,
+    identifier: candidate.id ?? null,
+    availability: candidate.availability ?? "unknown",
+    condition: candidate.condition ?? "unknown",
+    marketScope:
+      candidate.market === "USA"
+        ? ("international" as const)
+        : ("mexico" as const),
+    matchScore: candidate.similarity ?? 0,
+    checkedAt: candidate.observedAt,
+    matchConfidence:
+      (candidate.similarity ?? 0) >= 80
+        ? ("high" as const)
+        : (candidate.similarity ?? 0) >= 65
+          ? ("medium" as const)
+          : ("low" as const),
+  }));
+  const confidence =
+    research.confidence === "HIGH"
+      ? "high"
+      : research.confidence === "MEDIUM"
+        ? "medium"
+        : research.confidence === "LOW"
+          ? "low"
+          : "unavailable";
+  return {
+    medianPriceMxn: median,
+    averagePriceMxn: average,
+    lowPriceMxn: ordered.length
+      ? ordered[Math.floor((ordered.length - 1) * 0.2)]
+      : null,
+    highPriceMxn: ordered.length
+      ? ordered[Math.floor((ordered.length - 1) * 0.8)]
+      : null,
+    sampleSize: ordered.length,
+    confidence,
+    source: research.resolutionSource,
+    sourceUrl: candidates[0]?.url ?? null,
+    checkedAt: new Date().toISOString(),
+    provider: "best-round-intelligence",
+    searchQuery: null,
+    sources,
+    excludedCount: research.excludedComparables.length,
+  };
 }
 
 export async function researchProductMarketAction(
@@ -99,6 +210,7 @@ export async function researchProductMarketAction(
   }
 
   const client = await createClient();
+  const serviceClient = createServiceRoleClient();
   const [brandResult, categoryResult] = await Promise.all([
     client
       .from("brands")
@@ -140,41 +252,52 @@ export async function researchProductMarketAction(
     targetPlayer: parsed.data.targetPlayer,
     market: "MX",
   };
+  const researchInput: ResearchProductInput = {
+    ...marketInput,
+    category: profile?.family ?? null,
+  };
   const inputFingerprint = fingerprint(marketInput);
   const configuredProvider = getConfiguredMarketPriceProvider();
-
-  if (!forceRefresh) {
-    const cached = await client
+  const [internalResult, savedResult] = await Promise.all([
+    serviceClient
+      .from("intelligence_outcome_snapshots" as never)
+      .select("*")
+      .eq("source", "FIRST_PARTY")
+      .eq("brand", brandResult.data.name)
+      .limit(50),
+    serviceClient
       .from("market_price_researches")
-      .select("id, result_snapshot")
-      .eq("input_fingerprint", inputFingerprint)
-      .eq("provider", configuredProvider.name)
+      .select("result_snapshot, checked_at, expires_at, input_snapshot")
+      .eq("brand_id", parsed.data.brandId)
+      .eq("category_id", parsed.data.categoryId)
+      .eq("product_condition", parsed.data.condition)
       .gt("expires_at", new Date().toISOString())
       .order("checked_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const cachedResult = resultSchema.safeParse(cached.data?.result_snapshot);
-    if (!cached.error && cached.data && cachedResult.success) {
-      return {
-        status:
-          cachedResult.data.confidence === "unavailable"
-            ? "unavailable"
-            : "success",
-        message: "Referencia reciente reutilizada.",
-        researchId: cached.data.id,
-        market: cachedResult.data,
-        fromCache: true,
-      };
-    }
-  }
-
-  const researched = await researchMarketPriceSafely(marketInput, {
+      .limit(10),
+  ]);
+  const internalSales = (
+    (internalResult.data ?? []) as unknown as Array<Record<string, unknown>>
+  )
+    .map((row) => candidateFromSnapshot(row, "BEST_ROUND_SALE"))
+    .filter((value): value is ResearchCandidate => value !== null);
+  const savedResearch = (
+    (savedResult.data ?? []) as unknown as Array<Record<string, unknown>>
+  ).flatMap((row) => savedCandidates(row.result_snapshot));
+  const research = await researchBestRoundIntelligence(researchInput, {
     provider: configuredProvider.provider,
+    internalSales,
+    savedResearch,
     forceRefresh,
-    failureProviderName: configuredProvider.name,
   });
-  const checkedAt = researched.result.checkedAt ?? new Date().toISOString();
-  const market: MarketPriceResult = { ...researched.result, checkedAt };
+  const market: MarketPriceResult = toMarketResult(research);
+  const economics: EconomicsCosts = {
+    acquisitionCostMinor: minor(parsed.data.acquisitionCost),
+    refurbishmentMinor: minor(parsed.data.conditioningCost),
+    packagingMinor: minor(parsed.data.packagingCost),
+    shippingMinor: minor(parsed.data.shippingSubsidy),
+  };
+  const decision = calculateFirstPartyDecision({ research, costs: economics });
+  const checkedAt = market.checkedAt ?? new Date().toISOString();
   const expiresAt = new Date(
     new Date(checkedAt).getTime() + CACHE_TTL_MS,
   ).toISOString();
@@ -193,7 +316,7 @@ export async function researchProductMarketAction(
     requested_low_price: market.lowPriceMxn,
     requested_median_price: market.medianPriceMxn,
     requested_product_id: parsed.data.productId,
-    requested_provider: market.provider,
+    requested_provider: "best-round-intelligence",
     requested_result_snapshot: market,
     requested_sample_size: market.sampleSize,
     requested_search_query: market.searchQuery,
@@ -207,13 +330,15 @@ export async function researchProductMarketAction(
 
   return {
     status: market.confidence === "unavailable" ? "unavailable" : "success",
-    message: researched.failed
-      ? "No fue posible consultar el mercado en este momento. El cálculo financiero sigue disponible."
-      : market.confidence === "unavailable"
+    message:
+      market.confidence === "unavailable"
         ? "No encontramos comparables suficientemente válidos."
-        : "Mercado México actualizado.",
+        : research.cachedResearchUsed
+          ? "Investigación reciente reutilizada."
+          : "Best Round Intelligence actualizado.",
     researchId: recorded.data,
     market,
-    fromCache: false,
+    fromCache: research.cachedResearchUsed,
+    intelligence: { research, decision },
   };
 }

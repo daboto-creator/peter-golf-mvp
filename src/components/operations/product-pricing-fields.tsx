@@ -24,6 +24,7 @@ import {
 } from "@/lib/catalog/product-validation";
 import { calculatePricing } from "@/lib/pricing/pricing-engine";
 import type { MarketPriceResult } from "@/lib/pricing/market-price-provider";
+import type { FirstPartyDecision } from "@/lib/pricing/intelligence-economics";
 import { resolvePricingRule } from "@/lib/pricing/pricing-rules";
 import type { MarketReference } from "@/lib/pricing/pricing-types";
 
@@ -84,6 +85,16 @@ export function ProductPricingFields({
   const [marketResult, setMarketResult] = useState<{
     identityKey: string;
     value: MarketPriceResult;
+  } | null>(null);
+  const [intelligence, setIntelligence] = useState<{
+    decision: FirstPartyDecision;
+    research: {
+      internalSalesUsed: number;
+      cachedResearchUsed: boolean;
+      mexicoQueriesExecuted: number;
+      usaQueriesExecuted: number;
+      acceptedComparables: unknown[];
+    };
   } | null>(null);
   const enabled = values.pricingEnabled ?? false;
   const category = categories.find(
@@ -208,6 +219,9 @@ export function ProductPricingFields({
           shaftModel: stringOrNull(values.shaftModel),
           shaftFlex: stringOrNull(values.shaftFlex),
           acquisitionCost: values.acquisitionCost ?? "",
+          conditioningCost: values.conditioningCost ?? "0",
+          packagingCost: values.packagingCost ?? "0",
+          shippingSubsidy: values.shippingSubsidy ?? "0",
         },
         forceRefresh,
       );
@@ -218,6 +232,7 @@ export function ProductPricingFields({
       });
       if (response.status !== "error")
         applyMarketResult(response.market, response.researchId);
+      if (response.status !== "error") setIntelligence(response.intelligence);
     });
   }
 
@@ -473,12 +488,7 @@ export function ProductPricingFields({
             type="button"
             variant="outline"
             disabled={researchPending}
-            onClick={() =>
-              researchMarket(
-                mode === "edit" ||
-                  visibleResearchFeedback?.status === "unavailable",
-              )
-            }
+            onClick={() => researchMarket(false)}
           >
             {researchPending
               ? "Buscando precios comparables..."
@@ -501,6 +511,7 @@ export function ProductPricingFields({
             {visibleResearchFeedback.message}
           </p>
         ) : null}
+        {intelligence ? <IntelligenceCard intelligence={intelligence} /> : null}
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <PricingField
             id="marketReference"
@@ -686,7 +697,18 @@ export function ProductPricingFields({
             label="Fee estimado"
             value={preview ? money(preview.estimatedPaymentFee) : "—"}
           />
-          <Metric label="Status" value={preview?.status ?? "Pendiente"} />
+          <Metric
+            label="Status"
+            value={
+              intelligence
+                ? intelligence.decision.semaphore === "GREEN"
+                  ? "RECOMENDABLE"
+                  : intelligence.decision.semaphore === "YELLOW"
+                    ? "REVISAR"
+                    : "NO RECOMENDABLE"
+                : (preview?.status ?? "Pendiente")
+            }
+          />
           <Metric
             label="Utilidad esperada"
             value={preview ? money(preview.expectedContribution) : "—"}
@@ -699,7 +721,16 @@ export function ProductPricingFields({
             label="Margen sobre venta"
             value={preview ? percent(preview.marginOnSaleBps) : "—"}
           />
-          <Metric label="Semáforo" value={preview?.health ?? "—"} />
+          <Metric
+            label="Semáforo"
+            value={
+              intelligence
+                ? intelligence.decision.semaphore
+                : preview && preview.marketLowerBound !== null
+                  ? preview.health
+                  : "REVISAR"
+            }
+          />
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <PricingField
@@ -796,6 +827,101 @@ function Metric({
         }
       >
         {value}
+      </p>
+    </div>
+  );
+}
+
+function IntelligenceCard({
+  intelligence,
+}: {
+  intelligence: {
+    decision: FirstPartyDecision;
+    research: {
+      internalSalesUsed: number;
+      cachedResearchUsed: boolean;
+      mexicoQueriesExecuted: number;
+      usaQueriesExecuted: number;
+      acceptedComparables: unknown[];
+    };
+  };
+}) {
+  const { decision, research } = intelligence;
+  const semaphoreLabel =
+    decision.semaphore === "GREEN"
+      ? "🟢 Recomendable"
+      : decision.semaphore === "YELLOW"
+        ? "🟡 Revisar"
+        : "🔴 No recomendable";
+  const confidence =
+    decision.confidence === "HIGH"
+      ? "Alta"
+      : decision.confidence === "MEDIUM"
+        ? "Media"
+        : "Baja";
+  const rotation =
+    decision.rotation === "FAST"
+      ? "Rápida"
+      : decision.rotation === "MEDIUM"
+        ? "Media"
+        : decision.rotation === "SLOW"
+          ? "Lenta"
+          : "Sin datos";
+  return (
+    <div className="bg-pg-warm-white mt-4 rounded-xl border p-4">
+      <p className="text-pg-gold text-xs font-semibold tracking-[0.16em] uppercase">
+        Best Round Intelligence
+      </p>
+      <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <Metric label="Semáforo" value={semaphoreLabel} />
+        <Metric
+          label="Precio recomendado"
+          value={
+            decision.recommendedPriceMinor === null
+              ? "Sin referencia suficiente"
+              : `${money(decision.recommendedPriceMinor)} MXN`
+          }
+          accent
+        />
+        <Metric
+          label="Mercado"
+          value={
+            decision.marketLowMinor !== null &&
+            decision.marketHighMinor !== null
+              ? `${money(decision.marketLowMinor)} – ${money(decision.marketHighMinor)} MXN`
+              : "Sin referencia suficiente"
+          }
+        />
+        <Metric
+          label="Margen esperado"
+          value={
+            decision.expectedMarginBps === null
+              ? "—"
+              : percent(decision.expectedMarginBps)
+          }
+        />
+        <Metric label="Rotación" value={rotation} />
+        <Metric label="Confianza" value={confidence} />
+        <Metric
+          label="Ventas Best Round"
+          value={String(research.internalSalesUsed)}
+        />
+        <Metric
+          label="Investigación reciente"
+          value={research.cachedResearchUsed ? "Sí" : "No"}
+        />
+        <Metric label="México" value={String(research.mexicoQueriesExecuted)} />
+        <Metric
+          label="USA respaldo"
+          value={research.usaQueriesExecuted > 0 ? "Sí" : "No"}
+        />
+        <Metric
+          label="Comparables válidos"
+          value={String(research.acceptedComparables.length)}
+        />
+      </div>
+      <p className="text-muted-foreground mt-4 text-sm">
+        {decision.explanation}
       </p>
     </div>
   );
