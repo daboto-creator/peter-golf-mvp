@@ -12,7 +12,7 @@ export type MemoryConfidence = "HIGH" | "MEDIUM" | "LOW";
 export type MiGolfProfile = {
   userId: string;
   handicap: number | null;
-  handedness: "right" | "left" | "unknown" | null;
+  handedness: "RIGHT" | "LEFT" | "UNKNOWN" | null;
   skillLevel: string | null;
   playFrequency: string | null;
   shotTendency: string | null;
