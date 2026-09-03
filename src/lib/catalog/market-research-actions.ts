@@ -20,7 +20,10 @@ import {
   type EconomicsCosts,
 } from "@/lib/pricing/intelligence-economics";
 import {
+  buildResearchFingerprint,
   researchBestRoundIntelligence,
+  CURRENCY_NORMALIZATION_VERSION,
+  INTELLIGENCE_ENGINE_VERSION,
   type ResearchCandidate,
   type ResearchProductInput,
   type ResearchResult,
@@ -108,25 +111,48 @@ function candidateFromSnapshot(
   };
 }
 
-function savedCandidates(snapshot: unknown): ResearchCandidate[] {
+function savedCandidates(
+  snapshot: unknown,
+  currentFingerprint: string,
+): ResearchCandidate[] {
   if (!snapshot || typeof snapshot !== "object") return [];
-  const sources = (snapshot as { sources?: unknown }).sources;
-  if (!Array.isArray(sources)) return [];
-  return sources.flatMap((source) => {
-    if (!source || typeof source !== "object") return [];
-    const row = source as Record<string, unknown>;
-    const price = Number(row.priceMxn);
-    if (!Number.isSafeInteger(price) || price <= 0) return [];
-    return [
-      candidateFromSnapshot(
-        {
-          ...row,
-          priceMinor: price,
-          observedAt: row.checkedAt,
-        },
-        "SAVED_RESEARCH",
-      ),
-    ].filter((value): value is ResearchCandidate => value !== null);
+  const record = snapshot as Record<string, unknown>;
+  const intelligence = record.intelligence;
+  if (!intelligence || typeof intelligence !== "object") return [];
+  const research = (intelligence as Record<string, unknown>).research;
+  if (!research || typeof research !== "object") return [];
+  const researchRecord = research as Record<string, unknown>;
+  if (
+    researchRecord.engineVersion !== INTELLIGENCE_ENGINE_VERSION ||
+    researchRecord.currencyNormalizationVersion !==
+      CURRENCY_NORMALIZATION_VERSION ||
+    researchRecord.fingerprint !== currentFingerprint
+  )
+    return [];
+  const candidates = researchRecord.acceptedComparables;
+  if (!Array.isArray(candidates)) return [];
+  return candidates.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    const row = candidate as Record<string, unknown>;
+    const price = Number(row.normalizedPriceMxnMinor ?? row.priceMinor);
+    if (
+      !Number.isSafeInteger(price) ||
+      price <= 0 ||
+      row.currency !== "MXN" ||
+      row.normalizedPriceMxnMinor !== price
+    )
+      return [];
+    const mapped = candidateFromSnapshot(
+      {
+        ...row,
+        priceMinor: price,
+        originalPriceMinor: row.originalPriceMinor ?? price,
+        originalCurrency: row.originalCurrency ?? "MXN",
+        observedAt: row.observedAt,
+      },
+      "SAVED_RESEARCH",
+    );
+    return mapped ? [mapped] : [];
   });
 }
 
@@ -289,7 +315,12 @@ export async function researchProductMarketAction(
     .filter((value): value is ResearchCandidate => value !== null);
   const savedResearch = (
     (savedResult.data ?? []) as unknown as Array<Record<string, unknown>>
-  ).flatMap((row) => savedCandidates(row.result_snapshot));
+  ).flatMap((row) =>
+    savedCandidates(
+      row.result_snapshot,
+      buildResearchFingerprint(researchInput),
+    ),
+  );
   const research = await researchBestRoundIntelligence(researchInput, {
     provider: configuredProvider.provider,
     internalSales,
@@ -333,6 +364,8 @@ export async function researchProductMarketAction(
     requested_provider: "best-round-intelligence",
     requested_result_snapshot: {
       ...market,
+      intelligenceSchemaVersion: "first-party-intelligence-v2",
+      currencyNormalizationVersion: CURRENCY_NORMALIZATION_VERSION,
       intelligence: { research, decision },
     },
     requested_sample_size: market.sampleSize,

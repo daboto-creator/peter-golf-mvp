@@ -9,6 +9,7 @@ import type {
 
 export const INTELLIGENCE_ENGINE_VERSION = "best-round-intelligence-v1";
 export const RESEARCH_FINGERPRINT_VERSION = "v1";
+export const CURRENCY_NORMALIZATION_VERSION = "mxn-minor-v1";
 export const RESEARCH_TTL_DAYS = 90;
 
 export type ResearchProductInput = MarketPriceInput & {
@@ -71,6 +72,8 @@ export type ResearchResult = {
   fingerprint: string;
   inputSnapshot: ResearchProductInput;
   engineVersion: string;
+  /** Present on current snapshots; absent on legacy market-price snapshots. */
+  currencyNormalizationVersion?: string;
   expiresAt: string;
   providerUnavailable: boolean;
   reasons: string[];
@@ -581,6 +584,7 @@ export async function researchBestRoundIntelligence(
     fingerprint,
     inputSnapshot: input,
     engineVersion: INTELLIGENCE_ENGINE_VERSION,
+    currencyNormalizationVersion: CURRENCY_NORMALIZATION_VERSION,
     expiresAt: new Date(
       now.getTime() + RESEARCH_TTL_DAYS * 86_400_000,
     ).toISOString(),

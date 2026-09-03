@@ -11,6 +11,10 @@ import { ProductStateActions } from "@/components/operations/product-state-actio
 import { ProductStatusBadge } from "@/components/operations/product-status-badge";
 import { Button } from "@/components/ui/button";
 import type { FirstPartyIntelligence } from "@/lib/catalog/market-research-types";
+import {
+  CURRENCY_NORMALIZATION_VERSION,
+  INTELLIGENCE_ENGINE_VERSION,
+} from "@/lib/pricing/intelligence-research";
 import { createClient } from "@/lib/supabase/server";
 import {
   getOperationalProductById,
@@ -39,6 +43,12 @@ function persistedIntelligence(value: unknown): FirstPartyIntelligence | null {
   if (!decision || typeof decision !== "object") return null;
   const researchRecord = research as Record<string, unknown>;
   const decisionRecord = decision as Record<string, unknown>;
+  if (
+    researchRecord.engineVersion !== INTELLIGENCE_ENGINE_VERSION ||
+    researchRecord.currencyNormalizationVersion !==
+      CURRENCY_NORMALIZATION_VERSION
+  )
+    return null;
   if (
     !Array.isArray(researchRecord.acceptedComparables) ||
     !Array.isArray(researchRecord.excludedComparables) ||
