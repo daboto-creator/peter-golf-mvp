@@ -51,6 +51,15 @@ export type ResearchCandidate = {
   recencyScore?: number;
 };
 
+export type ComparableProductKind =
+  "FULL_PRODUCT" | "COMPONENT" | "ACCESSORY" | "BUNDLE" | "UNKNOWN";
+
+export type ComparableProductClassification = {
+  kind: ComparableProductKind;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  reasons: string[];
+};
+
 export type ExcludedCandidate = ResearchCandidate & { exclusion: string };
 
 export type EvidenceSufficiency = {
@@ -162,9 +171,142 @@ function hand(value: unknown): string {
   const normalized = norm(value);
   return ["right", "rh", "derecho", "derecha"].includes(normalized)
     ? "right"
-    : ["left", "lh", "izquierdo", "izquierda"].includes(normalized)
+    : ["left", "lh", "zurdo", "zurda", "izquierdo", "izquierda"].includes(
+          normalized,
+        )
       ? "left"
       : normalized;
+}
+
+const accessoryPattern =
+  /\b(weight|weights|sliding weight|replacement weight|peso|pesas?|contrapeso|tornillo|repuesto|reemplazo|accesorio|adaptador|adapter|adaptor|sleeve|funda|cubierta|headcover|cover|llave|wrench|manguito|casquillo|grip|empuñadura|varilla|shaft|eje|tip|ferrule)\b/;
+
+/** Classifies the object being sold before any brand/model similarity is scored. */
+export function classifyComparableProductKind(
+  input: ResearchProductInput,
+  candidate: ResearchCandidate,
+): ComparableProductClassification {
+  const title = norm(candidate.title);
+  const family = categoryOf(input);
+  const reasons: string[] = [];
+  const componentOnly =
+    /\b(head only|club head|cabeza sola|shaft only|solo shaft|varilla sola|grip only|solo grip)\b/.test(
+      title,
+    );
+  if (componentOnly) {
+    if (/head|cabeza/.test(title)) reasons.push("HEAD_ONLY");
+    else if (/grip|empuñadura/.test(title)) reasons.push("GRIP_ONLY");
+    else reasons.push("SHAFT_ONLY");
+    return { kind: "COMPONENT", confidence: "HIGH", reasons };
+  }
+  if (
+    /\b(bundle|pack|paquete|set de accesorios|kit de accesorios)\b/.test(title)
+  )
+    return { kind: "BUNDLE", confidence: "HIGH", reasons: ["BUNDLE"] };
+  const accessory = accessoryPattern.test(title);
+  const compatibilityPhrase =
+    /\b(for|para|compatible with|compatible con|replacement|repuesto)\b/.test(
+      title,
+    );
+  const fullProductWithComponent =
+    /\b(driver|fairway|wood|hybrid|iron|wedge|putter)\b.*\b(with|con|incluye)\b.*\b(shaft|varilla|grip|empuñadura)\b/.test(
+      title,
+    );
+  if (fullProductWithComponent)
+    return {
+      kind: "FULL_PRODUCT",
+      confidence: "HIGH",
+      reasons: ["COMPLETE_CLUB_SIGNAL"],
+    };
+  if (accessory && compatibilityPhrase) {
+    if (/weight|peso|pesa|contrapeso/.test(title)) reasons.push("WEIGHT_ONLY");
+    else if (/adapter|adaptador|sleeve|manguito|casquillo/.test(title))
+      reasons.push("ADAPTER_ONLY");
+    else if (/headcover|cover|funda|cubierta/.test(title))
+      reasons.push("HEADCOVER_ONLY");
+    else if (/shaft|varilla|eje/.test(title)) reasons.push("SHAFT_ONLY");
+    else reasons.push("ACCESSORY_ONLY");
+    return { kind: "ACCESSORY", confidence: "HIGH", reasons };
+  }
+  if (
+    accessory &&
+    (/^(?:golf )?(?:weight|weights|peso|pesas?|contrapeso)\b/.test(title) ||
+      /^(?:nuevo )?(?:titleist|callaway|taylormade|ping)\b/.test(title))
+  ) {
+    const reason = /weight|peso|pesa|contrapeso/.test(title)
+      ? "WEIGHT_ONLY"
+      : "REPLACEMENT_PART";
+    return { kind: "COMPONENT", confidence: "MEDIUM", reasons: [reason] };
+  }
+  const isClub = [
+    "driver",
+    "fairway_wood",
+    "hybrid",
+    "iron",
+    "wedge",
+    "putter",
+  ].includes(family);
+  if (isClub) {
+    const clubWord =
+      family === "fairway_wood"
+        ? /\b(fairway|wood|madera)\b/
+        : new RegExp(`\\b${family.replace("_", " ")}\\b`);
+    if (clubWord.test(title) && !accessory) {
+      if (
+        family === "iron" &&
+        /\b(7|8|9)\s*iron\b/.test(title) &&
+        !/\b(set|juego|pw|4-pw|5-pw)\b/.test(title)
+      )
+        return {
+          kind: "FULL_PRODUCT",
+          confidence: "HIGH",
+          reasons: ["INDIVIDUAL_IRON"],
+        };
+      return {
+        kind: "FULL_PRODUCT",
+        confidence: "HIGH",
+        reasons: ["COMPLETE_CLUB_SIGNAL"],
+      };
+    }
+    return {
+      kind: "UNKNOWN",
+      confidence: "LOW",
+      reasons: ["PRODUCT_KIND_UNCERTAIN"],
+    };
+  }
+  if (family === "bag") {
+    if (/\b(bag|golf bag|stand bag|cart bag|bolsa)\b/.test(title) && !accessory)
+      return {
+        kind: "FULL_PRODUCT",
+        confidence: "HIGH",
+        reasons: ["COMPLETE_BAG_SIGNAL"],
+      };
+    return {
+      kind: "UNKNOWN",
+      confidence: "LOW",
+      reasons: ["PRODUCT_KIND_UNCERTAIN"],
+    };
+  }
+  if (family === "set") {
+    if (/\b(set|juego|combo|kit)\b/.test(title) && !accessory)
+      return {
+        kind: "FULL_PRODUCT",
+        confidence: "HIGH",
+        reasons: ["COMPLETE_SET_SIGNAL"],
+      };
+    return {
+      kind: "UNKNOWN",
+      confidence: "LOW",
+      reasons: ["PRODUCT_KIND_UNCERTAIN"],
+    };
+  }
+  return accessory
+    ? { kind: "ACCESSORY", confidence: "MEDIUM", reasons: ["ACCESSORY_ONLY"] }
+    : {
+        kind: "UNKNOWN",
+        confidence: "LOW",
+        reasons: ["PRODUCT_KIND_UNCERTAIN"],
+      };
 }
 
 /** Rules-first similarity score. Missing attributes never manufacture a mismatch. */
@@ -177,7 +319,10 @@ export function scoreResearchSimilarity(
   hardMismatch: boolean;
 } {
   const title = norm(candidate.title);
-  const product = candidate.product ?? {};
+  const product = {
+    ...inferProductHints(candidate.title),
+    ...(candidate.product ?? {}),
+  };
   const reasons: string[] = [];
   if (input.brand && !hasToken(title, input.brand))
     return { score: 0, reasons: ["WRONG_BRAND"], hardMismatch: true };
@@ -187,6 +332,27 @@ export function scoreResearchSimilarity(
   const candidateFamily = norm(
     String(product.clubType ?? product.category ?? ""),
   );
+  const classification = classifyComparableProductKind(input, candidate);
+  const targetKind = categoryOf(input);
+  if (
+    [
+      "driver",
+      "fairway_wood",
+      "hybrid",
+      "iron",
+      "wedge",
+      "putter",
+      "bag",
+      "set",
+    ].includes(targetKind) &&
+    classification.kind !== "FULL_PRODUCT"
+  ) {
+    return {
+      score: 0,
+      reasons: classification.reasons,
+      hardMismatch: true,
+    };
+  }
   if (
     family &&
     candidateFamily &&
@@ -413,8 +579,9 @@ function externalCandidates(
 function inferProductHints(title: string): Partial<ResearchProductInput> {
   const value = norm(title);
   const flex =
-    /\b(x stiff|extra stiff|stiff|regular|senior|ladies)\b/.exec(value)?.[1] ??
-    null;
+    /\b(x stiff|extra stiff|x-stiff|stiff|s-flex|regular|reg|r-flex|senior|ladies|a-flex|l-flex)\b/.exec(
+      value,
+    )?.[1] ?? null;
   const clubType =
     /\b(driver|fairway wood|wood|hybrid|iron|wedge|putter)\b/.exec(
       value,
@@ -425,7 +592,9 @@ function inferProductHints(title: string): Partial<ResearchProductInput> {
   const clubNumber =
     /\b([3-9])\s*(?:wood|iron|hybrid)\b/.exec(value)?.[1] ?? null;
   const handedness =
-    /\b(left|lh|left hand|right|rh|right hand)\b/.exec(value)?.[1] ?? null;
+    /\b(left|lh|left hand|zurdo|zurda|izquierdo|izquierda|right|rh|right hand|diestro|diestra|derecho|derecha)\b/.exec(
+      value,
+    )?.[1] ?? null;
   return {
     clubType: clubType === "wood" ? "fairway_wood" : clubType,
     loftDegrees: loft ? Number(loft) : null,

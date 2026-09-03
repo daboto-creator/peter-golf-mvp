@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildResearchFingerprint,
+  classifyComparableProductKind,
   evaluateEvidenceSufficiency,
   researchBestRoundIntelligence,
   scoreResearchSimilarity,
@@ -142,6 +143,48 @@ describe("Best Round intelligence research", () => {
         "OUT_OF_STOCK",
       ]),
     );
+  });
+
+  it("classifies real-product titles separately from accessory noise", () => {
+    const full = [
+      "Driver Titleist Golf Club GT3 9° S-flex Tensei 1K Azul 55",
+      "Driver Titleist GT3 Grafito Tensei 1K Stiff",
+    ];
+    const accessories = [
+      "Golf Weight Titleist GT3 Driver 2 G, Posventa, Alta Calidad",
+      "Juego de pesas deslizantes para golf, compatible con Titleist GT3 Driver Club",
+      "Peso de Golf Para Titleist GT3 Driver",
+      "Peso Compatible Con Titleist GT3 Driver GT3 Fairway Wood",
+      "Nuevo Titleist Serie GT3 Driver Sure Fit Peso Pista 14g",
+      "Pesa Deslizante De Golf Para Titleist GT3 Driver, 12 G",
+    ];
+    for (const title of full)
+      expect(
+        classifyComparableProductKind(input, candidate({ title })).kind,
+      ).toBe("FULL_PRODUCT");
+    for (const title of accessories) {
+      const result = scoreResearchSimilarity(input, candidate({ title }));
+      expect(result.hardMismatch).toBe(true);
+      expect(result.reasons).toEqual(
+        expect.arrayContaining([
+          expect.stringMatching(/WEIGHT|ACCESSORY|REPLACEMENT/),
+        ]),
+      );
+    }
+    expect(
+      scoreResearchSimilarity(
+        input,
+        candidate({
+          title: "Driver Titleist Golf GT3 Zurdo 10° S-flex Tensei 1K Azul 55",
+        }),
+      ).reasons,
+    ).toContain("WRONG_HAND");
+    expect(
+      classifyComparableProductKind(
+        input,
+        candidate({ title: "Titleist GT3 Driver with Tensei shaft" }),
+      ).kind,
+    ).toBe("FULL_PRODUCT");
   });
 
   it("penalizes loft and flex changes while treating putter flex as irrelevant", () => {
