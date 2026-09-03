@@ -1,4 +1,6 @@
 import type { MarketPriceResult } from "@/lib/pricing/market-price-provider";
+import type { FirstPartyDecision } from "@/lib/pricing/intelligence-economics";
+import type { ResearchResult } from "@/lib/pricing/intelligence-research";
 
 export type MarketResearchRequest = {
   productId: string | null;
@@ -18,6 +20,9 @@ export type MarketResearchRequest = {
   shaftModel: string | null;
   shaftFlex: string | null;
   acquisitionCost: string;
+  conditioningCost: string;
+  packagingCost: string;
+  shippingSubsidy: string;
 };
 
 export type MarketResearchActionResult =
@@ -27,5 +32,9 @@ export type MarketResearchActionResult =
       researchId: string;
       market: MarketPriceResult;
       fromCache: boolean;
+      intelligence: {
+        research: ResearchResult;
+        decision: FirstPartyDecision;
+      };
     }
   | { status: "error"; message: string };

@@ -10,7 +10,7 @@ import {
 } from "@/lib/stripe/webhook-rpc";
 import type { Database } from "@/types/database.types";
 
-function createServiceRoleClient() {
+export function createServiceRoleClient() {
   const url = serverEnv.NEXT_PUBLIC_SUPABASE_URL;
   const key = serverEnv.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key)

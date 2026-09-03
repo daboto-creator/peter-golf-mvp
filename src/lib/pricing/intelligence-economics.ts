@@ -173,14 +173,14 @@ export function calculateFirstPartyDecision(input: {
       targetEconomicPriceMinor: null,
       recommendedPriceMinor: null,
       expectedMarginBps: null,
-      semaphore: "RED",
+      semaphore: "YELLOW",
       confidence: "LOW",
       rotation: "UNKNOWN",
       rotationRange: null,
       idealAcquisitionCostMinor: null,
       maximumAcquisitionCostMinor: null,
       explanation:
-        "No hay evidencia de mercado suficiente para una recomendación segura.",
+        "El precio protege el margen, pero todavía no hay suficiente evidencia de mercado para validar su competitividad.",
       costsMinor,
     };
   const minimumSafePriceMinor = inversePrice(
