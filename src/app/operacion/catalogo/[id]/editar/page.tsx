@@ -12,6 +12,7 @@ import { ProductStatusBadge } from "@/components/operations/product-status-badge
 import { Button } from "@/components/ui/button";
 import type { FirstPartyIntelligence } from "@/lib/catalog/market-research-types";
 import {
+  COMPARABLE_CLASSIFIER_VERSION,
   CURRENCY_NORMALIZATION_VERSION,
   INTELLIGENCE_ENGINE_VERSION,
 } from "@/lib/pricing/intelligence-research";
@@ -46,7 +47,8 @@ function persistedIntelligence(value: unknown): FirstPartyIntelligence | null {
   if (
     researchRecord.engineVersion !== INTELLIGENCE_ENGINE_VERSION ||
     researchRecord.currencyNormalizationVersion !==
-      CURRENCY_NORMALIZATION_VERSION
+      CURRENCY_NORMALIZATION_VERSION ||
+    researchRecord.comparableClassifierVersion !== COMPARABLE_CLASSIFIER_VERSION
   )
     return null;
   if (

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildResearchFingerprint,
   classifyComparableProductKind,
+  COMPARABLE_CLASSIFIER_VERSION,
   evaluateEvidenceSufficiency,
   researchBestRoundIntelligence,
   scoreResearchSimilarity,
@@ -74,6 +75,9 @@ describe("Best Round intelligence research", () => {
     });
     expect(result.evidenceLevel).toBe("SUFFICIENT_HIGH");
     expect(result.internalSalesUsed).toBe(3);
+    expect(result.comparableClassifierVersion).toBe(
+      COMPARABLE_CLASSIFIER_VERSION,
+    );
     expect(provider.getMarketPrice).not.toHaveBeenCalled();
   });
 

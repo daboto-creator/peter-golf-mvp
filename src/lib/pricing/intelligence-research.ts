@@ -10,6 +10,7 @@ import type {
 export const INTELLIGENCE_ENGINE_VERSION = "best-round-intelligence-v1";
 export const RESEARCH_FINGERPRINT_VERSION = "v1";
 export const CURRENCY_NORMALIZATION_VERSION = "mxn-minor-v1";
+export const COMPARABLE_CLASSIFIER_VERSION = "product-kind-v2";
 export const RESEARCH_TTL_DAYS = 90;
 
 export type ResearchProductInput = MarketPriceInput & {
@@ -83,6 +84,7 @@ export type ResearchResult = {
   engineVersion: string;
   /** Present on current snapshots; absent on legacy market-price snapshots. */
   currencyNormalizationVersion?: string;
+  comparableClassifierVersion?: string;
   expiresAt: string;
   providerUnavailable: boolean;
   reasons: string[];
@@ -754,6 +756,7 @@ export async function researchBestRoundIntelligence(
     inputSnapshot: input,
     engineVersion: INTELLIGENCE_ENGINE_VERSION,
     currencyNormalizationVersion: CURRENCY_NORMALIZATION_VERSION,
+    comparableClassifierVersion: COMPARABLE_CLASSIFIER_VERSION,
     expiresAt: new Date(
       now.getTime() + RESEARCH_TTL_DAYS * 86_400_000,
     ).toISOString(),

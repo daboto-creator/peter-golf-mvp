@@ -21,6 +21,7 @@ import {
 } from "@/lib/pricing/intelligence-economics";
 import {
   buildResearchFingerprint,
+  COMPARABLE_CLASSIFIER_VERSION,
   researchBestRoundIntelligence,
   CURRENCY_NORMALIZATION_VERSION,
   INTELLIGENCE_ENGINE_VERSION,
@@ -126,6 +127,8 @@ function savedCandidates(
     researchRecord.engineVersion !== INTELLIGENCE_ENGINE_VERSION ||
     researchRecord.currencyNormalizationVersion !==
       CURRENCY_NORMALIZATION_VERSION ||
+    researchRecord.comparableClassifierVersion !==
+      COMPARABLE_CLASSIFIER_VERSION ||
     researchRecord.fingerprint !== currentFingerprint
   )
     return [];
@@ -366,6 +369,7 @@ export async function researchProductMarketAction(
       ...market,
       intelligenceSchemaVersion: "first-party-intelligence-v2",
       currencyNormalizationVersion: CURRENCY_NORMALIZATION_VERSION,
+      comparableClassifierVersion: COMPARABLE_CLASSIFIER_VERSION,
       intelligence: { research, decision },
     },
     requested_sample_size: market.sampleSize,
