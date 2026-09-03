@@ -88,6 +88,12 @@ export type ResearchResult = {
   expiresAt: string;
   providerUnavailable: boolean;
   reasons: string[];
+  rawResultsCount?: number;
+  normalizedCandidatesCount?: number;
+  classifiedCandidatesCount?: number;
+  acceptedComparablesCount?: number;
+  excludedComparablesCount?: number;
+  deduplicatedCount?: number;
 };
 
 const STOPWORDS = new Set([
@@ -558,24 +564,26 @@ function externalCandidates(
   result: MarketPriceResult,
   market: ResearchMarket,
 ): ResearchCandidate[] {
-  return result.sources.map((source) => ({
-    title: source.productName,
-    seller: source.merchant,
-    priceMinor: source.priceMxn,
-    currency: "MXN",
-    originalPriceMinor: source.originalPriceMinor ?? null,
-    originalCurrency: source.originalCurrency,
-    normalizedPriceMxnMinor: source.priceMxn,
-    normalizationSource: source.normalizationSource ?? null,
-    normalizationObservedAt: source.normalizationObservedAt ?? null,
-    market,
-    source: result.provider,
-    url: source.url,
-    condition: source.condition,
-    availability: source.availability,
-    observedAt: source.checkedAt,
-    product: inferProductHints(source.productName),
-  }));
+  return (Array.isArray(result.sources) ? result.sources : []).map(
+    (source) => ({
+      title: source.productName,
+      seller: source.merchant,
+      priceMinor: source.priceMxn,
+      currency: "MXN",
+      originalPriceMinor: source.originalPriceMinor ?? null,
+      originalCurrency: source.originalCurrency,
+      normalizedPriceMxnMinor: source.priceMxn,
+      normalizationSource: source.normalizationSource ?? null,
+      normalizationObservedAt: source.normalizationObservedAt ?? null,
+      market,
+      source: result.provider,
+      url: source.url,
+      condition: source.condition,
+      availability: source.availability,
+      observedAt: source.checkedAt,
+      product: inferProductHints(source.productName),
+    }),
+  );
 }
 
 function inferProductHints(title: string): Partial<ResearchProductInput> {
@@ -622,7 +630,10 @@ export async function researchBestRoundIntelligence(
   });
   const accepted: ResearchCandidate[] = [];
   const excluded: ExcludedCandidate[] = [];
+  let classifiedCandidatesCount = 0;
+  let deduplicatedCount = 0;
   const add = (candidate: ResearchCandidate) => {
+    classifiedCandidatesCount += 1;
     if (candidate.availability === "out_of_stock")
       return excluded.push({ ...candidate, exclusion: "OUT_OF_STOCK" });
     const title = norm(candidate.title);
@@ -653,8 +664,10 @@ export async function researchBestRoundIntelligence(
         exclusion: match.reasons[0] ?? "LOW_SIMILARITY",
       });
     const key = dedupeKey(candidate);
-    if (accepted.some((item) => dedupeKey(item) === key))
+    if (accepted.some((item) => dedupeKey(item) === key)) {
+      deduplicatedCount += 1;
       return excluded.push({ ...candidate, exclusion: "DUPLICATE" });
+    }
     const qualityDetail = sourceQualityDetail(
       candidate,
       deps.sourceReliability,
@@ -685,6 +698,8 @@ export async function researchBestRoundIntelligence(
   let sufficiency = evaluateEvidenceSufficiency(accepted);
   let mexicoQueriesExecuted = 0;
   let usaQueriesExecuted = 0;
+  let rawResultsCount = 0;
+  let normalizedCandidatesCount = 0;
   let providerUnavailable = false;
   const marketInput: MarketPriceInput = input;
   const runQueries = async (market: "MX" | "US", max: number) => {
@@ -696,11 +711,15 @@ export async function researchBestRoundIntelligence(
           query,
           market,
         });
-        for (const candidate of externalCandidates(
+        const normalized = externalCandidates(
           result,
           market === "MX" ? "MEXICO" : "USA",
-        ))
-          add(candidate);
+        );
+        rawResultsCount += Array.isArray(result.sources)
+          ? result.sources.length
+          : 0;
+        normalizedCandidatesCount += normalized.length;
+        for (const candidate of normalized) add(candidate);
       } catch {
         providerUnavailable = true;
       }
@@ -762,6 +781,12 @@ export async function researchBestRoundIntelligence(
     ).toISOString(),
     providerUnavailable,
     reasons: sufficiency.reasons,
+    rawResultsCount,
+    normalizedCandidatesCount,
+    classifiedCandidatesCount,
+    acceptedComparablesCount: max.length,
+    excludedComparablesCount: excluded.length,
+    deduplicatedCount,
   };
 }
 

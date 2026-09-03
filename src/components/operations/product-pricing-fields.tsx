@@ -965,7 +965,12 @@ function IntelligenceCard({
         <summary className="cursor-pointer font-semibold">Ver análisis</summary>
         <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
           <span>Referencia: {researchResolutionLabel(research)}</span>
-          <span>Dispersión: {decision.dispersion}</span>
+          <span>
+            Dispersión:{" "}
+            {decision.dispersion === "UNKNOWN"
+              ? "Sin datos"
+              : decision.dispersion}
+          </span>
           <span>Excluidos: {research.excludedComparables.length}</span>
           <span>
             Precio financiero mínimo:{" "}
@@ -975,11 +980,64 @@ function IntelligenceCard({
             Precio financiero objetivo:{" "}
             {money(decision.targetEconomicPriceMinor ?? 0)} MXN
           </span>
-          <span>Motor: {research.engineVersion}</span>
+        </div>
+        <div className="mt-4 space-y-3">
+          <div>
+            <p className="font-semibold">Comparables aceptados</p>
+            {research.acceptedComparables.length ? (
+              <ul className="mt-1 list-disc pl-5">
+                {research.acceptedComparables.map((candidate, index) => (
+                  <li
+                    key={`${candidate.id ?? candidate.url ?? candidate.title}-${index}`}
+                  >
+                    {candidate.title} · {money(candidate.priceMinor)} MXN ·
+                    similitud {candidate.similarity ?? 0}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">
+                Sin comparables aceptados.
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="font-semibold">Comparables descartados</p>
+            {research.excludedComparables.length ? (
+              <ul className="mt-1 list-disc pl-5">
+                {research.excludedComparables.map((candidate, index) => (
+                  <li
+                    key={`${candidate.id ?? candidate.url ?? candidate.title}-${index}`}
+                  >
+                    {candidate.title} · {money(candidate.priceMinor)} MXN ·{" "}
+                    {friendlyExclusion(candidate.exclusion)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">
+                Sin descartes registrados.
+              </p>
+            )}
+          </div>
         </div>
       </details>
     </div>
   );
+}
+
+function friendlyExclusion(exclusion: string): string {
+  const labels: Record<string, string> = {
+    ACCESSORY_ONLY: "Accesorio, no producto completo",
+    WEIGHT_ONLY: "Peso/repuesto, no producto completo",
+    SHAFT_ONLY: "Varilla sola",
+    HEAD_ONLY: "Cabeza sola",
+    WRONG_HAND: "Mano distinta",
+    WRONG_LOFT: "Loft no comparable",
+    WRONG_MODEL: "Modelo distinto",
+    PRODUCT_KIND_UNCERTAIN: "No pudimos confirmar que sea el producto completo",
+  };
+  return labels[exclusion] ?? "Descartado por reglas de comparabilidad";
 }
 
 function researchResolutionLabel(
