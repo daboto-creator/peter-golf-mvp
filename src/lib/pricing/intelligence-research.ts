@@ -10,7 +10,7 @@ import type {
 export const INTELLIGENCE_ENGINE_VERSION = "best-round-intelligence-v1";
 export const RESEARCH_FINGERPRINT_VERSION = "v1";
 export const CURRENCY_NORMALIZATION_VERSION = "mxn-minor-v1";
-export const COMPARABLE_CLASSIFIER_VERSION = "product-kind-v2";
+export const COMPARABLE_CLASSIFIER_VERSION = "product-kind-condition-v3";
 export const RESEARCH_TTL_DAYS = 90;
 
 export type ResearchProductInput = MarketPriceInput & {
@@ -614,6 +614,20 @@ function inferProductHints(title: string): Partial<ResearchProductInput> {
   };
 }
 
+function inferCondition(title: string): MarketPriceSource["condition"] {
+  const value = norm(title);
+  if (/\b(refurbished|reacondicionado|renewed)\b/.test(value)) return "used";
+  if (
+    /\b(used|pre owned|preowned|pre-owned|usado|seminuevo|second hand|segunda mano)\b/.test(
+      value,
+    )
+  )
+    return "used";
+  if (/\b(new|nuevo|brand new|nuevo en caja|new club)\b/.test(value))
+    return "new";
+  return "unknown";
+}
+
 export async function researchBestRoundIntelligence(
   input: ResearchProductInput,
   deps: ResearchDependencies,
@@ -634,6 +648,25 @@ export async function researchBestRoundIntelligence(
   let deduplicatedCount = 0;
   const add = (candidate: ResearchCandidate) => {
     classifiedCandidatesCount += 1;
+    const candidateCondition =
+      candidate.condition && candidate.condition !== "unknown"
+        ? candidate.condition
+        : inferCondition(candidate.title);
+    if (input.condition === "new" && candidateCondition !== "new")
+      return excluded.push({
+        ...candidate,
+        condition: candidateCondition,
+        exclusion:
+          candidateCondition === "used"
+            ? "USED_FOR_NEW_TARGET"
+            : "CONDITION_NOT_CONFIRMED",
+      });
+    if (input.condition === "used" && candidateCondition === "new")
+      return excluded.push({
+        ...candidate,
+        condition: candidateCondition,
+        exclusion: "NEW_FOR_USED_MARKET",
+      });
     if (candidate.availability === "out_of_stock")
       return excluded.push({ ...candidate, exclusion: "OUT_OF_STOCK" });
     const title = norm(candidate.title);
@@ -655,7 +688,10 @@ export async function researchBestRoundIntelligence(
       return excluded.push({ ...candidate, exclusion: "BUNDLE" });
     if (/\bauction|subasta\b/.test(title))
       return excluded.push({ ...candidate, exclusion: "AUCTION_UNRESOLVED" });
-    const match = scoreResearchSimilarity(input, candidate);
+    const match = scoreResearchSimilarity(input, {
+      ...candidate,
+      condition: candidateCondition,
+    });
     if (match.hardMismatch || match.score < 55)
       return excluded.push({
         ...candidate,

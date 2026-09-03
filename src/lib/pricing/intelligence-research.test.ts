@@ -191,6 +191,39 @@ describe("Best Round intelligence research", () => {
     ).toBe("FULL_PRODUCT");
   });
 
+  it("keeps condition and explicit handedness hard requirements", async () => {
+    const provider = {
+      getMarketPrice: vi.fn(),
+    } as unknown as MarketPriceProvider;
+    const result = await researchBestRoundIntelligence(
+      { ...input, condition: "new" },
+      {
+        provider,
+        internalSales: [
+          candidate({
+            id: "new",
+            condition: "new",
+            title: "New Titleist GT3 Driver 9 RH Regular",
+          }),
+          candidate({
+            id: "used",
+            condition: "used",
+            title: "Used Titleist GT3 Driver 9 RH Regular",
+          }),
+          candidate({
+            id: "left",
+            condition: "new",
+            title: "Titleist GT3 Driver | Left-Handed 9° Loft Regular Flex",
+          }),
+        ],
+      },
+    );
+    expect(result.acceptedComparables.map((item) => item.id)).toContain("new");
+    expect(result.excludedComparables.map((item) => item.exclusion)).toEqual(
+      expect.arrayContaining(["USED_FOR_NEW_TARGET", "WRONG_HAND"]),
+    );
+  });
+
   it("penalizes loft and flex changes while treating putter flex as irrelevant", () => {
     const loft = scoreResearchSimilarity(
       input,
