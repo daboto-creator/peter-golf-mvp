@@ -32,6 +32,7 @@ import type {
   CatalogReference,
   OperationalPricingConfiguration,
 } from "@/lib/catalog/operational-products";
+import type { FirstPartyIntelligence } from "@/lib/catalog/market-research-types";
 import { groupProductCategoryOptions } from "@/lib/catalog/taxonomy-validation";
 import {
   generateProductSlug,
@@ -52,6 +53,7 @@ export function ProductForm({
   brands,
   categories,
   pricingConfiguration,
+  initialIntelligence,
   disabled = false,
 }: {
   mode: "create" | "edit";
@@ -60,6 +62,7 @@ export function ProductForm({
   brands: CatalogReference[];
   categories: CatalogReference[];
   pricingConfiguration: OperationalPricingConfiguration | null;
+  initialIntelligence?: FirstPartyIntelligence | null;
   disabled?: boolean;
 }) {
   const [result, setResult] = useState<CatalogActionResult>({
@@ -472,6 +475,7 @@ export function ProductForm({
             register={register}
             setValue={setValue}
             fieldError={fieldError}
+            initialIntelligence={initialIntelligence}
           />
         ) : null}
 

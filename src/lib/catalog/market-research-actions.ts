@@ -20,13 +20,16 @@ import {
   type EconomicsCosts,
 } from "@/lib/pricing/intelligence-economics";
 import {
+  buildResearchFingerprint,
+  COMPARABLE_CLASSIFIER_VERSION,
   researchBestRoundIntelligence,
+  CURRENCY_NORMALIZATION_VERSION,
+  INTELLIGENCE_ENGINE_VERSION,
   type ResearchCandidate,
   type ResearchProductInput,
   type ResearchResult,
 } from "@/lib/pricing/intelligence-research";
 import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1_000;
 
@@ -70,7 +73,14 @@ function candidateFromSnapshot(
   );
   const observedAt = String(row.sold_at ?? row.observedAt ?? "");
   if (!Number.isSafeInteger(price) || price <= 0 || !observedAt) return null;
-  const title = String(row.title ?? row.product_name ?? row.productName ?? "");
+  const title = String(
+    row.title ??
+      row.product_name ??
+      row.productName ??
+      (typeof row.canonical_model === "string"
+        ? `${typeof row.brand === "string" ? `${row.brand} ` : ""}${row.canonical_model}`
+        : ""),
+  );
   if (!title) return null;
   return {
     title,
@@ -101,25 +111,50 @@ function candidateFromSnapshot(
   };
 }
 
-function savedCandidates(snapshot: unknown): ResearchCandidate[] {
+function savedCandidates(
+  snapshot: unknown,
+  currentFingerprint: string,
+): ResearchCandidate[] {
   if (!snapshot || typeof snapshot !== "object") return [];
-  const sources = (snapshot as { sources?: unknown }).sources;
-  if (!Array.isArray(sources)) return [];
-  return sources.flatMap((source) => {
-    if (!source || typeof source !== "object") return [];
-    const row = source as Record<string, unknown>;
-    const price = Number(row.priceMxn);
-    if (!Number.isSafeInteger(price) || price <= 0) return [];
-    return [
-      candidateFromSnapshot(
-        {
-          ...row,
-          priceMinor: price,
-          observedAt: row.checkedAt,
-        },
-        "SAVED_RESEARCH",
-      ),
-    ].filter((value): value is ResearchCandidate => value !== null);
+  const record = snapshot as Record<string, unknown>;
+  const intelligence = record.intelligence;
+  if (!intelligence || typeof intelligence !== "object") return [];
+  const research = (intelligence as Record<string, unknown>).research;
+  if (!research || typeof research !== "object") return [];
+  const researchRecord = research as Record<string, unknown>;
+  if (
+    researchRecord.engineVersion !== INTELLIGENCE_ENGINE_VERSION ||
+    researchRecord.currencyNormalizationVersion !==
+      CURRENCY_NORMALIZATION_VERSION ||
+    researchRecord.comparableClassifierVersion !==
+      COMPARABLE_CLASSIFIER_VERSION ||
+    researchRecord.fingerprint !== currentFingerprint
+  )
+    return [];
+  const candidates = researchRecord.acceptedComparables;
+  if (!Array.isArray(candidates)) return [];
+  return candidates.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    const row = candidate as Record<string, unknown>;
+    const price = Number(row.normalizedPriceMxnMinor ?? row.priceMinor);
+    if (
+      !Number.isSafeInteger(price) ||
+      price <= 0 ||
+      row.currency !== "MXN" ||
+      row.normalizedPriceMxnMinor !== price
+    )
+      return [];
+    const mapped = candidateFromSnapshot(
+      {
+        ...row,
+        priceMinor: price,
+        originalPriceMinor: row.originalPriceMinor ?? price,
+        originalCurrency: row.originalCurrency ?? "MXN",
+        observedAt: row.observedAt,
+      },
+      "SAVED_RESEARCH",
+    );
+    return mapped ? [mapped] : [];
   });
 }
 
@@ -210,7 +245,6 @@ export async function researchProductMarketAction(
   }
 
   const client = await createClient();
-  const serviceClient = createServiceRoleClient();
   const [brandResult, categoryResult] = await Promise.all([
     client
       .from("brands")
@@ -259,13 +293,13 @@ export async function researchProductMarketAction(
   const inputFingerprint = fingerprint(marketInput);
   const configuredProvider = getConfiguredMarketPriceProvider();
   const [internalResult, savedResult] = await Promise.all([
-    serviceClient
+    client
       .from("intelligence_outcome_snapshots" as never)
       .select("*")
       .eq("source", "FIRST_PARTY")
       .eq("brand", brandResult.data.name)
       .limit(50),
-    serviceClient
+    client
       .from("market_price_researches")
       .select("result_snapshot, checked_at, expires_at, input_snapshot")
       .eq("brand_id", parsed.data.brandId)
@@ -282,14 +316,18 @@ export async function researchProductMarketAction(
     .filter((value): value is ResearchCandidate => value !== null);
   const savedResearch = (
     (savedResult.data ?? []) as unknown as Array<Record<string, unknown>>
-  ).flatMap((row) => savedCandidates(row.result_snapshot));
+  ).flatMap((row) =>
+    savedCandidates(
+      row.result_snapshot,
+      buildResearchFingerprint(researchInput),
+    ),
+  );
   const research = await researchBestRoundIntelligence(researchInput, {
     provider: configuredProvider.provider,
     internalSales,
     savedResearch,
     forceRefresh,
   });
-  const market: MarketPriceResult = toMarketResult(research);
   const economics: EconomicsCosts = {
     acquisitionCostMinor: minor(parsed.data.acquisitionCost),
     refurbishmentMinor: minor(parsed.data.conditioningCost),
@@ -297,6 +335,14 @@ export async function researchProductMarketAction(
     shippingMinor: minor(parsed.data.shippingSubsidy),
   };
   const decision = calculateFirstPartyDecision({ research, costs: economics });
+  const marketBase = toMarketResult(research);
+  const market: MarketPriceResult = {
+    ...marketBase,
+    medianPriceMxn: decision.marketReferenceMinor,
+    lowPriceMxn: decision.marketLowMinor,
+    highPriceMxn: decision.marketHighMinor,
+    averagePriceMxn: decision.marketReferenceMinor,
+  };
   const checkedAt = market.checkedAt ?? new Date().toISOString();
   const expiresAt = new Date(
     new Date(checkedAt).getTime() + CACHE_TTL_MS,
@@ -317,7 +363,13 @@ export async function researchProductMarketAction(
     requested_median_price: market.medianPriceMxn,
     requested_product_id: parsed.data.productId,
     requested_provider: "best-round-intelligence",
-    requested_result_snapshot: market,
+    requested_result_snapshot: {
+      ...market,
+      intelligenceSchemaVersion: "first-party-intelligence-v2",
+      currencyNormalizationVersion: CURRENCY_NORMALIZATION_VERSION,
+      comparableClassifierVersion: COMPARABLE_CLASSIFIER_VERSION,
+      intelligence: { research, decision },
+    },
     requested_sample_size: market.sampleSize,
     requested_search_query: market.searchQuery,
   });
@@ -341,4 +393,33 @@ export async function researchProductMarketAction(
     fromCache: research.cachedResearchUsed,
     intelligence: { research, decision },
   };
+}
+
+export async function recordFirstPartyRecommendationAcceptanceAction(input: {
+  productId: string;
+  researchId: string;
+  recommendedPriceMinor: number;
+}): Promise<{ status: "success" | "error"; message: string }> {
+  await requireCatalogManager("/operacion/catalogo");
+  const parsed = z
+    .object({
+      productId: z.uuid(),
+      researchId: z.uuid(),
+      recommendedPriceMinor: z.number().int().positive(),
+    })
+    .safeParse(input);
+  if (!parsed.success)
+    return { status: "error", message: "La recomendación no es válida." };
+  const client = await createClient();
+  const { error } = await client.rpc(
+    "record_product_pricing_recommendation_acceptance" as never,
+    {
+      requested_product_id: parsed.data.productId,
+      requested_research_id: parsed.data.researchId,
+      requested_recommended_price: parsed.data.recommendedPriceMinor,
+    } as never,
+  );
+  return error
+    ? { status: "error", message: "No pudimos registrar la aceptación." }
+    : { status: "success", message: "Recomendación aceptada." };
 }

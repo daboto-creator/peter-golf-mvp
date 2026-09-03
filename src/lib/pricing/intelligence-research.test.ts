@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildResearchFingerprint,
+  classifyComparableProductKind,
+  classifyComparableCertainty,
+  AiComparableAmbiguityResolver,
+  COMPARABLE_CLASSIFIER_VERSION,
   evaluateEvidenceSufficiency,
   researchBestRoundIntelligence,
   scoreResearchSimilarity,
@@ -56,7 +60,7 @@ describe("Best Round intelligence research", () => {
         input,
         candidate({ product: { handedness: "left" } }),
       ).hardMismatch,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("resolves with three strong internal sales without calling provider", async () => {
@@ -73,6 +77,9 @@ describe("Best Round intelligence research", () => {
     });
     expect(result.evidenceLevel).toBe("SUFFICIENT_HIGH");
     expect(result.internalSalesUsed).toBe(3);
+    expect(result.comparableClassifierVersion).toBe(
+      COMPARABLE_CLASSIFIER_VERSION,
+    );
     expect(provider.getMarketPrice).not.toHaveBeenCalled();
   });
 
@@ -142,6 +149,140 @@ describe("Best Round intelligence research", () => {
         "OUT_OF_STOCK",
       ]),
     );
+  });
+
+  it("classifies real-product titles separately from accessory noise", () => {
+    const full = [
+      "Driver Titleist Golf Club GT3 9° S-flex Tensei 1K Azul 55",
+      "Driver Titleist GT3 Grafito Tensei 1K Stiff",
+    ];
+    const accessories = [
+      "Golf Weight Titleist GT3 Driver 2 G, Posventa, Alta Calidad",
+      "Juego de pesas deslizantes para golf, compatible con Titleist GT3 Driver Club",
+      "Peso de Golf Para Titleist GT3 Driver",
+      "Peso Compatible Con Titleist GT3 Driver GT3 Fairway Wood",
+      "Nuevo Titleist Serie GT3 Driver Sure Fit Peso Pista 14g",
+      "Pesa Deslizante De Golf Para Titleist GT3 Driver, 12 G",
+    ];
+    for (const title of full)
+      expect(
+        classifyComparableProductKind(input, candidate({ title })).kind,
+      ).toBe("FULL_PRODUCT");
+    for (const title of accessories) {
+      const result = scoreResearchSimilarity(input, candidate({ title }));
+      expect(result.hardMismatch).toBe(true);
+      expect(result.reasons).toEqual(
+        expect.arrayContaining([
+          expect.stringMatching(/WEIGHT|ACCESSORY|REPLACEMENT/),
+        ]),
+      );
+    }
+    expect(
+      scoreResearchSimilarity(
+        input,
+        candidate({
+          title: "Driver Titleist Golf GT3 Zurdo 10° S-flex Tensei 1K Azul 55",
+        }),
+      ).reasons,
+    ).toContain("HAND_MISMATCH");
+    expect(
+      classifyComparableProductKind(
+        input,
+        candidate({ title: "Titleist GT3 Driver with Tensei shaft" }),
+      ).kind,
+    ).toBe("FULL_PRODUCT");
+  });
+
+  it("keeps condition and explicit handedness hard requirements", async () => {
+    const provider = {
+      getMarketPrice: vi.fn(),
+    } as unknown as MarketPriceProvider;
+    const result = await researchBestRoundIntelligence(
+      { ...input, condition: "new" },
+      {
+        provider,
+        internalSales: [
+          candidate({
+            id: "new",
+            condition: "new",
+            title: "New Titleist GT3 Driver 9 RH Regular",
+          }),
+          candidate({
+            id: "used",
+            condition: "used",
+            title: "Used Titleist GT3 Driver 9 RH Regular",
+          }),
+          candidate({
+            id: "left",
+            condition: "new",
+            title: "Titleist GT3 Driver | Left-Handed 9° Loft Regular Flex",
+          }),
+        ],
+      },
+    );
+    expect(result.acceptedComparables.map((item) => item.id)).toContain("new");
+    expect(result.excludedComparables.map((item) => item.exclusion)).toEqual(
+      expect.arrayContaining(["USED_FOR_NEW_TARGET"]),
+    );
+  });
+
+  it("uses certainty to reject ambiguous marketing titles without rejecting a confirmed generic listing", () => {
+    const validTitles = [
+      "Driver Titleist GT3 Grafito Tensei 1K Stiff",
+      "Titleist GT3 Driver | Left-Handed 9° Loft Regular Flex",
+      "Titleist GT3 Driver",
+    ];
+    for (const title of validTitles) {
+      const value = classifyComparableCertainty(
+        { ...input, condition: "new" },
+        candidate({
+          title,
+          condition: "new",
+          sourceType: "SPECIALIST_RETAILER",
+        }),
+      );
+      expect(value.certainty).toBe("STRONG");
+    }
+    for (const title of [
+      "Titleist GT3 Driver 9° Tour Inspired Low Spin Adjustable Performance",
+      "Titleist GT3 Golf Driver",
+    ]) {
+      const value = classifyComparableCertainty(
+        { ...input, condition: "new" },
+        candidate({ title, condition: "new", seller: "Unknown marketplace" }),
+      );
+      expect(value.certainty).toBe("AMBIGUOUS");
+    }
+  });
+
+  it("allows AI to resolve only the ambiguity band and falls back safely", async () => {
+    const provider = {
+      getMarketPrice: vi.fn(),
+    } as unknown as MarketPriceProvider;
+    const resolver = new AiComparableAmbiguityResolver(async () => ({
+      decision: "SAME_PRODUCT" as const,
+      confidence: "MEDIUM" as const,
+      reasons: ["provider metadata confirms complete club"],
+    }));
+    const result = await researchBestRoundIntelligence(
+      { ...input, condition: "new" },
+      {
+        provider,
+        ambiguityResolver: resolver,
+        internalSales: [
+          candidate({
+            id: "ambiguous",
+            title:
+              "Titleist GT3 Driver 9° Tour Inspired Low Spin Adjustable Performance",
+            condition: "new",
+          }),
+        ],
+      },
+    );
+    expect(result.acceptedComparables.map((item) => item.id)).toContain(
+      "ambiguous",
+    );
+    expect(result.acceptedComparables[0]?.certainty).toBe("STRONG");
   });
 
   it("penalizes loft and flex changes while treating putter flex as irrelevant", () => {

@@ -6,9 +6,13 @@ import type {
   MarketPriceResult,
   MarketPriceSource,
 } from "@/lib/pricing/market-price-provider";
+import type { OfficialBrandReference } from "@/lib/pricing/official-brand-reference";
 
 export const INTELLIGENCE_ENGINE_VERSION = "best-round-intelligence-v1";
 export const RESEARCH_FINGERPRINT_VERSION = "v1";
+export const CURRENCY_NORMALIZATION_VERSION = "mxn-minor-v1";
+export const COMPARABLE_CLASSIFIER_VERSION =
+  "product-kind-condition-certainty-v4";
 export const RESEARCH_TTL_DAYS = 90;
 
 export type ResearchProductInput = MarketPriceInput & {
@@ -48,7 +52,33 @@ export type ResearchCandidate = {
   sourceQualityReasons?: string[];
   marketPriorityScore?: number;
   recencyScore?: number;
+  productKind?: ComparableProductKind;
+  productKindConfidence?: ComparableProductClassification["confidence"];
+  productKindReasons?: string[];
+  certainty?: ComparableCertainty;
+  certaintyReasons?: string[];
+  sourceType?:
+    | "OFFICIAL_MANUFACTURER"
+    | "AUTHORIZED_RETAILER"
+    | "SPECIALIST_RETAILER"
+    | "MARKETPLACE"
+    | "OTHER";
+  providerCategory?: string | null;
 };
+
+export type ComparableProductKind =
+  "FULL_PRODUCT" | "COMPONENT" | "ACCESSORY" | "BUNDLE" | "UNKNOWN";
+
+export type ComparableProductClassification = {
+  kind: ComparableProductKind;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  reasons: string[];
+};
+
+export type ComparableCertainty = "EXACT" | "STRONG" | "AMBIGUOUS" | "REJECT";
+
+export type ComparableAmbiguityDecision =
+  "SAME_PRODUCT" | "DIFFERENT_PRODUCT" | "INSUFFICIENT_EVIDENCE";
 
 export type ExcludedCandidate = ResearchCandidate & { exclusion: string };
 
@@ -71,9 +101,19 @@ export type ResearchResult = {
   fingerprint: string;
   inputSnapshot: ResearchProductInput;
   engineVersion: string;
+  /** Present on current snapshots; absent on legacy market-price snapshots. */
+  currencyNormalizationVersion?: string;
+  comparableClassifierVersion?: string;
   expiresAt: string;
   providerUnavailable: boolean;
   reasons: string[];
+  rawResultsCount?: number;
+  normalizedCandidatesCount?: number;
+  classifiedCandidatesCount?: number;
+  acceptedComparablesCount?: number;
+  excludedComparablesCount?: number;
+  deduplicatedCount?: number;
+  officialReference?: OfficialBrandReference | null;
 };
 
 const STOPWORDS = new Set([
@@ -159,9 +199,202 @@ function hand(value: unknown): string {
   const normalized = norm(value);
   return ["right", "rh", "derecho", "derecha"].includes(normalized)
     ? "right"
-    : ["left", "lh", "izquierdo", "izquierda"].includes(normalized)
+    : ["left", "lh", "zurdo", "zurda", "izquierdo", "izquierda"].includes(
+          normalized,
+        )
       ? "left"
       : normalized;
+}
+
+const accessoryPattern =
+  /\b(weight|weights|sliding weight|replacement weight|peso|pesas?|contrapeso|tornillo|repuesto|reemplazo|accesorio|adaptador|adapter|adaptor|sleeve|funda|cubierta|headcover|cover|llave|wrench|manguito|casquillo|grip|empuñadura|varilla|shaft|eje|tip|ferrule)\b/;
+
+/** Classifies the object being sold before any brand/model similarity is scored. */
+export function classifyComparableProductKind(
+  input: ResearchProductInput,
+  candidate: ResearchCandidate,
+): ComparableProductClassification {
+  const title = norm(candidate.title);
+  const family = categoryOf(input);
+  const reasons: string[] = [];
+  const componentOnly =
+    /\b(head only|club head|cabeza sola|shaft only|solo shaft|varilla sola|grip only|solo grip)\b/.test(
+      title,
+    );
+  if (componentOnly) {
+    if (/head|cabeza/.test(title)) reasons.push("HEAD_ONLY");
+    else if (/grip|empuñadura/.test(title)) reasons.push("GRIP_ONLY");
+    else reasons.push("SHAFT_ONLY");
+    return { kind: "COMPONENT", confidence: "HIGH", reasons };
+  }
+  if (
+    /\b(bundle|pack|paquete|set de accesorios|kit de accesorios)\b/.test(title)
+  )
+    return { kind: "BUNDLE", confidence: "HIGH", reasons: ["BUNDLE"] };
+  const accessory = accessoryPattern.test(title);
+  const compatibilityPhrase =
+    /\b(for|para|compatible with|compatible con|replacement|repuesto)\b/.test(
+      title,
+    );
+  const fullProductWithComponent =
+    /\b(driver|fairway|wood|hybrid|iron|wedge|putter)\b.*\b(with|con|incluye)\b.*\b(shaft|varilla|grip|empuñadura)\b/.test(
+      title,
+    );
+  if (fullProductWithComponent)
+    return {
+      kind: "FULL_PRODUCT",
+      confidence: "HIGH",
+      reasons: ["COMPLETE_CLUB_SIGNAL"],
+    };
+  if (accessory && compatibilityPhrase) {
+    if (/weight|peso|pesa|contrapeso/.test(title)) reasons.push("WEIGHT_ONLY");
+    else if (/adapter|adaptador|sleeve|manguito|casquillo/.test(title))
+      reasons.push("ADAPTER_ONLY");
+    else if (/headcover|cover|funda|cubierta/.test(title))
+      reasons.push("HEADCOVER_ONLY");
+    else if (/shaft|varilla|eje/.test(title)) reasons.push("SHAFT_ONLY");
+    else reasons.push("ACCESSORY_ONLY");
+    return { kind: "ACCESSORY", confidence: "HIGH", reasons };
+  }
+  if (
+    accessory &&
+    (/^(?:golf )?(?:weight|weights|peso|pesas?|contrapeso)\b/.test(title) ||
+      /^(?:nuevo )?(?:titleist|callaway|taylormade|ping)\b/.test(title))
+  ) {
+    const reason = /weight|peso|pesa|contrapeso/.test(title)
+      ? "WEIGHT_ONLY"
+      : "REPLACEMENT_PART";
+    return { kind: "COMPONENT", confidence: "MEDIUM", reasons: [reason] };
+  }
+  const isClub = [
+    "driver",
+    "fairway_wood",
+    "hybrid",
+    "iron",
+    "wedge",
+    "putter",
+  ].includes(family);
+  if (isClub) {
+    const clubWord =
+      family === "fairway_wood"
+        ? /\b(fairway|wood|madera)\b/
+        : new RegExp(`\\b${family.replace("_", " ")}\\b`);
+    if (clubWord.test(title) && !accessory) {
+      if (
+        family === "iron" &&
+        /\b(7|8|9)\s*iron\b/.test(title) &&
+        !/\b(set|juego|pw|4-pw|5-pw)\b/.test(title)
+      )
+        return {
+          kind: "FULL_PRODUCT",
+          confidence: "HIGH",
+          reasons: ["INDIVIDUAL_IRON"],
+        };
+      return {
+        kind: "FULL_PRODUCT",
+        confidence: "HIGH",
+        reasons: ["COMPLETE_CLUB_SIGNAL"],
+      };
+    }
+    return {
+      kind: "UNKNOWN",
+      confidence: "LOW",
+      reasons: ["PRODUCT_KIND_UNCERTAIN"],
+    };
+  }
+  if (family === "bag") {
+    if (/\b(bag|golf bag|stand bag|cart bag|bolsa)\b/.test(title) && !accessory)
+      return {
+        kind: "FULL_PRODUCT",
+        confidence: "HIGH",
+        reasons: ["COMPLETE_BAG_SIGNAL"],
+      };
+    return {
+      kind: "UNKNOWN",
+      confidence: "LOW",
+      reasons: ["PRODUCT_KIND_UNCERTAIN"],
+    };
+  }
+  if (family === "set") {
+    if (/\b(set|juego|combo|kit)\b/.test(title) && !accessory)
+      return {
+        kind: "FULL_PRODUCT",
+        confidence: "HIGH",
+        reasons: ["COMPLETE_SET_SIGNAL"],
+      };
+    return {
+      kind: "UNKNOWN",
+      confidence: "LOW",
+      reasons: ["PRODUCT_KIND_UNCERTAIN"],
+    };
+  }
+  return accessory
+    ? { kind: "ACCESSORY", confidence: "MEDIUM", reasons: ["ACCESSORY_ONLY"] }
+    : {
+        kind: "UNKNOWN",
+        confidence: "LOW",
+        reasons: ["PRODUCT_KIND_UNCERTAIN"],
+      };
+}
+
+/** Certainty is deliberately separate from numeric similarity. */
+export function classifyComparableCertainty(
+  input: ResearchProductInput,
+  candidate: ResearchCandidate,
+  classification = classifyComparableProductKind(input, candidate),
+): { certainty: ComparableCertainty; reasons: string[] } {
+  if (classification.kind !== "FULL_PRODUCT")
+    return { certainty: "REJECT", reasons: classification.reasons };
+  const title = norm(candidate.title);
+  const product = candidate.product ?? {};
+  const structuredType = norm(
+    candidate.providerCategory ?? product.clubType ?? product.category,
+  );
+  const sourceType = candidate.sourceType;
+  const trustedSource =
+    Boolean(
+      sourceType && sourceType !== "MARKETPLACE" && sourceType !== "OTHER",
+    ) ||
+    /best round|golf galaxy|pga|proshop|golfsmith|2nd swing|club champion/.test(
+      norm(candidate.seller),
+    );
+  if (
+    /tour inspired|low spin adjustable performance|golf driver\b/.test(title) &&
+    !structuredType &&
+    !trustedSource
+  )
+    return {
+      certainty: "AMBIGUOUS",
+      reasons: ["PRODUCT_IDENTITY_UNCONFIRMED"],
+    };
+  const brand = input.brand ? hasToken(title, input.brand) : true;
+  const model = input.model ? hasToken(title, input.model) : true;
+  if (!brand || !model)
+    return {
+      certainty: "REJECT",
+      reasons: [brand ? "WRONG_MODEL" : "WRONG_BRAND"],
+    };
+  const hasConfiguration =
+    Boolean(product.clubType || candidate.providerCategory) ||
+    /\b(driver|fairway|wood|hybrid|iron|wedge|putter|bag|golf club)\b/.test(
+      title,
+    );
+  if (!hasConfiguration)
+    return {
+      certainty: "AMBIGUOUS",
+      reasons: ["PRODUCT_IDENTITY_UNCONFIRMED"],
+    };
+  const explicitIdentity =
+    Boolean(
+      candidate.product &&
+      (candidate.product.clubType || candidate.product.category),
+    ) || /\b(driver|fairway|hybrid|wedge|putter)\b/.test(title);
+  return {
+    certainty: explicitIdentity ? "STRONG" : "AMBIGUOUS",
+    reasons: explicitIdentity
+      ? ["IDENTITY_CONFIRMED"]
+      : ["PRODUCT_IDENTITY_UNCONFIRMED"],
+  };
 }
 
 /** Rules-first similarity score. Missing attributes never manufacture a mismatch. */
@@ -174,7 +407,10 @@ export function scoreResearchSimilarity(
   hardMismatch: boolean;
 } {
   const title = norm(candidate.title);
-  const product = candidate.product ?? {};
+  const product = {
+    ...inferProductHints(candidate.title),
+    ...(candidate.product ?? {}),
+  };
   const reasons: string[] = [];
   if (input.brand && !hasToken(title, input.brand))
     return { score: 0, reasons: ["WRONG_BRAND"], hardMismatch: true };
@@ -184,6 +420,27 @@ export function scoreResearchSimilarity(
   const candidateFamily = norm(
     String(product.clubType ?? product.category ?? ""),
   );
+  const classification = classifyComparableProductKind(input, candidate);
+  const targetKind = categoryOf(input);
+  if (
+    [
+      "driver",
+      "fairway_wood",
+      "hybrid",
+      "iron",
+      "wedge",
+      "putter",
+      "bag",
+      "set",
+    ].includes(targetKind) &&
+    classification.kind !== "FULL_PRODUCT"
+  ) {
+    return {
+      score: 0,
+      reasons: classification.reasons,
+      hardMismatch: true,
+    };
+  }
   if (
     family &&
     candidateFamily &&
@@ -197,11 +454,13 @@ export function scoreResearchSimilarity(
     product.handedness &&
     hand(input.handedness) !== hand(product.handedness)
   ) {
-    return { score: 0, reasons: ["WRONG_HAND"], hardMismatch: true };
+    reasons.push("HAND_MISMATCH");
   }
   let score = 45;
   if (input.brand) score += 15;
   if (input.model) score += 15;
+  if (reasons.includes("HAND_MISMATCH"))
+    score -= input.condition === "used" ? 12 : 7;
   if (
     input.condition === candidate.condition ||
     candidate.condition === "unknown"
@@ -381,37 +640,45 @@ export type ResearchDependencies = {
   maxMexicoQueries?: number;
   maxUsaQueries?: number;
   sourceReliability?: Readonly<Record<string, number>>;
+  ambiguityResolver?: ComparableAmbiguityResolver;
+  maxAmbiguityCalls?: number;
+  officialReferenceResolver?: import("@/lib/pricing/official-brand-reference").OfficialBrandReferenceResolver;
 };
 
 function externalCandidates(
   result: MarketPriceResult,
   market: ResearchMarket,
 ): ResearchCandidate[] {
-  return result.sources.map((source) => ({
-    title: source.productName,
-    seller: source.merchant,
-    priceMinor: source.priceMxn,
-    currency: "MXN",
-    originalPriceMinor: source.originalPriceMinor ?? null,
-    originalCurrency: source.originalCurrency,
-    normalizedPriceMxnMinor: source.priceMxn,
-    normalizationSource: source.normalizationSource ?? null,
-    normalizationObservedAt: source.normalizationObservedAt ?? null,
-    market,
-    source: result.provider,
-    url: source.url,
-    condition: source.condition,
-    availability: source.availability,
-    observedAt: source.checkedAt,
-    product: inferProductHints(source.productName),
-  }));
+  return (Array.isArray(result.sources) ? result.sources : []).map(
+    (source) => ({
+      title: source.productName,
+      seller: source.merchant,
+      priceMinor: source.priceMxn,
+      currency: "MXN",
+      originalPriceMinor: source.originalPriceMinor ?? null,
+      originalCurrency: source.originalCurrency,
+      normalizedPriceMxnMinor: source.priceMxn,
+      normalizationSource: source.normalizationSource ?? null,
+      normalizationObservedAt: source.normalizationObservedAt ?? null,
+      market,
+      source: result.provider,
+      url: source.url,
+      condition: source.condition,
+      availability: source.availability,
+      observedAt: source.checkedAt,
+      product: inferProductHints(source.productName),
+      sourceType: source.sourceType,
+      providerCategory: source.providerCategory,
+    }),
+  );
 }
 
 function inferProductHints(title: string): Partial<ResearchProductInput> {
   const value = norm(title);
   const flex =
-    /\b(x stiff|extra stiff|stiff|regular|senior|ladies)\b/.exec(value)?.[1] ??
-    null;
+    /\b(x stiff|extra stiff|x-stiff|stiff|s-flex|regular|reg|r-flex|senior|ladies|a-flex|l-flex)\b/.exec(
+      value,
+    )?.[1] ?? null;
   const clubType =
     /\b(driver|fairway wood|wood|hybrid|iron|wedge|putter)\b/.exec(
       value,
@@ -422,7 +689,9 @@ function inferProductHints(title: string): Partial<ResearchProductInput> {
   const clubNumber =
     /\b([3-9])\s*(?:wood|iron|hybrid)\b/.exec(value)?.[1] ?? null;
   const handedness =
-    /\b(left|lh|left hand|right|rh|right hand)\b/.exec(value)?.[1] ?? null;
+    /\b(left|lh|left hand|zurdo|zurda|izquierdo|izquierda|right|rh|right hand|diestro|diestra|derecho|derecha)\b/.exec(
+      value,
+    )?.[1] ?? null;
   return {
     clubType: clubType === "wood" ? "fairway_wood" : clubType,
     loftDegrees: loft ? Number(loft) : null,
@@ -430,6 +699,20 @@ function inferProductHints(title: string): Partial<ResearchProductInput> {
     handedness,
     shaftFlex: flex,
   };
+}
+
+function inferCondition(title: string): MarketPriceSource["condition"] {
+  const value = norm(title);
+  if (/\b(refurbished|reacondicionado|renewed)\b/.test(value)) return "used";
+  if (
+    /\b(used|pre owned|preowned|pre-owned|usado|seminuevo|second hand|segunda mano)\b/.test(
+      value,
+    )
+  )
+    return "used";
+  if (/\b(new|nuevo|brand new|nuevo en caja|new club)\b/.test(value))
+    return "new";
+  return "unknown";
 }
 
 export async function researchBestRoundIntelligence(
@@ -448,7 +731,30 @@ export async function researchBestRoundIntelligence(
   });
   const accepted: ResearchCandidate[] = [];
   const excluded: ExcludedCandidate[] = [];
-  const add = (candidate: ResearchCandidate) => {
+  let classifiedCandidatesCount = 0;
+  let deduplicatedCount = 0;
+  let ambiguityCalls = 0;
+  const add = async (candidate: ResearchCandidate) => {
+    classifiedCandidatesCount += 1;
+    const candidateCondition =
+      candidate.condition && candidate.condition !== "unknown"
+        ? candidate.condition
+        : inferCondition(candidate.title);
+    if (input.condition === "new" && candidateCondition !== "new")
+      return excluded.push({
+        ...candidate,
+        condition: candidateCondition,
+        exclusion:
+          candidateCondition === "used"
+            ? "USED_FOR_NEW_TARGET"
+            : "CONDITION_NOT_CONFIRMED",
+      });
+    if (input.condition === "used" && candidateCondition === "new")
+      return excluded.push({
+        ...candidate,
+        condition: candidateCondition,
+        exclusion: "NEW_FOR_USED_MARKET",
+      });
     if (candidate.availability === "out_of_stock")
       return excluded.push({ ...candidate, exclusion: "OUT_OF_STOCK" });
     const title = norm(candidate.title);
@@ -470,17 +776,92 @@ export async function researchBestRoundIntelligence(
       return excluded.push({ ...candidate, exclusion: "BUNDLE" });
     if (/\bauction|subasta\b/.test(title))
       return excluded.push({ ...candidate, exclusion: "AUCTION_UNRESOLVED" });
-    const match = scoreResearchSimilarity(input, candidate);
+    const classified = classifyComparableProductKind(input, {
+      ...candidate,
+      condition: candidateCondition,
+    });
+    const certaintyResult = classifyComparableCertainty(
+      input,
+      { ...candidate, condition: candidateCondition },
+      classified,
+    );
+    if (certaintyResult.certainty === "REJECT")
+      return excluded.push({
+        ...candidate,
+        condition: candidateCondition,
+        productKind: classified.kind,
+        productKindConfidence: classified.confidence,
+        productKindReasons: classified.reasons,
+        certainty: certaintyResult.certainty,
+        certaintyReasons: certaintyResult.reasons,
+        exclusion: certaintyResult.reasons[0] ?? "PRODUCT_IDENTITY_UNCONFIRMED",
+      });
+    let certainty: ComparableCertainty = certaintyResult.certainty;
+    let certaintyReasons = certaintyResult.reasons;
+    if (
+      certainty === "AMBIGUOUS" &&
+      deps.ambiguityResolver &&
+      ambiguityCalls < (deps.maxAmbiguityCalls ?? 3)
+    ) {
+      ambiguityCalls += 1;
+      try {
+        const resolved = await deps.ambiguityResolver.resolve(
+          { ...candidate, condition: candidateCondition },
+          input,
+        );
+        if (resolved.decision === "SAME_PRODUCT") {
+          certainty = "STRONG";
+          certaintyReasons = [
+            "AI_IDENTITY_CONFIRMED",
+            ...(resolved.reasons ?? []),
+          ];
+        } else {
+          certainty = "REJECT";
+          certaintyReasons = [
+            resolved.decision === "DIFFERENT_PRODUCT"
+              ? "DIFFERENT_PRODUCT"
+              : "PRODUCT_IDENTITY_UNCONFIRMED",
+            ...(resolved.reasons ?? []),
+          ];
+        }
+      } catch {
+        certainty = "REJECT";
+        certaintyReasons = ["PRODUCT_IDENTITY_UNCONFIRMED"];
+      }
+    }
+    if (certainty === "AMBIGUOUS" || certainty === "REJECT")
+      return excluded.push({
+        ...candidate,
+        condition: candidateCondition,
+        productKind: classified.kind,
+        productKindConfidence: classified.confidence,
+        productKindReasons: classified.reasons,
+        certainty,
+        certaintyReasons,
+        exclusion: certaintyReasons[0] ?? "PRODUCT_IDENTITY_UNCONFIRMED",
+      });
+    const match = scoreResearchSimilarity(input, {
+      ...candidate,
+      condition: candidateCondition,
+    });
     if (match.hardMismatch || match.score < 55)
       return excluded.push({
         ...candidate,
+        condition: candidateCondition,
+        productKind: classified.kind,
+        productKindConfidence: classified.confidence,
+        productKindReasons: classified.reasons,
+        certainty,
+        certaintyReasons,
         similarity: match.score,
         similarityReasons: match.reasons,
         exclusion: match.reasons[0] ?? "LOW_SIMILARITY",
       });
     const key = dedupeKey(candidate);
-    if (accepted.some((item) => dedupeKey(item) === key))
+    if (accepted.some((item) => dedupeKey(item) === key)) {
+      deduplicatedCount += 1;
       return excluded.push({ ...candidate, exclusion: "DUPLICATE" });
+    }
     const qualityDetail = sourceQualityDetail(
       candidate,
       deps.sourceReliability,
@@ -489,6 +870,12 @@ export async function researchBestRoundIntelligence(
     const freshness = recency(candidate, now);
     accepted.push({
       ...candidate,
+      condition: candidateCondition,
+      productKind: classified.kind,
+      productKindConfidence: classified.confidence,
+      productKindReasons: classified.reasons,
+      certainty,
+      certaintyReasons,
       similarity: match.score,
       similarityReasons: match.reasons,
       sourceQuality: qualityDetail.score,
@@ -507,10 +894,12 @@ export async function researchBestRoundIntelligence(
     ...(deps.internalSales ?? []),
     ...freshSavedResearch,
   ])
-    add(candidate);
+    await add(candidate);
   let sufficiency = evaluateEvidenceSufficiency(accepted);
   let mexicoQueriesExecuted = 0;
   let usaQueriesExecuted = 0;
+  let rawResultsCount = 0;
+  let normalizedCandidatesCount = 0;
   let providerUnavailable = false;
   const marketInput: MarketPriceInput = input;
   const runQueries = async (market: "MX" | "US", max: number) => {
@@ -522,11 +911,15 @@ export async function researchBestRoundIntelligence(
           query,
           market,
         });
-        for (const candidate of externalCandidates(
+        const normalized = externalCandidates(
           result,
           market === "MX" ? "MEXICO" : "USA",
-        ))
-          add(candidate);
+        );
+        rawResultsCount += Array.isArray(result.sources)
+          ? result.sources.length
+          : 0;
+        normalizedCandidatesCount += normalized.length;
+        for (const candidate of normalized) await add(candidate);
       } catch {
         providerUnavailable = true;
       }
@@ -581,11 +974,27 @@ export async function researchBestRoundIntelligence(
     fingerprint,
     inputSnapshot: input,
     engineVersion: INTELLIGENCE_ENGINE_VERSION,
+    currencyNormalizationVersion: CURRENCY_NORMALIZATION_VERSION,
+    comparableClassifierVersion: COMPARABLE_CLASSIFIER_VERSION,
     expiresAt: new Date(
       now.getTime() + RESEARCH_TTL_DAYS * 86_400_000,
     ).toISOString(),
     providerUnavailable,
     reasons: sufficiency.reasons,
+    rawResultsCount,
+    normalizedCandidatesCount,
+    classifiedCandidatesCount,
+    acceptedComparablesCount: max.length,
+    excludedComparablesCount: excluded.length,
+    deduplicatedCount,
+    officialReference:
+      input.condition === "new" && deps.officialReferenceResolver
+        ? await deps.officialReferenceResolver.resolve({
+            brand: input.brand,
+            model: input.model,
+            market: "MX",
+          })
+        : null,
   };
 }
 
@@ -593,15 +1002,85 @@ export interface ComparableAmbiguityResolver {
   resolve(
     candidate: ResearchCandidate,
     input: ResearchProductInput,
-  ): Promise<{ accepted: boolean; reason?: string }>;
+  ): Promise<{
+    decision: ComparableAmbiguityDecision;
+    confidence?: "HIGH" | "MEDIUM" | "LOW";
+    reasons?: string[];
+    accepted?: boolean;
+    reason?: string;
+  }>;
 }
 
 export class RulesOnlyAmbiguityResolver implements ComparableAmbiguityResolver {
-  async resolve(candidate: ResearchCandidate, input: ResearchProductInput) {
+  async resolve(
+    candidate: ResearchCandidate,
+    input: ResearchProductInput,
+  ): Promise<{
+    decision: ComparableAmbiguityDecision;
+    reasons: string[];
+  }> {
     const result = scoreResearchSimilarity(input, candidate);
     return {
-      accepted: !result.hardMismatch && result.score >= 55,
-      reason: result.reasons[0],
+      decision:
+        !result.hardMismatch && result.score >= 55
+          ? result.score >= 75
+            ? "SAME_PRODUCT"
+            : "INSUFFICIENT_EVIDENCE"
+          : "DIFFERENT_PRODUCT",
+      reasons: result.reasons,
     };
+  }
+}
+
+/** Optional AI bridge. The caller owns provider configuration and receives only market metadata. */
+export class AiComparableAmbiguityResolver implements ComparableAmbiguityResolver {
+  constructor(
+    private readonly resolver: (payload: {
+      target: Pick<
+        ResearchProductInput,
+        | "brand"
+        | "model"
+        | "clubType"
+        | "condition"
+        | "loftDegrees"
+        | "handedness"
+        | "shaftFlex"
+      >;
+      candidate: Pick<
+        ResearchCandidate,
+        | "title"
+        | "seller"
+        | "market"
+        | "condition"
+        | "sourceType"
+        | "providerCategory"
+      >;
+    }) => Promise<{
+      decision: ComparableAmbiguityDecision;
+      confidence?: "HIGH" | "MEDIUM" | "LOW";
+      reasons?: string[];
+    }>,
+  ) {}
+
+  async resolve(candidate: ResearchCandidate, input: ResearchProductInput) {
+    return this.resolver({
+      target: {
+        brand: input.brand,
+        model: input.model,
+        clubType: input.clubType,
+        condition: input.condition,
+        loftDegrees: input.loftDegrees,
+        handedness: input.handedness,
+        shaftFlex: input.shaftFlex,
+      },
+      candidate: {
+        title: candidate.title,
+        seller: candidate.seller,
+        market: candidate.market,
+        condition: candidate.condition,
+        sourceType: candidate.sourceType,
+        providerCategory: candidate.providerCategory,
+      },
+    });
   }
 }

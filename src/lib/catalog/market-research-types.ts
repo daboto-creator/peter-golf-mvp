@@ -38,3 +38,8 @@ export type MarketResearchActionResult =
       };
     }
   | { status: "error"; message: string };
+
+export type FirstPartyIntelligence = Extract<
+  MarketResearchActionResult,
+  { status: "success" | "unavailable" }
+>["intelligence"];

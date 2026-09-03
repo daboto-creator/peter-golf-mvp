@@ -10,6 +10,13 @@ import { ProductImageUploader } from "@/components/operations/product-image-uplo
 import { ProductStateActions } from "@/components/operations/product-state-actions";
 import { ProductStatusBadge } from "@/components/operations/product-status-badge";
 import { Button } from "@/components/ui/button";
+import type { FirstPartyIntelligence } from "@/lib/catalog/market-research-types";
+import {
+  COMPARABLE_CLASSIFIER_VERSION,
+  CURRENCY_NORMALIZATION_VERSION,
+  INTELLIGENCE_ENGINE_VERSION,
+} from "@/lib/pricing/intelligence-research";
+import { createClient } from "@/lib/supabase/server";
 import {
   getOperationalProductById,
   getOperationalProductPricing,
@@ -26,6 +33,35 @@ type EditProductPageProps = {
 export const metadata: Metadata = {
   title: "Editar producto | Best Round Pro Shop",
 };
+
+function persistedIntelligence(value: unknown): FirstPartyIntelligence | null {
+  if (!value || typeof value !== "object") return null;
+  const intelligence = (value as { intelligence?: unknown }).intelligence;
+  if (!intelligence || typeof intelligence !== "object") return null;
+  const research = (intelligence as { research?: unknown }).research;
+  const decision = (intelligence as { decision?: unknown }).decision;
+  if (!research || typeof research !== "object") return null;
+  if (!decision || typeof decision !== "object") return null;
+  const researchRecord = research as Record<string, unknown>;
+  const decisionRecord = decision as Record<string, unknown>;
+  if (
+    researchRecord.engineVersion !== INTELLIGENCE_ENGINE_VERSION ||
+    researchRecord.currencyNormalizationVersion !==
+      CURRENCY_NORMALIZATION_VERSION ||
+    researchRecord.comparableClassifierVersion !== COMPARABLE_CLASSIFIER_VERSION
+  )
+    return null;
+  if (
+    !Array.isArray(researchRecord.acceptedComparables) ||
+    !Array.isArray(researchRecord.excludedComparables) ||
+    !["HIGH", "MEDIUM", "LOW", "INSUFFICIENT"].includes(
+      String(researchRecord.confidence),
+    ) ||
+    !["GREEN", "YELLOW", "RED"].includes(String(decisionRecord.semaphore))
+  )
+    return null;
+  return intelligence as FirstPartyIntelligence;
+}
 
 export default async function EditProductPage({
   params,
@@ -53,14 +89,34 @@ export default async function EditProductPage({
   }
 
   const product = productResult.data;
-  const [references, imagesResult, pricingResult] = await Promise.all([
-    listActiveCatalogReferences({
-      brandId: product.brandId,
-      categoryId: product.categoryId,
-    }),
-    listOperationalProductImages(id),
-    getOperationalProductPricing(id),
-  ]);
+  const [references, imagesResult, pricingResult, intelligenceResult] =
+    await Promise.all([
+      listActiveCatalogReferences({
+        brandId: product.brandId,
+        categoryId: product.categoryId,
+      }),
+      listOperationalProductImages(id),
+      getOperationalProductPricing(id),
+      (async () => {
+        const client = await createClient();
+        return (
+          client
+            .from("market_price_researches")
+            .select("result_snapshot")
+            .eq("product_id", id)
+            .eq("provider", "best-round-intelligence")
+            // Expiry is only read here; loading the page never extends it.
+            .gt("expires_at", new Date().toISOString())
+            .order("checked_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        );
+      })(),
+    ]);
+  const initialIntelligence =
+    !intelligenceResult.error && intelligenceResult.data
+      ? persistedIntelligence(intelligenceResult.data.result_snapshot)
+      : null;
 
   return (
     <div className="space-y-8">
@@ -118,6 +174,7 @@ export default async function EditProductPage({
         brands={references.data?.brands ?? []}
         categories={references.data?.categories ?? []}
         pricingConfiguration={references.data?.pricingConfiguration ?? null}
+        initialIntelligence={initialIntelligence}
         disabled={
           product.status === "archived" ||
           Boolean(references.error) ||
