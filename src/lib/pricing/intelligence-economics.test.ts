@@ -186,6 +186,8 @@ describe("Best Round economics decision", () => {
     });
     expect(result.marketReferenceMinor).toBeNull();
     expect(result.recommendedPriceMinor).toBeNull();
+    expect(result.minimumSafePriceMinor).toBeGreaterThan(0);
+    expect(result.targetEconomicPriceMinor).toBeGreaterThan(0);
     expect(result.semaphore).toBe("YELLOW");
   });
 });

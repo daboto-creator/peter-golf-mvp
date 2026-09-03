@@ -166,11 +166,19 @@ export function calculateFirstPartyDecision(input: {
     policy.targetMarginBps >= 10_000
   )
     throw new Error("Política de margen inválida.");
+  const minimumSafePriceMinor = inversePrice(
+    costsMinor,
+    policy.minimumMarginBps,
+  );
+  const targetEconomicPriceMinor = inversePrice(
+    costsMinor,
+    policy.targetMarginBps,
+  );
   if (!market.marketReferenceMinor)
     return {
       ...market,
-      minimumSafePriceMinor: null,
-      targetEconomicPriceMinor: null,
+      minimumSafePriceMinor,
+      targetEconomicPriceMinor,
       recommendedPriceMinor: null,
       expectedMarginBps: null,
       semaphore: "YELLOW",
@@ -183,14 +191,6 @@ export function calculateFirstPartyDecision(input: {
         "El precio protege el margen, pero todavía no hay suficiente evidencia de mercado para validar su competitividad.",
       costsMinor,
     };
-  const minimumSafePriceMinor = inversePrice(
-    costsMinor,
-    policy.minimumMarginBps,
-  );
-  const targetEconomicPriceMinor = inversePrice(
-    costsMinor,
-    policy.targetMarginBps,
-  );
   const marketPrice = market.marketReferenceMinor;
   const candidate = Math.max(targetEconomicPriceMinor, marketPrice);
   const recommendedPriceMinor = roundUpToCommercialPrice(
