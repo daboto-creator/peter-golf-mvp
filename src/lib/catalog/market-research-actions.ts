@@ -30,7 +30,6 @@ import {
   type ResearchResult,
 } from "@/lib/pricing/intelligence-research";
 import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1_000;
 
@@ -246,7 +245,6 @@ export async function researchProductMarketAction(
   }
 
   const client = await createClient();
-  const serviceClient = createServiceRoleClient();
   const [brandResult, categoryResult] = await Promise.all([
     client
       .from("brands")
@@ -295,13 +293,13 @@ export async function researchProductMarketAction(
   const inputFingerprint = fingerprint(marketInput);
   const configuredProvider = getConfiguredMarketPriceProvider();
   const [internalResult, savedResult] = await Promise.all([
-    serviceClient
+    client
       .from("intelligence_outcome_snapshots" as never)
       .select("*")
       .eq("source", "FIRST_PARTY")
       .eq("brand", brandResult.data.name)
       .limit(50),
-    serviceClient
+    client
       .from("market_price_researches")
       .select("result_snapshot, checked_at, expires_at, input_snapshot")
       .eq("brand_id", parsed.data.brandId)
