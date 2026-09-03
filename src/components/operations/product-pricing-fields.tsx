@@ -11,8 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { researchProductMarketAction } from "@/lib/catalog/market-research-actions";
+import {
+  recordFirstPartyRecommendationAcceptanceAction,
+  researchProductMarketAction,
+} from "@/lib/catalog/market-research-actions";
 import type { MarketResearchActionResult } from "@/lib/catalog/market-research-types";
+import type { FirstPartyIntelligence } from "@/lib/catalog/market-research-types";
 import type {
   CatalogReference,
   OperationalPricingConfiguration,
@@ -24,7 +28,6 @@ import {
 } from "@/lib/catalog/product-validation";
 import { calculatePricing } from "@/lib/pricing/pricing-engine";
 import type { MarketPriceResult } from "@/lib/pricing/market-price-provider";
-import type { FirstPartyDecision } from "@/lib/pricing/intelligence-economics";
 import { resolvePricingRule } from "@/lib/pricing/pricing-rules";
 import type { MarketReference } from "@/lib/pricing/pricing-types";
 
@@ -41,6 +44,21 @@ function money(value: number): string {
 
 function percent(value: number): string {
   return `${(value / 100).toFixed(1)}%`;
+}
+
+function friendlyPricingStatus(status: string | undefined): string {
+  switch (status) {
+    case "NO_MARKET_REFERENCE":
+      return "Sin referencia suficiente";
+    case "AUTO_COMPETITIVE":
+      return "Precio competitivo";
+    case "AUTO_MARKET_ADJUSTED_UP":
+      return "Ajustado al mercado";
+    case "ABOVE_MARKET_WARNING":
+      return "Por encima del mercado";
+    default:
+      return "Pendiente";
+  }
 }
 
 function parseOptionalMoney(value: string): number | null {
@@ -66,6 +84,7 @@ export function ProductPricingFields({
   register,
   setValue,
   fieldError,
+  initialIntelligence,
 }: {
   mode: "create" | "edit";
   productId?: string;
@@ -75,6 +94,7 @@ export function ProductPricingFields({
   register: UseFormRegister<ProductFormValues>;
   setValue: UseFormSetValue<ProductFormValues>;
   fieldError: (name: keyof ProductFormValues) => string | undefined;
+  initialIntelligence?: FirstPartyIntelligence | null;
 }) {
   const values = useWatch({ control });
   const [researchPending, startResearchTransition] = useTransition();
@@ -86,16 +106,8 @@ export function ProductPricingFields({
     identityKey: string;
     value: MarketPriceResult;
   } | null>(null);
-  const [intelligence, setIntelligence] = useState<{
-    decision: FirstPartyDecision;
-    research: {
-      internalSalesUsed: number;
-      cachedResearchUsed: boolean;
-      mexicoQueriesExecuted: number;
-      usaQueriesExecuted: number;
-      acceptedComparables: unknown[];
-    };
-  } | null>(null);
+  const [intelligence, setIntelligence] =
+    useState<FirstPartyIntelligence | null>(initialIntelligence ?? null);
   const enabled = values.pricingEnabled ?? false;
   const category = categories.find(
     (candidate) => candidate.id === values.categoryId,
@@ -130,6 +142,10 @@ export function ProductPricingFields({
     if (previousIdentityKey.current !== identityKey) {
       previousIdentityKey.current = identityKey;
       if (values.marketResearchId) {
+        // Clear the persisted result when the product identity changes; the next
+        // explicit research run will establish a new snapshot for that input.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setIntelligence(null);
         setValue("marketReference", "", { shouldDirty: true });
         setValue("marketAverage", "", { shouldDirty: true });
         setValue("marketLow", "", { shouldDirty: true });
@@ -478,10 +494,10 @@ export function ProductPricingFields({
       <div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-sm font-semibold">Mercado México</h3>
+            <h3 className="text-sm font-semibold">Best Round Intelligence</h3>
             <p className="text-muted-foreground mt-1 text-xs">
-              Comparables reales de Google Shopping México; la referencia manual
-              permanece disponible.
+              Evidencia de ventas Best Round y mercado externo. La referencia
+              manual permanece disponible como opción avanzada.
             </p>
           </div>
           <Button
@@ -512,6 +528,9 @@ export function ProductPricingFields({
           </p>
         ) : null}
         {intelligence ? <IntelligenceCard intelligence={intelligence} /> : null}
+        <p className="text-muted-foreground mt-4 text-xs font-semibold tracking-wide uppercase">
+          Referencia manual (opcional)
+        </p>
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <PricingField
             id="marketReference"
@@ -706,7 +725,7 @@ export function ProductPricingFields({
                   : intelligence.decision.semaphore === "YELLOW"
                     ? "REVISAR"
                     : "NO RECOMENDABLE"
-                : (preview?.status ?? "Pendiente")
+                : friendlyPricingStatus(preview?.status)
             }
           />
           <Metric
@@ -748,21 +767,33 @@ export function ProductPricingFields({
           <Button
             type="button"
             variant="outline"
-            disabled={!preview}
+            disabled={!preview || !intelligence?.decision.recommendedPriceMinor}
             onClick={() => {
-              if (preview) {
+              if (preview && intelligence?.decision.recommendedPriceMinor) {
                 setValue(
                   "price",
-                  minorUnitsToPriceInput(preview.automaticSuggestedPrice),
+                  minorUnitsToPriceInput(
+                    intelligence.decision.recommendedPriceMinor,
+                  ),
                   {
                     shouldDirty: true,
                     shouldValidate: true,
                   },
                 );
+                if (productId && values.marketResearchId) {
+                  void recordFirstPartyRecommendationAcceptanceAction({
+                    productId,
+                    researchId: values.marketResearchId,
+                    recommendedPriceMinor:
+                      intelligence.decision.recommendedPriceMinor,
+                  });
+                }
               }
             }}
           >
-            Usar recomendado
+            {intelligence?.decision.recommendedPriceMinor
+              ? "Usar recomendado"
+              : "Sin recomendación de mercado"}
           </Button>
         </div>
         <div className="mt-4">
@@ -835,16 +866,7 @@ function Metric({
 function IntelligenceCard({
   intelligence,
 }: {
-  intelligence: {
-    decision: FirstPartyDecision;
-    research: {
-      internalSalesUsed: number;
-      cachedResearchUsed: boolean;
-      mexicoQueriesExecuted: number;
-      usaQueriesExecuted: number;
-      acceptedComparables: unknown[];
-    };
-  };
+  intelligence: FirstPartyIntelligence;
 }) {
   const { decision, research } = intelligence;
   const semaphoreLabel =
@@ -919,10 +941,60 @@ function IntelligenceCard({
           label="Comparables válidos"
           value={String(research.acceptedComparables.length)}
         />
+        <Metric
+          label="Compra ideal"
+          value={
+            decision.idealAcquisitionCostMinor === null
+              ? "—"
+              : `${money(decision.idealAcquisitionCostMinor)} MXN`
+          }
+        />
+        <Metric
+          label="Máximo a pagar"
+          value={
+            decision.maximumAcquisitionCostMinor === null
+              ? "—"
+              : `${money(decision.maximumAcquisitionCostMinor)} MXN`
+          }
+        />
       </div>
       <p className="text-muted-foreground mt-4 text-sm">
         {decision.explanation}
       </p>
+      <details className="mt-3 text-sm">
+        <summary className="cursor-pointer font-semibold">Ver análisis</summary>
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+          <span>Referencia: {researchResolutionLabel(research)}</span>
+          <span>Dispersión: {decision.dispersion}</span>
+          <span>Excluidos: {research.excludedComparables.length}</span>
+          <span>
+            Precio financiero mínimo:{" "}
+            {money(decision.minimumSafePriceMinor ?? 0)} MXN
+          </span>
+          <span>
+            Precio financiero objetivo:{" "}
+            {money(decision.targetEconomicPriceMinor ?? 0)} MXN
+          </span>
+          <span>Motor: {research.engineVersion}</span>
+        </div>
+      </details>
     </div>
   );
+}
+
+function researchResolutionLabel(
+  research: FirstPartyIntelligence["research"],
+): string {
+  switch (research.resolutionSource) {
+    case "BEST_ROUND_SALE":
+      return "Ventas Best Round";
+    case "SAVED_RESEARCH":
+      return "Investigación reciente";
+    case "MEXICO":
+      return "Mercado México";
+    case "USA":
+      return "USA como respaldo";
+    default:
+      return "Sin referencia suficiente";
+  }
 }

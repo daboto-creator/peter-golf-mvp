@@ -70,7 +70,14 @@ function candidateFromSnapshot(
   );
   const observedAt = String(row.sold_at ?? row.observedAt ?? "");
   if (!Number.isSafeInteger(price) || price <= 0 || !observedAt) return null;
-  const title = String(row.title ?? row.product_name ?? row.productName ?? "");
+  const title = String(
+    row.title ??
+      row.product_name ??
+      row.productName ??
+      (typeof row.canonical_model === "string"
+        ? `${typeof row.brand === "string" ? `${row.brand} ` : ""}${row.canonical_model}`
+        : ""),
+  );
   if (!title) return null;
   return {
     title,
@@ -289,7 +296,6 @@ export async function researchProductMarketAction(
     savedResearch,
     forceRefresh,
   });
-  const market: MarketPriceResult = toMarketResult(research);
   const economics: EconomicsCosts = {
     acquisitionCostMinor: minor(parsed.data.acquisitionCost),
     refurbishmentMinor: minor(parsed.data.conditioningCost),
@@ -297,6 +303,14 @@ export async function researchProductMarketAction(
     shippingMinor: minor(parsed.data.shippingSubsidy),
   };
   const decision = calculateFirstPartyDecision({ research, costs: economics });
+  const marketBase = toMarketResult(research);
+  const market: MarketPriceResult = {
+    ...marketBase,
+    medianPriceMxn: decision.marketReferenceMinor,
+    lowPriceMxn: decision.marketLowMinor,
+    highPriceMxn: decision.marketHighMinor,
+    averagePriceMxn: decision.marketReferenceMinor,
+  };
   const checkedAt = market.checkedAt ?? new Date().toISOString();
   const expiresAt = new Date(
     new Date(checkedAt).getTime() + CACHE_TTL_MS,
@@ -317,7 +331,10 @@ export async function researchProductMarketAction(
     requested_median_price: market.medianPriceMxn,
     requested_product_id: parsed.data.productId,
     requested_provider: "best-round-intelligence",
-    requested_result_snapshot: market,
+    requested_result_snapshot: {
+      ...market,
+      intelligence: { research, decision },
+    },
     requested_sample_size: market.sampleSize,
     requested_search_query: market.searchQuery,
   });
@@ -341,4 +358,33 @@ export async function researchProductMarketAction(
     fromCache: research.cachedResearchUsed,
     intelligence: { research, decision },
   };
+}
+
+export async function recordFirstPartyRecommendationAcceptanceAction(input: {
+  productId: string;
+  researchId: string;
+  recommendedPriceMinor: number;
+}): Promise<{ status: "success" | "error"; message: string }> {
+  await requireCatalogManager("/operacion/catalogo");
+  const parsed = z
+    .object({
+      productId: z.uuid(),
+      researchId: z.uuid(),
+      recommendedPriceMinor: z.number().int().positive(),
+    })
+    .safeParse(input);
+  if (!parsed.success)
+    return { status: "error", message: "La recomendación no es válida." };
+  const client = await createClient();
+  const { error } = await client.rpc(
+    "record_product_pricing_recommendation_acceptance" as never,
+    {
+      requested_product_id: parsed.data.productId,
+      requested_research_id: parsed.data.researchId,
+      requested_recommended_price: parsed.data.recommendedPriceMinor,
+    } as never,
+  );
+  return error
+    ? { status: "error", message: "No pudimos registrar la aceptación." }
+    : { status: "success", message: "Recomendación aceptada." };
 }
