@@ -14,6 +14,9 @@ export async function GET(request: Request) {
   if (!serverEnv.SUPABASE_SERVICE_ROLE_KEY)
     return NextResponse.json({ error: "Refresh unavailable" }, { status: 503 });
   const supabase = createServiceRoleClient();
+  // The additive reference tables are newer than generated Database types.
+  // Keep this cast local until types are regenerated from staging.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
   const { data: brands, error } = await db
     .from("brands")
@@ -43,24 +46,27 @@ export async function GET(request: Request) {
   );
   let promoted = 0;
   for (const candidate of (candidates ?? []) as unknown as Array<
-    Record<string, any>
+    Record<string, unknown>
   >) {
-    const brand = brandByKey.get(candidate.normalized_brand_key);
-    if (!brand || !candidate.category_id) continue;
+    const brand = brandByKey.get(String(candidate.normalized_brand_key ?? ""));
+    const categoryId = String(candidate.category_id ?? "");
+    if (!brand || !categoryId) continue;
     const { error: upsertError } = await db
       .from("catalog_product_models" as never)
       .upsert(
         {
           brand_id: brand.id,
-          category_id: candidate.category_id,
-          model_name: candidate.raw_model,
-          normalized_model_name: candidate.normalized_model_key,
+          category_id: categoryId,
+          model_name: String(candidate.raw_model ?? ""),
+          normalized_model_name: String(candidate.normalized_model_key ?? ""),
           status: "active",
           lifecycle_status: "CURRENT",
           reference_priority: 1,
           reference_status: "VERIFIED",
-          reference_source: candidate.source,
-          reference_url: candidate.source_url,
+          reference_source: String(candidate.source ?? "OFFICIAL_MANUFACTURER"),
+          reference_url: candidate.source_url
+            ? String(candidate.source_url)
+            : null,
           last_verified_at: new Date().toISOString(),
         },
         { onConflict: "brand_id,category_id,normalized_model_name" },
