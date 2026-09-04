@@ -83,30 +83,32 @@ export default async function MiGolfPage() {
   const categoryRows = (categories ?? []) as unknown as Array<
     Record<string, unknown>
   >;
-  const categoryOptions: GolfEquipmentCategory[] = categoryRows.map((row) => {
-    const spec = Array.isArray(row.category_spec_profiles)
-      ? row.category_spec_profiles[0]
-      : row.category_spec_profiles;
-    const s = (spec ?? {}) as Record<string, unknown>;
-    const kind = s.club_type
-      ? String(s.club_type)
-      : s.bag_type
-        ? String(s.bag_type)
-        : s.set_type
-          ? String(s.set_type)
-          : null;
-    return {
-      id: String(row.id),
-      slug: String(row.slug),
-      label: displayGolfCategory(
-        String(s.family ?? ""),
+  const categoryOptions: GolfEquipmentCategory[] = categoryRows
+    .map((row) => {
+      const spec = Array.isArray(row.category_spec_profiles)
+        ? row.category_spec_profiles[0]
+        : row.category_spec_profiles;
+      const s = (spec ?? {}) as Record<string, unknown>;
+      const kind = s.club_type
+        ? String(s.club_type)
+        : s.bag_type
+          ? String(s.bag_type)
+          : s.set_type
+            ? String(s.set_type)
+            : null;
+      return {
+        id: String(row.id),
+        slug: String(row.slug),
+        label: displayGolfCategory(
+          String(s.family ?? ""),
+          kind,
+          String(row.name),
+        ),
+        family: String(s.family ?? ""),
         kind,
-        String(row.name),
-      ),
-      family: String(s.family ?? ""),
-      kind,
-    };
-  });
+      };
+    })
+    .filter((category) => ["club", "set", "bag"].includes(category.family));
   const brandOptions = (brands ?? []) as unknown as GolfBrandSuggestion[];
   const modelOptions: GolfModelSuggestion[] = (models ?? []).map((row) => {
     const r = row as Record<string, unknown>;
