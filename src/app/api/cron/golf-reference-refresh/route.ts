@@ -1,207 +1,229 @@
 import { NextResponse } from "next/server";
 
 import { serverEnv } from "@/env/server";
+import {
+  GOLF_REFERENCE_CATEGORIES,
+  runGolfReferenceDiscovery,
+  type CanonicalGolfModel,
+  type DiscoveryBrand,
+} from "@/lib/catalog/golf-reference-discovery";
+import { SerpApiOfficialSearchProvider } from "@/lib/pricing/serpapi-official-search-provider";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const MAX_BRANDS_PER_RUN = 30;
-const MAX_PAGES_PER_BRAND = 3;
-const MAX_CANDIDATES_PER_BRAND = 20;
-const REQUEST_TIMEOUT_MS = 8_000;
-const CATEGORY_HINTS: Array<[string, string]> = [
-  ["fairway", "fairway-wood"],
-  ["hybrid", "hybrid"],
-  ["wedge", "wedge"],
-  ["putter", "putter"],
-  ["iron", "iron"],
-  ["driver", "driver"],
-];
+const MAX_MANUAL_BRANDS = 5;
 
-async function discoverOfficialModels(brand: {
-  name: string;
-  official_domain: string | null;
-}) {
-  if (!brand.official_domain)
-    return [] as Array<{ model: string; category: string; url: string }>;
-  const base = `https://${brand.official_domain}`;
-  const urls = [base, `${base}/golf-clubs`, `${base}/golf-clubs/drivers`].slice(
-    0,
-    MAX_PAGES_PER_BRAND,
-  );
-  const found: Array<{ model: string; category: string; url: string }> = [];
-  for (const url of urls) {
-    if (found.length >= MAX_CANDIDATES_PER_BRAND) break;
-    try {
-      const response = await fetch(url, {
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        headers: { accept: "text/html,application/xhtml+xml" },
-      });
-      if (!response.ok) continue;
-      const html = (await response.text()).slice(0, 500_000);
-      const names = [
-        ...html.matchAll(
-          /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
-        ),
-      ]
-        .map((match) => match[1])
-        .flatMap((raw) => {
-          try {
-            const value = JSON.parse(raw);
-            return Array.isArray(value) ? value : [value];
-          } catch {
-            return [];
-          }
-        })
-        .map((item) => (typeof item?.name === "string" ? item.name : ""));
-      for (const name of names) {
-        const text = name.trim().replace(/\s+/g, " ");
-        const lower = text.toLowerCase();
-        const category = CATEGORY_HINTS.find(([hint]) =>
-          lower.includes(hint),
-        )?.[1];
-        if (!category || text.length < 2 || text.length > 160) continue;
-        if (!lower.includes(brand.name.toLowerCase())) continue;
-        const model = text
-          .replace(new RegExp(brand.name, "ig"), "")
-          .replace(
-            /\b(driver|fairway wood|fairway|hybrid|iron|wedge|putter)\b/gi,
-            "",
-          )
-          .trim();
-        if (model.length < 2) continue;
-        if (
-          !found.some(
-            (item) =>
-              item.category === category &&
-              item.model.toLowerCase() === model.toLowerCase(),
-          )
-        )
-          found.push({ model, category, url });
-      }
-    } catch {
-      // A failing manufacturer is isolated from the rest of the monthly run.
-    }
-  }
-  return found;
+function requestedBrandSlugs(request: Request): string[] {
+  const raw = new URL(request.url).searchParams.get("brands");
+  if (!raw) return [];
+  return [
+    ...new Set(
+      raw
+        .split(",")
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => /^[a-z0-9-]+$/.test(value)),
+    ),
+  ].slice(0, MAX_MANUAL_BRANDS);
 }
 
-/** Monthly bounded promotion of trusted, pre-validated discovery candidates. */
+/** Monthly bounded discovery from configured official manufacturer domains. */
 export async function GET(request: Request) {
+  const startedAt = Date.now();
   const expected = serverEnv.CRON_SECRET;
   const authorization = request.headers.get("authorization");
   if (!expected || authorization !== `Bearer ${expected}`)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!serverEnv.SUPABASE_SERVICE_ROLE_KEY)
     return NextResponse.json({ error: "Refresh unavailable" }, { status: 503 });
+
+  const requestUrl = new URL(request.url);
+  const requestedSlugs = requestedBrandSlugs(request);
+  if (requestUrl.searchParams.has("brands") && !requestedSlugs.length)
+    return NextResponse.json({ error: "Invalid brand scope" }, { status: 400 });
+  const force = requestUrl.searchParams.get("force") === "1";
   const supabase = createServiceRoleClient();
-  // The additive reference tables are newer than generated Database types.
-  // Keep this cast local until types are regenerated from staging.
+  // These additive reference tables are newer than generated Database types.
+  // Keep the cast local until types are regenerated from staging.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
-  const { data: brands, error } = await db
+
+  let brandQuery = db
     .from("brands")
-    .select("id,name,slug,official_domain")
+    .select("id,name,slug,official_domain,last_verified_at")
     .eq("status", "active")
-    .limit(200);
-  if (error)
+    .not("official_domain", "is", null)
+    .order("created_at", { ascending: true })
+    .limit(MAX_BRANDS_PER_RUN);
+  if (requestedSlugs.length) brandQuery = brandQuery.in("slug", requestedSlugs);
+  const [brandResult, categoryResult, canonicalResult] = await Promise.all([
+    brandQuery,
+    db
+      .from("categories")
+      .select("id,name,slug")
+      .in(
+        "slug",
+        GOLF_REFERENCE_CATEGORIES.map((category) => category.slug),
+      )
+      .eq("status", "active"),
+    db
+      .from("catalog_product_models")
+      .select("id,brand_id,category_id,normalized_model_name")
+      .eq("status", "active"),
+  ]);
+  if (brandResult.error || categoryResult.error || canonicalResult.error)
     return NextResponse.json({ error: "Refresh failed" }, { status: 500 });
-  let discovered = 0;
-  let discoveryFailures = 0;
-  for (const brand of (brands ?? []).slice(0, MAX_BRANDS_PER_RUN)) {
-    const models = await discoverOfficialModels(brand);
-    if (!models.length && brand.official_domain) discoveryFailures += 1;
-    for (const item of models) {
-      const normalizedBrandKey = brand.slug.replace(/-/g, "");
-      const normalizedModelKey = item.model
-        .normalize("NFKD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
-      const { data: category } = await db
-        .from("categories")
-        .select("id")
-        .eq("slug", item.category)
-        .maybeSingle();
-      if (!category?.id || !normalizedModelKey) continue;
-      await db.from("golf_reference_discovery_candidates").upsert(
-        {
-          raw_brand: brand.name,
-          raw_model: item.model,
-          category_id: category.id,
-          normalized_brand_key: normalizedBrandKey,
-          normalized_model_key: normalizedModelKey,
-          source: "OFFICIAL_MANUFACTURER",
-          source_url: item.url,
-          status: "VERIFIED",
-          evidence: {
-            discoveredBy: "jsonld",
-            fetchedAt: new Date().toISOString(),
+
+  const categoriesBySlug = new Map(
+    (categoryResult.data ?? []).map(
+      (category: { id: string; name: string; slug: string }) => [
+        category.slug,
+        category,
+      ],
+    ),
+  );
+  const categories = GOLF_REFERENCE_CATEGORIES.flatMap((category) => {
+    const stored = categoriesBySlug.get(category.slug) as
+      { id: string } | undefined;
+    return stored ? [{ ...category, id: stored.id }] : [];
+  });
+  if (categories.length !== GOLF_REFERENCE_CATEGORIES.length)
+    return NextResponse.json(
+      { error: "Refresh taxonomy unavailable" },
+      { status: 500 },
+    );
+
+  const categorySlugById = new Map(
+    [...categoriesBySlug.entries()].map(([slug, category]) => [
+      (category as { id: string }).id,
+      slug,
+    ]),
+  );
+  const brands: DiscoveryBrand[] = (brandResult.data ?? []).map(
+    (brand: Record<string, unknown>) => ({
+      id: String(brand.id),
+      name: String(brand.name),
+      slug: String(brand.slug),
+      officialDomain: String(brand.official_domain),
+      lastVerifiedAt: brand.last_verified_at
+        ? String(brand.last_verified_at)
+        : null,
+    }),
+  );
+  if (requestedSlugs.length && brands.length !== requestedSlugs.length)
+    return NextResponse.json({ error: "Unknown brand scope" }, { status: 400 });
+  const canonicalModels: CanonicalGolfModel[] = (
+    canonicalResult.data ?? []
+  ).flatMap((model: Record<string, unknown>) => {
+    const categorySlug = categorySlugById.get(String(model.category_id));
+    return categorySlug
+      ? [
+          {
+            id: String(model.id),
+            brandId: String(model.brand_id),
+            categoryId: String(model.category_id),
+            categorySlug,
+            normalizedModelName: String(model.normalized_model_name),
           },
+        ]
+      : [];
+  });
+  const searchProvider =
+    serverEnv.MARKET_PRICE_PROVIDER === "serpapi" && serverEnv.SERPAPI_API_KEY
+      ? new SerpApiOfficialSearchProvider(serverEnv.SERPAPI_API_KEY)
+      : null;
+  const discovery = await runGolfReferenceDiscovery({
+    brands,
+    categories,
+    canonicalModels,
+    searchProvider,
+    force,
+  });
+
+  let verifiedPromotions = 0;
+  let persistenceErrors = 0;
+  for (const item of discovery.discoveries) {
+    if (item.decision === "EXISTING" && item.canonicalId) {
+      const { error } = await db
+        .from("catalog_product_models")
+        .update({
+          reference_status: "VERIFIED",
+          reference_source: "OFFICIAL_MANUFACTURER",
+          reference_url: item.sourceUrl,
+          last_verified_at: new Date().toISOString(),
+        })
+        .eq("id", item.canonicalId);
+      if (error) persistenceErrors += 1;
+      continue;
+    }
+    const candidateStatus =
+      item.decision === "VERIFIED" ? "VERIFIED" : "NEEDS_REVIEW";
+    const { error: candidateError } = await db
+      .from("golf_reference_discovery_candidates")
+      .upsert(
+        {
+          raw_brand: item.brandName,
+          raw_model: item.modelName,
+          category_id: item.categoryId,
+          normalized_brand_key: item.brandKey,
+          normalized_model_key: item.normalizedModelName,
+          source: "OFFICIAL_MANUFACTURER",
+          source_url: item.sourceUrl,
+          status: candidateStatus,
+          evidence: item.evidence,
         },
         { onConflict: "normalized_brand_key,normalized_model_key,category_id" },
       );
-      discovered += 1;
+    if (candidateError) {
+      persistenceErrors += 1;
+      continue;
     }
-  }
-  const { data: candidates, error: candidateError } = await db
-    .from("golf_reference_discovery_candidates" as never)
-    .select(
-      "raw_brand,raw_model,category_id,normalized_brand_key,normalized_model_key,source,source_url,evidence",
-    )
-    .eq("status", "VERIFIED")
-    .eq("source", "OFFICIAL_MANUFACTURER")
-    .limit(200);
-  if (candidateError)
-    return NextResponse.json({ error: "Refresh failed" }, { status: 500 });
-  const brandByKey = new Map<string, { id: string }>(
-    (brands ?? []).map(
-      (brand: { id: string; slug: string }) =>
-        [brand.slug.replace(/-/g, ""), { id: brand.id }] as [
-          string,
-          { id: string },
-        ],
-    ),
-  );
-  let promoted = 0;
-  for (const candidate of (candidates ?? []) as unknown as Array<
-    Record<string, unknown>
-  >) {
-    const brand = brandByKey.get(String(candidate.normalized_brand_key ?? ""));
-    const categoryId = String(candidate.category_id ?? "");
-    if (!brand || !categoryId) continue;
-    const { error: upsertError } = await db
-      .from("catalog_product_models" as never)
+    if (item.decision !== "VERIFIED") continue;
+    const { error: promotionError } = await db
+      .from("catalog_product_models")
       .upsert(
         {
-          brand_id: brand.id,
-          category_id: categoryId,
-          model_name: String(candidate.raw_model ?? ""),
-          normalized_model_name: String(candidate.normalized_model_key ?? ""),
+          brand_id: item.brandId,
+          category_id: item.categoryId,
+          model_name: item.modelName,
+          normalized_model_name: item.normalizedModelName,
           status: "active",
           lifecycle_status: "CURRENT",
           reference_priority: 1,
           reference_status: "VERIFIED",
-          reference_source: String(candidate.source ?? "OFFICIAL_MANUFACTURER"),
-          reference_url: candidate.source_url
-            ? String(candidate.source_url)
-            : null,
+          reference_source: "OFFICIAL_MANUFACTURER",
+          reference_url: item.sourceUrl,
           last_verified_at: new Date().toISOString(),
         },
         { onConflict: "brand_id,category_id,normalized_model_name" },
       );
-    if (!upsertError) promoted += 1;
+    if (promotionError) persistenceErrors += 1;
+    else verifiedPromotions += 1;
   }
+  for (const result of discovery.brands) {
+    if (result.status !== "SUCCESS") continue;
+    const brand = brands.find((value) => value.name === result.brand);
+    if (!brand) continue;
+    const { error } = await db
+      .from("brands")
+      .update({ last_verified_at: new Date().toISOString() })
+      .eq("id", brand.id);
+    if (error) persistenceErrors += 1;
+  }
+
   return NextResponse.json({
-    ok: true,
+    ok: persistenceErrors === 0,
     scope: "golf-equipment",
-    activeBrands: brands?.length ?? 0,
-    discovered,
-    promoted,
-    pendingReview: 0,
-    brandsChecked: Math.min(brands?.length ?? 0, MAX_BRANDS_PER_RUN),
-    pagesPerBrand: MAX_PAGES_PER_BRAND,
-    failures: discoveryFailures,
+    mode: requestedSlugs.length ? "bounded-manual" : "monthly",
+    searchProvider: searchProvider ? "serpapi" : "unavailable",
+    requestedBrands: requestedSlugs,
+    ...discovery.summary,
+    verifiedPromotions,
+    persistenceErrors,
+    durationMs: Date.now() - startedAt,
+    brands: discovery.brands,
+    diagnostics: discovery.diagnostics,
   });
 }
