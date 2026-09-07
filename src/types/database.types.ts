@@ -7241,6 +7241,7 @@ export type Database = {
         Row: {
           archived_at: string | null;
           brand_id: string;
+          canonical_model_id: string | null;
           category_id: string;
           compare_at_price: number | null;
           condition: Database["public"]["Enums"]["product_condition"];
@@ -7257,6 +7258,7 @@ export type Database = {
           id: string;
           lead_time_max_days: number | null;
           lead_time_min_days: number | null;
+          model_reference_status: string;
           name: string;
           price: number;
           price_is_estimate: boolean;
@@ -7274,6 +7276,7 @@ export type Database = {
         Insert: {
           archived_at?: string | null;
           brand_id: string;
+          canonical_model_id?: string | null;
           category_id: string;
           compare_at_price?: number | null;
           condition: Database["public"]["Enums"]["product_condition"];
@@ -7290,6 +7293,7 @@ export type Database = {
           id?: string;
           lead_time_max_days?: number | null;
           lead_time_min_days?: number | null;
+          model_reference_status?: string;
           name: string;
           price: number;
           price_is_estimate?: boolean;
@@ -7307,6 +7311,7 @@ export type Database = {
         Update: {
           archived_at?: string | null;
           brand_id?: string;
+          canonical_model_id?: string | null;
           category_id?: string;
           compare_at_price?: number | null;
           condition?: Database["public"]["Enums"]["product_condition"];
@@ -7323,6 +7328,7 @@ export type Database = {
           id?: string;
           lead_time_max_days?: number | null;
           lead_time_min_days?: number | null;
+          model_reference_status?: string;
           name?: string;
           price?: number;
           price_is_estimate?: boolean;
@@ -7343,6 +7349,13 @@ export type Database = {
             columns: ["brand_id"];
             isOneToOne: false;
             referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "products_canonical_model_id_fkey";
+            columns: ["canonical_model_id"];
+            isOneToOne: false;
+            referencedRelation: "catalog_product_models";
             referencedColumns: ["id"];
           },
           {
@@ -8612,6 +8625,39 @@ export type Database = {
           product_id: string;
           variant_id: string;
         }[];
+      };
+      create_priced_golf_product_with_model_reference: {
+        Args: {
+          requested_brand_id: string;
+          requested_canonical_model_id: string | null;
+          requested_category_id: string;
+          requested_compare_at_price: unknown;
+          requested_components: Json;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_condition_score: number | null;
+          requested_currency: unknown;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_model_reference_status: string;
+          requested_name: string;
+          requested_price: unknown;
+          requested_price_is_estimate: boolean;
+          requested_pricing: Json;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+          requested_specifications: Json;
+          requested_target_player:
+            Database["public"]["Enums"]["product_target_player"] | null;
+        };
+        Returns: { product_id: string; variant_id: string }[];
       };
       create_product_with_base_variant: {
         Args: {
@@ -11129,6 +11175,41 @@ export type Database = {
           variant_id: string;
         }[];
       };
+      update_golf_product_with_model_reference: {
+        Args: {
+          expected_published: boolean;
+          expected_status: Database["public"]["Enums"]["product_status"];
+          requested_brand_id: string;
+          requested_canonical_model_id: string | null;
+          requested_category_id: string;
+          requested_compare_at_price: unknown;
+          requested_components?: Json;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_condition_score: number | null;
+          requested_currency: unknown;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_model_reference_status: string;
+          requested_name: string;
+          requested_price: unknown;
+          requested_price_is_estimate: boolean;
+          requested_product_id: string;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+          requested_specifications: Json;
+          requested_target_player:
+            Database["public"]["Enums"]["product_target_player"] | null;
+        };
+        Returns: { product_id: string; variant_id: string }[];
+      };
       update_manual_order_draft: {
         Args: {
           expected_version: number;
@@ -11249,6 +11330,42 @@ export type Database = {
           product_id: string;
           variant_id: string;
         }[];
+      };
+      update_priced_golf_product_with_model_reference: {
+        Args: {
+          expected_published: boolean;
+          expected_status: Database["public"]["Enums"]["product_status"];
+          requested_brand_id: string;
+          requested_canonical_model_id: string | null;
+          requested_category_id: string;
+          requested_compare_at_price: unknown;
+          requested_components: Json;
+          requested_condition: Database["public"]["Enums"]["product_condition"];
+          requested_condition_grade:
+            Database["public"]["Enums"]["product_condition_grade"] | null;
+          requested_condition_notes: string | null;
+          requested_condition_score: number | null;
+          requested_currency: unknown;
+          requested_description: string | null;
+          requested_featured: boolean;
+          requested_fulfillment_type: Database["public"]["Enums"]["fulfillment_type"];
+          requested_lead_time_max_days: number | null;
+          requested_lead_time_min_days: number | null;
+          requested_model_reference_status: string;
+          requested_name: string;
+          requested_price: unknown;
+          requested_price_is_estimate: boolean;
+          requested_pricing: Json;
+          requested_product_id: string;
+          requested_published: boolean;
+          requested_short_description: string | null;
+          requested_sku: string;
+          requested_slug: string;
+          requested_specifications: Json;
+          requested_target_player:
+            Database["public"]["Enums"]["product_target_player"] | null;
+        };
+        Returns: { product_id: string; variant_id: string }[];
       };
       update_product_image: {
         Args: {

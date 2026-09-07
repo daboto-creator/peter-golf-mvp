@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/cron/golf-reference-refresh", "schedule": "0 4 1 * *" }
+  ]
+}

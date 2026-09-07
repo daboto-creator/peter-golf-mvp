@@ -21,22 +21,29 @@ from public.roles where name = 'admin';
 select set_config('request.jwt.claim.sub', '1a000000-0000-4000-8000-000000000001', true);
 set local role authenticated;
 
-select * from public.create_priced_golf_product_with_base_variant(
+select * from public.create_priced_golf_product_with_model_reference(
   'pricing-driver-test', 'PRICING-DRIVER-001', 'Pricing Driver Test',
   'Driver de prueba', 'Producto ficticio para pricing', 'new', null, null,
-  (select id from public.brands where slug = 'marca-demo-norte'),
+  (select id from public.brands where slug = 'titleist'),
   (select id from public.categories where slug = 'driver'),
   'in_stock', 1139900, null, 'MXN', false, false, false, null, null,
   null, 'unisex',
-  '{"clubType":"driver","loftDegrees":10.5}'::jsonb, '[]'::jsonb,
-  '{"acquisitionChannel":"purchase","acquisitionCost":800000,"conditioningCost":20000,"packagingCost":10000,"shippingSubsidy":15000,"marketConfidence":"unavailable","marketSampleSize":0}'::jsonb
+  '{"clubType":"driver","model":"GT3","loftDegrees":10.5}'::jsonb, '[]'::jsonb,
+  '{"acquisitionChannel":"purchase","acquisitionCost":800000,"conditioningCost":20000,"packagingCost":10000,"shippingSubsidy":15000,"marketConfidence":"unavailable","marketSampleSize":0}'::jsonb,
+  (select model.id from public.catalog_product_models model
+   join public.brands brand on brand.id = model.brand_id
+   join public.categories category on category.id = model.category_id
+   where brand.slug = 'titleist' and category.slug = 'driver'
+     and model.normalized_model_name = 'gt3'),
+  'RESOLVED'
 );
 
 reset role;
 do $$
 declare selected_product record; selected_pricing record; selected_cost numeric;
 begin
-  select id, price, cost into strict selected_product
+  select id, price, cost, canonical_model_id, model_reference_status
+  into strict selected_product
   from public.products where slug = 'pricing-driver-test';
   select product_pricing.* into strict selected_pricing
   from public.product_pricing where product_id = selected_product.id;
@@ -45,6 +52,8 @@ begin
 
   if selected_product.price <> 1139900
     or selected_product.cost is not null
+    or selected_product.canonical_model_id is null
+    or selected_product.model_reference_status <> 'RESOLVED'
     or selected_cost <> 800000
     or selected_pricing.pricing_rule_code <> 'DRIVER_NEW'
     or selected_pricing.financial_price <> 1139835

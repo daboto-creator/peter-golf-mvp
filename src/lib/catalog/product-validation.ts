@@ -111,6 +111,12 @@ export const productFormSchema = z
       }),
     brandId: z.uuid("Selecciona una marca válida."),
     categoryId: z.uuid("Selecciona una categoría válida."),
+    canonicalModelId: z.union([z.literal(""), z.uuid()]),
+    modelReferenceStatus: z.enum([
+      "RESOLVED",
+      "USER_ENTERED",
+      "PENDING_REVIEW",
+    ]),
     productFamily: z.enum(["", "club", "bag", "set"]),
     shortDescription: optionalText(500),
     description: optionalText(10_000),
@@ -187,6 +193,16 @@ export const productFormSchema = z
     components: z.array(componentSchema).max(30),
   })
   .superRefine((values, context) => {
+    if (
+      (values.canonicalModelId && values.modelReferenceStatus !== "RESOLVED") ||
+      (!values.canonicalModelId && values.modelReferenceStatus === "RESOLVED")
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["canonicalModelId"],
+        message: "La referencia canónica del modelo no es consistente.",
+      });
+    }
     const price = parseMoneyToMinorUnits(values.price);
     const compareAtPrice = values.compareAtPrice
       ? parseMoneyToMinorUnits(values.compareAtPrice)
@@ -434,6 +450,8 @@ export type ProductMutationInput = {
   sku: string;
   brandId: string;
   categoryId: string;
+  canonicalModelId: string | null;
+  modelReferenceStatus: "RESOLVED" | "USER_ENTERED" | "PENDING_REVIEW";
   productFamily: "" | "club" | "bag" | "set";
   shortDescription: string | null;
   description: string | null;
@@ -606,6 +624,8 @@ export function validateProductForm(
       sku: data.sku,
       brandId: data.brandId,
       categoryId: data.categoryId,
+      canonicalModelId: data.canonicalModelId || null,
+      modelReferenceStatus: data.modelReferenceStatus,
       productFamily: data.productFamily,
       shortDescription: data.shortDescription || null,
       description: data.description || null,

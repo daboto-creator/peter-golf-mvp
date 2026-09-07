@@ -17,6 +17,7 @@ import {
 } from "react-hook-form";
 
 import { CatalogFeedback } from "@/components/operations/catalog-feedback";
+import { GolfModelCombobox } from "@/components/catalog/golf-model-combobox";
 import { ProductGolfFields } from "@/components/operations/product-golf-fields";
 import { ProductPricingFields } from "@/components/operations/product-pricing-fields";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ import type {
   OperationalPricingConfiguration,
 } from "@/lib/catalog/operational-products";
 import type { FirstPartyIntelligence } from "@/lib/catalog/market-research-types";
+import type { GolfModelSuggestion } from "@/lib/catalog/golf-equipment-reference";
 import { groupProductCategoryOptions } from "@/lib/catalog/taxonomy-validation";
 import {
   generateProductSlug,
@@ -52,6 +54,7 @@ export function ProductForm({
   defaultValues,
   brands,
   categories,
+  models,
   pricingConfiguration,
   initialIntelligence,
   disabled = false,
@@ -61,6 +64,7 @@ export function ProductForm({
   defaultValues: ProductFormValues;
   brands: CatalogReference[];
   categories: CatalogReference[];
+  models: GolfModelSuggestion[];
   pricingConfiguration: OperationalPricingConfiguration | null;
   initialIntelligence?: FirstPartyIntelligence | null;
   disabled?: boolean;
@@ -90,11 +94,22 @@ export function ProductForm({
   const clubType = useWatch({ control, name: "clubType" });
   const bagType = useWatch({ control, name: "bagType" });
   const model = useWatch({ control, name: "model" });
+  const canonicalModelId = useWatch({ control, name: "canonicalModelId" });
+  const modelReferenceStatus = useWatch({
+    control,
+    name: "modelReferenceStatus",
+  });
   const loftDegrees = useWatch({ control, name: "loftDegrees" });
   const ironNumber = useWatch({ control, name: "ironNumber" });
   const shaftFlex = useWatch({ control, name: "shaftFlex" });
   const acquisitionChannel = useWatch({ control, name: "acquisitionChannel" });
   const previousCategoryId = useRef(categoryId);
+  const previousBrandId = useRef(brandId);
+  const [manualModelRequested, setManualModelRequested] = useState(
+    Boolean(defaultValues.model && !defaultValues.canonicalModelId),
+  );
+  const manualModelEntry =
+    manualModelRequested || modelReferenceStatus === "PENDING_REVIEW";
   const skuRequestId = useRef(0);
   const unavailable =
     disabled || brands.length === 0 || categories.length === 0;
@@ -117,6 +132,16 @@ export function ProductForm({
     );
     if (previousCategoryId.current !== categoryId) {
       clearGolfSpecificationValues(setValue);
+      if (canonicalModelId) {
+        setValue("canonicalModelId", "", { shouldDirty: true });
+        setValue(
+          "modelReferenceStatus",
+          model ? "PENDING_REVIEW" : "USER_ENTERED",
+          {
+            shouldDirty: true,
+          },
+        );
+      }
       previousCategoryId.current = categoryId;
     }
     setValue("productFamily", category?.family ?? "", {
@@ -125,7 +150,21 @@ export function ProductForm({
     if (category?.clubType) setValue("clubType", category.clubType);
     if (category?.bagType) setValue("bagType", category.bagType);
     if (category?.setType) setValue("setType", category.setType);
-  }, [categories, categoryId, setValue]);
+  }, [canonicalModelId, categories, categoryId, model, setValue]);
+
+  useEffect(() => {
+    if (previousBrandId.current !== brandId && canonicalModelId) {
+      setValue("canonicalModelId", "", { shouldDirty: true });
+      setValue(
+        "modelReferenceStatus",
+        model ? "PENDING_REVIEW" : "USER_ENTERED",
+        {
+          shouldDirty: true,
+        },
+      );
+    }
+    previousBrandId.current = brandId;
+  }, [brandId, canonicalModelId, model, setValue]);
 
   const selectedBrandName =
     brands.find((brand) => brand.id === brandId)?.name ?? "";
@@ -295,23 +334,6 @@ export function ProductForm({
                   : "El SKU es estable y no cambia al editar el producto."}
               </p>
             </FormField>
-            <FormField id="brandId" label="Marca" error={fieldError("brandId")}>
-              <select
-                id="brandId"
-                className={selectClassName}
-                {...register("brandId")}
-              >
-                <option value="">Selecciona una marca</option>
-                {brands.map((brand) => (
-                  <option key={brand.id} value={brand.id}>
-                    {brand.name}
-                    {brand.status === "archived"
-                      ? " (archivada · relación actual)"
-                      : ""}
-                  </option>
-                ))}
-              </select>
-            </FormField>
             <FormField
               id="categoryId"
               label="Categoría"
@@ -338,6 +360,81 @@ export function ProductForm({
                   </optgroup>
                 ))}
               </select>
+            </FormField>
+            <FormField id="brandId" label="Marca" error={fieldError("brandId")}>
+              <select
+                id="brandId"
+                className={selectClassName}
+                {...register("brandId")}
+              >
+                <option value="">Selecciona una marca</option>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name}
+                    {brand.status === "archived"
+                      ? " (archivada · relación actual)"
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField
+              id="model"
+              label="Modelo"
+              error={fieldError("model") ?? fieldError("canonicalModelId")}
+              className="sm:col-span-2"
+            >
+              <input type="hidden" {...register("model")} />
+              <input type="hidden" {...register("canonicalModelId")} />
+              <input type="hidden" {...register("modelReferenceStatus")} />
+              <GolfModelCombobox
+                id="model"
+                models={models}
+                brandId={brandId}
+                categoryId={categoryId}
+                value={model}
+                canonicalModelId={canonicalModelId}
+                manualMode={manualModelEntry}
+                disabled={unavailable || pending}
+                onChange={(nextModel, nextCanonicalModelId) => {
+                  setValue("model", nextModel, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  setValue("canonicalModelId", nextCanonicalModelId, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  setValue(
+                    "modelReferenceStatus",
+                    nextCanonicalModelId
+                      ? "RESOLVED"
+                      : nextModel.trim()
+                        ? "PENDING_REVIEW"
+                        : "USER_ENTERED",
+                    { shouldDirty: true, shouldValidate: true },
+                  );
+                }}
+                onManualModeChange={(manual) => {
+                  setManualModelRequested(manual);
+                  if (manual) {
+                    setValue("canonicalModelId", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    setValue(
+                      "modelReferenceStatus",
+                      model.trim() ? "PENDING_REVIEW" : "USER_ENTERED",
+                      { shouldDirty: true, shouldValidate: true },
+                    );
+                  } else if (!canonicalModelId) {
+                    setValue("modelReferenceStatus", "USER_ENTERED", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }
+                }}
+              />
             </FormField>
           </div>
           <FormField
@@ -596,7 +693,6 @@ function clearGolfSpecificationValues(
     "clubType",
     "bagType",
     "setType",
-    "model",
     "modelYear",
     "handedness",
     "shaftMaterial",

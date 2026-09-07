@@ -192,7 +192,6 @@ export function ProductGolfFields({
             )}
           </SelectField>
         ) : null}
-        <TextField id="model" label="Modelo" register={register} />
         <TextField
           id="modelYear"
           label="Año"

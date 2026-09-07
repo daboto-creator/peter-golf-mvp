@@ -52,6 +52,7 @@ export default async function NewProductPage() {
         defaultValues={emptyProductFormValues}
         brands={references.data?.brands ?? []}
         categories={references.data?.categories ?? []}
+        models={references.data?.models ?? []}
         pricingConfiguration={references.data?.pricingConfiguration ?? null}
       />
     </div>

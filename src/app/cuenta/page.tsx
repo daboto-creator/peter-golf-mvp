@@ -87,6 +87,19 @@ export default async function AccountPage({
             </Button>
           </CardContent>
         </Card>
+        <Card className="border-pg-gold/40 rounded-[20px]">
+          <CardHeader>
+            <CardTitle>Mi Golf</CardTitle>
+            <CardDescription>
+              Tu perfil de juego, equipo y objetivos en un solo lugar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/mi-golf">Ver Mi Golf</Link>
+            </Button>
+          </CardContent>
+        </Card>
         <div className="grid gap-5 sm:grid-cols-2">
           <Card>
             <CardHeader>

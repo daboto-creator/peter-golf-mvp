@@ -106,6 +106,50 @@ async function categoryProfileMatches(input: {
   );
 }
 
+async function resolveCanonicalModel(input: {
+  canonicalModelId: string | null;
+  modelReferenceStatus: "RESOLVED" | "USER_ENTERED" | "PENDING_REVIEW";
+  brandId: string;
+  categoryId: string;
+}): Promise<{ modelName: string | null; error: string | null }> {
+  if (!input.canonicalModelId) {
+    return input.modelReferenceStatus === "RESOLVED"
+      ? { modelName: null, error: "Selecciona nuevamente el modelo canónico." }
+      : { modelName: null, error: null };
+  }
+  if (input.modelReferenceStatus !== "RESOLVED") {
+    return {
+      modelName: null,
+      error: "Selecciona nuevamente el modelo canónico.",
+    };
+  }
+  const client = await createClient();
+  const result = await client
+    .from("catalog_product_models")
+    .select("model_name")
+    .eq("id", input.canonicalModelId)
+    .eq("brand_id", input.brandId)
+    .eq("category_id", input.categoryId)
+    .eq("status", "active")
+    .maybeSingle();
+  return result.error || !result.data
+    ? {
+        modelName: null,
+        error:
+          "El modelo ya no corresponde a la marca y categoría seleccionadas.",
+      }
+    : { modelName: result.data.model_name, error: null };
+}
+
+function specificationsWithCanonicalModel(
+  specifications: Record<string, string | number | boolean | null> | null,
+  modelName: string | null,
+) {
+  return specifications && modelName
+    ? { ...specifications, model: modelName }
+    : specifications;
+}
+
 async function findIdentityConflicts({
   slug,
   sku,
@@ -277,6 +321,11 @@ export async function createProductAction(
     });
   }
 
+  const canonicalModel = await resolveCanonicalModel(validated.data);
+  if (canonicalModel.error) {
+    return validationFailure({ model: [canonicalModel.error] });
+  }
+
   const conflicts = await findIdentityConflicts({
     slug: validated.data.slug,
     sku: validated.data.sku,
@@ -287,9 +336,10 @@ export async function createProductAction(
 
   const client = await createClient();
   const { data, error } = await client
-    .rpc("create_priced_golf_product_with_base_variant", {
+    .rpc("create_priced_golf_product_with_model_reference", {
       requested_brand_id: validated.data.brandId,
       requested_category_id: validated.data.categoryId,
+      requested_canonical_model_id: validated.data.canonicalModelId,
       requested_compare_at_price: validated.data.compareAtPrice,
       requested_condition: validated.data.condition,
       requested_condition_grade: validated.data.conditionGrade,
@@ -310,7 +360,11 @@ export async function createProductAction(
       requested_short_description: validated.data.shortDescription,
       requested_sku: validated.data.sku,
       requested_slug: validated.data.slug,
-      requested_specifications: validated.data.specifications,
+      requested_specifications: specificationsWithCanonicalModel(
+        validated.data.specifications,
+        canonicalModel.modelName,
+      ),
+      requested_model_reference_status: validated.data.modelReferenceStatus,
       requested_target_player: validated.data.targetPlayer,
     })
     .single();
@@ -432,6 +486,11 @@ export async function updateProductAction(
     });
   }
 
+  const canonicalModel = await resolveCanonicalModel(validated.data);
+  if (canonicalModel.error) {
+    return validationFailure({ model: [canonicalModel.error] });
+  }
+
   if (
     existing.data.condition === "used" &&
     validated.data.condition === "new"
@@ -467,6 +526,7 @@ export async function updateProductAction(
     expected_status: expectedState.status,
     requested_brand_id: validated.data.brandId,
     requested_category_id: validated.data.categoryId,
+    requested_canonical_model_id: validated.data.canonicalModelId,
     requested_compare_at_price: validated.data.compareAtPrice,
     requested_condition: validated.data.condition,
     requested_condition_grade: validated.data.conditionGrade,
@@ -487,15 +547,19 @@ export async function updateProductAction(
     requested_short_description: validated.data.shortDescription,
     requested_sku: validated.data.sku,
     requested_slug: validated.data.slug,
-    requested_specifications: validated.data.specifications,
+    requested_specifications: specificationsWithCanonicalModel(
+      validated.data.specifications,
+      canonicalModel.modelName,
+    ),
+    requested_model_reference_status: validated.data.modelReferenceStatus,
     requested_target_player: validated.data.targetPlayer,
   };
   const mutation = validated.data.pricing
-    ? client.rpc("update_priced_golf_product_with_base_variant", {
+    ? client.rpc("update_priced_golf_product_with_model_reference", {
         ...mutationArguments,
         requested_pricing: validated.data.pricing,
       })
-    : client.rpc("update_golf_product_with_base_variant", mutationArguments);
+    : client.rpc("update_golf_product_with_model_reference", mutationArguments);
   const { data, error } = await mutation.single();
 
   if (error) {
