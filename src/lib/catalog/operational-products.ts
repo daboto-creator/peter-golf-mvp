@@ -7,6 +7,7 @@ import {
   type ProductFormValues,
 } from "@/lib/catalog/product-validation";
 import { selectAssignableTaxonomies } from "@/lib/catalog/taxonomy-validation";
+import type { GolfModelSuggestion } from "@/lib/catalog/golf-equipment-reference";
 import {
   pricingRuleCodes,
   type AcquisitionChannel,
@@ -139,6 +140,8 @@ export type OperationalProductSummary = {
 export type OperationalProduct = OperationalProductSummary & {
   brandId: string;
   categoryId: string;
+  canonicalModelId: string | null;
+  modelReferenceStatus: "RESOLVED" | "USER_ENTERED" | "PENDING_REVIEW";
   shortDescription: string | null;
   description: string | null;
   conditionNotes: string | null;
@@ -199,6 +202,8 @@ const operationalProductDetailColumns = `
   target_player,
   brand_id,
   category_id,
+  canonical_model_id,
+  model_reference_status,
   fulfillment_type,
   price,
   compare_at_price,
@@ -290,6 +295,12 @@ function normalizeProduct(
     ...normalizeSummary(product),
     brandId: product.brand_id,
     categoryId: product.category_id,
+    canonicalModelId: product.canonical_model_id,
+    modelReferenceStatus:
+      product.model_reference_status === "RESOLVED" ||
+      product.model_reference_status === "PENDING_REVIEW"
+        ? product.model_reference_status
+        : "USER_ENTERED",
     shortDescription: product.short_description,
     description: product.description,
     conditionNotes: product.condition_notes,
@@ -373,22 +384,29 @@ export async function listOperationalProductImages(
 export async function listActiveCatalogReferences(current?: {
   brandId: string;
   categoryId: string;
+  canonicalModelId?: string | null;
 }): Promise<
   OperationalCatalogResult<{
     brands: CatalogReference[];
     categories: CatalogReference[];
+    models: GolfModelSuggestion[];
     pricingConfiguration: OperationalPricingConfiguration;
   }>
 > {
   try {
     const client = await createClient();
-    const [brandsResult, categoriesResult, rulesResult, feeResult] =
-      await Promise.all([
-        client.from("brands").select("id, name, status").order("name"),
-        client
-          .from("categories")
-          .select(
-            `
+    const [
+      brandsResult,
+      categoriesResult,
+      modelsResult,
+      rulesResult,
+      feeResult,
+    ] = await Promise.all([
+      client.from("brands").select("id, name, status").order("name"),
+      client
+        .from("categories")
+        .select(
+          `
           id,
           parent_id,
           sort_order,
@@ -398,24 +416,32 @@ export async function listActiveCatalogReferences(current?: {
           profile:category_spec_profiles(family, club_type, bag_type, set_type),
           pricing_profile:category_pricing_profiles(new_rule_code, used_rule_code)
         `,
-          )
-          .order("sort_order")
-          .order("name"),
-        client
-          .from("pricing_rules")
-          .select("code, target_return_bps")
-          .eq("active", true),
-        client
-          .from("payment_fee_configs")
-          .select("code, percentage_bps, fixed_fee")
-          .eq("code", "stripe_domestic_mx")
-          .eq("active", true)
-          .maybeSingle(),
-      ]);
+        )
+        .order("sort_order")
+        .order("name"),
+      client
+        .from("catalog_product_models")
+        .select(
+          "id, brand_id, category_id, model_name, normalized_model_name, status",
+        )
+        .order("model_name")
+        .limit(500),
+      client
+        .from("pricing_rules")
+        .select("code, target_return_bps")
+        .eq("active", true),
+      client
+        .from("payment_fee_configs")
+        .select("code, percentage_bps, fixed_fee")
+        .eq("code", "stripe_domestic_mx")
+        .eq("active", true)
+        .maybeSingle(),
+    ]);
 
     if (
       brandsResult.error ||
       categoriesResult.error ||
+      modelsResult.error ||
       rulesResult.error ||
       feeResult.error ||
       !feeResult.data
@@ -460,6 +486,19 @@ export async function listActiveCatalogReferences(current?: {
           })),
           current?.categoryId,
         ),
+        models: modelsResult.data
+          .filter(
+            (model) =>
+              model.status === "active" ||
+              model.id === current?.canonicalModelId,
+          )
+          .map((model) => ({
+            id: model.id,
+            brandId: model.brand_id,
+            categoryId: model.category_id,
+            name: model.model_name,
+            normalizedName: model.normalized_model_name,
+          })),
         pricingConfiguration: {
           targetReturnBps: Object.fromEntries(
             targetEntries.map((rule) => [rule.code, rule.target_return_bps]),
@@ -488,6 +527,8 @@ export function productToFormValues(
     sku: product.sku,
     brandId: product.brandId,
     categoryId: product.categoryId,
+    canonicalModelId: product.canonicalModelId ?? "",
+    modelReferenceStatus: product.modelReferenceStatus,
     shortDescription: product.shortDescription ?? "",
     description: product.description ?? "",
     condition: product.condition,
@@ -539,6 +580,8 @@ export const emptyProductFormValues: ProductFormValues = {
   sku: "",
   brandId: "",
   categoryId: "",
+  canonicalModelId: "",
+  modelReferenceStatus: "USER_ENTERED",
   shortDescription: "",
   description: "",
   condition: "new",

@@ -94,6 +94,7 @@ export default async function EditProductPage({
       listActiveCatalogReferences({
         brandId: product.brandId,
         categoryId: product.categoryId,
+        canonicalModelId: product.canonicalModelId,
       }),
       listOperationalProductImages(id),
       getOperationalProductPricing(id),
@@ -173,6 +174,7 @@ export default async function EditProductPage({
         defaultValues={productToFormValues(product, pricingResult.data)}
         brands={references.data?.brands ?? []}
         categories={references.data?.categories ?? []}
+        models={references.data?.models ?? []}
         pricingConfiguration={references.data?.pricingConfiguration ?? null}
         initialIntelligence={initialIntelligence}
         disabled={

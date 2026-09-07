@@ -14,6 +14,8 @@ const validProduct: ProductFormValues = {
   sku: "pg-driver-001",
   brandId: "00000000-0000-4000-8000-000000000001",
   categoryId: "00000000-0000-4000-8000-000000000002",
+  canonicalModelId: "",
+  modelReferenceStatus: "USER_ENTERED",
   shortDescription: "Driver nuevo para prueba.",
   description: "Descripción completa del producto.",
   condition: "new",
@@ -90,6 +92,61 @@ const validProduct: ProductFormValues = {
 };
 
 describe("product validation", () => {
+  it("keeps canonical identity separate from unit specs and pricing", () => {
+    const result = validateProductForm({
+      ...validProduct,
+      productFamily: "club",
+      clubType: "driver",
+      model: "GT3",
+      canonicalModelId: "00000000-0000-4000-8000-000000000003",
+      modelReferenceStatus: "RESOLVED",
+      handedness: "right",
+      loftDegrees: "9",
+      shaftModel: "Tensei",
+      shaftFlex: "regular",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.canonicalModelId).toBe(
+      "00000000-0000-4000-8000-000000000003",
+    );
+    expect(result.data.specifications).toMatchObject({
+      model: "GT3",
+      handedness: "right",
+      loftDegrees: 9,
+      shaftModel: "Tensei",
+      shaftFlex: "regular",
+    });
+    expect(result.data.pricing?.acquisitionCost).toBe(80000);
+  });
+
+  it("accepts a manual model as pending review", () => {
+    const result = validateProductForm({
+      ...validProduct,
+      productFamily: "club",
+      clubType: "driver",
+      model: "Modelo no catalogado",
+      modelReferenceStatus: "PENDING_REVIEW",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.canonicalModelId).toBeNull();
+      expect(result.data.specifications?.model).toBe("Modelo no catalogado");
+    }
+  });
+
+  it("rejects an incompatible canonical state", () => {
+    const result = validateProductForm({
+      ...validProduct,
+      productFamily: "club",
+      clubType: "driver",
+      model: "GT3",
+      canonicalModelId: "00000000-0000-4000-8000-000000000003",
+      modelReferenceStatus: "PENDING_REVIEW",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.errors.canonicalModelId).toBeDefined();
+  });
   it("converts decimal prices to exact minor units", () => {
     expect(parseMoneyToMinorUnits("1250.50")).toBe(125050);
     expect(parseMoneyToMinorUnits("0.9")).toBe(90);
