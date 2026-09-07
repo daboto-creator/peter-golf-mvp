@@ -87,17 +87,20 @@ async function run(input: {
     normalizedModelName: string;
   }>;
   brandOverride?: Partial<typeof brand>;
+  categories?: Array<
+    (typeof GOLF_REFERENCE_CATEGORIES)[number] & { id: string }
+  >;
 }) {
   return runGolfReferenceDiscovery({
     brands: [{ ...brand, ...input.brandOverride }],
-    categories: [driver],
+    categories: input.categories ?? [driver],
     canonicalModels: input.canonical ?? [],
     fetchImpl: input.fetchImpl,
     searchProvider: input.searchProvider,
     force: true,
     limits: {
       maxBrands: 1,
-      maxCategoriesPerBrand: 1,
+      maxCategoriesPerBrand: input.categories?.length ?? 1,
       maxProductPagesPerCategory: 2,
       maxSearchResultsPerCategory: 2,
       maxSitemapChildren: 1,
@@ -148,6 +151,66 @@ describe("golf reference discovery", () => {
     ).toEqual([]);
   });
 
+  it("walks nested @graph, ItemList product references, arrays, and multiple JSON-LD blocks", () => {
+    const html = `<script type="application/ld+json">{malformed</script>
+      <script type="application/ld+json">${JSON.stringify({
+        "@type": "CollectionPage",
+        mainEntity: {
+          "@type": "ItemList",
+          itemListElement: [
+            {
+              item: {
+                "@graph": [
+                  {
+                    "@type": "Product",
+                    name: "Titleist GT3 Driver",
+                    brand: { name: "Titleist" },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      })}</script>
+      <script type="application/ld+json">${JSON.stringify([
+        { "@type": "BreadcrumbList" },
+      ])}</script>`;
+    const result = extractOfficialProductIdentity({
+      html,
+      url: "https://titleist.com/golf-clubs/drivers/gt3",
+      brand: "Titleist",
+      category: driver,
+    });
+    expect(result.parseError).toBe(true);
+    expect(result.identities).toEqual([
+      { modelName: "GT3", normalizedModelName: "gt3", confidence: "HIGH" },
+    ]);
+  });
+
+  it("ignores homepage and category labels without product identity", () => {
+    expect(
+      extractOfficialProductIdentity({
+        html: "<title>Titleist Golf Clubs</title><h1>Shop Drivers</h1>",
+        url: "https://titleist.com/",
+        brand: "Titleist",
+        category: driver,
+      }).identities,
+    ).toEqual([]);
+  });
+
+  it("uses a product heading before weaker page metadata", () => {
+    expect(
+      extractOfficialProductIdentity({
+        html: "<h1>Titleist GT4 Driver</h1><title>Titleist Golf Clubs</title>",
+        url: "https://titleist.com/golf-clubs/drivers/gt4",
+        brand: "Titleist",
+        category: driver,
+      }).identities,
+    ).toEqual([
+      { modelName: "GT4", normalizedModelName: "gt4", confidence: "MEDIUM" },
+    ]);
+  });
+
   it("rejects newsroom, collection, and generic heading identities", () => {
     expect(
       extractOfficialProductIdentity({
@@ -163,6 +226,14 @@ describe("golf reference discovery", () => {
         url: "https://www.cobragolf.com/collections/golf-clubs-drivers",
         brand: "Cobra",
         category: driver,
+      }).identities,
+    ).toEqual([]);
+    expect(
+      extractOfficialProductIdentity({
+        html: "<h1>PING All Putters</h1>",
+        url: "https://ping.com/en-us/clubs/putters/all",
+        brand: "PING",
+        category: GOLF_REFERENCE_CATEGORIES[5],
       }).identities,
     ).toEqual([]);
   });
@@ -224,6 +295,29 @@ describe("golf reference discovery", () => {
     expect(result.discoveries[0]?.modelName).toBe("GT3");
   });
 
+  it("reads a bounded sitemap index and product sitemap", async () => {
+    const productUrl = "https://titleist.com/golf-clubs/drivers/gt3";
+    const productSitemap = "https://titleist.com/sitemaps/product-sitemap.xml";
+    const result = await run({
+      fetchImpl: fetchFrom({
+        "https://titleist.com/sitemap.xml": htmlResponse(
+          `<sitemapindex><sitemap><loc>${productSitemap}</loc></sitemap></sitemapindex>`,
+          200,
+          "application/xml",
+        ),
+        [productSitemap]: htmlResponse(
+          `<urlset><url><loc>${productUrl}</loc></url></urlset>`,
+          200,
+          "application/xml",
+        ),
+        "https://titleist.com/golf-clubs/drivers/": htmlResponse("shell"),
+        [productUrl]: htmlResponse(productPage()),
+      }) as typeof fetch,
+    });
+    expect(result.summary.sitemapsFetched).toBe(2);
+    expect(result.summary.modelIdentitiesExtracted).toBe(1);
+  });
+
   it("uses an official-domain search result after a 403 direct fetch", async () => {
     const pageUrl = "https://www.titleist.com/golf-clubs/drivers/gt3";
     const provider = searchProvider([pageUrl]);
@@ -238,6 +332,7 @@ describe("golf reference discovery", () => {
     });
     expect(provider.discover).toHaveBeenCalledTimes(1);
     expect(result.summary.httpBlocked).toBe(2);
+    expect(result.summary.searchFallbackCalls).toBe(1);
     expect(result.discoveries[0]?.decision).toBe("VERIFIED");
   });
 
@@ -349,5 +444,85 @@ describe("golf reference discovery", () => {
     expect(result.summary.officialUrlsDiscovered).toBe(2);
     expect(result.summary.modelIdentitiesExtracted).toBe(2);
     expect(fetchMock).not.toHaveBeenCalledWith(urls[2], expect.anything());
+  });
+
+  it("deduplicates the same normalized identity from two official pages", async () => {
+    const first = "https://titleist.com/golf-clubs/drivers/gt3-a";
+    const second = "https://titleist.com/golf-clubs/drivers/gt3-b";
+    const result = await run({
+      fetchImpl: fetchFrom({
+        "https://titleist.com/sitemap.xml": htmlResponse(
+          `<urlset><url><loc>${first}</loc></url><url><loc>${second}</loc></url></urlset>`,
+          200,
+          "application/xml",
+        ),
+        "https://titleist.com/golf-clubs/drivers/": htmlResponse("shell"),
+        [first]: htmlResponse(productPage()),
+        [second]: htmlResponse(productPage()),
+      }) as typeof fetch,
+    });
+    expect(result.summary.modelIdentitiesExtracted).toBe(1);
+    expect(result.summary.duplicates).toBe(1);
+  });
+
+  it("isolates category failure and reports partial brand success", async () => {
+    const iron = { ...GOLF_REFERENCE_CATEGORIES[3], id: "iron-id" };
+    const productUrl = "https://titleist.com/golf-clubs/drivers/gt3";
+    const result = await run({
+      categories: [driver, iron],
+      fetchImpl: fetchFrom({
+        "https://titleist.com/sitemap.xml": htmlResponse("not found", 404),
+        "https://titleist.com/golf-clubs/drivers/": htmlResponse(
+          `<a href="${productUrl}">GT3</a>`,
+        ),
+        [productUrl]: htmlResponse(productPage()),
+        "https://titleist.com/golf-clubs/irons/": htmlResponse("blocked", 403),
+      }) as typeof fetch,
+    });
+    expect(result.brands[0]?.status).toBe("PARTIAL");
+    expect(result.summary.brandsPartial).toBe(1);
+    expect(result.summary.categoriesSuccessful).toBe(1);
+    expect(result.summary.categoriesFailed).toBe(1);
+    expect(result.summary.notFound).toBe(1);
+  });
+
+  it("classifies timeout, 403, and 429 attempts without throwing", async () => {
+    const timeoutFetch = vi.fn(async () => {
+      throw new DOMException("timed out", "TimeoutError");
+    });
+    const timeoutResult = await run({
+      fetchImpl: timeoutFetch as typeof fetch,
+    });
+    expect(timeoutResult.summary.timeouts).toBe(2);
+
+    const blockedResult = await run({
+      fetchImpl: fetchFrom({
+        "https://titleist.com/sitemap.xml": htmlResponse("blocked", 403),
+        "https://titleist.com/golf-clubs/drivers/": htmlResponse("limited", 429),
+      }) as typeof fetch,
+    });
+    expect(blockedResult.summary.httpBlocked).toBe(1);
+    expect(blockedResult.summary.rateLimits).toBe(1);
+  });
+
+  it("classifies an anti-bot redirect as HTTP_BLOCKED", async () => {
+    const challenge = () =>
+      new Response(null, {
+        status: 302,
+        headers: {
+          location:
+            "https://titleist.com/on/demandware.store/DDUser-Challenge",
+        },
+      });
+    const result = await run({
+      fetchImpl: fetchFrom({
+        "https://titleist.com/sitemap.xml": challenge,
+        "https://titleist.com/golf-clubs/drivers/": challenge,
+      }) as typeof fetch,
+    });
+    expect(result.summary.httpBlocked).toBe(2);
+    expect(result.diagnostics.every((item) => item.redirectCount === 1)).toBe(
+      true,
+    );
   });
 });

@@ -19,7 +19,6 @@ export type DiscoveryFailureClass =
   | "HTTP_BLOCKED"
   | "RATE_LIMITED"
   | "NOT_FOUND"
-  | "HTTP_5XX"
   | "NON_HTML_RESPONSE"
   | "JS_RENDERED_NO_PRODUCT_DATA"
   | "NO_JSON_LD"
@@ -100,7 +99,7 @@ export type DiscoveredGolfModel = {
 
 export type BrandDiscoveryResult = {
   brand: string;
-  status: "SUCCESS" | "FAILED" | "SKIPPED_FRESH";
+  status: "SUCCESS" | "PARTIAL" | "FAILED" | "SKIPPED_FRESH";
   officialUrlsDiscovered: number;
   pagesParsed: number;
   modelIdentities: string[];
@@ -125,19 +124,28 @@ export type DiscoveryRunResult = {
   summary: {
     brandsAttempted: number;
     brandsSuccessful: number;
+    brandsPartial: number;
     brandsFailed: number;
     brandsSkippedFresh: number;
+    categoriesAttempted: number;
+    categoriesSuccessful: number;
+    categoriesFailed: number;
     fetchAttempts: number;
     httpSuccesses: number;
     httpBlocked: number;
     timeouts: number;
     rateLimits: number;
+    notFound: number;
     parseFailures: number;
     networkErrors: number;
+    sitemapsFetched: number;
+    searchFallbackCalls: number;
     officialUrlsDiscovered: number;
     pagesParsed: number;
+    officialProductPagesParsed: number;
     modelIdentitiesExtracted: number;
     existingModelsMatched: number;
+    existingCanonicalModelsRecognized: number;
     newCandidates: number;
     needsReview: number;
     duplicates: number;
@@ -212,9 +220,11 @@ const CATEGORY_PATH_HINTS: Record<string, Partial<Record<string, string>>> = {
 
 const BLOCK_PAGE_PATTERN =
   /access denied|request blocked|verify you are human|captcha challenge|bot protection/i;
+const BLOCK_URL_PATTERN =
+  /(?:challenge|captcha|access[-_/]?denied|bot[-_/]?protection)/i;
 const TLS_CODE_PATTERN = /TLS|CERT|SSL/i;
 const GENERIC_MODEL_PATTERN =
-  /^(?:shop\s+)?(?:men'?s\s+|women'?s\s+)?(?:golf\s+)?(?:clubs?|drivers?|fairways?|fairway woods?|hybrids?|rescues?|irons?|wedges?|putters?|products?|collections?|logo)$/i;
+  /^(?:shop\s+)?(?:men'?s\s+|women'?s\s+)?(?:golf\s+)?(?:all|clubs?|drivers?|fairways?|fairway woods?|hybrids?|rescues?|irons?|wedges?|putters?|products?|collections?|logo)$/i;
 const CONFIGURATION_SUFFIX_PATTERN =
   /(?:\s+|[-–|,])(\d{1,2}(?:\.\d)?°|\d{1,2}(?:\.\d)?\s*(?:degree|degrees)|RH|LH|right hand|left hand|regular|stiff|x-?stiff|senior|ladies)(?=\s|$)/gi;
 
@@ -354,6 +364,16 @@ function parseSitemapLocations(xml: string): string[] {
   );
 }
 
+function isRelevantSitemapUrl(value: string): boolean {
+  try {
+    return /(?:golf|clubs?|drivers?|fairways?|woods?|hybrids?|irons?|wedges?|putters?|products?)/i.test(
+      new URL(value).pathname,
+    );
+  } catch {
+    return false;
+  }
+}
+
 type FetchResult = {
   body: string | null;
   finalUrl: string | null;
@@ -422,6 +442,11 @@ async function fetchOfficialResource(input: {
       if (response.status < 300 || response.status >= 400 || !location) break;
       const redirectedUrl = new URL(location, currentUrl).toString();
       diagnostic.redirectCount += 1;
+      if (BLOCK_URL_PATTERN.test(redirectedUrl)) {
+        diagnostic.blocked = true;
+        diagnostic.failureClass = "HTTP_BLOCKED";
+        return { body: null, finalUrl: null, diagnostic };
+      }
       if (!isOfficialDomainUrl(redirectedUrl, input.officialDomain)) {
         diagnostic.blocked = true;
         diagnostic.failureClass = "HTTP_BLOCKED";
@@ -457,7 +482,7 @@ async function fetchOfficialResource(input: {
       diagnostic.failureClass = "HTTP_BLOCKED";
     else if (diagnostic.rateLimited) diagnostic.failureClass = "RATE_LIMITED";
     else if (diagnostic.notFound) diagnostic.failureClass = "NOT_FOUND";
-    else if (diagnostic.serverError) diagnostic.failureClass = "HTTP_5XX";
+    else if (diagnostic.serverError) diagnostic.failureClass = "NETWORK_ERROR";
     else if (!response.ok)
       diagnostic.failureClass = "UNSUPPORTED_SOURCE_STRUCTURE";
     else if (
@@ -502,7 +527,7 @@ function walkJsonLd(
   if (!value || typeof value !== "object") return;
   const record = value as Record<string, unknown>;
   visit(record);
-  if (record["@graph"]) walkJsonLd(record["@graph"], visit);
+  for (const nested of Object.values(record)) walkJsonLd(nested, visit);
 }
 
 export function extractOfficialProductIdentity(input: {
@@ -549,11 +574,10 @@ export function extractOfficialProductIdentity(input: {
             : brandValue && typeof brandValue === "object"
               ? String((brandValue as Record<string, unknown>).name ?? "")
               : "";
-        if (
-          normalizeBrandKey(statedBrand || name) !==
-            normalizeBrandKey(input.brand) &&
-          !normalizeBrandKey(name).startsWith(normalizeBrandKey(input.brand))
-        )
+        const brandMatches = statedBrand
+          ? normalizeBrandKey(statedBrand) === normalizeBrandKey(input.brand)
+          : normalizeBrandKey(name).startsWith(normalizeBrandKey(input.brand));
+        if (!brandMatches)
           return;
         add(name, "HIGH");
       });
@@ -563,10 +587,14 @@ export function extractOfficialProductIdentity(input: {
   }
   if (!identities.length && isLikelyProductUrl(input.url, input.category)) {
     const metadata = [
+      ...input.html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi),
+      ...input.html.matchAll(/<title[^>]*>([^<]+)<\/title>/gi),
       ...input.html.matchAll(
         /<meta[^>]+(?:property|name)=["'](?:og:title|twitter:title)["'][^>]+content=["']([^"']+)["'][^>]*>/gi,
       ),
-      ...input.html.matchAll(/<title[^>]*>([^<]+)<\/title>/gi),
+      ...input.html.matchAll(
+        /<meta[^>]+(?:property|name|itemprop)=["'](?:product(?::|_)name|name)["'][^>]+content=["']([^"']+)["'][^>]*>/gi,
+      ),
     ];
     for (const match of metadata) {
       const raw = match[1]!.replace(/<[^>]+>/g, " ");
@@ -657,7 +685,12 @@ export async function runGolfReferenceDiscovery(
         0,
         limits.maxSitemapUrls,
       );
-      const children = locations.filter((url) => /\.xml(?:$|\?)/i.test(url));
+      const children = locations.filter(
+        (url) =>
+          /\.xml(?:$|\?)/i.test(url) &&
+          isOfficialDomainUrl(url, brand.officialDomain) &&
+          isRelevantSitemapUrl(url),
+      );
       sitemapUrls.push(
         ...locations.filter((url) => !/\.xml(?:$|\?)/i.test(url)),
       );
@@ -868,10 +901,15 @@ export async function runGolfReferenceDiscovery(
       });
     }
     brandResult.modelIdentities = unique(brandResult.modelIdentities);
+    const successfulCategories = brandResult.categories.filter(
+      (category) => category.status === "SUCCESS",
+    ).length;
     brandResult.status =
-      brandResult.existingModelsMatched > 0 || brandResult.newCandidates > 0
+      successfulCategories === brandResult.categories.length
         ? "SUCCESS"
-        : "FAILED";
+        : successfulCategories > 0
+          ? "PARTIAL"
+          : "FAILED";
     brandResults.push(brandResult);
   }
 
@@ -886,11 +924,31 @@ export async function runGolfReferenceDiscovery(
       brandsSuccessful: brandResults.filter(
         (brand) => brand.status === "SUCCESS",
       ).length,
+      brandsPartial: brandResults.filter((brand) => brand.status === "PARTIAL")
+        .length,
       brandsFailed: brandResults.filter((brand) => brand.status === "FAILED")
         .length,
       brandsSkippedFresh: brandResults.filter(
         (brand) => brand.status === "SKIPPED_FRESH",
       ).length,
+      categoriesAttempted: brandResults.reduce(
+        (sum, brand) => sum + brand.categories.length,
+        0,
+      ),
+      categoriesSuccessful: brandResults.reduce(
+        (sum, brand) =>
+          sum +
+          brand.categories.filter((category) => category.status === "SUCCESS")
+            .length,
+        0,
+      ),
+      categoriesFailed: brandResults.reduce(
+        (sum, brand) =>
+          sum +
+          brand.categories.filter((category) => category.status !== "SUCCESS")
+            .length,
+        0,
+      ),
       fetchAttempts: diagnostics.length,
       httpSuccesses: diagnostics.filter(
         (item) =>
@@ -901,9 +959,18 @@ export async function runGolfReferenceDiscovery(
       ).length,
       timeouts: diagnostics.filter((item) => item.timeout).length,
       rateLimits: diagnostics.filter((item) => item.rateLimited).length,
+      notFound: diagnostics.filter((item) => item.notFound).length,
       parseFailures: diagnostics.filter((item) => item.parseError).length,
       networkErrors: diagnostics.filter(
         (item) => item.failureClass === "NETWORK_ERROR",
+      ).length,
+      sitemapsFetched: diagnostics.filter(
+        (item) =>
+          (item.strategy === "SITEMAP" || item.strategy === "SITEMAP_INDEX") &&
+          item.sitemapFound,
+      ).length,
+      searchFallbackCalls: diagnostics.filter(
+        (item) => item.strategy === "SEARCH_PROVIDER",
       ).length,
       officialUrlsDiscovered: brandResults.reduce(
         (sum, brand) => sum + brand.officialUrlsDiscovered,
@@ -913,8 +980,15 @@ export async function runGolfReferenceDiscovery(
         (sum, brand) => sum + brand.pagesParsed,
         0,
       ),
+      officialProductPagesParsed: brandResults.reduce(
+        (sum, brand) => sum + brand.pagesParsed,
+        0,
+      ),
       modelIdentitiesExtracted: discoveries.length,
       existingModelsMatched: discoveries.filter(
+        (item) => item.decision === "EXISTING",
+      ).length,
+      existingCanonicalModelsRecognized: discoveries.filter(
         (item) => item.decision === "EXISTING",
       ).length,
       newCandidates: discoveries.filter((item) => item.decision !== "EXISTING")

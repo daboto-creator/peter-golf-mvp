@@ -81,7 +81,8 @@ export class SerpApiOfficialSearchProvider implements OfficialSearchProvider {
       if (diagnostic.blocked) diagnostic.failureClass = "HTTP_BLOCKED";
       else if (diagnostic.rateLimited) diagnostic.failureClass = "RATE_LIMITED";
       else if (diagnostic.notFound) diagnostic.failureClass = "NOT_FOUND";
-      else if (diagnostic.serverError) diagnostic.failureClass = "HTTP_5XX";
+      else if (diagnostic.serverError)
+        diagnostic.failureClass = "NETWORK_ERROR";
       else if (!response.ok)
         diagnostic.failureClass = "UNSUPPORTED_SOURCE_STRUCTURE";
       if (diagnostic.failureClass) return { urls: [], diagnostic };
