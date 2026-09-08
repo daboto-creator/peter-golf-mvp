@@ -498,7 +498,10 @@ describe("golf reference discovery", () => {
     const blockedResult = await run({
       fetchImpl: fetchFrom({
         "https://titleist.com/sitemap.xml": htmlResponse("blocked", 403),
-        "https://titleist.com/golf-clubs/drivers/": htmlResponse("limited", 429),
+        "https://titleist.com/golf-clubs/drivers/": htmlResponse(
+          "limited",
+          429,
+        ),
       }) as typeof fetch,
     });
     expect(blockedResult.summary.httpBlocked).toBe(1);
@@ -510,8 +513,7 @@ describe("golf reference discovery", () => {
       new Response(null, {
         status: 302,
         headers: {
-          location:
-            "https://titleist.com/on/demandware.store/DDUser-Challenge",
+          location: "https://titleist.com/on/demandware.store/DDUser-Challenge",
         },
       });
     const result = await run({
