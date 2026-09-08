@@ -5,10 +5,11 @@ compare, handle objections, and help close a sale. Mi Golf is the golfer's
 private, user-controlled memory (profile, equipment, objectives, and future
 recommendations). Neither replaces the catalog or checkout.
 
-The future Equipment Matching Engine evaluates the actual sellable
-configuration/unit. Inventory supplies truth about price, specifications, and
-availability. A Commercial Ranker may order technically suitable candidates;
-it never changes technical Match.
+The Equipment Matching Engine evaluates the actual sellable configuration/unit
+through the deterministic, versioned rules documented in
+`best-round-pro-equipment-matching.md`. Inventory supplies truth about price,
+specifications, and availability. A future Commercial Ranker may order
+technically suitable candidates; it never changes technical Match.
 
 Every future recommendation keeps four independent concepts:
 

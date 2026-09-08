@@ -70,6 +70,21 @@ export function nextBestQuestion(
   known: Record<string, unknown>,
 ): NextBestQuestion | null {
   const value = category.toLowerCase();
+  const clubCategory =
+    value.includes("driver") ||
+    value.includes("fairway") ||
+    value.includes("hybrid") ||
+    value.includes("iron") ||
+    value.includes("wedge") ||
+    value.includes("putter");
+  if (clubCategory && !known.handedness)
+    return {
+      id: "handedness",
+      prompt: "¿Juegas como diestro o zurdo?",
+      category: value.toUpperCase(),
+      reason: "Define la compatibilidad física de la configuración",
+      critical: true,
+    };
   if (value.includes("driver") && !known.objective)
     return {
       id: "objective",
@@ -78,13 +93,47 @@ export function nextBestQuestion(
       reason: "Cambia materialmente el perfil técnico",
       critical: true,
     };
-  if (value.includes("driver") && !known.handedness)
+  if (value.includes("driver") && !known.shotTendency)
     return {
-      id: "handedness",
-      prompt: "¿Juegas como diestro o zurdo?",
+      id: "shotTendency",
+      prompt: "¿Tu fallo más común es slice, hook o un vuelo recto?",
       category: "DRIVER",
-      reason: "Define compatibilidad de configuración",
-      critical: true,
+      reason:
+        "Puede cambiar la compatibilidad con ajustes explícitos del driver",
+      critical: false,
+    };
+  if (
+    (value.includes("driver") ||
+      value.includes("fairway") ||
+      value.includes("hybrid") ||
+      value.includes("iron")) &&
+    !known.swingSpeed
+  )
+    return {
+      id: "swingSpeed",
+      prompt: "¿Conoces tu velocidad de swing aproximada?",
+      category: value.toUpperCase(),
+      reason: "Mejora la validación técnica del flex y peso de la varilla",
+      critical: false,
+    };
+  if (
+    (value.includes("fairway") || value.includes("hybrid")) &&
+    !known.currentBag
+  )
+    return {
+      id: "currentBag",
+      prompt: "¿Qué maderas, híbridos o hierros largos llevas actualmente?",
+      category: value.includes("hybrid") ? "HYBRID" : "FAIRWAY_WOOD",
+      reason: "Permite detectar huecos y redundancias evidentes",
+      critical: false,
+    };
+  if (value.includes("iron") && !known.skill)
+    return {
+      id: "skill",
+      prompt: "¿Cuál es tu handicap o nivel de juego actual?",
+      category: "IRON",
+      reason: "Ayuda a validar el perfil técnico y la tolerancia del set",
+      critical: false,
     };
   if (value.includes("wedge") && !known.gapping)
     return {
@@ -94,12 +143,31 @@ export function nextBestQuestion(
       reason: "El loft y el uso dependen del hueco",
       critical: true,
     };
+  if (value.includes("wedge") && !known.turfInteraction)
+    return {
+      id: "turfInteraction",
+      prompt:
+        "¿Tu golpe de wedge suele entrar profundo, neutro o barrer el pasto?",
+      category: "WEDGE",
+      reason: "Bounce y grind requieren contexto de interacción con el terreno",
+      critical: false,
+    };
   if (value.includes("putter") && !known.length)
     return {
       id: "length",
       prompt: "¿Qué longitud de putter usas actualmente?",
       category: "PUTTER",
       reason: "Ayuda a limitar opciones incompatibles",
+      critical: false,
+    };
+  if (value.includes("putter") && !known.strokeType)
+    return {
+      id: "strokeType",
+      prompt:
+        "¿Conoces si tu stroke es recto, con arco leve o con arco marcado?",
+      category: "PUTTER",
+      reason:
+        "Permite evaluar propiedades de stroke declaradas por el fabricante",
       critical: false,
     };
   if (
@@ -118,10 +186,120 @@ export function nextBestQuestion(
   return null;
 }
 
+export const MATCH_CATEGORIES = [
+  "DRIVER",
+  "FAIRWAY_WOOD",
+  "HYBRID",
+  "IRON",
+  "WEDGE",
+  "PUTTER",
+] as const;
+export type MatchCategory = (typeof MATCH_CATEGORIES)[number];
+export type EquipmentMatchStatus = "MATCH" | "INCOMPATIBLE";
+export type MatchConfidence = "HIGH" | "MEDIUM" | "LOW";
+export type EquipmentMatchReasonSeverity =
+  "POSITIVE" | "NEUTRAL" | "TRADEOFF" | "WARNING" | "INCOMPATIBILITY";
+export type EquipmentMatchComponent =
+  | "HANDEDNESS"
+  | "PLAYER_LEVEL"
+  | "SHAFT"
+  | "LOFT"
+  | "SHOT_TENDENCY"
+  | "BAG_GAP"
+  | "CONFIGURATION";
+
+export type EquipmentMatchReason = {
+  code: string;
+  severity: EquipmentMatchReasonSeverity;
+  component: EquipmentMatchComponent;
+  scoreImpact: number;
+};
+
+export type MissingMatchData = {
+  field: string;
+  code: string;
+  importance: "CRITICAL" | "MATERIAL" | "HELPFUL";
+};
+
+export type MatchEvidence<T> = {
+  value: T;
+  source: MemorySource;
+  confidence: MemoryConfidence;
+};
+
+export type EquipmentUnitSpecifications = {
+  handedness?: "RIGHT" | "LEFT" | "UNKNOWN" | string | null;
+  loftDegrees?: number | null;
+  shaftFlex?: string | null;
+  shaftMaterial?: string | null;
+  shaftWeightGrams?: number | null;
+  adjustableLoft?: boolean | null;
+  adjustableHosel?: boolean | null;
+  forgiveness?: "HIGH" | "MEDIUM" | "LOW" | null;
+  playerProfile?:
+    "BEGINNER" | "IMPROVING" | "INTERMEDIATE" | "ADVANCED" | "TOUR" | null;
+  drawBias?: boolean | null;
+  launchProfile?: "HIGH" | "MID" | "LOW" | null;
+  spinProfile?: "HIGH" | "MID" | "LOW" | null;
+  role?: string | null;
+  carryDistanceYards?: number | null;
+  setMakeup?: string[] | null;
+  bounceDegrees?: number | null;
+  grind?: string | null;
+  putterHeadType?: "BLADE" | "MALLET" | string | null;
+  strokeFit?: "STRAIGHT" | "SLIGHT_ARC" | "STRONG_ARC" | string | null;
+  lengthInches?: number | null;
+  lieDegrees?: number | null;
+  clubLengthInches?: number | null;
+};
+
+export type EquipmentUnit = {
+  id: string;
+  category: MatchCategory | string;
+  brand: string | null;
+  model: string | null;
+  canonicalModelId: string | null;
+  condition: string | null;
+  source: MemorySource;
+  confidence: MemoryConfidence;
+  specifications: EquipmentUnitSpecifications;
+};
+
+export type EquipmentMatchMeasurements = {
+  swingSpeedMph?: MatchEvidence<number> | null;
+  turfInteraction?: MatchEvidence<"SHALLOW" | "NEUTRAL" | "STEEP"> | null;
+  playingConditions?: MatchEvidence<"SOFT" | "MIXED" | "FIRM"> | null;
+  strokeType?: MatchEvidence<"STRAIGHT" | "SLIGHT_ARC" | "STRONG_ARC"> | null;
+  putterLengthInches?: MatchEvidence<number> | null;
+  lieFitKnown?: MatchEvidence<boolean> | null;
+  lengthFitKnown?: MatchEvidence<boolean> | null;
+};
+
+export type EquipmentMatchInput = {
+  golfer: MiGolfProfile | null;
+  currentEquipment: MiGolfEquipment[];
+  objectives: MiGolfObjective[];
+  measurements?: EquipmentMatchMeasurements;
+  equipmentUnit: EquipmentUnit;
+};
+
+export type CategoryMatchProfile = {
+  category: MatchCategory;
+  ruleVersion: string;
+  baseScore: number;
+  weights: Readonly<Record<EquipmentMatchComponent, number>>;
+};
+
 export type EquipmentMatch = {
-  status: "MATCH" | "INCOMPATIBLE";
+  status: EquipmentMatchStatus;
   matchScore: number;
-  reasons: string[];
+  confidence: MatchConfidence;
+  category: MatchCategory;
+  ruleVersion: string;
+  reasons: EquipmentMatchReason[];
+  tradeoffs: EquipmentMatchReason[];
+  missingData: MissingMatchData[];
+  nextBestQuestion: NextBestQuestion | null;
 };
 export type RecommendationConfidence = "HIGH" | "MEDIUM" | "LOW";
 export type PersonalFit = {

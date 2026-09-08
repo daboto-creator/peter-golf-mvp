@@ -16,13 +16,18 @@ describe("Mi Golf foundation contracts", () => {
   });
 
   it("prioritizes category-relevant questions and stops when enough is known", () => {
-    expect(nextBestQuestion("driver", {})?.id).toBe("objective");
+    expect(nextBestQuestion("driver", {})?.id).toBe("handedness");
     expect(
       nextBestQuestion("putter", { objective: true, handedness: "right" })?.id,
     ).toBe("length");
     expect(nextBestQuestion("apparel", { productType: "polo" })).toBeNull();
     expect(
-      nextBestQuestion("driver", { objective: true, handedness: "right" }),
+      nextBestQuestion("driver", {
+        objective: true,
+        handedness: "right",
+        shotTendency: "straight",
+        swingSpeed: 95,
+      }),
     ).toBeNull();
   });
 
