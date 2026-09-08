@@ -359,11 +359,11 @@ describe("fairway and hybrid rules", () => {
       input(
         "HYBRID",
         { loftDegrees: 22 },
-        { objectives: [objective("replace long iron")] },
+        { objectives: [objective("replace difficult long iron")] },
       ),
     );
     const inactiveObjective = {
-      ...objective("replace long iron"),
+      ...objective("replace difficult long iron"),
       status: "ACHIEVED" as const,
     };
     const inactive = matchEquipment(
@@ -413,6 +413,10 @@ describe("iron rules", () => {
         "IRON_LIE_FIT_UNCONFIRMED",
         "IRON_LENGTH_FIT_UNCONFIRMED",
       ]),
+    );
+    expect(result.confidence).toBe("MEDIUM");
+    expect(result.tradeoffs.map((reason) => reason.code)).toContain(
+      "IRON_PRO_FITTING_RECOMMENDED",
     );
   });
 });
@@ -470,6 +474,24 @@ describe("wedge rules", () => {
       "WEDGE_PRO_FITTING_CONTEXT_REQUIRED",
     );
     expect(unknown.nextBestQuestion?.id).toBe("turfInteraction");
+  });
+
+  it("recognizes a consistent wedge loft progression", () => {
+    const result = matchEquipment(
+      input(
+        "WEDGE",
+        { loftDegrees: 58 },
+        {
+          currentEquipment: [
+            current("wedge", { loftDegrees: 46 }),
+            current("wedge", { loftDegrees: 52 }),
+          ],
+        },
+      ),
+    );
+    expect(result.reasons.map((reason) => reason.code)).toContain(
+      "WEDGE_LOFT_PROGRESSION_ALIGNED",
+    );
   });
 });
 

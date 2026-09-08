@@ -107,6 +107,14 @@ function objectiveIncludes(input: EquipmentMatchInput, tokens: string[]) {
   return tokens.some((token) => text.includes(token));
 }
 
+function hasLongIronReplacementObjective(input: EquipmentMatchInput) {
+  const text = activeObjectiveText(input);
+  const namesIron = text.includes("iron") || text.includes("hierro");
+  const namesReplacement =
+    text.includes("replace") || text.includes("reemplaz");
+  return namesIron && namesReplacement;
+}
+
 function currentEquipmentFor(
   input: EquipmentMatchInput,
   categories: MatchCategory[],
@@ -375,12 +383,7 @@ function addHybridRules(
     add,
     profile.weights.BAG_GAP,
   );
-  const replacementObjective = objectiveIncludes(input, [
-    "replace long iron",
-    "replace iron",
-    "reemplazar hierro",
-    "hierro largo",
-  ]);
+  const replacementObjective = hasLongIronReplacementObjective(input);
   if (replacementObjective)
     add(
       "LONG_IRON_REPLACEMENT_OBJECTIVE",
@@ -416,6 +419,11 @@ function addIronRules(
     input.equipmentUnit.specifications.forgiveness === "HIGH"
   )
     add("IRON_FORGIVENESS_OBJECTIVE_ALIGNED", "POSITIVE", "CONFIGURATION", 5);
+  if (
+    !input.measurements?.lieFitKnown?.value ||
+    !input.measurements?.lengthFitKnown?.value
+  )
+    add("IRON_PRO_FITTING_RECOMMENDED", "WARNING", "CONFIGURATION", 0);
 }
 
 function addWedgeRules(
@@ -431,6 +439,27 @@ function addWedgeRules(
     add,
     profile.weights.BAG_GAP,
   );
+  const candidateLoft = numberValue(specs.loftDegrees);
+  const currentWedgeLofts = lofts(currentEquipmentFor(input, ["WEDGE"]));
+  if (candidateLoft !== null && currentWedgeLofts.length >= 2) {
+    const highest = currentWedgeLofts[currentWedgeLofts.length - 1];
+    const previous = currentWedgeLofts[currentWedgeLofts.length - 2];
+    const currentGap = highest - previous;
+    const candidateGap = candidateLoft - highest;
+    if (
+      currentGap >= 4 &&
+      currentGap <= 8 &&
+      candidateGap >= 4 &&
+      candidateGap <= 8 &&
+      Math.abs(currentGap - candidateGap) <= 2
+    )
+      add(
+        "WEDGE_LOFT_PROGRESSION_ALIGNED",
+        "POSITIVE",
+        "BAG_GAP",
+        Math.ceil(profile.weights.BAG_GAP / 2),
+      );
+  }
   const bounce = numberValue(specs.bounceDegrees);
   const turf = input.measurements?.turfInteraction?.value;
   if (bounce !== null && turf === "STEEP") {
@@ -578,12 +607,12 @@ function missingData(
         "MATERIAL",
       );
     if (!input.measurements?.lieFitKnown?.value)
-      add("measurements.lieFitKnown", "IRON_LIE_FIT_UNCONFIRMED", "HELPFUL");
+      add("measurements.lieFitKnown", "IRON_LIE_FIT_UNCONFIRMED", "MATERIAL");
     if (!input.measurements?.lengthFitKnown?.value)
       add(
         "measurements.lengthFitKnown",
         "IRON_LENGTH_FIT_UNCONFIRMED",
-        "HELPFUL",
+        "MATERIAL",
       );
   }
   if (category === "WEDGE") {

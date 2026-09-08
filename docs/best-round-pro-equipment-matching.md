@@ -56,9 +56,9 @@ The category rules use only explicit structured facts:
   objectives.
 - Iron: hand, level, explicit forgiveness/player profile, shaft and set makeup.
   Unknown lie or length fitting remains a confidence limitation.
-- Wedge: hand, loft gapping, bounce and grind only when turf interaction or
-  conditions provide enough context. Otherwise professional validation is
-  surfaced.
+- Wedge: hand, conservative loft progression/redundancy, bounce and grind only
+  when turf interaction or conditions provide enough context. Otherwise
+  professional validation is surfaced.
 - Putter: hand, explicit stroke-fit properties and length context. The engine
   never infers stroke or fitting measurements.
 
