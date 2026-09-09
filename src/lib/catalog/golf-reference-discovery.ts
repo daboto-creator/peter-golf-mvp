@@ -577,8 +577,7 @@ export function extractOfficialProductIdentity(input: {
         const brandMatches = statedBrand
           ? normalizeBrandKey(statedBrand) === normalizeBrandKey(input.brand)
           : normalizeBrandKey(name).startsWith(normalizeBrandKey(input.brand));
-        if (!brandMatches)
-          return;
+        if (!brandMatches) return;
         add(name, "HIGH");
       });
     } catch {

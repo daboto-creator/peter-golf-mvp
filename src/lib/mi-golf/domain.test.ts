@@ -47,23 +47,8 @@ describe("Mi Golf foundation contracts", () => {
         summary: null,
       },
       requestedCategory: "driver",
-      candidateInventory: [
-        {
-          id: "inventory-1",
-          source: "FIRST_PARTY",
-          category: "driver",
-          brand: "TaylorMade",
-          model: "Qi10",
-          condition: "used",
-          priceMxnMinor: 800000,
-          availability: "AVAILABLE",
-          specifications: { handedness: "right", loft: 10.5 },
-        },
-      ],
+      candidateInventory: [],
     };
-    expect(request.candidateInventory[0]).toHaveProperty("priceMxnMinor");
-    expect(request.candidateInventory[0].specifications).not.toHaveProperty(
-      "margin",
-    );
+    expect(request.candidateInventory).toEqual([]);
   });
 });

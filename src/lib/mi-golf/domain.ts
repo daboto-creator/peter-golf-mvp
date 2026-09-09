@@ -302,30 +302,44 @@ export type EquipmentMatch = {
   nextBestQuestion: NextBestQuestion | null;
 };
 export type RecommendationConfidence = "HIGH" | "MEDIUM" | "LOW";
+export type InventoryAvailability = "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
+export type InventorySource = "FIRST_PARTY" | "MARKETPLACE";
+export type BudgetFit =
+  "WITHIN_BUDGET" | "SLIGHTLY_ABOVE" | "MATERIALLY_ABOVE" | "UNKNOWN";
+export type ValueClass = "BEST" | "GOOD" | "STANDARD" | "WEAK" | "UNKNOWN";
+export type PersonalFitReason =
+  "PREFERRED_BRAND" | "CONDITION_PREFERENCE_MATCH" | "CONDITION_ACCEPTABLE";
 export type PersonalFit = {
   score: number;
-  reasons: string[];
-  brandPreference?: string | null;
-  stylePreference?: string | null;
+  reasons: PersonalFitReason[];
+  brandPreferenceMatched: boolean;
+  conditionPreferenceMatched: boolean;
 };
 export type CommercialFit = {
-  score: number;
-  priceMxnMinor: number | null;
-  budgetFit: "WITHIN" | "ABOVE" | "UNKNOWN";
-  availability: "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
-  condition: string | null;
+  budgetFit: BudgetFit;
+  valueClass: ValueClass;
+  availability: InventoryAvailability;
+  commercialTieBreakEligible: boolean;
 };
 
-export type InventoryCandidate = {
-  id: string;
-  source: "FIRST_PARTY" | "MARKETPLACE";
+export type InventoryUnit = {
+  productId: string;
+  unitId: string;
+  canonicalModelId: string | null;
+  source: InventorySource;
   category: string;
   brand: string | null;
   model: string | null;
   condition: string | null;
   priceMxnMinor: number | null;
-  availability: "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
-  specifications: Record<string, unknown>;
+  availability: InventoryAvailability;
+  stock: number | null;
+  technicalSpecs: EquipmentUnitSpecifications;
+};
+
+export type InventoryCandidate = {
+  unit: InventoryUnit;
+  equipmentMatch: EquipmentMatch;
 };
 
 export type BestRoundRecommendationRequest = {
@@ -338,9 +352,9 @@ export type BestRoundRecommendationRequest = {
 };
 
 export type BestRoundRecommendationResult = {
-  bestOption: InventoryCandidate | null;
-  bestValue: InventoryCandidate | null;
-  alternative: InventoryCandidate | null;
+  bestOption: InventoryUnit | null;
+  bestValue: InventoryUnit | null;
+  alternative: InventoryUnit | null;
   missingInformation: string[];
   confidence: RecommendationConfidence;
   explanationData: {

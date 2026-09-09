@@ -9094,6 +9094,22 @@ export type Database = {
         Args: { requested_product_id: string };
         Returns: Json;
       };
+      get_best_round_first_party_inventory: {
+        Args: never;
+        Returns: {
+          available_quantity: number;
+          brand_name: string;
+          canonical_model_id: string | null;
+          category_name: string;
+          condition: Database["public"]["Enums"]["product_condition"];
+          match_category: string;
+          model_name: string;
+          price: unknown;
+          product_id: string;
+          technical_specs: Json;
+          unit_id: string;
+        }[];
+      };
       get_public_marketplace_catalog: {
         Args: { requested_slug?: string };
         Returns: {
