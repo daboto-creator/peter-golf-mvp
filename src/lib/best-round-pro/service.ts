@@ -19,6 +19,10 @@ import {
 } from "@/lib/recommendations/commercial-ranking";
 import { loadInventoryUnits } from "@/lib/recommendations/inventory-candidates";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getConversationProvider,
+  safeRecommendationPayload,
+} from "@/lib/best-round-pro/provider";
 
 type ProfileRow = Record<string, unknown>;
 function profileFrom(
@@ -86,9 +90,38 @@ export async function processConversationTurn(input: {
   message: string;
 }) {
   const context = await loadMiGolfContext();
+  const provider = getConversationProvider();
+  let interpretation: Awaited<
+    ReturnType<NonNullable<typeof provider>["interpretTurn"]>
+  > | null = null;
+  if (provider) {
+    try {
+      interpretation = await provider.interpretTurn({
+        session: {
+          category: input.state.session.requestedCategory,
+          intent: input.state.session.purchaseIntent,
+          budgetKnown: input.state.session.budgetMxnMinor !== null,
+          knownFacts: Object.keys(input.state.session.diagnosticAnswers),
+        },
+        userTurn: input.message,
+      });
+    } catch {
+      interpretation = null;
+    }
+  }
+  const hints = interpretation
+    ? [
+        interpretation.category ?? "",
+        ...interpretation.declaredFacts.map(
+          (fact) => `${fact.field} ${fact.value}`,
+        ),
+        ...interpretation.temporaryPreferences,
+        interpretation.objection ?? "",
+      ].join(" ")
+    : "";
   const turn = classifyConversationTurn(
     input.state,
-    input.message,
+    `${input.message} ${hints}`,
     context.profile,
   );
   if (!turn.nextQuestion && turn.state.session.requestedCategory) {
@@ -133,11 +166,31 @@ export async function processConversationTurn(input: {
             : "UNKNOWN",
     };
     const recommendation = rankInventoryCandidates(candidates, preferences);
+    let reply = recommendationReply(recommendation);
+    if (provider) {
+      try {
+        const generated = await provider.explainRecommendation({
+          session: {
+            category: turn.state.session.requestedCategory,
+            intent: turn.state.session.purchaseIntent,
+            budgetKnown: turn.state.session.budgetMxnMinor !== null,
+            knownFacts: Object.keys(turn.state.session.diagnosticAnswers),
+          },
+          userTurn: input.message,
+          nextQuestionKey: null,
+          recommendation: safeRecommendationPayload(recommendation),
+        });
+        if (generated.trim()) reply = generated.trim();
+      } catch {
+        // Keep the deterministic response if the conversational provider fails.
+      }
+    }
     return {
       ...turn,
-      reply: recommendationReply(recommendation),
+      reply,
       recommendation,
       error: null,
+      providerUsed: Boolean(provider),
     };
   }
   return { ...turn, recommendation: null, error: null };

@@ -64,6 +64,13 @@ const serverEnvironmentSchema = z.object({
     z.enum(["serpapi", "unavailable"]).default("unavailable"),
   ),
   SERPAPI_API_KEY: optionalNonEmptyString,
+  BEST_ROUND_PRO_LLM_API_KEY: optionalNonEmptyString,
+  BEST_ROUND_PRO_LLM_MODEL: emptyAsUndefined(
+    z.string().trim().min(1).default("gpt-4o-mini"),
+  ),
+  BEST_ROUND_PRO_LLM_BASE_URL: emptyAsUndefined(
+    z.url().default("https://api.openai.com/v1"),
+  ),
   IDENTITY_VERIFICATION_PROVIDER: emptyAsUndefined(
     z.enum(["disabled", "didit"]).default("disabled"),
   ),
@@ -116,6 +123,9 @@ const rawServerEnvironment = {
   CRON_SECRET: process.env.CRON_SECRET,
   MARKET_PRICE_PROVIDER: process.env.MARKET_PRICE_PROVIDER,
   SERPAPI_API_KEY: process.env.SERPAPI_API_KEY,
+  BEST_ROUND_PRO_LLM_API_KEY: process.env.BEST_ROUND_PRO_LLM_API_KEY,
+  BEST_ROUND_PRO_LLM_MODEL: process.env.BEST_ROUND_PRO_LLM_MODEL,
+  BEST_ROUND_PRO_LLM_BASE_URL: process.env.BEST_ROUND_PRO_LLM_BASE_URL,
   IDENTITY_VERIFICATION_PROVIDER: process.env.IDENTITY_VERIFICATION_PROVIDER,
   DIDIT_API_BASE_URL: process.env.DIDIT_API_BASE_URL,
   DIDIT_API_KEY: process.env.DIDIT_API_KEY,
