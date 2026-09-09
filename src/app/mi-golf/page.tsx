@@ -165,6 +165,11 @@ export default async function MiGolfPage() {
                 Cuando uses Best Round Pro, aquí podrás consultar tus
                 recomendaciones.
               </p>
+              <Button asChild className="mt-4 w-full">
+                <Link href="/best-round-pro">
+                  Pedir recomendación a Best Round Pro
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>

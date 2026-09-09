@@ -227,6 +227,13 @@ export default async function ProductDetailPage({
                 />
               )}
 
+              <Link
+                href={`/best-round-pro?product=${encodeURIComponent(product.slug)}`}
+                className="border-border text-pg-black hover:bg-muted mt-3 flex min-h-11 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition-colors"
+              >
+                ¿Es bueno para mí?
+              </Link>
+
               <section
                 aria-labelledby="purchase-confidence-title"
                 className="border-border mt-7 border-t pt-6"
