@@ -63,12 +63,126 @@ export type NextBestQuestion = {
   category: string;
   reason: string;
   critical: boolean;
+  slotType:
+    | "CATEGORY"
+    | "HANDEDNESS"
+    | "HANDICAP"
+    | "SWING_SPEED"
+    | "SHOT_TENDENCY"
+    | "DISTANCE_GAP"
+    | "CURRENT_EQUIPMENT"
+    | "CONDITION_PREFERENCE"
+    | "OBJECTIVE"
+    | "PUTTER_LENGTH"
+    | "WEDGE_CONTEXT"
+    | "BOOLEAN_PREFERENCE";
+  valueType: "TEXT" | "NUMBER" | "ENUM" | "BOOLEAN" | "EQUIPMENT_LIST";
+  unitContext: string | null;
+  interpretationScope: "ANSWER" | "TARGET_SELECTION";
 };
+
+type RawNextBestQuestion = Omit<
+  NextBestQuestion,
+  "slotType" | "valueType" | "unitContext" | "interpretationScope"
+>;
+
+function nextQuestionSlot(id: string) {
+  const slots: Record<
+    string,
+    Pick<
+      NextBestQuestion,
+      "slotType" | "valueType" | "unitContext" | "interpretationScope"
+    >
+  > = {
+    handedness: {
+      slotType: "HANDEDNESS",
+      valueType: "ENUM",
+      unitContext: null,
+      interpretationScope: "ANSWER",
+    },
+    objective: {
+      slotType: "OBJECTIVE",
+      valueType: "ENUM",
+      unitContext: null,
+      interpretationScope: "ANSWER",
+    },
+    shotTendency: {
+      slotType: "SHOT_TENDENCY",
+      valueType: "ENUM",
+      unitContext: null,
+      interpretationScope: "ANSWER",
+    },
+    swingSpeed: {
+      slotType: "SWING_SPEED",
+      valueType: "NUMBER",
+      unitContext: "MPH",
+      interpretationScope: "ANSWER",
+    },
+    currentBag: {
+      slotType: "CURRENT_EQUIPMENT",
+      valueType: "EQUIPMENT_LIST",
+      unitContext: null,
+      interpretationScope: "ANSWER",
+    },
+    skill: {
+      slotType: "HANDICAP",
+      valueType: "NUMBER",
+      unitContext: null,
+      interpretationScope: "ANSWER",
+    },
+    gapping: {
+      slotType: "DISTANCE_GAP",
+      valueType: "NUMBER",
+      unitContext: "GOLF_DISTANCE",
+      interpretationScope: "ANSWER",
+    },
+    turfInteraction: {
+      slotType: "WEDGE_CONTEXT",
+      valueType: "ENUM",
+      unitContext: null,
+      interpretationScope: "ANSWER",
+    },
+    length: {
+      slotType: "PUTTER_LENGTH",
+      valueType: "NUMBER",
+      unitContext: "INCHES",
+      interpretationScope: "ANSWER",
+    },
+    strokeType: {
+      slotType: "WEDGE_CONTEXT",
+      valueType: "ENUM",
+      unitContext: null,
+      interpretationScope: "ANSWER",
+    },
+    productType: {
+      slotType: "CATEGORY",
+      valueType: "ENUM",
+      unitContext: null,
+      interpretationScope: "TARGET_SELECTION",
+    },
+  };
+  return (
+    slots[id] ?? {
+      slotType: "CATEGORY",
+      valueType: "TEXT",
+      unitContext: null,
+      interpretationScope: "ANSWER",
+    }
+  );
+}
 
 export function nextBestQuestion(
   category: string,
   known: Record<string, unknown>,
 ): NextBestQuestion | null {
+  const question = rawNextBestQuestion(category, known);
+  return question ? { ...question, ...nextQuestionSlot(question.id) } : null;
+}
+
+function rawNextBestQuestion(
+  category: string,
+  known: Record<string, unknown>,
+): RawNextBestQuestion | null {
   const value = category.toLowerCase();
   const clubCategory =
     value.includes("driver") ||
