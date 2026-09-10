@@ -123,15 +123,15 @@ export function BestRoundProAgentProvider() {
         data-dragging={dragging}
       ><Image src="/images/best-round-pro-golfer.svg" alt="" width={56} height={56} className="size-full rounded-full object-cover" priority /></button> : null}
       {open ? <div role="dialog" aria-modal="true" aria-labelledby="best-round-pro-shell-title" className="fixed inset-0 z-50 bg-black/20">
-        <aside className="absolute right-0 top-0 h-full w-full max-w-[480px] overflow-y-auto bg-pg-warm-white shadow-2xl sm:w-[min(480px,100vw)]">
-          <div className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-pg-gold/30 bg-pg-black px-5 py-3 text-white shadow-md backdrop-blur">
+        <aside className="absolute right-0 top-0 flex h-[100dvh] w-full max-w-[480px] flex-col overflow-hidden bg-pg-warm-white shadow-2xl sm:w-[min(480px,100vw)]">
+          <div className="sticky top-0 z-50 flex min-h-16 shrink-0 items-center justify-between border-b border-pg-gold/30 bg-pg-black px-5 py-3 text-white shadow-md backdrop-blur [padding-top:env(safe-area-inset-top)]">
             <div><p id="best-round-pro-shell-title" className="font-heading text-xl">Best Round Pro</p><p className="text-white/70 text-xs">Tu asesor de golf</p></div>
             <div className="flex items-center gap-1">
-              <button type="button" aria-label="Minimizar Best Round Pro Agent" className="inline-flex size-10 items-center justify-center rounded-lg text-2xl font-semibold hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={closeShell}>−</button>
-              <button type="button" aria-label="Cerrar Best Round Pro Agent" className="inline-flex size-10 items-center justify-center rounded-lg text-2xl font-semibold hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={closeShell}>×</button>
+              <button type="button" aria-label="Minimizar Best Round Pro Agent" className="inline-flex size-10 items-center justify-center rounded-lg border border-white/40 text-2xl font-semibold hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={closeShell}>−</button>
+              <button type="button" aria-label="Cerrar Best Round Pro Agent" className="inline-flex size-10 items-center justify-center rounded-lg border border-pg-gold bg-pg-gold text-2xl font-semibold text-pg-black hover:bg-white focus-visible:outline-2 focus-visible:outline-white" onClick={closeShell}>×</button>
             </div>
           </div>
-          <div className="p-4"><BestRoundProChat embedded /></div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4"><BestRoundProChat embedded /></div>
         </aside>
       </div> : null}
     </>
