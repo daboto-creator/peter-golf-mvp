@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { BestRoundProChat } from "./best-round-pro-chat";
 
 const POSITION_KEY = "best-round-pro-agent-position";
 
 export function BestRoundProAgentProvider() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState(() => {
     if (typeof window !== "undefined") {
@@ -56,7 +58,7 @@ export function BestRoundProAgentProvider() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     setDragging(false);
   };
-  if (typeof window !== "undefined" && (/^\/operacion(?:\/|$)/.test(window.location.pathname) || /^\/partner(?:\/|$)/.test(window.location.pathname) || window.location.pathname === "/best-round-pro")) return null;
+  if (/^\/operacion(?:\/|$)/.test(pathname) || /^\/partner(?:\/|$)/.test(pathname) || pathname === "/best-round-pro") return null;
   return (
     <>
       {!open ? <button
