@@ -211,7 +211,7 @@ describe("Best Round Pro conversation", () => {
     });
   });
 
-  it.each(["ninguno", "no tengo fallos", "recto", "no sé"])(
+  it.each(["ninguno", "no tengo fallos", "recto", "normal", "no sé"])(
     "closes driver common-miss slot for %s",
     (message) => {
       const state = initialConversationState();

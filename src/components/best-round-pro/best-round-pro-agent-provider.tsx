@@ -11,6 +11,7 @@ export function BestRoundProAgentProvider() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [teaser, setTeaser] = useState(false);
+  const [motion, setMotion] = useState(false);
   const [position, setPosition] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -54,6 +55,15 @@ export function BestRoundProAgentProvider() {
     }, 5000);
     return () => window.clearTimeout(timer);
   }, []);
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (!open && !dragging && document.visibilityState === "visible" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setMotion(true);
+        window.setTimeout(() => setMotion(false), 700);
+      }
+    }, 30000);
+    return () => window.clearInterval(interval);
+  }, [open, dragging]);
   useEffect(() => {
     const clamp = () => setPosition((p) => ({ ...p, top: Math.min(88, Math.max(12, p.top)) }));
     window.addEventListener("resize", clamp);
@@ -104,21 +114,21 @@ export function BestRoundProAgentProvider() {
         ref={launcherRef}
         type="button"
         aria-label="Best Round Pro Agent"
-        className="fixed z-50 size-16 touch-none rounded-full border-2 border-pg-gold bg-pg-black p-1 shadow-xl transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pg-gold"
+        className={`fixed z-50 size-16 touch-none rounded-full border-2 border-pg-gold bg-white p-1 shadow-xl transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pg-gold ${motion ? "rotate-6" : ""}`}
         style={{ [position.edge]: "max(1rem, env(safe-area-inset-right))", top: `${position.top}%`, transform: "translateY(-50%)" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onClick={() => { if (!moved.current) setOpen(true); }}
         data-dragging={dragging}
-      ><Image src="/images/best-round-pro-agent.png" alt="" width={56} height={56} className="size-full rounded-full object-cover" priority /></button> : null}
+      ><Image src="/images/best-round-pro-golfer.svg" alt="" width={56} height={56} className="size-full rounded-full object-cover" priority /></button> : null}
       {open ? <div role="dialog" aria-modal="true" aria-labelledby="best-round-pro-shell-title" className="fixed inset-0 z-50 bg-black/20">
         <aside className="absolute right-0 top-0 h-full w-full max-w-[480px] overflow-y-auto bg-pg-warm-white shadow-2xl sm:w-[min(480px,100vw)]">
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-pg-warm-white/95 px-5 py-4 backdrop-blur">
-            <div><p id="best-round-pro-shell-title" className="font-heading text-xl">Best Round Pro</p><p className="text-muted-foreground text-xs">Tu asesor de golf</p></div>
+          <div className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-pg-gold/30 bg-pg-black px-5 py-3 text-white shadow-md backdrop-blur">
+            <div><p id="best-round-pro-shell-title" className="font-heading text-xl">Best Round Pro</p><p className="text-white/70 text-xs">Tu asesor de golf</p></div>
             <div className="flex items-center gap-1">
-              <button type="button" aria-label="Minimizar Best Round Pro Agent" className="inline-flex size-10 items-center justify-center rounded-lg text-lg font-semibold hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={closeShell}>−</button>
-              <button type="button" aria-label="Cerrar Best Round Pro Agent" className="inline-flex size-10 items-center justify-center rounded-lg text-xl font-semibold hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={closeShell}>×</button>
+              <button type="button" aria-label="Minimizar Best Round Pro Agent" className="inline-flex size-10 items-center justify-center rounded-lg text-2xl font-semibold hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={closeShell}>−</button>
+              <button type="button" aria-label="Cerrar Best Round Pro Agent" className="inline-flex size-10 items-center justify-center rounded-lg text-2xl font-semibold hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={closeShell}>×</button>
             </div>
           </div>
           <div className="p-4"><BestRoundProChat embedded /></div>

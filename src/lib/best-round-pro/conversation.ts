@@ -268,6 +268,13 @@ function parseAnswers(
   if (/recto|straight/i.test(text)) answers.shotTendency = "STRAIGHT";
   if (
     pendingQuestionKey === "shotTendency" &&
+    /\b(normal|normalmente\s+recto|va\s+normal|vuelo\s+normal|sin\s+desviaci[oó]n|bastante\s+recto|m[aá]s\s+o\s+menos\s+recto)\b/i.test(
+      text,
+    )
+  )
+    answers.shotTendency = "STRAIGHT";
+  if (
+    pendingQuestionKey === "shotTendency" &&
     /\b(ninguno|ninguna|no\s+tengo(?:\s+un)?\s+fallo(?:s)?(?:\s+com[uú]n)?|ning[uú]n\s+fallo|no\s+realmente|ninguno\s+en\s+particular)\b/i.test(
       text,
     )
