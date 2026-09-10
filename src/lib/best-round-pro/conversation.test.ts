@@ -204,7 +204,7 @@ describe("Best Round Pro conversation", () => {
     );
     expect(
       terminalOutcomeMessage("NO_RESPONSIBLE_MATCH", "WEDGE", null),
-    ).toMatch(/inventario.*responsablemente/i);
+    ).toMatch(/encaja.*responsablemente/i);
     expect(terminalOutcomeMessage("INSUFFICIENT_DATA", "PUTTER", null)).toMatch(
       /necesito un dato/i,
     );

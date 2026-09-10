@@ -509,12 +509,15 @@ export function terminalOutcomeMessage(
   category: string,
   handedness: string | number | boolean | null | undefined,
 ) {
-  const label =
-    category === "IRON"
-      ? "hierros"
-      : category === "PUTTER"
-        ? "putters"
-        : category.toLowerCase();
+  const label: Record<string, string> = {
+    DRIVER: "drivers",
+    FAIRWAY_WOOD: "maderas de calle",
+    HYBRID: "híbridos",
+    IRON: "hierros",
+    WEDGE: "wedges",
+    PUTTER: "putters",
+  };
+  const categoryLabel = label[category] ?? "opciones de equipo";
   const hand =
     handedness === "RIGHT"
       ? " para diestro"
@@ -522,10 +525,10 @@ export function terminalOutcomeMessage(
         ? " para zurdo"
         : "";
   if (outcome === "NO_INVENTORY")
-    return `Ahora mismo no tengo ${label}${hand} disponibles en inventario para mostrarte.`;
+    return `Ahora mismo no tengo ${categoryLabel}${hand} disponibles. Prefiero no recomendarte algo que no encaje contigo.`;
   if (outcome === "NO_RESPONSIBLE_MATCH")
-    return "Encontré inventario, pero con lo que me contaste no hay una opción que te recomiende responsablemente ahora mismo.";
-  return "Para recomendarte con confianza todavía necesito un dato técnico más de tu juego.";
+    return "Sí encontré algunas opciones, pero ninguna encaja lo suficiente contigo como para recomendarla responsablemente.";
+  return "Antes de recomendarte algo con confianza, necesito un dato técnico más de tu juego.";
 }
 
 export function priceObjectionReply(
