@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isCatalogIntent, routeConversationIntent } from "./intent-router";
+import { isAdviceMetaQuestion, isCatalogIntent, isProductAdviceLanguage, routeConversationIntent } from "./intent-router";
 import { BEST_ROUND_PRO_AGENT_ASSET } from "./launcher";
 import { initialConversationState } from "./conversation";
 
@@ -33,5 +33,21 @@ describe("Best Round Pro intent routing", () => {
     const state = initialConversationState();
     expect(state.lastCatalogResults).toEqual([]);
     expect(state.lastFocusedProduct).toBeNull();
+  });
+
+  it("recognizes natural product-advice language through the production helper", () => {
+    for (const phrase of [
+      "me lo recomiendas", "lo recomiendas", "me recomiendas este", "lo recomendarías",
+      "me sirve", "me conviene", "es bueno para mí", "qué opinas de este",
+      "qué tal para mí", "crees que me funcione", "vale la pena para mí",
+    ]) expect(isProductAdviceLanguage(phrase), phrase).toBe(true);
+  });
+
+  it("recognizes meta questions through the production helper", () => {
+    for (const phrase of [
+      "que necesitas", "qué necesitas", "qué datos necesitas", "que datos necesitas",
+      "qué te falta", "qué quieres saber", "qué te digo", "qué información te doy",
+      "qué necesitas saber", "qué necesitas de mí",
+    ]) expect(isAdviceMetaQuestion(phrase), phrase).toBe(true);
   });
 });

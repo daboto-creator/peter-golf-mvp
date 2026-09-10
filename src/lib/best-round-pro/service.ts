@@ -30,6 +30,9 @@ import {
 import {
   isCatalogIntent,
   routeConversationIntent,
+  isAdviceMetaQuestion,
+  isProductAdviceLanguage,
+  normalizeConversationText,
 } from "@/lib/best-round-pro/intent-router";
 import { searchCommercialCatalog } from "@/lib/best-round-pro/catalog-search";
 import type { CatalogProductReference } from "@/lib/best-round-pro/conversation";
@@ -114,13 +117,9 @@ export async function processConversationTurn(input: {
   });
   const context = await loadMiGolfContext();
   const intent = routeConversationIntent(input.message);
-  const normalizedMessage = input.message
-    .toLocaleLowerCase("es-MX")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-  const asksWhatData = /(?:que|qué)\s+(?:datos|informacion|información)\s+necesitas|que\s+te\s+falta|que\s+necesitas\s+saber/.test(normalizedMessage);
-  const evaluativeLanguage = /\b(?:recomiend|sirve|conviene|bueno para mi|funcione|funciona|que tal|opinas|vale la pena|comprarias|encaja)\b/.test(normalizedMessage);
-  const asksProductAdvice = evaluativeLanguage;
+  const normalizedMessage = normalizeConversationText(input.message);
+  const asksWhatData = isAdviceMetaQuestion(input.message);
+  const asksProductAdvice = isProductAdviceLanguage(input.message);
   const focusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
   if (asksProductAdvice || (asksWhatData && focusedProduct && input.state.pendingQuestionCategory !== "PRODUCT_ADVICE")) {

@@ -16,12 +16,26 @@ export const COMMERCIAL_INTENTS = [
 
 export type ConversationIntent = (typeof COMMERCIAL_INTENTS)[number];
 
+export function normalizeConversationText(text: string) {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX").trim();
+}
+
+/** Evaluative language, intentionally based on stems/semantic families. */
+export function isProductAdviceLanguage(text: string) {
+  const value = normalizeConversationText(text);
+  return /\b(recomend\w*|recomiend\w*|sirv\w*|convien\w*|funcion\w*|opin\w*|encaj\w*|comprari\w*|vale\s+la\s+pena)\b/.test(value) ||
+    /\b(?:es|sera|seria)\s+bueno\s+para\s+mi\b/.test(value) || /\bque\s+tal\b/.test(value);
+}
+
+export function isAdviceMetaQuestion(text: string) {
+  const value = normalizeConversationText(text).replace(/[¿?!.,;:]/g, " ").replace(/\s+/g, " ");
+  return /\b(?:que|qué)\s+necesitas(?:\s+de\s+mi)?\b/.test(value) ||
+    /\b(?:que|qué)\s+(?:datos|informacion)\s+necesitas\b/.test(value) ||
+    /\b(?:que|qué)\s+(?:te\s+falta|quieres\s+saber|te\s+digo|te\s+tengo\s+que\s+decir|informacion\s+te\s+doy)\b/.test(value);
+}
+
 export function routeConversationIntent(text: string): ConversationIntent {
-  const value = text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("es-MX")
-    .trim();
+  const value = normalizeConversationText(text);
   if (/margen|comision|comercial interna|match\s*100|ignora.*regla/.test(value))
     return "SALES_OBJECTION";
   if (/envio|entrega|devol|garantia|pago|pedido|orden/.test(value))
@@ -32,7 +46,7 @@ export function routeConversationIntent(text: string): ConversationIntent {
     return "PRODUCT_COMPARISON";
   if (/set|juego completo|kit|paquete/.test(value) && /recomiend|empezar|principiante/.test(value) && !/handicap|swing|mi juego|compatib/.test(value))
     return "PRODUCT_SEARCH";
-  if (/es bueno para mi|me sirve|me conviene|recomiend|para mi juego|segun mi|para handicap|para mi\b/.test(value))
+  if (isProductAdviceLanguage(value) || /para mi juego|segun mi|para handicap|para mi\b/.test(value))
     return "FITTING_RECOMMENDATION";
   if (/\b(tienen|hay|manejan|que tienen|que opciones|muestran|disponib)/.test(value))
     return "CATALOG_SEARCH";
