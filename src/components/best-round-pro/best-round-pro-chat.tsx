@@ -43,6 +43,10 @@ const reasonLabels: Record<string, string> = {
   LIMITED_AVAILABILITY: "La disponibilidad es limitada.",
 };
 
+function customerPrice(amount: number) {
+  return formatMoneyMinorUnits(amount).replace(/\.00$/, "");
+}
+
 export function BestRoundProChat() {
   const [state, setState] = useState<ConversationState>(
     initialConversationState(),
@@ -197,7 +201,7 @@ export function BestRoundProChat() {
                           : "Condición no indicada"}{" "}
                       ·{" "}
                       {item.candidate.priceMxnMinor !== null
-                        ? `${formatMoneyMinorUnits(item.candidate.priceMxnMinor)} MXN`
+                        ? `${customerPrice(item.candidate.priceMxnMinor)} MXN`
                         : "precio por confirmar"}
                     </p>
                     <p className="text-sm">

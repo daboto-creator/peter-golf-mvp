@@ -16,6 +16,15 @@ export type ConversationObjection =
   | "NEED_TO_THINK"
   | "WANT_OTHER_OPTION";
 
+function isProtectedRequest(text: string) {
+  return (
+    /(ignora|omite|cambia|ponle|ajusta).*(regla|match|100)|\b(margen|margin|comision|comisión|costo|coste|ganancia)\b/i.test(
+      text,
+    ) &&
+    /match|margen|margin|comision|comisión|costo|coste|ganancia/i.test(text)
+  );
+}
+
 export type ConversationState = {
   session: BestRoundProSessionSummary;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
@@ -236,8 +245,9 @@ export function classifyConversationTurn(
   if (category && category !== state.session.requestedCategory)
     events.push("CATEGORY_SELECTED");
   if (next) session.unresolvedQuestions = [next.id];
-  const reply =
-    objection === "NEED_TO_THINK"
+  const reply = isProtectedRequest(text)
+    ? "No puedo modificar el Match ni compartir información comercial interna. El Match se mantiene porque lo calcula el sistema con tu perfil y la configuración real del equipo."
+    : objection === "NEED_TO_THINK"
       ? "Claro. Te dejo un resumen para que lo revises con calma; no tienes que decidir ahora."
       : objection === "PRICE"
         ? "Entiendo la preocupación por el precio. Puedo mostrarte una alternativa de valor sin inventar descuentos, manteniendo claro el compromiso técnico."
