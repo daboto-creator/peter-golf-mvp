@@ -29,11 +29,12 @@ export function BestRoundProChat() {
   const [recommendation, setRecommendation] =
     useState<CommercialRankingResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const send = async (message = input) => {
     const text = message.trim();
     if (!text || busy) return;
     setBusy(true);
-    setInput("");
+    setError(null);
     try {
       const response = await fetch("/api/best-round-pro", {
         method: "POST",
@@ -49,8 +50,11 @@ export function BestRoundProChat() {
       setState(payload.state);
       setReply(payload.reply ?? "");
       setRecommendation(payload.recommendation ?? null);
+      setInput("");
     } catch {
-      setReply("No pude completar la consulta. Intenta nuevamente.");
+      setError(
+        "No pude completar la consulta. Tu mensaje se conservó; intenta nuevamente.",
+      );
     } finally {
       setBusy(false);
     }
@@ -104,11 +108,42 @@ export function BestRoundProChat() {
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="bg-muted/40 min-h-36 rounded-2xl p-5">
-            <p className="leading-7">{reply}</p>
-            {state.session.unresolvedQuestions[0] ? (
-              <p className="text-pg-gold mt-4 font-semibold">{reply}</p>
-            ) : null}
+            <div className="space-y-3" aria-live="polite">
+              {state.messages.length === 0 ? (
+                <p className="leading-7">{reply}</p>
+              ) : (
+                state.messages.map((message, index) => (
+                  <p
+                    key={`${message.role}-${index}`}
+                    className={
+                      message.role === "assistant"
+                        ? "leading-7"
+                        : "text-muted-foreground text-sm"
+                    }
+                  >
+                    {message.content}
+                  </p>
+                ))
+              )}
+              {busy ? (
+                <p className="text-pg-gold font-semibold">Pensando…</p>
+              ) : null}
+            </div>
           </div>
+          {error ? (
+            <div
+              role="alert"
+              className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border p-3 text-sm"
+            >
+              {error}{" "}
+              <button
+                className="ml-2 font-semibold underline"
+                onClick={() => void send()}
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : null}
           {recommendation?.status === "RECOMMENDATIONS" ? (
             <div className="grid gap-3">
               {recommendation.recommendations.map((item) => (
@@ -161,7 +196,7 @@ export function BestRoundProChat() {
               onClick={() => void send()}
               disabled={busy || !input.trim()}
             >
-              {busy ? "…" : "Enviar"}
+              {busy ? "Pensando…" : "Enviar"}
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">

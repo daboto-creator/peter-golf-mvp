@@ -57,4 +57,19 @@ describe("Best Round Pro conversation", () => {
     );
     expect(a).toEqual(b);
   });
+
+  it("marks an unknown answer and advances past swing speed", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "DRIVER";
+    state.session.diagnosticAnswers = {
+      handedness: "RIGHT",
+      objective: "MORE_FORGIVENESS",
+      shotTendency: "SLICE",
+    };
+    const result = classifyConversationTurn(state, "No la conozco.");
+    expect(result.state.session.diagnosticAnswers.swingSpeed).toBe(
+      "ANSWERED_UNKNOWN",
+    );
+    expect(result.nextQuestion?.id).not.toBe("swingSpeed");
+  });
 });

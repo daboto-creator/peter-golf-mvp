@@ -86,6 +86,20 @@ function parseAnswers(
   current: Record<string, string | number | boolean | null>,
 ) {
   const answers = { ...current };
+  if (/\bno\s+(s[eé]|la\s+conozco|tengo\s+ese\s+dato)\b/i.test(text)) {
+    if (current.swingSpeed === undefined)
+      answers.swingSpeed = "ANSWERED_UNKNOWN";
+    if (current.shotTendency === undefined)
+      answers.shotTendency = "ANSWERED_UNKNOWN";
+    if (current.currentBag === undefined)
+      answers.currentBag = "ANSWERED_UNKNOWN";
+    if (current.gapping === undefined) answers.gapping = "ANSWERED_UNKNOWN";
+    if (current.turfInteraction === undefined)
+      answers.turfInteraction = "ANSWERED_UNKNOWN";
+    if (current.length === undefined) answers.length = "ANSWERED_UNKNOWN";
+    if (current.strokeType === undefined)
+      answers.strokeType = "ANSWERED_UNKNOWN";
+  }
   if (/\b(diestro|derecho|right)\b/i.test(text)) answers.handedness = "RIGHT";
   if (/\b(zurdo|zurda|izquierdo|left)\b/i.test(text))
     answers.handedness = "LEFT";
