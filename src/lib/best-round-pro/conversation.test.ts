@@ -56,6 +56,19 @@ describe("Best Round Pro conversation", () => {
     expect(result.reply).not.toContain("¿Qué equipo buscas");
   });
 
+  it.each(["distancia", "más distancia", "pegar más lejos", "quiero más yardas", "más perdón", "menos slice"])(
+    "closes the pending driver objective slot for %s",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "DRIVER";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.pendingQuestionKey = "objective";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.objective).toBeTruthy();
+      expect(result.nextQuestion?.id).not.toBe("objective");
+    },
+  );
+
   it.each(["30", "handicap 30", "hcp 30"])(
     "accepts bare handicap answer %s",
     (message) => {

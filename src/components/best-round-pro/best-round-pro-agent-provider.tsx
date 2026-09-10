@@ -10,6 +10,7 @@ const POSITION_KEY = "best-round-pro-agent-position";
 export function BestRoundProAgentProvider() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [teaser, setTeaser] = useState(false);
   const [position, setPosition] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -28,6 +29,20 @@ export function BestRoundProAgentProvider() {
     const openFromContext = () => setOpen(true);
     window.addEventListener("best-round-pro:open", openFromContext);
     return () => window.removeEventListener("best-round-pro:open", openFromContext);
+  }, []);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (!window.sessionStorage.getItem("best-round-pro-agent-teaser-seen")) {
+        setTeaser(true);
+        window.sessionStorage.setItem("best-round-pro-agent-teaser-seen", "1");
+      }
+    }, 5000);
+    return () => window.clearTimeout(timer);
   }, []);
   useEffect(() => {
     const clamp = () => setPosition((p) => ({ ...p, top: Math.min(88, Math.max(12, p.top)) }));
@@ -69,6 +84,12 @@ export function BestRoundProAgentProvider() {
   if (/^\/operacion(?:\/|$)/.test(pathname) || /^\/partner(?:\/|$)/.test(pathname) || pathname === "/best-round-pro") return null;
   return (
     <>
+      {teaser && !open ? <div className={`fixed z-50 ${position.edge === "right" ? "right-5" : "left-5"}`} style={{ top: `calc(${position.top}% - 58px)` }}>
+        <div className="flex items-start gap-2 rounded-2xl border border-pg-gold/30 bg-white px-3 py-2 text-xs font-medium text-pg-black shadow-lg">
+          <button type="button" aria-label="Cerrar sugerencia" className="order-2 text-sm leading-none text-pg-black/60" onClick={() => setTeaser(false)}>×</button>
+          <button type="button" className="text-left" onClick={() => { setTeaser(false); setOpen(true); }}>¿Te ayudo a encontrar el equipo ideal?</button>
+        </div>
+      </div> : null}
       {!open ? <button
         type="button"
         aria-label="Best Round Pro Agent"
@@ -84,7 +105,7 @@ export function BestRoundProAgentProvider() {
         <aside className="absolute right-0 top-0 h-full w-full max-w-[480px] overflow-y-auto bg-pg-warm-white shadow-2xl sm:w-[min(480px,100vw)]">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-pg-warm-white/95 px-5 py-4 backdrop-blur">
             <div><p id="best-round-pro-shell-title" className="font-heading text-xl">Best Round Pro</p><p className="text-muted-foreground text-xs">Tu asesor de golf</p></div>
-            <button type="button" aria-label="Cerrar Best Round Pro" className="rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={() => setOpen(false)}>Cerrar</button>
+            <button type="button" aria-label="Cerrar Best Round Pro Agent" className="rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={() => setOpen(false)}>Cerrar</button>
           </div>
           <div className="p-4"><BestRoundProChat embedded /></div>
         </aside>

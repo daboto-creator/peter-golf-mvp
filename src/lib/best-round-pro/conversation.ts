@@ -126,6 +126,7 @@ export function resolveContextualShortAnswer(input: {
       currentBag: "currentBag",
       skill: "skill",
       shotTendency: "shotTendency",
+      objective: "objective",
     };
     return {
       field: fieldByQuestion[input.pendingQuestionKey],
@@ -267,6 +268,27 @@ function parseAnswers(
   if (/recto|straight/i.test(text)) answers.shotTendency = "STRAIGHT";
   if (/forgiveness|perd[oó]n|perdonador|f[aá]cil|consisten/i.test(text))
     answers.objective = "MORE_FORGIVENESS";
+  if (
+    pendingQuestionKey === "objective" &&
+    /\b(distancia|m[aá]s\s+(?:distancia|lejos|yardas|largo)|pegar\s+m[aá]s\s+lejos|ganar\s+yardas|llegar\s+m[aá]s\s+lejos)\b/i.test(
+      text,
+    )
+  )
+    answers.objective = "MORE_DISTANCE";
+  if (
+    pendingQuestionKey === "objective" &&
+    /\b(perd[oó]n|tolerancia|consistente|estabilidad|m[aá]s\s+recto|fallar\s+menos)\b/i.test(
+      text,
+    )
+  )
+    answers.objective = "MORE_FORGIVENESS";
+  if (
+    pendingQuestionKey === "objective" &&
+    /\b(slice|menos\s+slice|corregir\s+slice|cerrar\s+el\s+slice|derecha)\b/i.test(
+      text,
+    )
+  )
+    answers.objective = "REDUCE_SLICE";
   if (/slice|slide|slise|slaice/i.test(text) && category === "DRIVER")
     answers.objective ??= "REDUCE_SLICE";
   const numericSlot = ["skill", "gapping", "swingSpeed", "length"].includes(
