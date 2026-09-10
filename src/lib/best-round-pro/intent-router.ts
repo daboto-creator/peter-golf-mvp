@@ -24,7 +24,7 @@ export function routeConversationIntent(text: string): ConversationIntent {
     .trim();
   if (/margen|comision|comercial interna|match\s*100|ignora.*regla/.test(value))
     return "SALES_OBJECTION";
-  if (/envio|entrega|devol|garantia|pago|comprar|pedido|orden/.test(value))
+  if (/envio|entrega|devol|garantia|pago|pedido|orden/.test(value))
     return /pedido|orden/.test(value) ? "ORDER_HELP" : "STORE_POLICY";
   if (/trade\s*-?in|recib.*seminuev|vender mi equipo/.test(value))
     return "TRADE_IN";
