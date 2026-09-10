@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import {
   initialConversationState,
@@ -49,6 +50,7 @@ function customerPrice(amount: number) {
 }
 
 export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
+  const router = useRouter();
   const [state, setState] = useState<ConversationState>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -233,9 +235,14 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
                     </p>
                     <Link
                       className="text-pg-gold text-sm font-semibold"
-                      href="/productos"
+                      href={item.candidate.productHref ?? "/productos"}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        window.dispatchEvent(new CustomEvent("best-round-pro:close"));
+                        router.push(item.candidate.productHref ?? "/productos");
+                      }}
                     >
-                      Ver inventario
+                      Ver producto
                     </Link>
                   </CardContent>
                 </Card>

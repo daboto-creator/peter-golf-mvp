@@ -109,6 +109,10 @@ export async function loadInventoryUnits(): Promise<InventoryCandidateLoadResult
     const firstPartyUnits: InventoryUnit[] = (firstParty.data ?? []).map(
       (row) => ({
         productId: row.product_id,
+        productHref:
+          typeof (row as Record<string, unknown>).product_slug === "string"
+            ? `/productos/${encodeURIComponent((row as Record<string, unknown>).product_slug as string)}`
+            : null,
         unitId: row.unit_id,
         canonicalModelId: row.canonical_model_id,
         source: "FIRST_PARTY",
@@ -129,6 +133,10 @@ export async function loadInventoryUnits(): Promise<InventoryCandidateLoadResult
         return [
           {
             productId: row.listing_id,
+            productHref:
+              typeof (row as Record<string, unknown>).slug === "string"
+                ? `/productos/${encodeURIComponent((row as Record<string, unknown>).slug as string)}`
+                : null,
             unitId: row.listing_id,
             canonicalModelId: null,
             source: "MARKETPLACE",

@@ -21,20 +21,30 @@ export function BestRoundProAgentProvider() {
     return { edge: "right" as "left" | "right", top: 78 };
   });
   const [dragging, setDragging] = useState(false);
+  const launcherRef = useRef<HTMLButtonElement>(null);
   const moved = useRef(false);
   const startX = useRef(0);
   const startY = useRef(0);
+  const closeShell = useCallback(() => {
+    setOpen(false);
+    window.setTimeout(() => launcherRef.current?.focus(), 0);
+  }, []);
 
   useEffect(() => {
     const openFromContext = () => setOpen(true);
+    const closeFromContext = closeShell;
     window.addEventListener("best-round-pro:open", openFromContext);
-    return () => window.removeEventListener("best-round-pro:open", openFromContext);
-  }, []);
+    window.addEventListener("best-round-pro:close", closeFromContext);
+    return () => {
+      window.removeEventListener("best-round-pro:open", openFromContext);
+      window.removeEventListener("best-round-pro:close", closeFromContext);
+    };
+  }, [closeShell]);
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") closeShell(); };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [closeShell]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (!window.sessionStorage.getItem("best-round-pro-agent-teaser-seen")) {
@@ -91,6 +101,7 @@ export function BestRoundProAgentProvider() {
         </div>
       </div> : null}
       {!open ? <button
+        ref={launcherRef}
         type="button"
         aria-label="Best Round Pro Agent"
         className="fixed z-50 size-16 touch-none rounded-full border-2 border-pg-gold bg-pg-black p-1 shadow-xl transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pg-gold"
@@ -105,7 +116,7 @@ export function BestRoundProAgentProvider() {
         <aside className="absolute right-0 top-0 h-full w-full max-w-[480px] overflow-y-auto bg-pg-warm-white shadow-2xl sm:w-[min(480px,100vw)]">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-pg-warm-white/95 px-5 py-4 backdrop-blur">
             <div><p id="best-round-pro-shell-title" className="font-heading text-xl">Best Round Pro</p><p className="text-muted-foreground text-xs">Tu asesor de golf</p></div>
-            <button type="button" aria-label="Cerrar Best Round Pro Agent" className="rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={() => setOpen(false)}>Cerrar</button>
+            <button type="button" aria-label="Cerrar Best Round Pro Agent" className="rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-pg-gold" onClick={closeShell}>Cerrar</button>
           </div>
           <div className="p-4"><BestRoundProChat embedded /></div>
         </aside>

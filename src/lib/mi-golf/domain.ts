@@ -438,6 +438,7 @@ export type CommercialFit = {
 
 export type InventoryUnit = {
   productId: string;
+  productHref?: string | null;
   unitId: string;
   canonicalModelId: string | null;
   source: InventorySource;
