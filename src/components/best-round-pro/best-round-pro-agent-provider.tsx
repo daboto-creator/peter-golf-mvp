@@ -13,7 +13,8 @@ export function BestRoundProAgentProvider() {
   const [open, setOpen] = useState(false);
   const [teaser, setTeaser] = useState(false);
   const [motion, setMotion] = useState(false);
-  const [headerBottom, setHeaderBottom] = useState(0);
+  // Keep the first open below the public header; the measured value replaces this immediately.
+  const [headerBottom, setHeaderBottom] = useState(128);
   const [launcherAsset, setLauncherAsset] = useState<string>(BEST_ROUND_PRO_AGENT_ASSET.primary);
   const [position, setPosition] = useState(() => {
     if (typeof window !== "undefined") {
