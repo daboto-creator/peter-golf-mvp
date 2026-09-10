@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import {
@@ -48,10 +48,19 @@ function customerPrice(amount: number) {
   return formatMoneyMinorUnits(amount).replace(/\.00$/, "");
 }
 
-export function BestRoundProChat() {
-  const [state, setState] = useState<ConversationState>(
-    initialConversationState(),
-  );
+export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
+  const [state, setState] = useState<ConversationState>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.sessionStorage.getItem("best-round-pro-session");
+        if (saved) {
+          const parsed = JSON.parse(saved) as ConversationState;
+          if (parsed?.session && Array.isArray(parsed.messages)) return parsed;
+        }
+      } catch { /* optional storage */ }
+    }
+    return initialConversationState();
+  });
   const [input, setInput] = useState("");
   const [reply, setReply] = useState(
     "Soy Best Round Pro. Te ayudo a encontrar equipo real que encaje con tu juego.",
@@ -61,6 +70,13 @@ export function BestRoundProChat() {
   const [outcome, setOutcome] = useState<ConversationOutcomeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem("best-round-pro-session", JSON.stringify(state));
+    } catch {
+      // Storage is optional.
+    }
+  }, [state]);
   const send = async (message = input) => {
     const text = message.trim();
     if (!text || busy) return;
@@ -93,8 +109,8 @@ export function BestRoundProChat() {
     }
   };
   return (
-    <section className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.82fr_1.18fr]">
-      <Card className="border-pg-black/10 bg-pg-black text-white">
+    <section className={embedded ? "grid gap-4" : "mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.82fr_1.18fr]"}>
+      {!embedded ? <Card className="border-pg-black/10 bg-pg-black text-white">
         <CardHeader>
           <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
             Best Round Pro
@@ -133,7 +149,7 @@ export function BestRoundProChat() {
             Nueva consulta
           </Button>
         </CardContent>
-      </Card>
+      </Card> : null}
       <Card>
         <CardHeader>
           <CardTitle className="font-heading text-2xl">
