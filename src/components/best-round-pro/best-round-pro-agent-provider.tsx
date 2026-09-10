@@ -56,6 +56,14 @@ export function BestRoundProAgentProvider() {
   };
   const onPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const collision = Array.from(document.querySelectorAll<HTMLElement>("[data-best-round-pro-exclusion]"))
+      .map((element) => element.getBoundingClientRect())
+      .find((zone) => rect.left < zone.right && rect.right > zone.left && rect.top < zone.bottom && rect.bottom > zone.top);
+    if (collision) {
+      const safeTop = Math.max(12, Math.min(88, ((collision.top - rect.height - 12) / window.innerHeight) * 100));
+      savePosition({ edge: position.edge, top: safeTop });
+    }
     setDragging(false);
   };
   if (/^\/operacion(?:\/|$)/.test(pathname) || /^\/partner(?:\/|$)/.test(pathname) || pathname === "/best-round-pro") return null;
