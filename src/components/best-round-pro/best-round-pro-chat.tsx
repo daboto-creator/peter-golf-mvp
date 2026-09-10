@@ -244,8 +244,8 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
                       href={item.candidate.productHref}
                       onClick={(event) => {
                         event.preventDefault();
-                        window.dispatchEvent(new CustomEvent("best-round-pro:close"));
                         router.push(item.candidate.productHref!);
+                        window.dispatchEvent(new CustomEvent("best-round-pro:close"));
                       }}
                     >
                       Ver producto
