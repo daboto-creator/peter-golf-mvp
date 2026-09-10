@@ -8,6 +8,7 @@ import {
   priceObjectionReply,
   resolveContextualShortAnswer,
 } from "./conversation";
+import { interpretGolfCategory } from "./category-normalization";
 
 describe("Best Round Pro conversation", () => {
   it.each([
@@ -23,11 +24,20 @@ describe("Best Round Pro conversation", () => {
 
   it.each([
     ["madera de calle", "FAIRWAY_WOOD"],
+    ["madera 3", "FAIRWAY_WOOD"],
+    ["3 wood", "FAIRWAY_WOOD"],
     ["fairway", "FAIRWAY_WOOD"],
+    ["madera", "FAIRWAY_WOOD"],
     ["híbrido", "HYBRID"],
+    ["rescue", "HYBRID"],
     ["hierros", "IRON"],
+    ["fierro 7", "IRON"],
     ["wedge", "WEDGE"],
+    ["sand wedge", "WEDGE"],
+    ["gap", "WEDGE"],
     ["putt", "PUTTER"],
+    ["pot", "PUTTER"],
+    ["pater", "PUTTER"],
   ] as const)("maps natural category %s", (message, category) => {
     expect(detectCategory(message)).toBe(category);
   });
@@ -53,13 +63,15 @@ describe("Best Round Pro conversation", () => {
     expect(result.reply).not.toContain("¿Qué equipo buscas");
   });
 
-  it("asks a focused clarification for genuinely ambiguous wood wording", () => {
-    const result = classifyConversationTurn(
-      initialConversationState(),
-      "quiero una madera",
-    );
-    expect(result.reply).toContain("madera de calle (Fairway)");
-    expect(result.reply).not.toContain("¿Qué equipo buscas");
+  it("preserves wood number and wedge subtype separately", () => {
+    expect(interpretGolfCategory("madera 5")).toMatchObject({
+      category: "FAIRWAY_WOOD",
+      clubNumber: 5,
+    });
+    expect(interpretGolfCategory("sand wedge")).toMatchObject({
+      category: "WEDGE",
+      subtype: "SAND",
+    });
   });
 
   it("does not guess a category from a distance-only objective", () => {

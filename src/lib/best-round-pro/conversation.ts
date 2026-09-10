@@ -7,6 +7,7 @@ import type {
 } from "@/lib/mi-golf/domain";
 import { nextBestQuestion } from "@/lib/mi-golf/domain";
 import type { CommercialRankingResult } from "@/lib/recommendations/commercial-ranking";
+import { detectGolfCategory } from "./category-normalization";
 
 export type ConversationObjection =
   | "PRICE"
@@ -105,17 +106,6 @@ export function resolveContextualShortAnswer(input: {
   return null;
 }
 
-const CATEGORY_ALIASES: Array<[MatchCategory, RegExp]> = [
-  // Keep this list deliberately bounded: these are common golf terms and
-  // harmless typos, not a general-purpose fuzzy matcher.
-  ["DRIVER", /\b(driver|drivers|drive|driber)\b/i],
-  ["FAIRWAY_WOOD", /\b(fairway|madera\s+de\s+calle|maderas)\b/i],
-  ["HYBRID", /\b(hybrid|hibrido)\b/i],
-  ["IRON", /\b(iron|hierro|hierros)\b/i],
-  ["WEDGE", /\b(wedge|wedges)\b/i],
-  ["PUTTER", /\b(putter|putt)\b/i],
-];
-
 function categoryLabel(category: MatchCategory | string) {
   const labels: Record<string, string> = {
     DRIVER: "Driver",
@@ -129,11 +119,7 @@ function categoryLabel(category: MatchCategory | string) {
 }
 
 export function detectCategory(text: string): MatchCategory | null {
-  const normalized = normalizeNaturalLanguage(text);
-  return (
-    CATEGORY_ALIASES.find(([, pattern]) => pattern.test(normalized))?.[0] ??
-    null
-  );
+  return detectGolfCategory(normalizeNaturalLanguage(text));
 }
 
 function detectObjection(text: string): ConversationObjection | null {
@@ -270,10 +256,6 @@ export function classifyConversationTurn(
   const distanceOnlyRequest =
     !category &&
     /\b(pegar|ganar)\s+(?:(?:más\s+)?distancia|más\s+lejos)\b/i.test(text);
-  const ambiguousWoodRequest =
-    !category &&
-    /\bmadera\b/i.test(text) &&
-    !/madera\s+de\s+calle|fairway/i.test(text);
   const extractedFacts = [
     category ? `buscas un ${categoryLabel(category)}` : "",
     answers.handedness === "RIGHT" ? "juegas como diestro" : "",
@@ -297,14 +279,12 @@ export function classifyConversationTurn(
             ? "Voy a revisar otra opción responsable y distinta, sin repetir la misma unidad."
             : distanceOnlyRequest
               ? "Claro. ¿Quieres ganar distancia principalmente con el Driver o con otro palo?"
-              : ambiguousWoodRequest
-                ? "Entiendo que buscas una madera. ¿Te refieres a una madera de calle (Fairway) o al Driver?"
-                : `${understandingPrefix}${
-                    next?.prompt ??
-                    (category
-                      ? "Ya tengo lo necesario para revisar inventario real y compatibilidad."
-                      : "¿Qué equipo buscas: Driver, Fairway, Hybrid, Hierros, Wedge o Putter?")
-                  }`;
+              : `${understandingPrefix}${
+                  next?.prompt ??
+                  (category
+                    ? "Ya tengo lo necesario para revisar inventario real y compatibilidad."
+                    : "¿Qué equipo buscas: Driver, Fairway, Hybrid, Hierros, Wedge o Putter?")
+                }`;
   const nextState = {
     session,
     messages: [
