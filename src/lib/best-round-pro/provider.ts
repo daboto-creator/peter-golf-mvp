@@ -52,6 +52,9 @@ export type SafeConversationPayload = {
   };
   userTurn: string;
   nextQuestionKey: string | null;
+  hasBestValue?: boolean;
+  hasAlternative?: boolean;
+  hasCheaperResponsibleOption?: boolean;
   recommendation:
     | null
     | {

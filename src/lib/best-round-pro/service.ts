@@ -3,6 +3,7 @@ import "server-only";
 import { getAuthenticatedUser } from "@/lib/auth/user";
 import {
   classifyConversationTurn,
+  priceObjectionReply,
   recommendationReply,
   type ConversationState,
 } from "@/lib/best-round-pro/conversation";
@@ -176,11 +177,12 @@ export async function processConversationTurn(input: {
           )
         : null;
     let reply =
-      turn.objection === "PRICE" && (!priceChoice || priceChoice.length < 2)
-        ? "En este momento no tengo una opción responsable más económica en inventario. La opción actual sigue siendo la más sólida técnicamente; si te parece, podemos revisar una condición usada cuando exista."
-        : turn.objection === "PRICE"
-          ? "Sí, encontré una alternativa real en inventario. Mantiene una compatibilidad responsable y reduce el precio, con un compromiso claro frente a la Mejor opción."
-          : recommendationReply(recommendation);
+      turn.objection === "PRICE"
+        ? priceObjectionReply(
+            Boolean(priceChoice?.some((item) => item.role === "BEST_VALUE")),
+            Boolean(priceChoice?.some((item) => item.role === "ALTERNATIVE")),
+          )
+        : recommendationReply(recommendation);
     const safeRecommendation =
       priceChoice && priceChoice.length > 1
         ? {
@@ -205,6 +207,19 @@ export async function processConversationTurn(input: {
           },
           userTurn: input.message,
           nextQuestionKey: null,
+          hasBestValue:
+            recommendation.status === "RECOMMENDATIONS" &&
+            recommendation.recommendations.some(
+              (item) => item.role === "BEST_VALUE",
+            ),
+          hasAlternative:
+            recommendation.status === "RECOMMENDATIONS" &&
+            recommendation.recommendations.some(
+              (item) => item.role === "ALTERNATIVE",
+            ),
+          hasCheaperResponsibleOption: Boolean(
+            priceChoice && priceChoice.length > 1,
+          ),
           recommendation: safeRecommendationPayload(safeRecommendation),
         });
         if (generated.trim()) reply = generated.trim();

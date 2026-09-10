@@ -219,3 +219,14 @@ export function recommendationReply(result: CommercialRankingResult): string {
     ? `Encontré una opción disponible: ${best.candidate.brand ?? ""} ${best.candidate.model ?? ""}. Match ${best.equipmentMatch.matchScore} y confianza ${best.equipmentMatch.confidence.toLowerCase()}.`
     : "No encontré una opción responsable disponible por ahora.";
 }
+
+export function priceObjectionReply(
+  hasBestValue: boolean,
+  hasAlternative: boolean,
+) {
+  if (hasBestValue)
+    return "Sí, encontré una alternativa de Mejor valor en inventario real. Mantiene una compatibilidad responsable y reduce el precio, con un compromiso claro frente a la Mejor opción.";
+  if (hasAlternative)
+    return "Sí, encontré otra opción responsable en inventario real. Tiene un intercambio distinto frente a la Mejor opción y te muestro sus datos actuales.";
+  return "En este momento no tengo una opción responsable más económica en inventario. La opción actual sigue siendo la más sólida técnicamente.";
+}

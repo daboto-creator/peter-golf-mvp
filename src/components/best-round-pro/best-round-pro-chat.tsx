@@ -114,7 +114,7 @@ export function BestRoundProChat() {
           </div>
           <Button
             variant="outline"
-            className="w-full border-white/20 text-white"
+            className="text-pg-black hover:text-pg-black focus-visible:text-pg-black w-full border-white/20 bg-white hover:bg-white/90"
             onClick={() => {
               setState(initialConversationState());
               setRecommendation(null);

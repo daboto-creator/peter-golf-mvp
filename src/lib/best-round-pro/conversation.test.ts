@@ -4,6 +4,7 @@ import {
   classifyConversationTurn,
   initialConversationState,
   nextQuestionFor,
+  priceObjectionReply,
 } from "./conversation";
 
 describe("Best Round Pro conversation", () => {
@@ -71,5 +72,11 @@ describe("Best Round Pro conversation", () => {
       "ANSWERED_UNKNOWN",
     );
     expect(result.nextQuestion?.id).not.toBe("swingSpeed");
+  });
+
+  it("keeps price objection wording truthful", () => {
+    expect(priceObjectionReply(true, false)).toContain("Mejor valor");
+    expect(priceObjectionReply(false, true)).toContain("otra opción");
+    expect(priceObjectionReply(false, false)).toContain("no tengo una opción");
   });
 });
