@@ -39,6 +39,12 @@ export type ConversationState = {
   /** Customer-safe catalog context used to resolve follow-up references such as "ese". */
   lastCatalogResults: CatalogProductReference[];
   lastFocusedProduct: CatalogProductReference | null;
+  productAdvice: {
+    active: boolean;
+    product: CatalogProductReference | null;
+    pendingQuestionKey: string | null;
+    collectedAnswers: Record<string, string | number | boolean | null>;
+  };
 };
 
 export type CatalogProductReference = {
@@ -89,6 +95,12 @@ export function initialConversationState(): ConversationState {
     pendingQuestionSlotType: null,
     lastCatalogResults: [],
     lastFocusedProduct: null,
+    productAdvice: {
+      active: false,
+      product: null,
+      pendingQuestionKey: null,
+      collectedAnswers: {},
+    },
   };
 }
 
@@ -535,6 +547,7 @@ export function classifyConversationTurn(
     pendingQuestionSlotType: next?.slotType ?? null,
     lastCatalogResults: state.lastCatalogResults,
     lastFocusedProduct: state.lastFocusedProduct,
+    productAdvice: state.productAdvice,
   };
   return { state: nextState, reply, nextQuestion: next, objection, events };
 }

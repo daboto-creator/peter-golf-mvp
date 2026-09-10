@@ -66,6 +66,16 @@ const requestSchema = z.object({
         condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
         handedness: z.string().nullable().optional().default(null), family: z.string().nullable().optional().default(null),
       }).nullable().default(null),
+      productAdvice: z.object({
+        active: z.boolean(),
+        product: z.object({
+          id: z.string(), slug: z.string(), name: z.string(), category: z.string().nullable(),
+          condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
+          handedness: z.string().nullable().optional().default(null), family: z.string().nullable().optional().default(null),
+        }).nullable(),
+        pendingQuestionKey: z.string().nullable(),
+        collectedAnswers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+      }).optional().default({ active: false, product: null, pendingQuestionKey: null, collectedAnswers: {} }),
     })
     .default(initialConversationState()),
 });

@@ -119,10 +119,9 @@ export async function processConversationTurn(input: {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
   const asksWhatData = /(?:que|qué)\s+(?:datos|informacion|información)\s+necesitas|que\s+te\s+falta|que\s+necesitas\s+saber/.test(normalizedMessage);
-  const asksProductAdvice = /\b(?:ese|esa|ese set|ese producto|el que me mostraste)\b/.test(normalizedMessage) &&
-    /\b(?:bueno para mi|sirve|conviene|recomiendas|tal)\b/.test(normalizedMessage) ||
-    /\b(?:es bueno para mi|me sirve|me conviene|que tal ese|me recomiendas ese)\b/.test(normalizedMessage);
-  const focusedProduct = input.state.lastFocusedProduct ??
+  const evaluativeLanguage = /\b(?:recomiend|sirve|conviene|bueno para mi|funcione|funciona|que tal|opinas|vale la pena|comprarias|encaja)\b/.test(normalizedMessage);
+  const asksProductAdvice = evaluativeLanguage;
+  const focusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
   if (asksProductAdvice || (asksWhatData && focusedProduct && input.state.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
     if (!focusedProduct && input.state.lastCatalogResults.length > 1) {
@@ -146,11 +145,12 @@ export async function processConversationTurn(input: {
         pendingQuestionCategory: "PRODUCT_ADVICE",
         pendingQuestionSlotType: "HANDEDNESS",
         lastFocusedProduct: focusedProduct,
+        productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: input.state.session.diagnosticAnswers },
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_STARTED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
   }
-  if (focusedProduct && input.state.pendingQuestionCategory === "PRODUCT_ADVICE") {
+  if (focusedProduct && (input.state.productAdvice?.active || input.state.pendingQuestionCategory === "PRODUCT_ADVICE")) {
     const answers = { ...input.state.session.diagnosticAnswers };
     const hand = /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/.test(normalizedMessage)
       ? "LEFT"
@@ -174,6 +174,7 @@ export async function processConversationTurn(input: {
         pendingQuestionCategory: null,
         pendingQuestionSlotType: null,
         lastFocusedProduct: focusedProduct,
+        productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
@@ -192,6 +193,7 @@ export async function processConversationTurn(input: {
       pendingQuestionCategory: "PRODUCT_ADVICE",
       pendingQuestionSlotType: knownHand ? "BOOLEAN_PREFERENCE" : "HANDEDNESS",
       lastFocusedProduct: focusedProduct,
+      productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: knownHand ? "setExperience" : "handedness", collectedAnswers: answers },
     };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_PROGRESS"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
@@ -222,6 +224,7 @@ export async function processConversationTurn(input: {
       pendingQuestionSlotType: null,
       lastCatalogResults: references,
       lastFocusedProduct: references.length === 1 ? references[0] : null,
+      productAdvice: { active: false, product: null, pendingQuestionKey: null, collectedAnswers: {} },
     };
     return {
       state,
