@@ -5,6 +5,8 @@ import {
   classifyConversationTurn,
   priceObjectionReply,
   recommendationReply,
+  terminalOutcomeMessage,
+  type ConversationOutcome,
   type ConversationState,
 } from "@/lib/best-round-pro/conversation";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
@@ -136,6 +138,7 @@ export async function processConversationTurn(input: {
         reply:
           "No pude validar el inventario en este momento. Intenta nuevamente en unos segundos.",
         recommendation: null,
+        outcome: null,
         error: "INVENTORY_UNAVAILABLE" as const,
       };
     const category = normalizeMatchCategory(
@@ -170,6 +173,12 @@ export async function processConversationTurn(input: {
             : "UNKNOWN",
     };
     const recommendation = rankInventoryCandidates(candidates, preferences);
+    const outcome: ConversationOutcome =
+      recommendation.status === "RECOMMENDATIONS"
+        ? "RECOMMENDATIONS_AVAILABLE"
+        : units.length === 0
+          ? "NO_INVENTORY"
+          : "NO_RESPONSIBLE_MATCH";
     const priceChoice =
       turn.objection === "PRICE" && recommendation.status === "RECOMMENDATIONS"
         ? recommendation.recommendations.filter(
@@ -186,6 +195,12 @@ export async function processConversationTurn(input: {
             Boolean(priceChoice?.some((item) => item.role === "ALTERNATIVE")),
           )
         : recommendationReply(recommendation);
+    if (outcome !== "RECOMMENDATIONS_AVAILABLE" && turn.objection !== "PRICE")
+      reply = terminalOutcomeMessage(
+        outcome,
+        category,
+        turn.state.session.diagnosticAnswers.handedness,
+      );
     const safeRecommendation =
       priceChoice && priceChoice.length > 1
         ? {
@@ -234,9 +249,15 @@ export async function processConversationTurn(input: {
       ...turn,
       reply,
       recommendation: safeRecommendation,
+      outcome,
       error: null,
       providerUsed: Boolean(provider),
     };
   }
-  return { ...turn, recommendation: null, error: null };
+  return {
+    ...turn,
+    recommendation: null,
+    outcome: turn.nextQuestion ? null : "INSUFFICIENT_DATA",
+    error: null,
+  };
 }

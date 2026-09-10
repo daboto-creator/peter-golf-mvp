@@ -8,6 +8,7 @@ import {
   parseCurrentEquipment,
   priceObjectionReply,
   resolveContextualShortAnswer,
+  terminalOutcomeMessage,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
@@ -137,6 +138,39 @@ describe("Best Round Pro conversation", () => {
       classifyConversationTurn(putter, "34 pulgadas").state.session
         .diagnosticAnswers.length,
     ).toBe(34);
+  });
+
+  it.each(["barre", "barro", "barrer el pasto", "raspa"])(
+    "resolves wedge ground interaction %s as sweeper",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "WEDGE";
+      state.pendingQuestionKey = "turfInteraction";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.turfInteraction).toBe(
+        "SWEEPER",
+      );
+      expect(result.nextQuestion?.id).not.toBe("turfInteraction");
+    },
+  );
+
+  it("resolves sabd as a bounded Sand Wedge typo", () => {
+    expect(interpretGolfCategory("quiero un sabd")).toMatchObject({
+      category: "WEDGE",
+      subtype: "SAND",
+    });
+  });
+
+  it("provides explicit customer-safe terminal outcome messages", () => {
+    expect(terminalOutcomeMessage("NO_INVENTORY", "IRON", "RIGHT")).toMatch(
+      /no tengo.*hierros.*diestro/i,
+    );
+    expect(
+      terminalOutcomeMessage("NO_RESPONSIBLE_MATCH", "WEDGE", null),
+    ).toMatch(/inventario.*responsablemente/i);
+    expect(terminalOutcomeMessage("INSUFFICIENT_DATA", "PUTTER", null)).toMatch(
+      /necesito un dato/i,
+    );
   });
 
   it("allows an explicit target category change but ignores comparison mentions", () => {

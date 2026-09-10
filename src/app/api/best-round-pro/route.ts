@@ -69,6 +69,7 @@ export async function POST(request: Request) {
       reply: result.reply,
       nextQuestion: result.nextQuestion,
       recommendation: result.recommendation,
+      outcome: result.outcome ?? null,
       error: result.error,
       telemetry: {
         model: "deterministic-rules-v1",

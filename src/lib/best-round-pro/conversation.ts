@@ -191,11 +191,26 @@ const KNOWN_BRANDS = [
 export function parseCurrentEquipment(
   text: string,
 ): CurrentEquipmentReference[] {
+  const numberWords: Record<string, number> = {
+    uno: 1,
+    dos: 2,
+    tres: 3,
+    cuatro: 4,
+    cinco: 5,
+    seis: 6,
+    siete: 7,
+    ocho: 8,
+    nueve: 9,
+  };
   const references: Array<CurrentEquipmentReference | null> = text
     .split(/,|\s+y\s+/i)
     .map((part): CurrentEquipmentReference | null => {
       const interpretation = interpretGolfCategory(part);
       if (!interpretation) return null;
+      const numberToken = part.match(/\b([1-9])\b/i)?.[1];
+      const wordNumber = Object.entries(numberWords).find(([word]) =>
+        new RegExp(`\\b${word}\\b`, "i").test(part),
+      )?.[1];
       const brand = KNOWN_BRANDS.find((name) =>
         part
           .toLocaleLowerCase("es-MX")
@@ -203,7 +218,13 @@ export function parseCurrentEquipment(
       );
       return {
         category: interpretation.category,
-        clubNumber: interpretation.clubNumber,
+        clubNumber:
+          interpretation.clubNumber ??
+          (numberToken
+            ? Number(numberToken)
+            : wordNumber
+              ? numberWords[wordNumber]
+              : null),
         subtype: interpretation.subtype,
         brand: brand ?? null,
       };
@@ -296,6 +317,20 @@ function parseAnswers(
   if (pendingQuestionKey === "currentBag") {
     const equipment = parseCurrentEquipment(text);
     if (equipment.length) answers.currentEquipment = JSON.stringify(equipment);
+  }
+  if (pendingQuestionKey === "turfInteraction") {
+    if (/\b(barre|barro|barrer|raspa|superficial|poco\s+divot)\b/i.test(text))
+      answers.turfInteraction = "SWEEPER";
+    else if (
+      /\b(neutro|normal|intermedio|ni\s+mucho\s+ni\s+poco)\b/i.test(text)
+    )
+      answers.turfInteraction = "NEUTRAL";
+    else if (
+      /\b(profundo|cavo|mucho\s+divot|entra\s+profundo|pego\s+hacia\s+abajo)\b/i.test(
+        text,
+      )
+    )
+      answers.turfInteraction = "DIGGER";
   }
   if (/nuevo\s+sol|solo\s+nuevo/i.test(text))
     answers.conditionPreference = "NEW_ONLY";
@@ -445,6 +480,36 @@ export function recommendationReply(result: CommercialRankingResult): string {
   return best
     ? `Encontré una opción disponible: ${best.candidate.brand ?? ""} ${best.candidate.model ?? ""}. Match ${best.equipmentMatch.matchScore} y confianza ${best.equipmentMatch.confidence.toLowerCase()}.`
     : "No encontré una opción responsable disponible por ahora.";
+}
+
+export type ConversationOutcome =
+  | "RECOMMENDATIONS_AVAILABLE"
+  | "NO_INVENTORY"
+  | "NO_RESPONSIBLE_MATCH"
+  | "INSUFFICIENT_DATA";
+
+export function terminalOutcomeMessage(
+  outcome: ConversationOutcome,
+  category: string,
+  handedness: string | number | boolean | null | undefined,
+) {
+  const label =
+    category === "IRON"
+      ? "hierros"
+      : category === "PUTTER"
+        ? "putters"
+        : category.toLowerCase();
+  const hand =
+    handedness === "RIGHT"
+      ? " para diestro"
+      : handedness === "LEFT"
+        ? " para zurdo"
+        : "";
+  if (outcome === "NO_INVENTORY")
+    return `Ahora mismo no tengo ${label}${hand} disponibles en inventario para mostrarte.`;
+  if (outcome === "NO_RESPONSIBLE_MATCH")
+    return "Encontré inventario, pero con lo que me contaste no hay una opción que te recomiende responsablemente ahora mismo.";
+  return "Para recomendarte con confianza todavía necesito un dato técnico más de tu juego.";
 }
 
 export function priceObjectionReply(

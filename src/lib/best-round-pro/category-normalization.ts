@@ -77,6 +77,13 @@ export function interpretGolfCategory(
             : null;
     return { category: "WEDGE", confidence: "HIGH", clubNumber: null, subtype };
   }
+  if (/\b(sabd|sw)\b/.test(text))
+    return {
+      category: "WEDGE",
+      confidence: "MEDIUM",
+      clubNumber: null,
+      subtype: "SAND",
+    };
   if (/\b(putter|putt|put)\b/.test(text))
     return {
       category: "PUTTER",
