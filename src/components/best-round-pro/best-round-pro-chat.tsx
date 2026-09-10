@@ -8,6 +8,7 @@ import {
   type ConversationState,
 } from "@/lib/best-round-pro/conversation";
 import type { CommercialRankingResult } from "@/lib/recommendations/commercial-ranking";
+import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -17,6 +18,30 @@ const starts = [
   "Necesito un Wedge",
   "Quiero cambiar mi Putter",
 ];
+const roleLabels = {
+  BEST_OPTION: "Mejor opción",
+  BEST_VALUE: "Mejor valor",
+  ALTERNATIVE: "Alternativa",
+} as const;
+const confidenceLabels = {
+  LOW: "Baja",
+  MEDIUM: "Media",
+  HIGH: "Alta",
+} as const;
+const reasonLabels: Record<string, string> = {
+  BEST_TECHNICAL_MATCH: "Es la opción que mejor encaja técnicamente contigo.",
+  BEST_RESPONSIBLE_OPTION:
+    "Es una opción responsable con los datos disponibles.",
+  BEST_VALUE:
+    "Ofrece un ahorro significativo manteniendo un ajuste responsable.",
+  PREFERRED_BRAND: "Está dentro de las marcas que prefieres.",
+  WITHIN_BUDGET: "Está dentro de tu presupuesto indicado.",
+  USED_VALUE_OPTION: "Es una alternativa seminueva orientada a valor.",
+  SLIGHTLY_ABOVE_BUDGET:
+    "Está ligeramente por encima del presupuesto indicado.",
+  LOWER_CONFIDENCE: "La confianza es limitada porque faltan algunos datos.",
+  LIMITED_AVAILABILITY: "La disponibilidad es limitada.",
+};
 
 export function BestRoundProChat() {
   const [state, setState] = useState<ConversationState>(
@@ -152,7 +177,7 @@ export function BestRoundProChat() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-muted-foreground text-xs uppercase">
-                          {item.role.replaceAll("_", " ")}
+                          {roleLabels[item.role]}
                         </p>
                         <h3 className="font-semibold">
                           {item.candidate.brand} {item.candidate.model}
@@ -163,13 +188,24 @@ export function BestRoundProChat() {
                       </span>
                     </div>
                     <p className="text-muted-foreground text-sm">
-                      Confianza {item.equipmentMatch.confidence.toLowerCase()} ·{" "}
-                      {item.candidate.condition ?? "condición no indicada"} ·{" "}
+                      Confianza{" "}
+                      {confidenceLabels[item.equipmentMatch.confidence]} ·{" "}
+                      {item.candidate.condition === "new"
+                        ? "Nuevo"
+                        : item.candidate.condition === "used"
+                          ? "Seminuevo"
+                          : "Condición no indicada"}{" "}
+                      ·{" "}
                       {item.candidate.priceMxnMinor !== null
-                        ? `$${(item.candidate.priceMxnMinor / 100).toLocaleString("es-MX")}`
+                        ? `${formatMoneyMinorUnits(item.candidate.priceMxnMinor)} MXN`
                         : "precio por confirmar"}
                     </p>
-                    <p className="text-sm">{item.safeReasons.join(" · ")}</p>
+                    <p className="text-sm">
+                      {item.safeReasons
+                        .map((reason) => reasonLabels[reason] ?? "")
+                        .filter(Boolean)
+                        .join(" ")}
+                    </p>
                     <Link
                       className="text-pg-gold text-sm font-semibold"
                       href="/productos"

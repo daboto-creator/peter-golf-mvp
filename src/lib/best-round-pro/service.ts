@@ -166,8 +166,35 @@ export async function processConversationTurn(input: {
             : "UNKNOWN",
     };
     const recommendation = rankInventoryCandidates(candidates, preferences);
-    let reply = recommendationReply(recommendation);
-    if (provider) {
+    const priceChoice =
+      turn.objection === "PRICE" && recommendation.status === "RECOMMENDATIONS"
+        ? recommendation.recommendations.filter(
+            (item) =>
+              item.role === "BEST_OPTION" ||
+              item.role === "BEST_VALUE" ||
+              item.role === "ALTERNATIVE",
+          )
+        : null;
+    let reply =
+      turn.objection === "PRICE" && (!priceChoice || priceChoice.length < 2)
+        ? "En este momento no tengo una opción responsable más económica en inventario. La opción actual sigue siendo la más sólida técnicamente; si te parece, podemos revisar una condición usada cuando exista."
+        : turn.objection === "PRICE"
+          ? "Sí, encontré una alternativa real en inventario. Mantiene una compatibilidad responsable y reduce el precio, con un compromiso claro frente a la Mejor opción."
+          : recommendationReply(recommendation);
+    const safeRecommendation =
+      priceChoice && priceChoice.length > 1
+        ? {
+            ...recommendation,
+            recommendations: [priceChoice[0], priceChoice[1]].map(
+              (item, index) => ({
+                ...item,
+                rank: index + 1,
+                role: index === 0 ? ("BEST_OPTION" as const) : item.role,
+              }),
+            ),
+          }
+        : recommendation;
+    if (provider && turn.objection !== "PRICE") {
       try {
         const generated = await provider.explainRecommendation({
           session: {
@@ -178,7 +205,7 @@ export async function processConversationTurn(input: {
           },
           userTurn: input.message,
           nextQuestionKey: null,
-          recommendation: safeRecommendationPayload(recommendation),
+          recommendation: safeRecommendationPayload(safeRecommendation),
         });
         if (generated.trim()) reply = generated.trim();
       } catch {
@@ -188,7 +215,7 @@ export async function processConversationTurn(input: {
     return {
       ...turn,
       reply,
-      recommendation,
+      recommendation: safeRecommendation,
       error: null,
       providerUsed: Boolean(provider),
     };
