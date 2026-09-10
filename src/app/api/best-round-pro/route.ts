@@ -69,6 +69,8 @@ export async function POST(request: Request) {
       reply: result.reply,
       nextQuestion: result.nextQuestion,
       recommendation: result.recommendation,
+      catalogProducts: "catalogProducts" in result ? result.catalogProducts : null,
+      intent: "intent" in result ? result.intent : null,
       outcome: result.outcome ?? null,
       error: result.error,
       telemetry: {

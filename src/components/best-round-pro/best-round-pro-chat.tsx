@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 import {
   initialConversationState,
@@ -9,7 +10,8 @@ import {
 } from "@/lib/best-round-pro/conversation";
 import type { ConversationOutcomeResult } from "@/lib/best-round-pro/conversation";
 import type { CommercialRankingResult } from "@/lib/recommendations/commercial-ranking";
-import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
+import type { PublicProductSummary } from "@/lib/catalog/public-products";
+import { formatMoneyMinorUnits, getConditionLabel, resolvePublicImagePath } from "@/lib/catalog/presentation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -63,13 +65,19 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
   });
   const [input, setInput] = useState("");
   const [reply, setReply] = useState(
-    "Soy Best Round Pro. Te ayudo a encontrar equipo real que encaje con tu juego.",
+    "Soy Best Round Pro Agent. Puedo ayudarte a elegir equipo, resolver dudas sobre productos, revisar inventario real y acompañarte durante tu compra. Si quieres, también te asesoro según tu juego.",
   );
   const [recommendation, setRecommendation] = useState<CommercialRankingResult | null>(() => {
     if (typeof window !== "undefined") {
       try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-recommendation") ?? "null") as CommercialRankingResult | null; } catch { /* optional storage */ }
     }
     return null;
+  });
+  const [catalogProducts, setCatalogProducts] = useState<PublicProductSummary[]>(() => {
+    if (typeof window !== "undefined") {
+      try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-catalog-products") ?? "[]") as PublicProductSummary[]; } catch { /* optional storage */ }
+    }
+    return [];
   });
   const [outcome, setOutcome] = useState<ConversationOutcomeResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -96,13 +104,19 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
         state?: ConversationState;
         reply?: string;
         recommendation?: CommercialRankingResult | null;
+        catalogProducts?: PublicProductSummary[] | null;
         outcome?: ConversationOutcomeResult | null;
       };
       if (!response.ok || !payload.state) throw new Error("request");
       setState(payload.state);
       setReply(payload.reply ?? "");
       setRecommendation(payload.recommendation ?? null);
+      const products = payload.catalogProducts;
+      if (products) setCatalogProducts(products);
       try { window.sessionStorage.setItem("best-round-pro-recommendation", JSON.stringify(payload.recommendation ?? null)); } catch { /* optional storage */ }
+      if (products) {
+        try { window.sessionStorage.setItem("best-round-pro-catalog-products", JSON.stringify(products)); } catch { /* optional storage */ }
+      }
       setOutcome(payload.outcome ?? null);
       setInput("");
     } catch {
@@ -147,7 +161,9 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
             onClick={() => {
               setState(initialConversationState());
               setRecommendation(null);
+              setCatalogProducts([]);
               try { window.sessionStorage.removeItem("best-round-pro-recommendation"); } catch { /* optional storage */ }
+              try { window.sessionStorage.removeItem("best-round-pro-catalog-products"); } catch { /* optional storage */ }
               setOutcome(null);
               setReply("Empecemos de nuevo. ¿Qué equipo buscas?");
             }}
@@ -159,7 +175,7 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
       <Card>
         <CardHeader>
           <CardTitle className="font-heading text-2xl">
-            Hablemos de tu juego
+            ¿Cómo te ayudo hoy?
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -249,6 +265,29 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
               ))}
             </div>
           ) : null}
+          {catalogProducts.length > 0 && recommendation === null ? (
+            <div className="grid gap-3" aria-label="Resultados del catálogo">
+              {catalogProducts.map((product) => {
+                const href = `/productos/${encodeURIComponent(product.slug)}`;
+                const image = resolvePublicImagePath(product.images[0]?.storagePath ?? null);
+                return (
+                  <Card key={product.id} className="border-border/70">
+                    <CardContent className="flex gap-3 p-4">
+                      <div className="bg-muted flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl">
+                        {image ? <Image src={image} alt="" width={64} height={64} unoptimized className="size-full object-cover" /> : <span className="text-muted-foreground text-[10px]">Sin imagen</span>}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-muted-foreground text-xs">{product.setType ? "Set completo" : product.categoryName ?? "Producto"}</p>
+                        <h3 className="truncate font-semibold">{product.name}</h3>
+                        <p className="text-muted-foreground text-sm">{getConditionLabel(product.condition, product.conditionGrade, product.conditionScore)} · {customerPrice(product.price)} MXN</p>
+                        <Link className="text-pg-gold mt-1 inline-flex min-h-9 items-center text-sm font-semibold" href={href} onClick={() => window.dispatchEvent(new CustomEvent("best-round-pro:close"))}>Ver producto</Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : null}
           {recommendation?.status !== "RECOMMENDATIONS" && outcome ? (
             <div role="status" className="rounded-xl border border-pg-gold/30 bg-pg-gold/10 p-4 text-sm leading-6">
               {outcome.message}
@@ -261,7 +300,7 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
               onKeyDown={(event) => {
                 if (event.key === "Enter") void send();
               }}
-              placeholder="Cuéntame qué buscas…"
+              placeholder="Pregúntame por drivers, sets, wedges, inventario, productos o tu juego…"
               className="border-input bg-background min-h-11 flex-1 rounded-xl border px-4 text-sm"
               disabled={busy}
             />

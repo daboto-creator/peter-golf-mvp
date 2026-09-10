@@ -27,6 +27,11 @@ import {
   getConversationProvider,
   safeRecommendationPayload,
 } from "@/lib/best-round-pro/provider";
+import {
+  isCatalogIntent,
+  routeConversationIntent,
+} from "@/lib/best-round-pro/intent-router";
+import { searchCommercialCatalog } from "@/lib/best-round-pro/catalog-search";
 
 type ProfileRow = Record<string, unknown>;
 function profileFrom(
@@ -107,6 +112,34 @@ export async function processConversationTurn(input: {
     },
   });
   const context = await loadMiGolfContext();
+  const intent = routeConversationIntent(input.message);
+  if (isCatalogIntent(intent)) {
+    const catalog = await searchCommercialCatalog(input.message);
+    const reply = catalog.message;
+    const state: ConversationState = {
+      ...input.state,
+      messages: [
+        ...input.state.messages,
+        { role: "user", content: input.message },
+        { role: "assistant", content: reply },
+      ],
+      pendingQuestionKey: null,
+      pendingQuestionCategory: null,
+      pendingQuestionSlotType: null,
+    };
+    return {
+      state,
+      reply,
+      nextQuestion: null,
+      objection: null,
+      events: ["COMMERCIAL_CATALOG_SEARCH"],
+      recommendation: null,
+      catalogProducts: catalog.products,
+      outcome: null,
+      error: catalog.error ? ("CATALOG_UNAVAILABLE" as const) : null,
+      intent,
+    };
+  }
   const provider = getConversationProvider();
   let interpretation: Awaited<
     ReturnType<NonNullable<typeof provider>["interpretTurn"]>
