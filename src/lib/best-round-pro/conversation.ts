@@ -20,6 +20,8 @@ export type ConversationState = {
   session: BestRoundProSessionSummary;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   discussedProductIds: string[];
+  pendingQuestionKey: string | null;
+  pendingQuestionCategory: string | null;
 };
 
 export type ConversationResult = {
@@ -46,7 +48,48 @@ export function initialConversationState(): ConversationState {
     session: { ...EMPTY_SESSION },
     messages: [],
     discussedProductIds: [],
+    pendingQuestionKey: null,
+    pendingQuestionCategory: null,
   };
+}
+
+function normalizeShortAnswer(value: string) {
+  return value
+    .trim()
+    .toLocaleLowerCase("es-MX")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[¿?!.,;:]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+export function resolveContextualShortAnswer(input: {
+  pendingQuestionKey: string | null;
+  userMessage: string;
+}) {
+  const value = normalizeShortAnswer(input.userMessage);
+  if (!input.pendingQuestionKey) return null;
+  if (
+    input.pendingQuestionKey === "swingSpeed" &&
+    /^(no|no se|ni idea|no tengo idea|no recuerdo|no la conozco|nunca la he medido)$/.test(
+      value,
+    )
+  )
+    return {
+      field: "swingSpeed",
+      value: "ANSWERED_UNKNOWN" as const,
+      answerState: "ANSWERED_UNKNOWN" as const,
+    };
+  if (
+    input.pendingQuestionKey === "acceptUsed" &&
+    /^(no|no quiero|solo nuevo)$/.test(value)
+  )
+    return {
+      field: "conditionPreference",
+      value: "NEW_ONLY" as const,
+      answerState: "ANSWERED_NEGATIVE" as const,
+    };
+  return null;
 }
 
 const CATEGORY_ALIASES: Array<[MatchCategory, RegExp]> = [
@@ -161,10 +204,18 @@ export function classifyConversationTurn(
   text: string,
   profile: MiGolfProfile | null = null,
 ): ConversationResult {
+  const contextual = resolveContextualShortAnswer({
+    pendingQuestionKey: state.pendingQuestionKey,
+    userMessage: text,
+  });
   const category = detectCategory(text) ?? state.session.requestedCategory;
   const intent = detectIntent(text) ?? state.session.purchaseIntent;
   const objection = detectObjection(text);
   const answers = parseAnswers(text, state.session.diagnosticAnswers);
+  if (contextual) answers[contextual.field] = contextual.value;
+  const speed = text.match(/\b(\d{2,3})\s*(?:mph|km\/h)?\b/i);
+  if (state.pendingQuestionKey === "swingSpeed" && speed)
+    answers.swingSpeed = Number(speed[1]);
   const session: BestRoundProSessionSummary = {
     ...state.session,
     requestedCategory: category,
@@ -206,6 +257,8 @@ export function classifyConversationTurn(
       { role: "assistant" as const, content: reply },
     ],
     discussedProductIds: state.discussedProductIds,
+    pendingQuestionKey: next?.id ?? null,
+    pendingQuestionCategory: next?.category ?? null,
   };
   return { state: nextState, reply, nextQuestion: next, objection, events };
 }

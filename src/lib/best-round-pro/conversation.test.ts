@@ -5,6 +5,7 @@ import {
   initialConversationState,
   nextQuestionFor,
   priceObjectionReply,
+  resolveContextualShortAnswer,
 } from "./conversation";
 
 describe("Best Round Pro conversation", () => {
@@ -78,5 +79,26 @@ describe("Best Round Pro conversation", () => {
     expect(priceObjectionReply(true, false)).toContain("Mejor valor");
     expect(priceObjectionReply(false, true)).toContain("otra opción");
     expect(priceObjectionReply(false, false)).toContain("no tengo una opción");
+  });
+
+  it.each(["ni idea", "no", "no sé", "No la conozco"])(
+    "resolves %s as unknown swing speed",
+    (message) => {
+      expect(
+        resolveContextualShortAnswer({
+          pendingQuestionKey: "swingSpeed",
+          userMessage: message,
+        })?.value,
+      ).toBe("ANSWERED_UNKNOWN");
+    },
+  );
+
+  it("resolves contextual no for used equipment as negative", () => {
+    expect(
+      resolveContextualShortAnswer({
+        pendingQuestionKey: "acceptUsed",
+        userMessage: "No",
+      })?.value,
+    ).toBe("NEW_ONLY");
   });
 });

@@ -37,6 +37,8 @@ const requestSchema = z.object({
         )
         .max(30),
       discussedProductIds: z.array(z.string()).max(20),
+      pendingQuestionKey: z.string().nullable().default(null),
+      pendingQuestionCategory: z.string().nullable().default(null),
     })
     .default(initialConversationState()),
 });
