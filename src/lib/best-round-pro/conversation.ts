@@ -211,10 +211,9 @@ export function parseCurrentEquipment(
       const wordNumber = Object.entries(numberWords).find(([word]) =>
         new RegExp(`\\b${word}\\b`, "i").test(part),
       )?.[1];
+      const normalizedPart = normalizeNaturalLanguage(part).replace(/\s+/g, "");
       const brand = KNOWN_BRANDS.find((name) =>
-        part
-          .toLocaleLowerCase("es-MX")
-          .includes(name.toLocaleLowerCase("es-MX")),
+        normalizedPart.includes(normalizeNaturalLanguage(name).replace(/\s+/g, "")),
       );
       return {
         category: interpretation.category,
@@ -316,7 +315,19 @@ function parseAnswers(
   }
   if (pendingQuestionKey === "currentBag") {
     const equipment = parseCurrentEquipment(text);
-    if (equipment.length) answers.currentEquipment = JSON.stringify(equipment);
+    if (equipment.length) {
+      // currentBag is the canonical diagnostic slot. Keep the richer alias for
+      // consumers that want the parsed entities, but slot completion must not
+      // depend on brand/model enrichment.
+      const serialized = JSON.stringify(equipment);
+      answers.currentBag = serialized;
+      answers.currentEquipment = serialized;
+      answers.currentBagAnswerState = "ANSWERED_VALUE";
+    } else if (/\b(ninguno|no\s+(?:llevo|tengo|uso)|solo\s+hierros)\b/i.test(text)) {
+      answers.currentBag = "KNOWN_NONE";
+      answers.currentEquipment = "[]";
+      answers.currentBagAnswerState = "ANSWERED_VALUE";
+    }
   }
   if (pendingQuestionKey === "turfInteraction") {
     if (/\b(barre|barro|barrer|raspa|superficial|poco\s+divot)\b/i.test(text))

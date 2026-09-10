@@ -100,6 +100,10 @@ describe("Best Round Pro conversation", () => {
     state.pendingQuestionKey = "currentBag";
     const result = classifyConversationTurn(state, "madera 5 TaylorMade");
     expect(result.state.session.requestedCategory).toBe("HYBRID");
+    expect(result.state.session.diagnosticAnswers.currentBag).toContain(
+      '"clubNumber":5',
+    );
+    expect(result.nextQuestion?.id).not.toBe("currentBag");
     expect(parseCurrentEquipment("madera 5 TaylorMade")).toEqual([
       {
         category: "FAIRWAY_WOOD",
@@ -108,6 +112,39 @@ describe("Best Round Pro conversation", () => {
         brand: "TaylorMade",
       },
     ]);
+  });
+
+  it.each(["madera 5", "taylor made 5 madera"]) (
+    "closes current equipment slot with order-independent partial identity: %s",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "HYBRID";
+      state.pendingQuestionKey = "currentBag";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.currentBag).toBeTruthy();
+      expect(result.state.session.diagnosticAnswers.currentBagAnswerState).toBe(
+        "ANSWERED_VALUE",
+      );
+      expect(result.nextQuestion?.id).not.toBe("currentBag");
+    },
+  );
+
+  it("closes current equipment with known-none or unknown answers", () => {
+    const none = initialConversationState();
+    none.session.requestedCategory = "HYBRID";
+    none.pendingQuestionKey = "currentBag";
+    expect(
+      classifyConversationTurn(none, "no llevo ninguno").nextQuestion?.id,
+    ).not.toBe("currentBag");
+
+    const unknown = initialConversationState();
+    unknown.session.requestedCategory = "HYBRID";
+    unknown.pendingQuestionKey = "currentBag";
+    const result = classifyConversationTurn(unknown, "ni idea");
+    expect(result.state.session.diagnosticAnswers.currentBag).toBe(
+      "ANSWERED_UNKNOWN",
+    );
+    expect(result.nextQuestion?.id).not.toBe("currentBag");
   });
 
   it("marks unknown putter length and does not repeat the length question", () => {
