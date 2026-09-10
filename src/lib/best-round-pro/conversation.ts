@@ -266,6 +266,13 @@ function parseAnswers(
     answers.shotTendency = "SLICE";
   if (/hook|gancho|se\s+cierra/i.test(text)) answers.shotTendency = "HOOK";
   if (/recto|straight/i.test(text)) answers.shotTendency = "STRAIGHT";
+  if (
+    pendingQuestionKey === "shotTendency" &&
+    /\b(ninguno|ninguna|no\s+tengo(?:\s+un)?\s+fallo(?:s)?(?:\s+com[uú]n)?|ning[uú]n\s+fallo|no\s+realmente|ninguno\s+en\s+particular)\b/i.test(
+      text,
+    )
+  )
+    answers.shotTendency = "NO_COMMON_MISS";
   if (/forgiveness|perd[oó]n|perdonador|f[aá]cil|consisten/i.test(text))
     answers.objective = "MORE_FORGIVENESS";
   if (

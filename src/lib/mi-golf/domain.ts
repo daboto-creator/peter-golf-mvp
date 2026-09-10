@@ -210,7 +210,7 @@ function rawNextBestQuestion(
   if (value.includes("driver") && !known.shotTendency)
     return {
       id: "shotTendency",
-      prompt: "¿Tu fallo más común es slice, hook o un vuelo recto?",
+      prompt: "¿Tu tiro normalmente va recto, o suele aparecer slice o hook?",
       category: "DRIVER",
       reason:
         "Puede cambiar la compatibilidad con ajustes explícitos del driver",

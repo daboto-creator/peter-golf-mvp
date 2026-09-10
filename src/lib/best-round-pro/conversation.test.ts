@@ -211,6 +211,19 @@ describe("Best Round Pro conversation", () => {
     });
   });
 
+  it.each(["ninguno", "no tengo fallos", "recto", "no sé"])(
+    "closes driver common-miss slot for %s",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "DRIVER";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.session.diagnosticAnswers.objective = "MORE_DISTANCE";
+      state.pendingQuestionKey = "shotTendency";
+      const result = classifyConversationTurn(state, message);
+      expect(result.nextQuestion?.id).not.toBe("shotTendency");
+    },
+  );
+
   it("provides explicit customer-safe terminal outcome messages", () => {
     expect(terminalOutcomeMessage("NO_INVENTORY", "IRON", "RIGHT")).toMatch(
       /no tengo.*hierros.*diestro/i,
