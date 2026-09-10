@@ -50,6 +50,8 @@ export type CatalogProductReference = {
   price: number;
   productHref: string;
   imagePath: string | null;
+  handedness: string | null;
+  family: string | null;
 };
 
 export type ConversationResult = {

@@ -124,7 +124,7 @@ export async function processConversationTurn(input: {
     /\b(?:es bueno para mi|me sirve|me conviene|que tal ese|me recomiendas ese)\b/.test(normalizedMessage);
   const focusedProduct = input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
-  if (asksProductAdvice || (asksWhatData && focusedProduct)) {
+  if (asksProductAdvice || (asksWhatData && focusedProduct && input.state.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
     if (!focusedProduct && input.state.lastCatalogResults.length > 1) {
       const names = input.state.lastCatalogResults.slice(0, 2).map((product) => product.name);
       const reply = `¿Te refieres a ${names[0]} o a ${names[1]}?`;
@@ -150,6 +150,51 @@ export async function processConversationTurn(input: {
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_STARTED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
   }
+  if (focusedProduct && input.state.pendingQuestionCategory === "PRODUCT_ADVICE") {
+    const answers = { ...input.state.session.diagnosticAnswers };
+    const hand = /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/.test(normalizedMessage)
+      ? "LEFT"
+      : /\b(?:diestro|diestra|derecho|derecha|right)\b/.test(normalizedMessage)
+        ? "RIGHT"
+        : null;
+    if (hand) answers.handedness = hand;
+    const asksData = asksWhatData;
+    const knownHand = answers.handedness === "LEFT" || answers.handedness === "RIGHT";
+    const productHand = focusedProduct.handedness === "LEFT" || focusedProduct.handedness === "RIGHT"
+      ? focusedProduct.handedness
+      : null;
+    if (hand && productHand && hand !== productHand) {
+      const expected = productHand === "RIGHT" ? "diestro" : "zurdo";
+      const reply = `Este ${focusedProduct.name} está configurado para ${expected}, así que no sería una buena opción para ti. Puedo buscarte sets para ${hand === "LEFT" ? "zurdo" : "diestro"} disponibles.`;
+      const state: ConversationState = {
+        ...input.state,
+        session: { ...input.state.session, diagnosticAnswers: answers },
+        messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+        pendingQuestionKey: null,
+        pendingQuestionCategory: null,
+        pendingQuestionSlotType: null,
+        lastFocusedProduct: focusedProduct,
+      };
+      return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+    }
+    const experience = /primer set|primera vez|apenas empie|principiante|ya juego|juego actualmente|reemplaz/.test(normalizedMessage);
+    if (experience) answers.experience = normalizedMessage;
+    const reply = asksData
+      ? `Para evaluar ${focusedProduct.name} necesito principalmente tu mano, si es tu primer set y tu nivel aproximado. ${knownHand ? `Ya sé que juegas ${hand === "LEFT" ? "zurdo" : hand === "RIGHT" ? "diestro" : answers.handedness === "LEFT" ? "zurdo" : "diestro"};` : "Empecemos por la mano;"} ¿es tu primer set o ya juegas actualmente?`
+      : knownHand
+        ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ¿es tu primer set o ya juegas actualmente?`
+        : `Para saber si ${focusedProduct.name} encaja contigo, ¿juegas como diestro o zurdo?`;
+    const state: ConversationState = {
+      ...input.state,
+      session: { ...input.state.session, diagnosticAnswers: answers },
+      messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+      pendingQuestionKey: knownHand ? "setExperience" : "handedness",
+      pendingQuestionCategory: "PRODUCT_ADVICE",
+      pendingQuestionSlotType: knownHand ? "BOOLEAN_PREFERENCE" : "HANDEDNESS",
+      lastFocusedProduct: focusedProduct,
+    };
+    return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_PROGRESS"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+  }
   if (isCatalogIntent(intent)) {
     const catalog = await searchCommercialCatalog(input.message);
     const reply = catalog.message;
@@ -162,6 +207,8 @@ export async function processConversationTurn(input: {
       price: product.price,
       productHref: `/productos/${encodeURIComponent(product.slug)}`,
       imagePath: product.images[0]?.storagePath ?? null,
+      handedness: product.handedness,
+      family: product.productFamily,
     }));
     const state: ConversationState = {
       ...input.state,

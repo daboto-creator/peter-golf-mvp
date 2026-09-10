@@ -59,10 +59,12 @@ const requestSchema = z.object({
       lastCatalogResults: z.array(z.object({
         id: z.string(), slug: z.string(), name: z.string(), category: z.string().nullable(),
         condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
+        handedness: z.string().nullable().optional().default(null), family: z.string().nullable().optional().default(null),
       })).max(20).default([]),
       lastFocusedProduct: z.object({
         id: z.string(), slug: z.string(), name: z.string(), category: z.string().nullable(),
         condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
+        handedness: z.string().nullable().optional().default(null), family: z.string().nullable().optional().default(null),
       }).nullable().default(null),
     })
     .default(initialConversationState()),
