@@ -32,6 +32,7 @@ import {
   routeConversationIntent,
 } from "@/lib/best-round-pro/intent-router";
 import { searchCommercialCatalog } from "@/lib/best-round-pro/catalog-search";
+import type { CatalogProductReference } from "@/lib/best-round-pro/conversation";
 
 type ProfileRow = Record<string, unknown>;
 function profileFrom(
@@ -113,9 +114,55 @@ export async function processConversationTurn(input: {
   });
   const context = await loadMiGolfContext();
   const intent = routeConversationIntent(input.message);
+  const normalizedMessage = input.message
+    .toLocaleLowerCase("es-MX")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const asksWhatData = /(?:que|qué)\s+(?:datos|informacion|información)\s+necesitas|que\s+te\s+falta|que\s+necesitas\s+saber/.test(normalizedMessage);
+  const asksProductAdvice = /\b(?:ese|esa|ese set|ese producto|el que me mostraste)\b/.test(normalizedMessage) &&
+    /\b(?:bueno para mi|sirve|conviene|recomiendas|tal)\b/.test(normalizedMessage) ||
+    /\b(?:es bueno para mi|me sirve|me conviene|que tal ese|me recomiendas ese)\b/.test(normalizedMessage);
+  const focusedProduct = input.state.lastFocusedProduct ??
+    (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
+  if (asksProductAdvice || (asksWhatData && focusedProduct)) {
+    if (!focusedProduct && input.state.lastCatalogResults.length > 1) {
+      const names = input.state.lastCatalogResults.slice(0, 2).map((product) => product.name);
+      const reply = `¿Te refieres a ${names[0]} o a ${names[1]}?`;
+      const state: ConversationState = {
+        ...input.state,
+        messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+      };
+      return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REFERENCE_CLARIFICATION"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+    }
+    if (focusedProduct) {
+      const question = "Para saber si este producto encaja contigo, ¿juegas como diestro o zurdo?";
+      const reply = asksWhatData
+        ? `Para evaluar ${focusedProduct.name} necesito principalmente saber si juegas diestro o zurdo, tu nivel o handicap y qué buscas con el set. Empecemos por lo más importante: ¿juegas como diestro o zurdo?`
+        : `Claro, revisemos si ${focusedProduct.name} encaja contigo. ${question}`;
+      const state: ConversationState = {
+        ...input.state,
+        messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+        pendingQuestionKey: "handedness",
+        pendingQuestionCategory: "PRODUCT_ADVICE",
+        pendingQuestionSlotType: "HANDEDNESS",
+        lastFocusedProduct: focusedProduct,
+      };
+      return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_STARTED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+    }
+  }
   if (isCatalogIntent(intent)) {
     const catalog = await searchCommercialCatalog(input.message);
     const reply = catalog.message;
+    const references: CatalogProductReference[] = catalog.products.map((product) => ({
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      category: product.categoryName,
+      condition: product.condition,
+      price: product.price,
+      productHref: `/productos/${encodeURIComponent(product.slug)}`,
+      imagePath: product.images[0]?.storagePath ?? null,
+    }));
     const state: ConversationState = {
       ...input.state,
       messages: [
@@ -126,6 +173,8 @@ export async function processConversationTurn(input: {
       pendingQuestionKey: null,
       pendingQuestionCategory: null,
       pendingQuestionSlotType: null,
+      lastCatalogResults: references,
+      lastFocusedProduct: references.length === 1 ? references[0] : null,
     };
     return {
       state,

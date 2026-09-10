@@ -56,6 +56,14 @@ const requestSchema = z.object({
         ])
         .nullable()
         .default(null),
+      lastCatalogResults: z.array(z.object({
+        id: z.string(), slug: z.string(), name: z.string(), category: z.string().nullable(),
+        condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
+      })).max(20).default([]),
+      lastFocusedProduct: z.object({
+        id: z.string(), slug: z.string(), name: z.string(), category: z.string().nullable(),
+        condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
+      }).nullable().default(null),
     })
     .default(initialConversationState()),
 });

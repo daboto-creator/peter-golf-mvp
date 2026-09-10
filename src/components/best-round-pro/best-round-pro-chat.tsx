@@ -57,7 +57,14 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
         const saved = window.sessionStorage.getItem("best-round-pro-session");
         if (saved) {
           const parsed = JSON.parse(saved) as ConversationState;
-          if (parsed?.session && Array.isArray(parsed.messages)) return parsed;
+          if (parsed?.session && Array.isArray(parsed.messages)) {
+            return {
+              ...initialConversationState(),
+              ...parsed,
+              lastCatalogResults: parsed.lastCatalogResults ?? [],
+              lastFocusedProduct: parsed.lastFocusedProduct ?? null,
+            };
+          }
         }
       } catch { /* optional storage */ }
     }
