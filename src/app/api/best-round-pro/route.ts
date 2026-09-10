@@ -39,6 +39,23 @@ const requestSchema = z.object({
       discussedProductIds: z.array(z.string()).max(20),
       pendingQuestionKey: z.string().nullable().default(null),
       pendingQuestionCategory: z.string().nullable().default(null),
+      pendingQuestionSlotType: z
+        .enum([
+          "CATEGORY",
+          "HANDEDNESS",
+          "HANDICAP",
+          "SWING_SPEED",
+          "SHOT_TENDENCY",
+          "DISTANCE_GAP",
+          "CURRENT_EQUIPMENT",
+          "CONDITION_PREFERENCE",
+          "OBJECTIVE",
+          "PUTTER_LENGTH",
+          "WEDGE_CONTEXT",
+          "BOOLEAN_PREFERENCE",
+        ])
+        .nullable()
+        .default(null),
     })
     .default(initialConversationState()),
 });

@@ -7,7 +7,10 @@ import type {
 } from "@/lib/mi-golf/domain";
 import { nextBestQuestion } from "@/lib/mi-golf/domain";
 import type { CommercialRankingResult } from "@/lib/recommendations/commercial-ranking";
-import { detectGolfCategory } from "./category-normalization";
+import {
+  detectGolfCategory,
+  interpretGolfCategory,
+} from "./category-normalization";
 
 export type ConversationObjection =
   | "PRICE"
@@ -32,6 +35,7 @@ export type ConversationState = {
   discussedProductIds: string[];
   pendingQuestionKey: string | null;
   pendingQuestionCategory: string | null;
+  pendingQuestionSlotType: NextBestQuestion["slotType"] | null;
 };
 
 export type ConversationResult = {
@@ -55,11 +59,18 @@ export const EMPTY_SESSION: BestRoundProSessionSummary = {
 
 export function initialConversationState(): ConversationState {
   return {
-    session: { ...EMPTY_SESSION },
+    session: {
+      ...EMPTY_SESSION,
+      objections: [...EMPTY_SESSION.objections],
+      productsConsidered: [...EMPTY_SESSION.productsConsidered],
+      diagnosticAnswers: { ...EMPTY_SESSION.diagnosticAnswers },
+      unresolvedQuestions: [...EMPTY_SESSION.unresolvedQuestions],
+    },
     messages: [],
     discussedProductIds: [],
     pendingQuestionKey: null,
     pendingQuestionCategory: null,
+    pendingQuestionSlotType: null,
   };
 }
 
@@ -103,6 +114,25 @@ export function resolveContextualShortAnswer(input: {
       value: "NEW_ONLY" as const,
       answerState: "ANSWERED_NEGATIVE" as const,
     };
+  if (
+    ["length", "gapping", "currentBag", "skill", "shotTendency"].includes(
+      input.pendingQuestionKey,
+    ) &&
+    /^(no|no se|ni idea|no recuerdo|no la conozco)$/.test(value)
+  ) {
+    const fieldByQuestion: Record<string, string> = {
+      length: "length",
+      gapping: "gapping",
+      currentBag: "currentBag",
+      skill: "skill",
+      shotTendency: "shotTendency",
+    };
+    return {
+      field: fieldByQuestion[input.pendingQuestionKey],
+      value: "ANSWERED_UNKNOWN" as const,
+      answerState: "ANSWERED_UNKNOWN" as const,
+    };
+  }
   return null;
 }
 
@@ -139,9 +169,55 @@ function detectIntent(text: string): BuyingIntent | null {
   return null;
 }
 
+export type CurrentEquipmentReference = {
+  category: MatchCategory;
+  clubNumber: number | null;
+  subtype: "SAND" | "GAP" | "LOB" | "APPROACH" | null;
+  brand: string | null;
+};
+
+const KNOWN_BRANDS = [
+  "TaylorMade",
+  "Titleist",
+  "Callaway",
+  "PING",
+  "Cobra",
+  "Mizuno",
+  "Srixon",
+  "Cleveland",
+  "Odyssey",
+];
+
+export function parseCurrentEquipment(
+  text: string,
+): CurrentEquipmentReference[] {
+  const references: Array<CurrentEquipmentReference | null> = text
+    .split(/,|\s+y\s+/i)
+    .map((part): CurrentEquipmentReference | null => {
+      const interpretation = interpretGolfCategory(part);
+      if (!interpretation) return null;
+      const brand = KNOWN_BRANDS.find((name) =>
+        part
+          .toLocaleLowerCase("es-MX")
+          .includes(name.toLocaleLowerCase("es-MX")),
+      );
+      return {
+        category: interpretation.category,
+        clubNumber: interpretation.clubNumber,
+        subtype: interpretation.subtype,
+        brand: brand ?? null,
+      };
+    });
+  return references.filter(
+    (item): item is CurrentEquipmentReference => item !== null,
+  );
+}
+
 function parseAnswers(
   text: string,
   current: Record<string, string | number | boolean | null>,
+  pendingQuestionKey: string | null,
+  category: MatchCategory | null,
 ) {
   const answers = { ...current };
   if (/\bno\s+(s[eé]|la\s+conozco|tengo\s+ese\s+dato)\b/i.test(text)) {
@@ -162,20 +238,65 @@ function parseAnswers(
     answers.handedness = "RIGHT";
   if (/\b(zurdo|zurda|zurdos|izquierdo|izquierda|left)\b/i.test(text))
     answers.handedness = "LEFT";
-  if (/slic(?:e)?\b|reban|se\s+abre/i.test(text))
+  if (
+    /slic(?:e)?\b|slide\b|slise\b|slaice\b|reban|se\s+abre/i.test(text) &&
+    (pendingQuestionKey === "shotTendency" || category === "DRIVER")
+  )
     answers.shotTendency = "SLICE";
   if (/hook|gancho|se\s+cierra/i.test(text)) answers.shotTendency = "HOOK";
   if (/recto|straight/i.test(text)) answers.shotTendency = "STRAIGHT";
   if (/forgiveness|perd[oó]n|perdonador|f[aá]cil|consisten/i.test(text))
     answers.objective = "MORE_FORGIVENESS";
-  if (/slice/i.test(text)) answers.objective ??= "REDUCE_SLICE";
-  if (/\b(\d{1,3})(?:\s*)(?:pesos|mxn|mil)?\b/i.test(text)) {
+  if (/slice|slide|slise|slaice/i.test(text) && category === "DRIVER")
+    answers.objective ??= "REDUCE_SLICE";
+  const numericSlot = ["skill", "gapping", "swingSpeed", "length"].includes(
+    pendingQuestionKey ?? "",
+  );
+  if (!numericSlot && /\b(\d{1,3})(?:\s*)(?:pesos|mxn|mil)?\b/i.test(text)) {
     const match = text.match(/\b(\d{1,3})(?:\s*)(?:pesos|mxn|mil)?\b/i);
     if (match)
       answers.budget = Number(match[1]) * (Number(match[1]) < 1000 ? 100 : 1);
   }
-  const handicap = text.match(/handicap\s*(?:de|:)?\s*(\d+(?:\.\d+)?)/i);
-  if (handicap) answers.handicap = Number(handicap[1]);
+  const handicap = text.match(
+    /(?:handicap|hcp|soy|tengo|como)?\s*(\d+(?:\.\d+)?)/i,
+  );
+  if (
+    (pendingQuestionKey === "skill" || /handicap|hcp/i.test(text)) &&
+    handicap &&
+    Number(handicap[1]) >= 0 &&
+    Number(handicap[1]) <= 54
+  ) {
+    answers.handicap = Number(handicap[1]);
+    answers.skill = "ANSWERED_VALUE";
+  }
+  if (pendingQuestionKey === "gapping") {
+    const gap = text.match(
+      /(?:entre\s+)?(\d{1,3})(?:\s*(?:a|y|-)\s*(\d{1,3}))?/i,
+    );
+    if (gap) {
+      answers.gapping = Number(gap[1]);
+      answers.gappingUnit = /(?:yd|yarda|yardas)/i.test(text)
+        ? "YARDS"
+        : /(?:m|metro|metros)/i.test(text)
+          ? "METERS"
+          : "ASSUMED_YARDS_FROM_CONTEXT";
+    }
+  }
+  if (pendingQuestionKey === "length") {
+    const length = text.match(/\b(\d{2})\b/);
+    if (length && Number(length[1]) >= 28 && Number(length[1]) <= 40) {
+      answers.length = Number(length[1]);
+      answers.lengthUnit = "INCHES";
+    }
+  }
+  if (pendingQuestionKey === "swingSpeed") {
+    const speed = text.match(/\b(\d{2,3})\b/);
+    if (speed) answers.swingSpeed = Number(speed[1]);
+  }
+  if (pendingQuestionKey === "currentBag") {
+    const equipment = parseCurrentEquipment(text);
+    if (equipment.length) answers.currentEquipment = JSON.stringify(equipment);
+  }
   if (/nuevo\s+sol|solo\s+nuevo/i.test(text))
     answers.conditionPreference = "NEW_ONLY";
   if (/usado|seminuevo|valor/i.test(text))
@@ -199,7 +320,8 @@ export function knownFacts(
     shotTendency: profile?.shotTendency ?? answers.shotTendency,
     swingSpeed: answers.swingSpeed,
     currentBag: answers.currentBag,
-    skill: profile?.skillLevel ?? answers.skill,
+    skill: profile?.skillLevel ?? answers.skill ?? answers.handicap,
+    handicap: answers.handicap,
     gapping: answers.gapping,
     turfInteraction: answers.turfInteraction,
     length: answers.length,
@@ -225,10 +347,25 @@ export function classifyConversationTurn(
     pendingQuestionKey: state.pendingQuestionKey,
     userMessage: text,
   });
-  const category = detectCategory(text) ?? state.session.requestedCategory;
+  const detectedCategory = detectCategory(text);
+  const explicitCategoryChange =
+    /\b(mejor|quiero|busco|necesito|cambiemos|veamos|prefiero)\b[\s\S]{0,24}\b(driver|drive|driber|draiver|fairway|wood|madera|hybrid|hibrido|rescue|iron|hierro|fierro|wedge|sand|gap|lob|putter|putt|put|pot|pater)\b/i.test(
+      text,
+    );
+  const category =
+    state.pendingQuestionKey === "currentBag" &&
+    state.session.requestedCategory &&
+    !explicitCategoryChange
+      ? state.session.requestedCategory
+      : (detectedCategory ?? state.session.requestedCategory);
   const intent = detectIntent(text) ?? state.session.purchaseIntent;
   const objection = detectObjection(text);
-  const answers = parseAnswers(text, state.session.diagnosticAnswers);
+  const answers = parseAnswers(
+    text,
+    state.session.diagnosticAnswers,
+    state.pendingQuestionKey,
+    category as MatchCategory | null,
+  );
   if (contextual) answers[contextual.field] = contextual.value;
   const speed = text.match(/\b(\d{2,3})\s*(?:mph|km\/h)?\b/i);
   if (state.pendingQuestionKey === "swingSpeed" && speed)
@@ -295,6 +432,7 @@ export function classifyConversationTurn(
     discussedProductIds: state.discussedProductIds,
     pendingQuestionKey: next?.id ?? null,
     pendingQuestionCategory: next?.category ?? null,
+    pendingQuestionSlotType: next?.slotType ?? null,
   };
   return { state: nextState, reply, nextQuestion: next, objection, events };
 }

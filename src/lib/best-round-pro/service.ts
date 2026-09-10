@@ -100,11 +100,14 @@ export async function processConversationTurn(input: {
       interpretation = await provider.interpretTurn({
         session: {
           category: input.state.session.requestedCategory,
+          targetCategory: input.state.session.requestedCategory,
           intent: input.state.session.purchaseIntent,
           budgetKnown: input.state.session.budgetMxnMinor !== null,
           knownFacts: Object.keys(input.state.session.diagnosticAnswers),
         },
         userTurn: input.message,
+        nextQuestionKey: input.state.pendingQuestionKey,
+        pendingQuestionSlotType: input.state.pendingQuestionSlotType,
       });
     } catch {
       interpretation = null;

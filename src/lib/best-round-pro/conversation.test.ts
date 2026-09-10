@@ -5,6 +5,7 @@ import {
   detectCategory,
   initialConversationState,
   nextQuestionFor,
+  parseCurrentEquipment,
   priceObjectionReply,
   resolveContextualShortAnswer,
 } from "./conversation";
@@ -52,6 +53,103 @@ describe("Best Round Pro conversation", () => {
     expect(result.state.session.diagnosticAnswers.shotTendency).toBe("SLICE");
     expect(result.reply).toContain("buscas un Driver");
     expect(result.reply).not.toContain("¿Qué equipo buscas");
+  });
+
+  it.each(["30", "handicap 30", "hcp 30"])(
+    "accepts bare handicap answer %s",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "IRON";
+      state.session.diagnosticAnswers.handedness = "LEFT";
+      state.pendingQuestionKey = "skill";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.handicap).toBe(30);
+      expect(result.state.session.diagnosticAnswers.skill).toBe(
+        "ANSWERED_VALUE",
+      );
+      expect(result.nextQuestion?.id).not.toBe("skill");
+    },
+  );
+
+  it.each(["70", "70 yds", "70 yardas", "70 metros"])(
+    "accepts distance answer %s",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "WEDGE";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.pendingQuestionKey = "gapping";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.gapping).toBe(70);
+      expect(result.nextQuestion?.id).not.toBe("gapping");
+    },
+  );
+
+  it("resolves slide variants as slice in driver context", () => {
+    const state = initialConversationState();
+    const result = classifyConversationTurn(
+      state,
+      "quiero un drive pa derecho hago slide",
+    );
+    expect(result.state.session.diagnosticAnswers.shotTendency).toBe("SLICE");
+  });
+
+  it("keeps the target hybrid while parsing current fairway equipment", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "HYBRID";
+    state.pendingQuestionKey = "currentBag";
+    const result = classifyConversationTurn(state, "madera 5 TaylorMade");
+    expect(result.state.session.requestedCategory).toBe("HYBRID");
+    expect(parseCurrentEquipment("madera 5 TaylorMade")).toEqual([
+      {
+        category: "FAIRWAY_WOOD",
+        clubNumber: 5,
+        subtype: null,
+        brand: "TaylorMade",
+      },
+    ]);
+  });
+
+  it("marks unknown putter length and does not repeat the length question", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "PUTTER";
+    state.session.diagnosticAnswers.handedness = "LEFT";
+    state.pendingQuestionKey = "length";
+    const result = classifyConversationTurn(state, "no se");
+    expect(result.state.session.diagnosticAnswers.length).toBe(
+      "ANSWERED_UNKNOWN",
+    );
+    expect(result.nextQuestion?.id).not.toBe("length");
+  });
+
+  it("accepts numeric swing speed and putter length in their pending slots", () => {
+    const driver = initialConversationState();
+    driver.session.requestedCategory = "DRIVER";
+    driver.pendingQuestionKey = "swingSpeed";
+    expect(
+      classifyConversationTurn(driver, "como 90 mph").state.session
+        .diagnosticAnswers.swingSpeed,
+    ).toBe(90);
+
+    const putter = initialConversationState();
+    putter.session.requestedCategory = "PUTTER";
+    putter.pendingQuestionKey = "length";
+    expect(
+      classifyConversationTurn(putter, "34 pulgadas").state.session
+        .diagnosticAnswers.length,
+    ).toBe(34);
+  });
+
+  it("allows an explicit target category change but ignores comparison mentions", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "DRIVER";
+    expect(
+      classifyConversationTurn(state, "¿GT3 o Qi35?").state.session
+        .requestedCategory,
+    ).toBe("DRIVER");
+    expect(
+      classifyConversationTurn(state, "mejor quiero un putter").state.session
+        .requestedCategory,
+    ).toBe("PUTTER");
   });
 
   it("moves past a category answer without repeating the category question", () => {
