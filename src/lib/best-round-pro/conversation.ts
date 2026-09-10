@@ -72,6 +72,10 @@ function normalizeShortAnswer(value: string) {
     .replace(/\s+/g, " ");
 }
 
+function normalizeNaturalLanguage(value: string) {
+  return normalizeShortAnswer(value).replace(/["'¿?¡!.,;:()]/g, " ");
+}
+
 export function resolveContextualShortAnswer(input: {
   pendingQuestionKey: string | null;
   userMessage: string;
@@ -102,17 +106,33 @@ export function resolveContextualShortAnswer(input: {
 }
 
 const CATEGORY_ALIASES: Array<[MatchCategory, RegExp]> = [
-  ["DRIVER", /\b(driver|drivers)\b/i],
+  // Keep this list deliberately bounded: these are common golf terms and
+  // harmless typos, not a general-purpose fuzzy matcher.
+  ["DRIVER", /\b(driver|drivers|drive|driber)\b/i],
   ["FAIRWAY_WOOD", /\b(fairway|madera\s+de\s+calle|maderas)\b/i],
-  ["HYBRID", /\b(hybrid|híbrido|hibrido)\b/i],
+  ["HYBRID", /\b(hybrid|hibrido)\b/i],
   ["IRON", /\b(iron|hierro|hierros)\b/i],
   ["WEDGE", /\b(wedge|wedges)\b/i],
   ["PUTTER", /\b(putter|putt)\b/i],
 ];
 
+function categoryLabel(category: MatchCategory | string) {
+  const labels: Record<string, string> = {
+    DRIVER: "Driver",
+    FAIRWAY_WOOD: "madera de calle (Fairway)",
+    HYBRID: "híbrido",
+    IRON: "hierros",
+    WEDGE: "Wedge",
+    PUTTER: "Putter",
+  };
+  return labels[category] ?? category;
+}
+
 export function detectCategory(text: string): MatchCategory | null {
+  const normalized = normalizeNaturalLanguage(text);
   return (
-    CATEGORY_ALIASES.find(([, pattern]) => pattern.test(text))?.[0] ?? null
+    CATEGORY_ALIASES.find(([, pattern]) => pattern.test(normalized))?.[0] ??
+    null
   );
 }
 
@@ -152,13 +172,15 @@ function parseAnswers(
     if (current.strokeType === undefined)
       answers.strokeType = "ANSWERED_UNKNOWN";
   }
-  if (/\b(diestro|derecho|right)\b/i.test(text)) answers.handedness = "RIGHT";
-  if (/\b(zurdo|zurda|izquierdo|left)\b/i.test(text))
+  if (/\b(diestro|derecho|derechos|right)\b/i.test(text))
+    answers.handedness = "RIGHT";
+  if (/\b(zurdo|zurda|zurdos|izquierdo|izquierda|left)\b/i.test(text))
     answers.handedness = "LEFT";
-  if (/slice|reban|se\s+abre/i.test(text)) answers.shotTendency = "SLICE";
+  if (/slic(?:e)?\b|reban|se\s+abre/i.test(text))
+    answers.shotTendency = "SLICE";
   if (/hook|gancho|se\s+cierra/i.test(text)) answers.shotTendency = "HOOK";
   if (/recto|straight/i.test(text)) answers.shotTendency = "STRAIGHT";
-  if (/forgiveness|perd[oó]n|f[aá]cil|consisten/i.test(text))
+  if (/forgiveness|perd[oó]n|perdonador|f[aá]cil|consisten/i.test(text))
     answers.objective = "MORE_FORGIVENESS";
   if (/slice/i.test(text)) answers.objective ??= "REDUCE_SLICE";
   if (/\b(\d{1,3})(?:\s*)(?:pesos|mxn|mil)?\b/i.test(text)) {
@@ -245,6 +267,24 @@ export function classifyConversationTurn(
   if (category && category !== state.session.requestedCategory)
     events.push("CATEGORY_SELECTED");
   if (next) session.unresolvedQuestions = [next.id];
+  const distanceOnlyRequest =
+    !category &&
+    /\b(pegar|ganar)\s+(?:(?:más\s+)?distancia|más\s+lejos)\b/i.test(text);
+  const ambiguousWoodRequest =
+    !category &&
+    /\bmadera\b/i.test(text) &&
+    !/madera\s+de\s+calle|fairway/i.test(text);
+  const extractedFacts = [
+    category ? `buscas un ${categoryLabel(category)}` : "",
+    answers.handedness === "RIGHT" ? "juegas como diestro" : "",
+    answers.handedness === "LEFT" ? "juegas como zurdo" : "",
+    answers.shotTendency === "SLICE" ? "tu miss habitual es slice" : "",
+    answers.shotTendency === "HOOK" ? "tu miss habitual es hook" : "",
+  ].filter(Boolean);
+  const understandingPrefix =
+    extractedFacts.length >= 2 && !objection
+      ? `Perfecto: entiendo que ${extractedFacts.join(" y ")}. `
+      : "";
   const reply = isProtectedRequest(text)
     ? "No puedo modificar el Match ni compartir información comercial interna. El Match se mantiene porque lo calcula el sistema con tu perfil y la configuración real del equipo."
     : objection === "NEED_TO_THINK"
@@ -255,10 +295,16 @@ export function classifyConversationTurn(
           ? "La compatibilidad es estimada con los datos disponibles. Te explico el Match, la confianza y qué dato faltaría antes de decidir."
           : objection === "WANT_OTHER_OPTION"
             ? "Voy a revisar otra opción responsable y distinta, sin repetir la misma unidad."
-            : (next?.prompt ??
-              (category
-                ? "Ya tengo lo necesario para revisar inventario real y compatibilidad."
-                : "¿Qué equipo buscas: Driver, Fairway, Hybrid, Hierros, Wedge o Putter?"));
+            : distanceOnlyRequest
+              ? "Claro. ¿Quieres ganar distancia principalmente con el Driver o con otro palo?"
+              : ambiguousWoodRequest
+                ? "Entiendo que buscas una madera. ¿Te refieres a una madera de calle (Fairway) o al Driver?"
+                : `${understandingPrefix}${
+                    next?.prompt ??
+                    (category
+                      ? "Ya tengo lo necesario para revisar inventario real y compatibilidad."
+                      : "¿Qué equipo buscas: Driver, Fairway, Hybrid, Hierros, Wedge o Putter?")
+                  }`;
   const nextState = {
     session,
     messages: [

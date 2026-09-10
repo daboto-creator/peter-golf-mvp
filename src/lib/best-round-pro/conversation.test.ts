@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   classifyConversationTurn,
+  detectCategory,
   initialConversationState,
   nextQuestionFor,
   priceObjectionReply,
@@ -9,6 +10,68 @@ import {
 } from "./conversation";
 
 describe("Best Round Pro conversation", () => {
+  it.each([
+    "driver",
+    "drive",
+    "quiero un driver",
+    "busco un drive",
+    "necesito driver",
+    "driber",
+  ])("normalizes %s to Driver", (message) => {
+    expect(detectCategory(message)).toBe("DRIVER");
+  });
+
+  it.each([
+    ["madera de calle", "FAIRWAY_WOOD"],
+    ["fairway", "FAIRWAY_WOOD"],
+    ["híbrido", "HYBRID"],
+    ["hierros", "IRON"],
+    ["wedge", "WEDGE"],
+    ["putt", "PUTTER"],
+  ] as const)("maps natural category %s", (message, category) => {
+    expect(detectCategory(message)).toBe(category);
+  });
+
+  it("extracts category, handedness, and shot tendency from one turn", () => {
+    const result = classifyConversationTurn(
+      initialConversationState(),
+      "quiero un drive para derechos, pero hago slice",
+    );
+    expect(result.state.session.requestedCategory).toBe("DRIVER");
+    expect(result.state.session.diagnosticAnswers.handedness).toBe("RIGHT");
+    expect(result.state.session.diagnosticAnswers.shotTendency).toBe("SLICE");
+    expect(result.reply).toContain("buscas un Driver");
+    expect(result.reply).not.toContain("¿Qué equipo buscas");
+  });
+
+  it("moves past a category answer without repeating the category question", () => {
+    const state = initialConversationState();
+    state.pendingQuestionKey = "category";
+    const result = classifyConversationTurn(state, "driver");
+    expect(result.state.session.requestedCategory).toBe("DRIVER");
+    expect(result.nextQuestion?.id).toBe("handedness");
+    expect(result.reply).not.toContain("¿Qué equipo buscas");
+  });
+
+  it("asks a focused clarification for genuinely ambiguous wood wording", () => {
+    const result = classifyConversationTurn(
+      initialConversationState(),
+      "quiero una madera",
+    );
+    expect(result.reply).toContain("madera de calle (Fairway)");
+    expect(result.reply).not.toContain("¿Qué equipo buscas");
+  });
+
+  it("does not guess a category from a distance-only objective", () => {
+    const result = classifyConversationTurn(
+      initialConversationState(),
+      "quiero algo para pegar más lejos",
+    );
+    expect(result.state.session.requestedCategory).toBeNull();
+    expect(result.reply).toContain("ganar distancia");
+    expect(result.reply).not.toContain("¿Qué equipo buscas");
+  });
+
   it("detects category and asks only the next material question", () => {
     const result = classifyConversationTurn(
       initialConversationState(),
