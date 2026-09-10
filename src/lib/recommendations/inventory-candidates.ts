@@ -153,6 +153,20 @@ export async function loadInventoryUnits(): Promise<InventoryCandidateLoadResult
         ];
       },
     );
+    const firstPartyIds = firstPartyUnits.map((unit) => unit.productId);
+    if (firstPartyIds.length) {
+      const { data: products } = await client
+        .from("products" as never)
+        .select("id,slug")
+        .in("id", firstPartyIds);
+      const hrefById = new Map(
+        ((products ?? []) as unknown as Array<{ id: string; slug: string }>).map(
+          (product) => [product.id, `/productos/${encodeURIComponent(product.slug)}`],
+        ),
+      );
+      for (const unit of firstPartyUnits)
+        unit.productHref = hrefById.get(unit.productId) ?? unit.productHref ?? null;
+    }
     return {
       data: [...firstPartyUnits, ...marketplaceUnits].filter(
         (unit) =>

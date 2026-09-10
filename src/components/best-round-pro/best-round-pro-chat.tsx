@@ -67,8 +67,12 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
   const [reply, setReply] = useState(
     "Soy Best Round Pro. Te ayudo a encontrar equipo real que encaje con tu juego.",
   );
-  const [recommendation, setRecommendation] =
-    useState<CommercialRankingResult | null>(null);
+  const [recommendation, setRecommendation] = useState<CommercialRankingResult | null>(() => {
+    if (typeof window !== "undefined") {
+      try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-recommendation") ?? "null") as CommercialRankingResult | null; } catch { /* optional storage */ }
+    }
+    return null;
+  });
   const [outcome, setOutcome] = useState<ConversationOutcomeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +104,7 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
       setState(payload.state);
       setReply(payload.reply ?? "");
       setRecommendation(payload.recommendation ?? null);
+      try { window.sessionStorage.setItem("best-round-pro-recommendation", JSON.stringify(payload.recommendation ?? null)); } catch { /* optional storage */ }
       setOutcome(payload.outcome ?? null);
       setInput("");
     } catch {
@@ -144,6 +149,7 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
             onClick={() => {
               setState(initialConversationState());
               setRecommendation(null);
+              try { window.sessionStorage.removeItem("best-round-pro-recommendation"); } catch { /* optional storage */ }
               setOutcome(null);
               setReply("Empecemos de nuevo. ¿Qué equipo buscas?");
             }}
@@ -233,17 +239,17 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
                         .filter(Boolean)
                         .join(" ")}
                     </p>
-                    <Link
+                    {item.candidate.productHref ? <Link
                       className="text-pg-gold text-sm font-semibold"
-                      href={item.candidate.productHref ?? "/productos"}
+                      href={item.candidate.productHref}
                       onClick={(event) => {
                         event.preventDefault();
                         window.dispatchEvent(new CustomEvent("best-round-pro:close"));
-                        router.push(item.candidate.productHref ?? "/productos");
+                        router.push(item.candidate.productHref!);
                       }}
                     >
                       Ver producto
-                    </Link>
+                    </Link> : null}
                   </CardContent>
                 </Card>
               ))}
