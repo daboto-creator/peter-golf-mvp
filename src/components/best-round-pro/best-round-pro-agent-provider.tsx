@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { BestRoundProChat } from "./best-round-pro-chat";
+import { BEST_ROUND_PRO_AGENT_ASSET } from "@/lib/best-round-pro/launcher";
 
 const POSITION_KEY = "best-round-pro-agent-position";
 
@@ -12,6 +13,8 @@ export function BestRoundProAgentProvider() {
   const [open, setOpen] = useState(false);
   const [teaser, setTeaser] = useState(false);
   const [motion, setMotion] = useState(false);
+  const [headerBottom, setHeaderBottom] = useState(0);
+  const [launcherAsset, setLauncherAsset] = useState<string>(BEST_ROUND_PRO_AGENT_ASSET.primary);
   const [position, setPosition] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -30,9 +33,13 @@ export function BestRoundProAgentProvider() {
     setOpen(false);
     window.setTimeout(() => launcherRef.current?.focus(), 0);
   }, []);
+  const openShell = useCallback(() => {
+    setTeaser(false);
+    setOpen(true);
+  }, []);
 
   useEffect(() => {
-    const openFromContext = () => setOpen(true);
+    const openFromContext = () => openShell();
     const closeFromContext = closeShell;
     window.addEventListener("best-round-pro:open", openFromContext);
     window.addEventListener("best-round-pro:close", closeFromContext);
@@ -40,7 +47,7 @@ export function BestRoundProAgentProvider() {
       window.removeEventListener("best-round-pro:open", openFromContext);
       window.removeEventListener("best-round-pro:close", closeFromContext);
     };
-  }, [closeShell]);
+  }, [closeShell, openShell]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") closeShell(); };
     window.addEventListener("keydown", onKeyDown);
@@ -65,6 +72,31 @@ export function BestRoundProAgentProvider() {
     return () => window.clearInterval(interval);
   }, [open, dragging]);
   useEffect(() => {
+    let frame = 0;
+    const measure = () => {
+      const header = document.querySelector<HTMLElement>("[data-site-header]");
+      setHeaderBottom(header?.getBoundingClientRect().bottom ?? 0);
+    };
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(measure);
+    };
+    schedule();
+    const header = document.querySelector<HTMLElement>("[data-site-header]");
+    const observer = header && "ResizeObserver" in window ? new ResizeObserver(schedule) : null;
+    if (observer && header) observer.observe(header);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("orientationchange", schedule);
+    window.addEventListener("scroll", schedule, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("orientationchange", schedule);
+      window.removeEventListener("scroll", schedule);
+    };
+  }, [pathname]);
+  useEffect(() => {
     const clamp = () => setPosition((p) => ({ ...p, top: Math.min(88, Math.max(12, p.top)) }));
     window.addEventListener("resize", clamp);
     window.addEventListener("orientationchange", clamp);
@@ -75,6 +107,7 @@ export function BestRoundProAgentProvider() {
     try { window.sessionStorage.setItem(POSITION_KEY, JSON.stringify(next)); } catch { /* optional */ }
   }, []);
   const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    setTeaser(false);
     moved.current = false;
     startX.current = event.clientX;
     startY.current = event.clientY;
@@ -102,12 +135,14 @@ export function BestRoundProAgentProvider() {
     setDragging(false);
   };
   if (/^\/operacion(?:\/|$)/.test(pathname) || /^\/partner(?:\/|$)/.test(pathname) || pathname === "/best-round-pro") return null;
+  const shellTop = Math.max(12, Math.ceil(headerBottom) + 12);
+  const edgeInset = position.edge === "right" ? "max(1rem, env(safe-area-inset-right))" : "max(1rem, env(safe-area-inset-left))";
   return (
     <>
-      {teaser && !open ? <div className={`fixed z-50 ${position.edge === "right" ? "right-5" : "left-5"}`} style={{ top: `calc(${position.top}% - 58px)` }}>
+      {teaser && !open ? <div className={`fixed z-50 ${position.edge === "right" ? "right-5" : "left-5"}`} style={{ top: `${Math.max(8, position.top - 8)}%` }}>
         <div className="flex items-start gap-2 rounded-2xl border border-pg-gold/30 bg-white px-3 py-2 text-xs font-medium text-pg-black shadow-lg">
           <button type="button" aria-label="Cerrar sugerencia" className="order-2 text-sm leading-none text-pg-black/60" onClick={() => setTeaser(false)}>×</button>
-          <button type="button" className="text-left" onClick={() => { setTeaser(false); setOpen(true); }}>¿Te ayudo a encontrar el equipo ideal?</button>
+          <button type="button" className="text-left" onClick={openShell}>¿Te ayudo a encontrar el equipo ideal?</button>
         </div>
       </div> : null}
       {!open ? <button
@@ -115,15 +150,15 @@ export function BestRoundProAgentProvider() {
         type="button"
         aria-label="Best Round Pro Agent"
         className={`fixed z-50 size-16 touch-none rounded-full border-2 border-pg-gold bg-white p-1 shadow-xl transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pg-gold ${motion ? "rotate-6" : ""}`}
-        style={{ [position.edge]: "max(1rem, env(safe-area-inset-right))", top: `${position.top}%`, transform: "translateY(-50%)" }}
+        style={{ [position.edge]: edgeInset, top: `${position.top}%`, transform: "translateY(-50%)" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onClick={() => { if (!moved.current) setOpen(true); }}
+        onClick={() => { if (!moved.current) openShell(); }}
         data-dragging={dragging}
-      ><Image src="/images/best-round-pro-golfer.svg" alt="" width={56} height={56} className="size-full rounded-full object-cover" priority /></button> : null}
-      {open ? <div role="dialog" aria-modal="true" aria-labelledby="best-round-pro-shell-title" className="fixed inset-0 z-50 bg-black/20">
-        <aside className="absolute right-0 top-0 flex h-[100dvh] w-full max-w-[480px] flex-col overflow-hidden bg-pg-warm-white shadow-2xl sm:w-[min(480px,100vw)]">
+      ><Image src={launcherAsset} onError={() => setLauncherAsset(BEST_ROUND_PRO_AGENT_ASSET.fallback)} alt="" width={56} height={56} className="size-full rounded-full object-cover" priority /></button> : null}
+      {open ? <div role="dialog" aria-modal="true" aria-labelledby="best-round-pro-shell-title" className="pointer-events-none fixed inset-0 z-40">
+        <aside className="pointer-events-auto absolute right-0 flex w-full max-w-[420px] flex-col overflow-hidden rounded-none bg-pg-warm-white shadow-2xl sm:right-4 sm:rounded-2xl" style={{ top: `${shellTop}px`, maxHeight: `calc(100dvh - ${shellTop}px - 16px - env(safe-area-inset-bottom))`, height: `min(760px, calc(100dvh - ${shellTop}px - 16px - env(safe-area-inset-bottom)))` }}>
           <div className="sticky top-0 z-50 flex min-h-16 shrink-0 items-center justify-between border-b border-pg-gold/30 bg-pg-black px-5 py-3 text-white shadow-md backdrop-blur [padding-top:env(safe-area-inset-top)]">
             <div><p id="best-round-pro-shell-title" className="font-heading text-xl">Best Round Pro</p><p className="text-white/70 text-xs">Tu asesor de golf</p></div>
             <div className="flex items-center gap-1">
