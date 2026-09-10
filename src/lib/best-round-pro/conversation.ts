@@ -488,6 +488,11 @@ export type ConversationOutcome =
   | "NO_RESPONSIBLE_MATCH"
   | "INSUFFICIENT_DATA";
 
+export type ConversationOutcomeResult = {
+  type: ConversationOutcome;
+  message: string;
+};
+
 export function terminalOutcomeMessage(
   outcome: ConversationOutcome,
   category: string,

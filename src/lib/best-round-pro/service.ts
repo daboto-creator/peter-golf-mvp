@@ -7,6 +7,7 @@ import {
   recommendationReply,
   terminalOutcomeMessage,
   type ConversationOutcome,
+  type ConversationOutcomeResult,
   type ConversationState,
 } from "@/lib/best-round-pro/conversation";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
@@ -92,6 +93,19 @@ export async function processConversationTurn(input: {
   state: ConversationState;
   message: string;
 }) {
+  const withFinalReply = <T extends { state: ConversationState; reply: string }>(
+    result: T,
+  ): T => ({
+    ...result,
+    state: {
+      ...result.state,
+      messages: result.state.messages.map((message, index, messages) =>
+        index === messages.length - 1 && message.role === "assistant"
+          ? { ...message, content: result.reply }
+          : message,
+      ),
+    },
+  });
   const context = await loadMiGolfContext();
   const provider = getConversationProvider();
   let interpretation: Awaited<
@@ -173,7 +187,7 @@ export async function processConversationTurn(input: {
             : "UNKNOWN",
     };
     const recommendation = rankInventoryCandidates(candidates, preferences);
-    const outcome: ConversationOutcome =
+    const outcomeType: ConversationOutcome =
       recommendation.status === "RECOMMENDATIONS"
         ? "RECOMMENDATIONS_AVAILABLE"
         : units.length === 0
@@ -195,9 +209,9 @@ export async function processConversationTurn(input: {
             Boolean(priceChoice?.some((item) => item.role === "ALTERNATIVE")),
           )
         : recommendationReply(recommendation);
-    if (outcome !== "RECOMMENDATIONS_AVAILABLE" && turn.objection !== "PRICE")
+    if (outcomeType !== "RECOMMENDATIONS_AVAILABLE" && turn.objection !== "PRICE")
       reply = terminalOutcomeMessage(
-        outcome,
+        outcomeType,
         category,
         turn.state.session.diagnosticAnswers.handedness,
       );
@@ -214,7 +228,11 @@ export async function processConversationTurn(input: {
             ),
           }
         : recommendation;
-    if (provider && turn.objection !== "PRICE") {
+    if (
+      provider &&
+      outcomeType === "RECOMMENDATIONS_AVAILABLE" &&
+      turn.objection !== "PRICE"
+    ) {
       try {
         const generated = await provider.explainRecommendation({
           session: {
@@ -245,19 +263,34 @@ export async function processConversationTurn(input: {
         // Keep the deterministic response if the conversational provider fails.
       }
     }
-    return {
+    const outcome: ConversationOutcomeResult = {
+      type: outcomeType,
+      message: reply,
+    };
+    return withFinalReply({
       ...turn,
       reply,
       recommendation: safeRecommendation,
       outcome,
       error: null,
       providerUsed: Boolean(provider),
-    };
+    });
   }
-  return {
+  const terminalOutcome = {
+        type: "INSUFFICIENT_DATA" as const,
+        message: terminalOutcomeMessage(
+          "INSUFFICIENT_DATA",
+          turn.state.session.requestedCategory ?? "equipment",
+          turn.state.session.diagnosticAnswers.handedness,
+        ),
+      } satisfies ConversationOutcomeResult;
+  const outcome = turn.nextQuestion ? null : terminalOutcome;
+  const reply = turn.nextQuestion ? turn.reply : terminalOutcome.message;
+  return withFinalReply({
     ...turn,
+    reply,
     recommendation: null,
-    outcome: turn.nextQuestion ? null : "INSUFFICIENT_DATA",
+    outcome,
     error: null,
-  };
+  });
 }

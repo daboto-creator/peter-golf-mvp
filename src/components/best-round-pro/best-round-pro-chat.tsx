@@ -7,6 +7,7 @@ import {
   initialConversationState,
   type ConversationState,
 } from "@/lib/best-round-pro/conversation";
+import type { ConversationOutcomeResult } from "@/lib/best-round-pro/conversation";
 import type { CommercialRankingResult } from "@/lib/recommendations/commercial-ranking";
 import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ export function BestRoundProChat() {
   );
   const [recommendation, setRecommendation] =
     useState<CommercialRankingResult | null>(null);
+  const [outcome, setOutcome] = useState<ConversationOutcomeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const send = async (message = input) => {
@@ -74,11 +76,13 @@ export function BestRoundProChat() {
         state?: ConversationState;
         reply?: string;
         recommendation?: CommercialRankingResult | null;
+        outcome?: ConversationOutcomeResult | null;
       };
       if (!response.ok || !payload.state) throw new Error("request");
       setState(payload.state);
       setReply(payload.reply ?? "");
       setRecommendation(payload.recommendation ?? null);
+      setOutcome(payload.outcome ?? null);
       setInput("");
     } catch {
       setError(
@@ -122,6 +126,7 @@ export function BestRoundProChat() {
             onClick={() => {
               setState(initialConversationState());
               setRecommendation(null);
+              setOutcome(null);
               setReply("Empecemos de nuevo. ¿Qué equipo buscas?");
             }}
           >
@@ -219,6 +224,11 @@ export function BestRoundProChat() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          ) : null}
+          {recommendation?.status !== "RECOMMENDATIONS" && outcome ? (
+            <div role="status" className="rounded-xl border border-pg-gold/30 bg-pg-gold/10 p-4 text-sm leading-6">
+              {outcome.message}
             </div>
           ) : null}
           <div className="flex gap-2">
