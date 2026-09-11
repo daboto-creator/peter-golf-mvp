@@ -51,6 +51,24 @@ describe("Best Round Pro conversation", () => {
     expect(detectCategory(message)).toBe(category);
   });
 
+  it.each(["quiero un set", "busco palos completos", "juego de palos"])(
+    "treats complete sets as a first-class product family (%s)",
+    (message) => {
+      expect(detectCategory(message)).toBe("SET");
+      expect(interpretGolfCategory(message)?.category).toBe("SET");
+    },
+  );
+
+  it("uses semantic wedge distance wording without golf jargon", () => {
+    const question = nextQuestionFor("WEDGE", null, {
+      ...initialConversationState().session,
+      requestedCategory: "WEDGE",
+      diagnosticAnswers: { handedness: "RIGHT" },
+    });
+    expect(question?.prompt).toContain("Qué distancia quieres cubrir");
+    expect(question?.prompt.toLowerCase()).not.toContain("hueco");
+  });
+
   it("extracts category, handedness, and shot tendency from one turn", () => {
     const result = classifyConversationTurn(
       initialConversationState(),

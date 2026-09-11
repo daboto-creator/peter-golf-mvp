@@ -238,7 +238,7 @@ function rawNextBestQuestion(
       id: "currentBag",
       prompt: "¿Qué maderas, híbridos o hierros largos llevas actualmente?",
       category: value.includes("hybrid") ? "HYBRID" : "FAIRWAY_WOOD",
-      reason: "Permite detectar huecos y redundancias evidentes",
+      reason: "Permite detectar espacios y redundancias evidentes",
       critical: false,
     };
   if (value.includes("iron") && !known.skill)
@@ -252,9 +252,9 @@ function rawNextBestQuestion(
   if (value.includes("wedge") && !known.gapping)
     return {
       id: "gapping",
-      prompt: "¿Qué distancia o hueco quieres cubrir?",
+      prompt: "¿Qué distancia quieres cubrir con el wedge?",
       category: "WEDGE",
-      reason: "El loft y el uso dependen del hueco",
+      reason: "El loft y el uso dependen de la distancia objetivo",
       critical: true,
     };
   if (value.includes("wedge") && !known.turfInteraction)

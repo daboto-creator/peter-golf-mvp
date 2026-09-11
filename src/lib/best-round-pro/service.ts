@@ -155,6 +155,15 @@ export async function processConversationTurn(input: {
   };
   if (provider) {
     try {
+      const pendingKey = input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey;
+      const pendingMeaning: Record<string, string> = {
+        handedness: "ASK_PLAYER_HANDEDNESS",
+        setExperience: "ASK_SET_EXPERIENCE",
+        skill: "ASK_PLAYER_SKILL_LEVEL",
+        objective: "ASK_PLAYER_OBJECTIVE",
+        shotTendency: "ASK_SHOT_TENDENCY",
+        swingSpeed: "ASK_SWING_SPEED",
+      };
       interpretation = await provider.interpretTurn({
         session: {
           category: input.state.session.requestedCategory,
@@ -174,6 +183,12 @@ export async function processConversationTurn(input: {
             relationToBuyer: input.state.participants.player.relationToBuyer,
             displayReference: input.state.participants.player.displayReference,
           },
+          pendingQuestion: pendingKey ? {
+            key: pendingKey,
+            meaning: pendingMeaning[pendingKey] ?? "ANSWER_PENDING_QUESTION",
+            targetEntity: "PLAYER",
+            expectedSemanticDomain: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"],
+          } : null,
         },
       });
       lastInterpreterTelemetry = {
@@ -232,6 +247,7 @@ export async function processConversationTurn(input: {
     ...input.state,
     session: {
       ...input.state.session,
+      requestedCategory: interpretation?.category ?? input.state.session.requestedCategory,
       diagnosticAnswers: {
         ...input.state.session.diagnosticAnswers,
         ...interpretedAnswers,
@@ -457,6 +473,7 @@ export async function processConversationTurn(input: {
     `${input.message} ${hints}`,
     context.profile,
     playerPerspective,
+    { allowDeterministicFallback: !interpretation },
   );
   const policyTurn = turn;
   // A direct recommendation request is an action, not another diagnostic turn.

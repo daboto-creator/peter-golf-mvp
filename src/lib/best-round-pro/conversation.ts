@@ -10,6 +10,7 @@ import type { CommercialRankingResult } from "@/lib/recommendations/commercial-r
 import {
   detectGolfCategory,
   interpretGolfCategory,
+  type ProductFamily,
 } from "./category-normalization";
 
 export type ConversationObjection =
@@ -275,11 +276,12 @@ function categoryLabel(category: MatchCategory | string) {
     IRON: "hierros",
     WEDGE: "Wedge",
     PUTTER: "Putter",
+    SET: "set completo",
   };
   return labels[category] ?? category;
 }
 
-export function detectCategory(text: string): MatchCategory | null {
+export function detectCategory(text: string): ProductFamily | null {
   return detectGolfCategory(normalizeNaturalLanguage(text));
 }
 
@@ -337,7 +339,7 @@ export function parseCurrentEquipment(
     .split(/,|\s+y\s+/i)
     .map((part): CurrentEquipmentReference | null => {
       const interpretation = interpretGolfCategory(part);
-      if (!interpretation) return null;
+      if (!interpretation || interpretation.category === "SET") return null;
       const numberToken = part.match(/\b([1-9])\b/i)?.[1];
       const wordNumber = Object.entries(numberWords).find(([word]) =>
         new RegExp(`\\b${word}\\b`, "i").test(part),
@@ -567,12 +569,14 @@ export function classifyConversationTurn(
   text: string,
   profile: MiGolfProfile | null = null,
   playerPerspective: PlayerPerspective | null = null,
+  options: { allowDeterministicFallback?: boolean } = {},
 ): ConversationResult {
-  const contextual = resolveContextualShortAnswer({
+  const allowFallback = options.allowDeterministicFallback !== false;
+  const contextual = allowFallback ? resolveContextualShortAnswer({
     pendingQuestionKey: state.pendingQuestionKey,
     userMessage: text,
-  });
-  const detectedCategory = detectCategory(text);
+  }) : null;
+  const detectedCategory = allowFallback ? detectCategory(text) : null;
   const explicitCategoryChange =
     /\b(mejor|quiero|busco|necesito|cambiemos|veamos|prefiero)\b[\s\S]{0,24}\b(driver|drive|driber|draiver|fairway|wood|madera|hybrid|hibrido|rescue|iron|hierro|fierro|wedge|sand|gap|lob|putter|putt|put|pot|pater)\b/i.test(
       text,
@@ -585,12 +589,9 @@ export function classifyConversationTurn(
       : (detectedCategory ?? state.session.requestedCategory);
   const intent = detectIntent(text) ?? state.session.purchaseIntent;
   const objection = detectObjection(text);
-  const answers = parseAnswers(
-    text,
-    state.session.diagnosticAnswers,
-    state.pendingQuestionKey,
-    category as MatchCategory | null,
-  );
+  const answers = allowFallback
+    ? parseAnswers(text, state.session.diagnosticAnswers, state.pendingQuestionKey, category as MatchCategory | null)
+    : { ...state.session.diagnosticAnswers };
   if (contextual) answers[contextual.field] = contextual.value;
   const speed = text.match(/\b(\d{2,3})\s*(?:mph|km\/h)?\b/i);
   if (state.pendingQuestionKey === "swingSpeed" && speed)

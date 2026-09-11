@@ -32,7 +32,7 @@ const confidenceLabels = {
   HIGH: "Alta",
 } as const;
 const reasonLabels: Record<string, string> = {
-  BEST_TECHNICAL_MATCH: "Es la opción que mejor encaja técnicamente contigo.",
+  BEST_TECHNICAL_MATCH: "Mejor compatibilidad técnica entre las opciones disponibles.",
   BEST_RESPONSIBLE_OPTION:
     "Es una opción responsable con los datos disponibles.",
   BEST_VALUE:
@@ -43,7 +43,6 @@ const reasonLabels: Record<string, string> = {
   SLIGHTLY_ABOVE_BUDGET:
     "Está ligeramente por encima del presupuesto indicado.",
   LOWER_CONFIDENCE: "La confianza es limitada porque faltan algunos datos.",
-  LIMITED_AVAILABILITY: "La disponibilidad es limitada.",
 };
 
 function customerPrice(amount: number) {
