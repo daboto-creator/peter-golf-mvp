@@ -46,6 +46,11 @@ export type ConversationState = {
     collectedAnswers: Record<string, string | number | boolean | null>;
   };
   participants: ConversationParticipants;
+  pendingAssistantOffer: {
+    action: "START_PRODUCT_ADVICE" | "COMPARE_PRODUCTS" | "SHOW_ALTERNATIVES" | "CONTINUE_RECOMMENDATION";
+    targetProductIds: string[];
+    createdAtTurn: number;
+  } | null;
 };
 
 export type FactStatus = "KNOWN" | "UNKNOWN" | "NONE" | "NOT_APPLICABLE" | "DECLINED";
@@ -58,6 +63,26 @@ export type ConversationParticipants = {
     facts: Record<string, SemanticFact<unknown>>;
   };
 };
+
+export type PlayerPerspective = {
+  relationToBuyer: ConversationParticipants["player"]["relationToBuyer"];
+  displayReference: string;
+  subject: string;
+  possessive: string;
+  isSelf: boolean;
+};
+
+export function getPlayerPerspective(participants: ConversationParticipants): PlayerPerspective {
+  const isSelf = participants.player.relationToBuyer === "SELF";
+  const displayReference = isSelf ? "tú" : participants.player.displayReference;
+  return {
+    relationToBuyer: participants.player.relationToBuyer,
+    displayReference,
+    subject: displayReference,
+    possessive: isSelf ? "tu" : "su",
+    isSelf,
+  };
+}
 
 export type CatalogProductReference = {
   id: string;
@@ -165,6 +190,7 @@ export function initialConversationState(): ConversationState {
       buyer: { isLoggedInUser: true },
       player: { relationToBuyer: "SELF", displayReference: "tú", facts: {} },
     },
+    pendingAssistantOffer: null,
   };
 }
 
@@ -530,7 +556,7 @@ export function classifyConversationTurn(
   state: ConversationState,
   text: string,
   profile: MiGolfProfile | null = null,
-  playerReference: string | null = null,
+  playerPerspective: PlayerPerspective | null = null,
 ): ConversationResult {
   const contextual = resolveContextualShortAnswer({
     pendingQuestionKey: state.pendingQuestionKey,
@@ -593,8 +619,14 @@ export function classifyConversationTurn(
     extractedFacts.length >= 2 && !objection
       ? `Perfecto: entiendo que ${extractedFacts.join(" y ")}. `
       : "";
-  const nextPrompt = next?.id === "handedness" && playerReference
-    ? `¿${playerReference} juega como diestro o zurdo?`
+  const nextPrompt = next && playerPerspective && !playerPerspective.isSelf
+    ? {
+        handedness: `¿${playerPerspective.subject} juega como diestro o zurdo?`,
+        objective: `¿Hay algo que ${playerPerspective.subject} quiera mejorar con su próximo ${categoryLabel(category ?? "equipo").toLowerCase()}?`,
+        shotTendency: `¿${playerPerspective.possessive} tiro normalmente va recto o suele aparecer slice o hook?`,
+        swingSpeed: `¿Conoce ${playerPerspective.possessive} velocidad de swing aproximada?`,
+        skill: `¿Cómo describirías el nivel de ${playerPerspective.possessive} juego: principiante, intermedio o avanzado?`,
+      }[next.id] ?? next.prompt
     : next?.prompt;
   const reply = isProtectedRequest(text)
     ? "No puedo modificar el Match ni compartir información comercial interna. El Match se mantiene porque lo calcula el sistema con tu perfil y la configuración real del equipo."
@@ -629,6 +661,7 @@ export function classifyConversationTurn(
     lastFocusedProduct: state.lastFocusedProduct,
     productAdvice: state.productAdvice,
     participants: state.participants,
+    pendingAssistantOffer: state.pendingAssistantOffer,
   };
   return { state: nextState, reply, nextQuestion: next, objection, events };
 }

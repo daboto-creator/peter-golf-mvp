@@ -11,6 +11,7 @@ import {
   type ConversationState,
   evaluateFocusedProductAgainstKnownFacts,
   getNextProductAdviceQuestion,
+  getPlayerPerspective,
 } from "@/lib/best-round-pro/conversation";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
 import type {
@@ -237,6 +238,7 @@ export async function processConversationTurn(input: {
     },
     participants,
   };
+  const playerPerspective = getPlayerPerspective(participants);
   const intent = interpretation?.dialogueAct === "CATALOG_SEARCH" || interpretation?.dialogueAct === "PRODUCT_DETAILS"
     ? "CATALOG_SEARCH" as const
     : interpretation?.dialogueAct === "PRODUCT_ADVICE" || interpretation?.dialogueAct === "FITTING_REQUEST"
@@ -274,9 +276,23 @@ export async function processConversationTurn(input: {
     return appendSocialReply("Te lo pregunto porque ayuda a orientar el equipo al nivel de juego y evitar una opción demasiado exigente. Si no lo sabes, podemos seguir con otros datos.", "ADVICE_QUESTION_ANSWERED");
   }
   const focusedProduct = preFocusedProduct;
+  if (interpretation?.dialogueAct === "CONFIRMATION" && updatedState.pendingAssistantOffer?.action === "START_PRODUCT_ADVICE" && focusedProduct) {
+    const question = `Lo primero que necesito saber es si ${playerPerspective.isSelf ? "juegas" : `${playerPerspective.subject} juega`} como diestro o zurdo.`;
+    const state: ConversationState = {
+      ...updatedState,
+      messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: question }],
+      pendingQuestionKey: "handedness",
+      pendingQuestionCategory: "PRODUCT_ADVICE",
+      pendingQuestionSlotType: "HANDEDNESS",
+      pendingAssistantOffer: null,
+      productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
+    };
+    return { state, reply: question, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_CONFIRMED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+  }
   if (asksProductReason && focusedProduct && !updatedState.productAdvice?.active) {
-    const reply = `Te mostré ${focusedProduct.name} porque es la opción de set completo disponible que encontré en el catálogo. Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si encaja contigo.`;
-    const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct };
+    const targetPhrase = playerPerspective.isSelf ? "encaja contigo" : `encaja con el juego de ${playerPerspective.displayReference}`;
+    const reply = `Te mostré ${focusedProduct.name} porque es la opción de set completo disponible que encontré en el catálogo. Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`;
+    const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct, pendingAssistantOffer: { action: "START_PRODUCT_ADVICE", targetProductIds: [focusedProduct.id], createdAtTurn: updatedState.messages.length + 1 } };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
   if (asksProductAdvice || (asksWhatData && focusedProduct && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
@@ -302,6 +318,7 @@ export async function processConversationTurn(input: {
         pendingQuestionSlotType: "HANDEDNESS",
         lastFocusedProduct: focusedProduct,
         productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
+        pendingAssistantOffer: null,
         participants,
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_STARTED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
@@ -375,6 +392,7 @@ export async function processConversationTurn(input: {
       pendingQuestionSlotType: nextAdviceQuestion?.key === "skill" ? "HANDICAP" : nextAdviceQuestion?.key === "setExperience" ? "BOOLEAN_PREFERENCE" : nextAdviceQuestion ? "HANDEDNESS" : null,
       lastFocusedProduct: focusedProduct,
       productAdvice: { active: Boolean(nextAdviceQuestion), product: focusedProduct, pendingQuestionKey: nextAdviceQuestion?.key ?? null, collectedAnswers: answers },
+      pendingAssistantOffer: null,
       participants,
     };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_PROGRESS"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
@@ -407,6 +425,7 @@ export async function processConversationTurn(input: {
       lastCatalogResults: references,
       lastFocusedProduct: references.length === 1 ? references[0] : null,
       productAdvice: { active: false, product: null, pendingQuestionKey: null, collectedAnswers: {} },
+      pendingAssistantOffer: null,
     };
     return {
       state,
@@ -435,7 +454,7 @@ export async function processConversationTurn(input: {
     updatedState,
     `${input.message} ${hints}`,
     context.profile,
-    participants.player.relationToBuyer === "SELF" ? null : participants.player.displayReference,
+    playerPerspective,
   );
   const policyTurn = turn;
   // A direct recommendation request is an action, not another diagnostic turn.

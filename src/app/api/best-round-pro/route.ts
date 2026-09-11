@@ -84,6 +84,11 @@ const requestSchema = z.object({
           facts: z.record(z.string(), z.object({ status: z.enum(["KNOWN", "UNKNOWN", "NONE", "NOT_APPLICABLE", "DECLINED"]), value: z.unknown().optional(), confidence: z.number(), source: z.enum(["USER", "INFERRED"]) })),
         }),
       }).optional().default({ buyer: { isLoggedInUser: true }, player: { relationToBuyer: "SELF", displayReference: "tú", facts: {} } }),
+      pendingAssistantOffer: z.object({
+        action: z.enum(["START_PRODUCT_ADVICE", "COMPARE_PRODUCTS", "SHOW_ALTERNATIVES", "CONTINUE_RECOMMENDATION"]),
+        targetProductIds: z.array(z.string()),
+        createdAtTurn: z.number(),
+      }).nullable().optional().default(null),
     })
     .default(initialConversationState()),
 });
