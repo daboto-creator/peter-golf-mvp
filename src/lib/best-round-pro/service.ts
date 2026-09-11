@@ -117,11 +117,37 @@ export async function processConversationTurn(input: {
   });
   const context = await loadMiGolfContext();
   const intent = routeConversationIntent(input.message);
+  const provider = getConversationProvider();
+  let interpretation: Awaited<ReturnType<NonNullable<typeof provider>["interpretTurn"]>> | null = null;
+  if (provider) {
+    try {
+      interpretation = await provider.interpretTurn({
+        session: {
+          category: input.state.session.requestedCategory,
+          targetCategory: input.state.session.requestedCategory,
+          intent: input.state.session.purchaseIntent,
+          budgetKnown: input.state.session.budgetMxnMinor !== null,
+          knownFacts: Object.keys(input.state.session.diagnosticAnswers),
+        },
+        userTurn: input.message,
+        nextQuestionKey: input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey,
+        pendingQuestionSlotType: input.state.pendingQuestionSlotType,
+      });
+    } catch {
+      interpretation = null;
+    }
+  }
   const normalizedMessage = normalizeConversationText(input.message);
   const asksWhatData = isAdviceMetaQuestion(input.message);
-  const asksProductAdvice = isProductAdviceLanguage(input.message);
+  const asksProductAdvice = isProductAdviceLanguage(input.message) || interpretation?.dialogueAct === "PRODUCT_ADVICE";
+  const asksProductReason = interpretation?.dialogueAct === "ASK_PRODUCT_REASON" || /\bpor\s+que|porque|que\s+viste|por\s+que\s+lo\b/.test(normalizedMessage);
   const focusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
+  if (asksProductReason && focusedProduct && !input.state.productAdvice?.active) {
+    const reply = `Te mostré ${focusedProduct.name} porque es la opción de set completo disponible que encontré en el catálogo. Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si encaja contigo.`;
+    const state: ConversationState = { ...input.state, messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct };
+    return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+  }
   if (asksProductAdvice || (asksWhatData && focusedProduct && input.state.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
     if (!focusedProduct && input.state.lastCatalogResults.length > 1) {
       const names = input.state.lastCatalogResults.slice(0, 2).map((product) => product.name);
@@ -151,6 +177,10 @@ export async function processConversationTurn(input: {
   }
   if (focusedProduct && (input.state.productAdvice?.active || input.state.pendingQuestionCategory === "PRODUCT_ADVICE")) {
     const answers = { ...input.state.session.diagnosticAnswers };
+    for (const fact of interpretation?.declaredFacts ?? []) {
+      if (["handedness", "handicap", "setExperience", "skill"].includes(fact.field))
+        answers[fact.field] = fact.value;
+    }
     const hand = /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/.test(normalizedMessage)
       ? "LEFT"
       : /\b(?:diestro|diestra|derecho|derecha|right)\b/.test(normalizedMessage)
@@ -177,7 +207,7 @@ export async function processConversationTurn(input: {
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
-    const experience = /primer set|primera vez|apenas empie|principiante|ya juego|juego actualmente|reemplaz/.test(normalizedMessage);
+    const experience = Boolean(answers.setExperience) || /primer set|primera vez|apenas empie|principiante|ya juego|juego actualmente|reemplaz/.test(normalizedMessage);
     if (experience) answers.experience = normalizedMessage;
     const reply = asksData
       ? `Para evaluar ${focusedProduct.name} necesito principalmente tu mano, si es tu primer set y tu nivel aproximado. ${knownHand ? `Ya sé que juegas ${hand === "LEFT" ? "zurdo" : hand === "RIGHT" ? "diestro" : answers.handedness === "LEFT" ? "zurdo" : "diestro"};` : "Empecemos por la mano;"} ¿es tu primer set o ya juegas actualmente?`
@@ -238,28 +268,6 @@ export async function processConversationTurn(input: {
       intent,
     };
   }
-  const provider = getConversationProvider();
-  let interpretation: Awaited<
-    ReturnType<NonNullable<typeof provider>["interpretTurn"]>
-  > | null = null;
-  if (provider) {
-    try {
-      interpretation = await provider.interpretTurn({
-        session: {
-          category: input.state.session.requestedCategory,
-          targetCategory: input.state.session.requestedCategory,
-          intent: input.state.session.purchaseIntent,
-          budgetKnown: input.state.session.budgetMxnMinor !== null,
-          knownFacts: Object.keys(input.state.session.diagnosticAnswers),
-        },
-        userTurn: input.message,
-        nextQuestionKey: input.state.pendingQuestionKey,
-        pendingQuestionSlotType: input.state.pendingQuestionSlotType,
-      });
-    } catch {
-      interpretation = null;
-    }
-  }
   const hints = interpretation
     ? [
         interpretation.category ?? "",
@@ -270,8 +278,11 @@ export async function processConversationTurn(input: {
         interpretation.objection ?? "",
       ].join(" ")
     : "";
+  const interpretedState: ConversationState = interpretation?.declaredFacts.length
+    ? { ...input.state, session: { ...input.state.session, diagnosticAnswers: { ...input.state.session.diagnosticAnswers, ...Object.fromEntries(interpretation.declaredFacts.map((fact) => [fact.field, fact.value])) } } }
+    : input.state;
   const turn = classifyConversationTurn(
-    input.state,
+    interpretedState,
     `${input.message} ${hints}`,
     context.profile,
   );
