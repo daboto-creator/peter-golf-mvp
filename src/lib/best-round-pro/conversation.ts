@@ -65,6 +65,22 @@ export type ProductAdviceAction =
   | "ASK_NEXT_QUESTION"
   | "PROVIDE_ADVICE";
 
+export type NextAction =
+  | "ANSWER_SOCIAL" | "ANSWER_DIRECT_QUESTION" | "ASK_NEXT_QUESTION"
+  | "ASK_CLARIFICATION" | "SEARCH_CATALOG" | "SEARCH_ALTERNATIVES"
+  | "RUN_RECOMMENDATION" | "RUN_COMPARISON" | "EXPLAIN_PRODUCT"
+  | "EXPLAIN_PRODUCT_REASON" | "SURFACE_INCOMPATIBILITY"
+  | "RETURN_RECOMMENDATIONS" | "RETURN_TERMINAL_OUTCOME";
+
+export type ActionResult = {
+  action: NextAction;
+  status: "COMPLETED" | "FAILED";
+  error?: string | null;
+  products?: unknown[];
+  recommendationOutcome?: string | null;
+  nextQuestion?: NextBestQuestion | null;
+};
+
 export function evaluateFocusedProductAgainstKnownFacts(input: {
   product: CatalogProductReference;
   answers: Record<string, string | number | boolean | null>;

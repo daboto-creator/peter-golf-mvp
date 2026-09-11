@@ -67,3 +67,14 @@ export function isFittingIntent(intent: ConversationIntent) {
 export function isCatalogIntent(intent: ConversationIntent) {
   return intent === "CATALOG_SEARCH" || intent === "PRODUCT_SEARCH" || intent === "PRODUCT_COMPARISON";
 }
+
+export function fallbackSocialIntent(text: string) {
+  const value = normalizeConversationText(text);
+  if (/^(hola|buenas?|hey|que tal)(?:\s|$)/.test(value)) return "GREETING" as const;
+  if (/gracias|muchas gracias/.test(value)) return "THANKS" as const;
+  if (/^(adios|hasta luego|nos vemos)/.test(value)) return "GOODBYE" as const;
+  if (/solo estoy viendo|solo miro|estoy viendo/.test(value)) return "SMALL_TALK" as const;
+  if (/ayuda|que puedes hacer|como funciona/.test(value)) return "HELP_REQUEST" as const;
+  if (/no me entend|eso no fue|me estas preguntando lo mismo|ya te dije/.test(value)) return "USER_FRUSTRATION" as const;
+  return null;
+}

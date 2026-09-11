@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isAdviceMetaQuestion, isCatalogIntent, isProductAdviceLanguage, routeConversationIntent } from "./intent-router";
+import { fallbackSocialIntent, isAdviceMetaQuestion, isCatalogIntent, isProductAdviceLanguage, routeConversationIntent } from "./intent-router";
 import { BEST_ROUND_PRO_AGENT_ASSET } from "./launcher";
 import { initialConversationState } from "./conversation";
 
@@ -49,5 +49,12 @@ describe("Best Round Pro intent routing", () => {
       "qué te falta", "qué quieres saber", "qué te digo", "qué información te doy",
       "qué necesitas saber", "qué necesitas de mí",
     ]) expect(isAdviceMetaQuestion(phrase), phrase).toBe(true);
+  });
+
+  it("recognizes social dialogue acts without entering fitting", () => {
+    expect(fallbackSocialIntent("hola")).toBe("GREETING");
+    expect(fallbackSocialIntent("gracias")).toBe("THANKS");
+    expect(fallbackSocialIntent("solo estoy viendo")).toBe("SMALL_TALK");
+    expect(routeConversationIntent("hola, busco un driver")).toBe("PRODUCT_SEARCH");
   });
 });

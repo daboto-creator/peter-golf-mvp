@@ -16,6 +16,8 @@ const factSchema = z.object({
     "swingSpeed",
     "setExperience",
     "skill",
+    "purchaseTarget",
+    "relationship",
   ]),
   value: z.union([z.string(), z.number()]),
   durable: z.boolean(),
@@ -25,7 +27,7 @@ export const conversationInterpretationSchema = z.object({
     "CATALOG_SEARCH", "PRODUCT_ADVICE", "ASK_PRODUCT_REASON", "ASK_PRODUCT_DETAILS",
     "ASK_COMPARISON", "ANSWER_PENDING_QUESTION", "ASK_WHAT_INFORMATION_NEEDED",
     "CHANGE_PRODUCT", "CHANGE_TOPIC", "FITTING_REQUEST", "STORE_QUESTION",
-    "GENERAL_GOLF", "CONFIRMATION", "CORRECTION", "OTHER",
+    "GENERAL_GOLF", "CONFIRMATION", "CORRECTION", "GREETING", "THANKS", "GOODBYE", "SMALL_TALK", "HELP_REQUEST", "CLARIFICATION", "USER_FRUSTRATION", "GENERAL_QUESTION", "PRODUCT_DETAILS", "OTHER",
   ]).default("OTHER"),
   intent: z.enum(["BUY_NOW", "EXPLORING", "ACTIVE_RESEARCH", "UNKNOWN"]),
   category: z
@@ -65,6 +67,11 @@ export type SafeConversationPayload = {
     knownFacts: string[];
   };
   userTurn: string;
+  conversationContext?: {
+    recentTurns: Array<{ role: "user" | "assistant"; content: string }>;
+    focusedProduct: { name: string; family: string | null } | null;
+    activeAdvice: boolean;
+  };
   nextQuestionKey: string | null;
   pendingQuestionSlotType?: string | null;
   hasBestValue?: boolean;
@@ -88,7 +95,7 @@ export interface BestRoundConversationProvider {
   interpretTurn(
     payload: Pick<
       SafeConversationPayload,
-      "session" | "userTurn" | "nextQuestionKey" | "pendingQuestionSlotType"
+      "session" | "userTurn" | "nextQuestionKey" | "pendingQuestionSlotType" | "conversationContext"
     >,
   ): Promise<ConversationInterpretation>;
   explainRecommendation(payload: SafeConversationPayload): Promise<string>;

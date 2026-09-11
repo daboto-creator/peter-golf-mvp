@@ -35,6 +35,7 @@ import {
   isAdviceMetaQuestion,
   isProductAdviceLanguage,
   normalizeConversationText,
+  fallbackSocialIntent,
 } from "@/lib/best-round-pro/intent-router";
 import { searchCommercialCatalog, searchCompleteSetAlternatives } from "@/lib/best-round-pro/catalog-search";
 import type { CatalogProductReference } from "@/lib/best-round-pro/conversation";
@@ -119,6 +120,8 @@ export async function processConversationTurn(input: {
   });
   const context = await loadMiGolfContext();
   const intent = routeConversationIntent(input.message);
+  const preFocusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
+    (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
   const provider = getConversationProvider();
   let interpretation: Awaited<ReturnType<NonNullable<typeof provider>["interpretTurn"]>> | null = null;
   if (provider) {
@@ -134,6 +137,11 @@ export async function processConversationTurn(input: {
         userTurn: input.message,
         nextQuestionKey: input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey,
         pendingQuestionSlotType: input.state.pendingQuestionSlotType,
+        conversationContext: {
+          recentTurns: input.state.messages.slice(-6),
+          focusedProduct: preFocusedProduct ? { name: preFocusedProduct.name, family: preFocusedProduct.family } : null,
+          activeAdvice: Boolean(input.state.productAdvice?.active),
+        },
       });
     } catch {
       interpretation = null;
@@ -144,8 +152,26 @@ export async function processConversationTurn(input: {
   const asksProductAdvice = isProductAdviceLanguage(input.message) || interpretation?.dialogueAct === "PRODUCT_ADVICE";
   const requestsRecommendation = asksProductAdvice || interpretation?.dialogueAct === "FITTING_REQUEST";
   const asksProductReason = interpretation?.dialogueAct === "ASK_PRODUCT_REASON" || /\bpor\s+que|porque|que\s+viste|por\s+que\s+lo\b/.test(normalizedMessage);
-  const focusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
-    (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
+  const socialAct = interpretation?.dialogueAct ?? (intent === "OTHER" ? fallbackSocialIntent(input.message) : null);
+  const appendSocialReply = (reply: string, event: string) => ({
+    state: { ...input.state, messages: [...input.state.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
+    reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent,
+  });
+  if (!input.state.productAdvice?.active && intent === "OTHER" && socialAct) {
+    const replies: Record<string, string> = {
+      GREETING: "¡Hola! Soy Best Round Pro. Puedo ayudarte a encontrar equipo, comparar productos, revisar disponibilidad o asesorarte según tu juego. ¿Qué estás buscando?",
+      THANKS: "Con gusto. Si quieres, también puedo ayudarte a comparar opciones o revisar otra categoría.",
+      GOODBYE: "¡Hasta luego! Cuando quieras, aquí estaré para ayudarte.",
+      HELP_REQUEST: "Puedo ayudarte a buscar productos, resolver dudas del catálogo, comparar opciones o encontrar equipo según tu juego.",
+      SMALL_TALK: "Claro, sin problema. Puedes preguntarme lo que quieras y te ayudo a comparar sin compromiso.",
+      USER_FRUSTRATION: "Tienes razón; gracias por decírmelo. Tomo en cuenta lo que ya me compartiste y no te haré repetirlo.",
+    };
+    if (replies[socialAct]) return appendSocialReply(replies[socialAct], `SOCIAL_${socialAct}`);
+  }
+  if (input.state.productAdvice?.active && interpretation?.dialogueAct === "GENERAL_QUESTION") {
+    return appendSocialReply("Te lo pregunto porque ayuda a orientar el equipo al nivel de juego y evitar una opción demasiado exigente. Si no lo sabes, podemos seguir con otros datos.", "ADVICE_QUESTION_ANSWERED");
+  }
+  const focusedProduct = preFocusedProduct;
   if (asksProductReason && focusedProduct && !input.state.productAdvice?.active) {
     const reply = `Te mostré ${focusedProduct.name} porque es la opción de set completo disponible que encontré en el catálogo. Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si encaja contigo.`;
     const state: ConversationState = { ...input.state, messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct };

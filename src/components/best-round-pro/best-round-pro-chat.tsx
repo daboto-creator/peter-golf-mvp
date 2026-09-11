@@ -86,6 +86,7 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
     }
     return [];
   });
+  const [productsExpanded, setProductsExpanded] = useState(true);
   const [outcome, setOutcome] = useState<ConversationOutcomeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,6 +102,7 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
     if (!text || busy) return;
     setBusy(true);
     setError(null);
+    if (catalogProducts.length) setProductsExpanded(false);
     try {
       const response = await fetch("/api/best-round-pro", {
         method: "POST",
@@ -273,6 +275,11 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
             </div>
           ) : null}
           {catalogProducts.length > 0 && recommendation === null ? (
+            <>
+            <button type="button" className="text-pg-gold text-left text-sm font-semibold underline" onClick={() => setProductsExpanded((value) => !value)}>
+              {productsExpanded ? "Ocultar productos" : `Ver productos (${catalogProducts.length})`}
+            </button>
+            {productsExpanded ? (
             <div className="grid gap-3" aria-label="Resultados del catálogo">
               {catalogProducts.map((product) => {
                 const href = `/productos/${encodeURIComponent(product.slug)}`;
@@ -294,6 +301,8 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
                 );
               })}
             </div>
+            ) : null}
+            </>
           ) : null}
           {recommendation?.status !== "RECOMMENDATIONS" && outcome ? (
             <div role="status" className="rounded-xl border border-pg-gold/30 bg-pg-gold/10 p-4 text-sm leading-6">
