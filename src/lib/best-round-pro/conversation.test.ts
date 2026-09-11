@@ -9,10 +9,17 @@ import {
   priceObjectionReply,
   resolveContextualShortAnswer,
   terminalOutcomeMessage,
+  evaluateFocusedProductAgainstKnownFacts,
+  getNextProductAdviceQuestion,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
 describe("Best Round Pro conversation", () => {
+  it("re-evaluates focused product after canonical hand update", () => {
+    const product = { id: "strata", slug: "strata", name: "Strata Set", category: "Set", condition: "new", price: 9799, productHref: "/productos/strata", imagePath: null, handedness: "RIGHT", family: "set" };
+    expect(evaluateFocusedProductAgainstKnownFacts({ product, answers: { handedness: "LEFT" } }).status).toBe("HARD_INCOMPATIBLE");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT" } })?.key).toBe("setExperience");
+  });
   it.each([
     "driver",
     "drive",

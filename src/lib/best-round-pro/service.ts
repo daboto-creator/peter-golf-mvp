@@ -9,6 +9,8 @@ import {
   type ConversationOutcome,
   type ConversationOutcomeResult,
   type ConversationState,
+  evaluateFocusedProductAgainstKnownFacts,
+  getNextProductAdviceQuestion,
 } from "@/lib/best-round-pro/conversation";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
 import type {
@@ -189,10 +191,9 @@ export async function processConversationTurn(input: {
     if (hand) answers.handedness = hand;
     const asksData = asksWhatData;
     const knownHand = answers.handedness === "LEFT" || answers.handedness === "RIGHT";
-    const productHand = focusedProduct.handedness === "LEFT" || focusedProduct.handedness === "RIGHT"
-      ? focusedProduct.handedness
-      : null;
-    if (hand && productHand && hand !== productHand) {
+    const evaluation = evaluateFocusedProductAgainstKnownFacts({ product: focusedProduct, answers });
+    const productHand = focusedProduct.handedness === "LEFT" || focusedProduct.handedness === "RIGHT" ? focusedProduct.handedness : null;
+    if (evaluation.status === "HARD_INCOMPATIBLE" && hand && productHand) {
       const expected = productHand === "RIGHT" ? "diestro" : "zurdo";
       const reply = `Este ${focusedProduct.name} está configurado para ${expected}, así que no sería una buena opción para ti. Puedo buscarte sets para ${hand === "LEFT" ? "zurdo" : "diestro"} disponibles.`;
       const state: ConversationState = {
@@ -225,24 +226,21 @@ export async function processConversationTurn(input: {
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_COMPLETED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
+    const nextAdviceQuestion = getNextProductAdviceQuestion({ answers });
     const reply = asksData
       ? `Para evaluar ${focusedProduct.name} necesito principalmente tu mano, si es tu primer set y tu nivel aproximado. ${knownHand ? `Ya sé que juegas ${hand === "LEFT" ? "zurdo" : hand === "RIGHT" ? "diestro" : answers.handedness === "LEFT" ? "zurdo" : "diestro"};` : "Empecemos por la mano;"} ¿es tu primer set o ya juegas actualmente?`
-      : knownLevel
-        ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ¿qué buscas principalmente: empezar con un set completo o reemplazar el equipo que ya tienes?`
-        : knownExperience
-          ? `Perfecto. ¿Cómo describirías tu nivel: principiante, intermedio o avanzado?`
-          : knownHand
-            ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ¿es tu primer set o ya juegas actualmente?`
-        : `Para saber si ${focusedProduct.name} encaja contigo, ¿juegas como diestro o zurdo?`;
+      : nextAdviceQuestion
+        ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ${nextAdviceQuestion.customerQuestion}`
+        : `Perfecto. Con estos datos ya puedo orientarte sobre ${focusedProduct.name}.`;
     const state: ConversationState = {
       ...input.state,
       session: { ...input.state.session, diagnosticAnswers: answers },
       messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
-      pendingQuestionKey: knownLevel ? "objective" : knownExperience ? "skill" : knownHand ? "setExperience" : "handedness",
+      pendingQuestionKey: nextAdviceQuestion?.key ?? null,
       pendingQuestionCategory: "PRODUCT_ADVICE",
-      pendingQuestionSlotType: knownLevel ? "OBJECTIVE" : knownExperience ? "HANDICAP" : knownHand ? "BOOLEAN_PREFERENCE" : "HANDEDNESS",
+      pendingQuestionSlotType: nextAdviceQuestion?.key === "skill" ? "HANDICAP" : nextAdviceQuestion?.key === "setExperience" ? "BOOLEAN_PREFERENCE" : nextAdviceQuestion ? "HANDEDNESS" : null,
       lastFocusedProduct: focusedProduct,
-      productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: knownLevel ? "objective" : knownExperience ? "skill" : knownHand ? "setExperience" : "handedness", collectedAnswers: answers },
+      productAdvice: { active: Boolean(nextAdviceQuestion), product: focusedProduct, pendingQuestionKey: nextAdviceQuestion?.key ?? null, collectedAnswers: answers },
     };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_PROGRESS"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }

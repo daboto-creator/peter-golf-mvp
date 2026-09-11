@@ -60,6 +60,38 @@ export type CatalogProductReference = {
   family: string | null;
 };
 
+export type ProductAdviceAction =
+  | "SURFACE_INCOMPATIBILITY"
+  | "ASK_NEXT_QUESTION"
+  | "PROVIDE_ADVICE";
+
+export function evaluateFocusedProductAgainstKnownFacts(input: {
+  product: CatalogProductReference;
+  answers: Record<string, string | number | boolean | null>;
+}) {
+  const playerHand = input.answers.handedness;
+  const productHand = input.product.handedness;
+  if ((playerHand === "LEFT" || playerHand === "RIGHT") &&
+      (productHand === "LEFT" || productHand === "RIGHT") && playerHand !== productHand) {
+    return { status: "HARD_INCOMPATIBLE" as const, reason: "RIGHT_OR_LEFT_HANDED_PRODUCT_MISMATCH" };
+  }
+  if (input.answers.handedness && (input.answers.setExperience || input.answers.skill || input.answers.handicap))
+    return { status: "ENOUGH_TO_ADVISE" as const, reason: null };
+  return { status: "NEEDS_MORE_INFORMATION" as const, reason: null };
+}
+
+export function getNextProductAdviceQuestion(input: {
+  answers: Record<string, string | number | boolean | null>;
+}) {
+  if (input.answers.handedness !== "LEFT" && input.answers.handedness !== "RIGHT")
+    return { key: "handedness", customerQuestion: "¿Juegas como diestro o zurdo?" };
+  if (!input.answers.setExperience && !input.answers.experience)
+    return { key: "setExperience", customerQuestion: "¿Es tu primer set o ya juegas actualmente?" };
+  if (!input.answers.skill && input.answers.handicap === undefined)
+    return { key: "skill", customerQuestion: "¿Cómo describirías tu nivel: principiante, intermedio o avanzado?" };
+  return null;
+}
+
 export type ConversationResult = {
   state: ConversationState;
   reply: string;
