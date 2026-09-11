@@ -36,7 +36,7 @@ import {
   isProductAdviceLanguage,
   normalizeConversationText,
 } from "@/lib/best-round-pro/intent-router";
-import { searchCommercialCatalog } from "@/lib/best-round-pro/catalog-search";
+import { searchCommercialCatalog, searchCompleteSetAlternatives } from "@/lib/best-round-pro/catalog-search";
 import type { CatalogProductReference } from "@/lib/best-round-pro/conversation";
 
 type ProfileRow = Record<string, unknown>;
@@ -194,8 +194,9 @@ export async function processConversationTurn(input: {
     const evaluation = evaluateFocusedProductAgainstKnownFacts({ product: focusedProduct, answers });
     const productHand = focusedProduct.handedness === "LEFT" || focusedProduct.handedness === "RIGHT" ? focusedProduct.handedness : null;
     if (evaluation.status === "HARD_INCOMPATIBLE" && hand && productHand) {
+      const alternatives = await searchCompleteSetAlternatives(hand);
       const expected = productHand === "RIGHT" ? "diestro" : "zurdo";
-      const reply = `Este ${focusedProduct.name} está configurado para ${expected}, así que no sería una buena opción para ti. Puedo buscarte sets para ${hand === "LEFT" ? "zurdo" : "diestro"} disponibles.`;
+      const reply = `Este ${focusedProduct.name} disponible es para ${expected}, así que no te serviría si juegas ${hand === "LEFT" ? "zurdo" : "diestro"}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} para ti.` : `Revisé el inventario y ahora mismo no tengo otro set completo para ${hand === "LEFT" ? "zurdo" : "diestro"} disponible.`} Si quieres, puedo ayudarte a buscar otra alternativa.`;
       const state: ConversationState = {
         ...input.state,
         session: { ...input.state.session, diagnosticAnswers: answers },
@@ -206,7 +207,7 @@ export async function processConversationTurn(input: {
         lastFocusedProduct: focusedProduct,
         productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
       };
-      return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+      return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, catalogProducts: alternatives.products, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     const experience = Boolean(answers.setExperience) || /primer set|primera vez|apenas empie|principiante|ya juego|juego actualmente|reemplaz/.test(normalizedMessage);
     if (experience) answers.experience = normalizedMessage;

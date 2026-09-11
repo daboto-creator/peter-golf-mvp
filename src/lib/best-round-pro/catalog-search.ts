@@ -37,3 +37,8 @@ export async function searchCommercialCatalog(text: string): Promise<CommercialC
   const category = setRequest(normalized) ? "sets completos" : categoryRequest(normalized)?.label ?? "estas opciones";
   return { products, error: false, message: `Claro. Encontré ${products.length === 1 ? "una opción" : `${products.length} opciones`} de ${category} disponibles. Puedes revisar cada una y, si quieres, después te ayudo a elegir la que más te convenga.` };
 }
+
+export async function searchCompleteSetAlternatives(handedness: "LEFT" | "RIGHT") {
+  const result = await listPublicProducts({ family: "set", available: true, handedness: handedness.toLowerCase() as "left" | "right" });
+  return result.error ? { products: [], error: true } : { products: result.data.slice(0, 3), error: false };
+}
