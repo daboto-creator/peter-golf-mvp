@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       catalogProducts: "catalogProducts" in result ? result.catalogProducts : null,
       intent: "intent" in result ? result.intent : null,
       outcome: result.outcome ?? null,
-      error: result.error,
+      error: "error" in result ? result.error : null,
       telemetry: {
         model: "deterministic-rules-v1",
         inputTokens: 0,
