@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { initialConversationState } from "@/lib/best-round-pro/conversation";
-import { processConversationTurn } from "@/lib/best-round-pro/service";
+import { getLastInterpreterTelemetry, processConversationTurn } from "@/lib/best-round-pro/service";
 
 const requestSchema = z.object({
   message: z.string().trim().min(1).max(800),
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
       outcome: result.outcome ?? null,
       error: "error" in result ? result.error : null,
       telemetry: {
-        model: "deterministic-rules-v1",
+        ...getLastInterpreterTelemetry(),
         inputTokens: 0,
         outputTokens: 0,
         researchCalls: 0,
@@ -116,6 +116,11 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400 });
+    console.error("best_round_pro_runtime_error", {
+      stage: "SERIALIZE_RESPONSE",
+      errorCode: error instanceof Error ? error.name : "UNKNOWN_ERROR",
+      provider: getLastInterpreterTelemetry(),
+    });
     return NextResponse.json(
       { error: "CONVERSATION_UNAVAILABLE" },
       { status: 503 },

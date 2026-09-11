@@ -49,6 +49,8 @@ export type ConversationInterpreterTelemetry = {
   providerErrorType: string | null;
   interpretationSource: "LLM" | "FALLBACK";
   interpretationConfidence: number | null;
+  stage?: string;
+  errorCode?: string | null;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -57,6 +59,8 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   providerErrorType: null,
   interpretationSource: "FALLBACK",
   interpretationConfidence: null,
+  stage: "LOAD_CONTEXT",
+  errorCode: null,
 };
 
 export function getLastInterpreterTelemetry() {
@@ -140,7 +144,21 @@ export async function processConversationTurn(input: {
       ),
     },
   });
-  const context = await loadMiGolfContext();
+  let context: Awaited<ReturnType<typeof loadMiGolfContext>>;
+  try {
+    lastInterpreterTelemetry.stage = "LOAD_CONTEXT";
+    context = await loadMiGolfContext();
+  } catch (error) {
+    // Mi Golf is enrichment; a transient profile failure must not turn a
+    // conversational request into an HTTP 503 when a safe anonymous path is
+    // still available.
+    lastInterpreterTelemetry = {
+      ...lastInterpreterTelemetry,
+      stage: "LOAD_CONTEXT",
+      errorCode: error instanceof Error ? error.name : "CONTEXT_LOAD_FAILED",
+    };
+    context = { user: null, profile: null, equipment: [], objectives: [] };
+  }
   const fallbackIntent = routeConversationIntent(input.message);
   const preFocusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
@@ -155,6 +173,7 @@ export async function processConversationTurn(input: {
   };
   if (provider) {
     try {
+      lastInterpreterTelemetry.stage = "INTERPRET_TURN";
       const pendingKey = input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey;
       const pendingMeaning: Record<string, string> = {
         handedness: "ASK_PLAYER_HANDEDNESS",
@@ -196,11 +215,14 @@ export async function processConversationTurn(input: {
         providerSucceeded: true,
         interpretationSource: "LLM",
         interpretationConfidence: interpretation.confidence,
+        stage: "REDUCE_STATE",
       };
     } catch (error) {
       lastInterpreterTelemetry = {
         ...lastInterpreterTelemetry,
         providerErrorType: error instanceof Error ? error.name : "UNKNOWN",
+        stage: "INTERPRET_TURN",
+        errorCode: "INTERPRETER_FALLBACK",
       };
       interpretation = null;
     }
