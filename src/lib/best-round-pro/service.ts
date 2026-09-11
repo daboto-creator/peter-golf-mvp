@@ -159,6 +159,19 @@ export async function processConversationTurn(input: {
       facts: { ...input.state.participants.player.facts },
     },
   };
+  // Conservative fallback when the semantic provider is unavailable: resolve
+  // the participant from grammatical subject, never from a product keyword.
+  if (!interpretation) {
+    const relation = /\b(?:mi\s+espos[oa]|mi\s+marid[oa])\b/.test(normalizedMessage)
+      ? "SPOUSE" : /\bmi\s+hij[oa]\b/.test(normalizedMessage)
+        ? "CHILD" : /\bmi\s+amig[oa]\b/.test(normalizedMessage)
+          ? "FRIEND" : /\b(?:para|por)\s+(?:el|ella|una?\s+persona)\b/.test(normalizedMessage)
+            ? "OTHER" : "SELF";
+    if (relation !== "SELF") {
+      participants.player.relationToBuyer = relation;
+      participants.player.displayReference = relation === "SPOUSE" ? "tu esposo" : relation === "CHILD" ? "tu hijo" : relation === "FRIEND" ? "tu amigo" : "la persona para quien lo buscas";
+    }
+  }
   for (const fact of interpretation?.declaredFacts ?? []) {
     participants.player.facts[fact.field] = { status: fact.semanticStatus, value: fact.value, confidence: interpretation?.confidence ?? 1, source: "USER" };
   }
@@ -271,10 +284,12 @@ export async function processConversationTurn(input: {
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_COMPLETED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     const nextAdviceQuestion = getNextProductAdviceQuestion({ answers });
+    const subject = participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`;
+    const playerLabel = participants.player.relationToBuyer === "SELF" ? "tu" : `${participants.player.displayReference}`;
     const reply = asksData
-      ? `Para evaluar ${focusedProduct.name} necesito principalmente tu mano, si es tu primer set y tu nivel aproximado. ${knownHand ? `Ya sé que juegas ${hand === "LEFT" ? "zurdo" : hand === "RIGHT" ? "diestro" : answers.handedness === "LEFT" ? "zurdo" : "diestro"};` : "Empecemos por la mano;"} ¿es tu primer set o ya juegas actualmente?`
+      ? `Para evaluar ${focusedProduct.name} necesito principalmente saber si ${playerLabel} juega diestro o zurdo, su nivel aproximado y si es su primer set. ${knownHand ? `Ya sé que ${participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`} ${hand === "LEFT" ? "zurdo" : hand === "RIGHT" ? "diestro" : answers.handedness === "LEFT" ? "zurdo" : "diestro"};` : "Empecemos por la mano;"} ¿${participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`} como diestro o zurdo?`
       : nextAdviceQuestion
-        ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ${nextAdviceQuestion.customerQuestion}`
+        ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ${nextAdviceQuestion.key === "handedness" ? `¿${subject} como diestro o zurdo?` : nextAdviceQuestion.customerQuestion}`
         : `Perfecto. Con estos datos ya puedo orientarte sobre ${focusedProduct.name}.`;
     const state: ConversationState = {
       ...input.state,
@@ -341,14 +356,63 @@ export async function processConversationTurn(input: {
         interpretation.objection ?? "",
       ].join(" ")
     : "";
-  const interpretedState: ConversationState = interpretation?.declaredFacts.length
-    ? { ...input.state, session: { ...input.state.session, diagnosticAnswers: { ...input.state.session.diagnosticAnswers, ...Object.fromEntries(interpretation.declaredFacts.map((fact) => [fact.field, fact.value])) } } }
-    : input.state;
+  const interpretedAnswers = Object.fromEntries(
+    (interpretation?.declaredFacts ?? []).map((fact) => [
+      fact.field,
+      fact.semanticStatus === "NONE"
+        ? "NONE"
+        : fact.semanticStatus === "UNKNOWN"
+          ? "ANSWERED_UNKNOWN"
+          : fact.semanticStatus === "DECLINED"
+            ? "DECLINED"
+            : fact.value,
+    ]),
+  );
+  // The interpreter's update is the state consumed by policy/domain execution.
+  // Keeping participants here prevents the normal fitting branch from
+  // reverting an OTHER_PERSON target back to the logged-in buyer.
+  const interpretedState: ConversationState = {
+    ...input.state,
+    session: {
+      ...input.state.session,
+      diagnosticAnswers: {
+        ...input.state.session.diagnosticAnswers,
+        ...interpretedAnswers,
+      },
+    },
+    participants,
+  };
   const turn = classifyConversationTurn(
     interpretedState,
     `${input.message} ${hints}`,
     context.profile,
   );
+  // Question copy follows the resolved player entity. Domain rules still use
+  // the same canonical slots; this only prevents a third-person purchase from
+  // addressing the buyer as if they were the golfer.
+  const playerReference = participants.player.relationToBuyer === "SELF"
+    ? null
+    : participants.player.displayReference;
+  const perspectiveReply = playerReference
+    ? turn.reply
+        .replace(/¿Juegas como diestro o zurdo\?/gi, `¿${playerReference} juega como diestro o zurdo?`)
+        .replace(/juegas como diestro/gi, `${playerReference} juega como diestro`)
+        .replace(/juegas como zurdo/gi, `${playerReference} juega como zurdo`)
+    : turn.reply;
+  const policyTurn = perspectiveReply === turn.reply
+    ? turn
+    : {
+        ...turn,
+        reply: perspectiveReply,
+        state: {
+          ...turn.state,
+          messages: turn.state.messages.map((message, index, messages) =>
+            index === messages.length - 1 && message.role === "assistant"
+              ? { ...message, content: perspectiveReply }
+              : message,
+          ),
+        },
+      };
   // A direct recommendation request is an action, not another diagnostic turn.
   // Execute the existing deterministic pipeline immediately when a category is active.
   if ((!turn.nextQuestion || requestsRecommendation) && turn.state.session.requestedCategory) {
@@ -373,7 +437,7 @@ export async function processConversationTurn(input: {
       }
     });
     const candidates = matchInventoryCandidates({
-      golfer: context.profile,
+      golfer: participants.player.relationToBuyer === "SELF" ? context.profile : null,
       currentEquipment: context.equipment,
       objectives: context.objectives,
       units,
@@ -475,7 +539,7 @@ export async function processConversationTurn(input: {
       message: reply,
     };
     return withFinalReply({
-      ...turn,
+      ...policyTurn,
       reply,
       recommendation: safeRecommendation,
       outcome,
@@ -491,10 +555,10 @@ export async function processConversationTurn(input: {
           turn.state.session.diagnosticAnswers.handedness,
         ),
       } satisfies ConversationOutcomeResult;
-  const outcome = turn.nextQuestion ? null : terminalOutcome;
-  const reply = turn.nextQuestion ? turn.reply : terminalOutcome.message;
+  const outcome = policyTurn.nextQuestion ? null : terminalOutcome;
+  const reply = policyTurn.nextQuestion ? policyTurn.reply : terminalOutcome.message;
   return withFinalReply({
-    ...turn,
+    ...policyTurn,
     reply,
     recommendation: null,
     outcome,

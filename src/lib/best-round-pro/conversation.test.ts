@@ -76,6 +76,62 @@ describe("Best Round Pro conversation", () => {
     },
   );
 
+  it("consumes a semantic NONE objective and never re-asks it", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "DRIVER";
+    state.session.diagnosticAnswers.handedness = "RIGHT";
+    state.pendingQuestionKey = "objective";
+    const result = classifyConversationTurn(state, "nada");
+    expect(result.state.session.diagnosticAnswers.objective).toBe("NONE");
+    expect(result.nextQuestion?.id).not.toBe("objective");
+    expect(result.state.pendingQuestionKey).not.toBe("objective");
+  });
+
+  it.each(["no sé", "no se", "ni idea"])(
+    "consumes unknown swing speed (%s) without looping",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "DRIVER";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.pendingQuestionKey = "swingSpeed";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.swingSpeed).toBe(
+        "ANSWERED_UNKNOWN",
+      );
+      expect(result.nextQuestion?.id).not.toBe("swingSpeed");
+    },
+  );
+
+  it("consumes a declined handicap answer without repeating the slot", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "DRIVER";
+    state.session.diagnosticAnswers.handedness = "RIGHT";
+    state.pendingQuestionKey = "skill";
+    const result = classifyConversationTurn(state, "prefiero no decirlo");
+    expect(result.state.session.diagnosticAnswers.handicap).toBe("DECLINED");
+    expect(result.nextQuestion?.id).not.toBe("skill");
+  });
+
+  it("routes policy from updated state rather than stale state", () => {
+    const stale = initialConversationState();
+    stale.session.requestedCategory = "DRIVER";
+    stale.session.diagnosticAnswers.handedness = "RIGHT";
+    stale.pendingQuestionKey = "objective";
+    const updated = {
+      ...stale,
+      session: {
+        ...stale.session,
+        diagnosticAnswers: { ...stale.session.diagnosticAnswers, objective: "NONE" },
+      },
+    };
+    const result = classifyConversationTurn(updated, "respuesta ya procesada");
+    expect(result.state.session.diagnosticAnswers.objective).toBe("NONE");
+    expect(result.nextQuestion?.id).not.toBe("objective");
+    expect(classifyConversationTurn(stale, "respuesta ya procesada").state.pendingQuestionKey).toBe(
+      "objective",
+    );
+  });
+
   it.each(["30", "handicap 30", "hcp 30"])(
     "accepts bare handicap answer %s",
     (message) => {

@@ -335,6 +335,16 @@ function parseAnswers(
   category: MatchCategory | null,
 ) {
   const answers = { ...current };
+  // A declined pending field is answered, not missing. The semantic
+  // interpreter supplies this status in normal production; this conservative
+  // fallback keeps the deterministic path from re-asking the slot.
+  if (
+    pendingQuestionKey === "skill" &&
+    /(?:prefiero|no quiero)\s+(?:no\s+)?decir|no\s+te\s+lo\s+quiero\s+decir/i.test(text)
+  ) {
+    answers.handicap = "DECLINED";
+    answers.skill = "DECLINED";
+  }
   if (/\bno\s+(s[eé]|la\s+conozco|tengo\s+ese\s+dato)\b/i.test(text)) {
     if (current.swingSpeed === undefined)
       answers.swingSpeed = "ANSWERED_UNKNOWN";
