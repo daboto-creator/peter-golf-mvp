@@ -41,6 +41,26 @@ import { searchCommercialCatalog, searchCompleteSetAlternatives } from "@/lib/be
 import type { CatalogProductReference } from "@/lib/best-round-pro/conversation";
 
 type ProfileRow = Record<string, unknown>;
+export type ConversationInterpreterTelemetry = {
+  providerCalled: boolean;
+  providerSucceeded: boolean;
+  providerErrorType: string | null;
+  interpretationSource: "LLM" | "FALLBACK";
+  interpretationConfidence: number | null;
+};
+
+let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
+  providerCalled: false,
+  providerSucceeded: false,
+  providerErrorType: null,
+  interpretationSource: "FALLBACK",
+  interpretationConfidence: null,
+};
+
+export function getLastInterpreterTelemetry() {
+  return lastInterpreterTelemetry;
+}
+
 function profileFrom(
   row: ProfileRow | null,
   userId: string,
@@ -119,11 +139,18 @@ export async function processConversationTurn(input: {
     },
   });
   const context = await loadMiGolfContext();
-  const intent = routeConversationIntent(input.message);
+  const fallbackIntent = routeConversationIntent(input.message);
   const preFocusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
   const provider = getConversationProvider();
   let interpretation: Awaited<ReturnType<NonNullable<typeof provider>["interpretTurn"]>> | null = null;
+  lastInterpreterTelemetry = {
+    providerCalled: Boolean(provider),
+    providerSucceeded: false,
+    providerErrorType: null,
+    interpretationSource: "FALLBACK",
+    interpretationConfidence: null,
+  };
   if (provider) {
     try {
       interpretation = await provider.interpretTurn({
@@ -141,9 +168,23 @@ export async function processConversationTurn(input: {
           recentTurns: input.state.messages.slice(-6),
           focusedProduct: preFocusedProduct ? { name: preFocusedProduct.name, family: preFocusedProduct.family } : null,
           activeAdvice: Boolean(input.state.productAdvice?.active),
+          participantContext: {
+            relationToBuyer: input.state.participants.player.relationToBuyer,
+            displayReference: input.state.participants.player.displayReference,
+          },
         },
       });
-    } catch {
+      lastInterpreterTelemetry = {
+        ...lastInterpreterTelemetry,
+        providerSucceeded: true,
+        interpretationSource: "LLM",
+        interpretationConfidence: interpretation.confidence,
+      };
+    } catch (error) {
+      lastInterpreterTelemetry = {
+        ...lastInterpreterTelemetry,
+        providerErrorType: error instanceof Error ? error.name : "UNKNOWN",
+      };
       interpretation = null;
     }
   }
@@ -175,16 +216,50 @@ export async function processConversationTurn(input: {
   for (const fact of interpretation?.declaredFacts ?? []) {
     participants.player.facts[fact.field] = { status: fact.semanticStatus, value: fact.value, confidence: interpretation?.confidence ?? 1, source: "USER" };
   }
-  const asksWhatData = isAdviceMetaQuestion(input.message);
-  const asksProductAdvice = isProductAdviceLanguage(input.message) || interpretation?.dialogueAct === "PRODUCT_ADVICE";
+  const interpretedAnswers = Object.fromEntries(
+    (interpretation?.declaredFacts ?? []).map((fact) => [
+      fact.field,
+      fact.semanticStatus === "NONE" ? "NONE" :
+        fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" :
+          fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value,
+    ]),
+  );
+  // Single semantic reduction point. Every policy/domain branch below reads
+  // this updated state, never the stale input snapshot.
+  const updatedState: ConversationState = {
+    ...input.state,
+    session: {
+      ...input.state.session,
+      diagnosticAnswers: {
+        ...input.state.session.diagnosticAnswers,
+        ...interpretedAnswers,
+      },
+    },
+    participants,
+  };
+  const intent = interpretation?.dialogueAct === "CATALOG_SEARCH" || interpretation?.dialogueAct === "PRODUCT_DETAILS"
+    ? "CATALOG_SEARCH" as const
+    : interpretation?.dialogueAct === "PRODUCT_ADVICE" || interpretation?.dialogueAct === "FITTING_REQUEST"
+      ? "FITTING_RECOMMENDATION" as const
+      : interpretation?.dialogueAct === "ASK_COMPARISON"
+        ? "PRODUCT_COMPARISON" as const
+        : fallbackIntent;
+  const asksWhatData = interpretation
+    ? interpretation.asksWhatInformationNeeded
+    : isAdviceMetaQuestion(input.message);
+  const asksProductAdvice = interpretation
+    ? interpretation.dialogueAct === "PRODUCT_ADVICE" || interpretation.dialogueAct === "FITTING_REQUEST"
+    : isProductAdviceLanguage(input.message);
   const requestsRecommendation = asksProductAdvice || interpretation?.dialogueAct === "FITTING_REQUEST";
-  const asksProductReason = interpretation?.dialogueAct === "ASK_PRODUCT_REASON" || /\bpor\s+que|porque|que\s+viste|por\s+que\s+lo\b/.test(normalizedMessage);
+  const asksProductReason = interpretation
+    ? interpretation.dialogueAct === "ASK_PRODUCT_REASON" || interpretation.asksForExplanation
+    : /\bpor\s+que|porque|que\s+viste|por\s+que\s+lo\b/.test(normalizedMessage);
   const socialAct = interpretation?.dialogueAct ?? (intent === "OTHER" ? fallbackSocialIntent(input.message) : null);
   const appendSocialReply = (reply: string, event: string) => ({
-    state: { ...input.state, messages: [...input.state.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
+    state: { ...updatedState, messages: [...updatedState.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
     reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent,
   });
-  if (!input.state.productAdvice?.active && intent === "OTHER" && socialAct) {
+  if (!updatedState.productAdvice?.active && intent === "OTHER" && socialAct) {
     const replies: Record<string, string> = {
       GREETING: "¡Hola! Soy Best Round Pro. Puedo ayudarte a encontrar equipo, comparar productos, revisar disponibilidad o asesorarte según tu juego. ¿Qué estás buscando?",
       THANKS: "Con gusto. Si quieres, también puedo ayudarte a comparar opciones o revisar otra categoría.",
@@ -195,22 +270,22 @@ export async function processConversationTurn(input: {
     };
     if (replies[socialAct]) return appendSocialReply(replies[socialAct], `SOCIAL_${socialAct}`);
   }
-  if (input.state.productAdvice?.active && interpretation?.dialogueAct === "GENERAL_QUESTION") {
+  if (updatedState.productAdvice?.active && interpretation?.dialogueAct === "GENERAL_QUESTION") {
     return appendSocialReply("Te lo pregunto porque ayuda a orientar el equipo al nivel de juego y evitar una opción demasiado exigente. Si no lo sabes, podemos seguir con otros datos.", "ADVICE_QUESTION_ANSWERED");
   }
   const focusedProduct = preFocusedProduct;
-  if (asksProductReason && focusedProduct && !input.state.productAdvice?.active) {
+  if (asksProductReason && focusedProduct && !updatedState.productAdvice?.active) {
     const reply = `Te mostré ${focusedProduct.name} porque es la opción de set completo disponible que encontré en el catálogo. Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si encaja contigo.`;
-    const state: ConversationState = { ...input.state, messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct };
+    const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
-  if (asksProductAdvice || (asksWhatData && focusedProduct && input.state.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
-    if (!focusedProduct && input.state.lastCatalogResults.length > 1) {
-      const names = input.state.lastCatalogResults.slice(0, 2).map((product) => product.name);
+  if (asksProductAdvice || (asksWhatData && focusedProduct && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
+    if (!focusedProduct && updatedState.lastCatalogResults.length > 1) {
+      const names = updatedState.lastCatalogResults.slice(0, 2).map((product) => product.name);
       const reply = `¿Te refieres a ${names[0]} o a ${names[1]}?`;
       const state: ConversationState = {
-        ...input.state,
-        messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+        ...updatedState,
+        messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REFERENCE_CLARIFICATION"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
@@ -220,20 +295,20 @@ export async function processConversationTurn(input: {
         ? `Para evaluar ${focusedProduct.name} necesito principalmente saber si juegas diestro o zurdo, tu nivel o handicap y qué buscas con el set. Empecemos por lo más importante: ¿juegas como diestro o zurdo?`
         : `Claro, revisemos si ${focusedProduct.name} encaja contigo. ${question}`;
       const state: ConversationState = {
-        ...input.state,
-        messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+        ...updatedState,
+        messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
         pendingQuestionKey: "handedness",
         pendingQuestionCategory: "PRODUCT_ADVICE",
         pendingQuestionSlotType: "HANDEDNESS",
         lastFocusedProduct: focusedProduct,
-        productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: input.state.session.diagnosticAnswers },
+        productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
         participants,
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_STARTED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
   }
-  if (focusedProduct && (input.state.productAdvice?.active || input.state.pendingQuestionCategory === "PRODUCT_ADVICE")) {
-    const answers = { ...input.state.session.diagnosticAnswers };
+  if (focusedProduct && (updatedState.productAdvice?.active || updatedState.pendingQuestionCategory === "PRODUCT_ADVICE")) {
+    const answers = { ...updatedState.session.diagnosticAnswers };
     for (const fact of interpretation?.declaredFacts ?? []) {
       if (["handedness", "handicap", "setExperience", "skill", "objective"].includes(fact.field))
         answers[fact.field] = fact.semanticStatus === "NONE" ? "NONE" : fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" : fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value;
@@ -253,9 +328,9 @@ export async function processConversationTurn(input: {
       const expected = productHand === "RIGHT" ? "diestro" : "zurdo";
       const reply = `Este ${focusedProduct.name} disponible es para ${expected}, así que no te serviría si juegas ${hand === "LEFT" ? "zurdo" : "diestro"}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} para ti.` : `Revisé el inventario y ahora mismo no tengo otro set completo para ${hand === "LEFT" ? "zurdo" : "diestro"} disponible.`} Si quieres, puedo ayudarte a buscar otra alternativa.`;
       const state: ConversationState = {
-        ...input.state,
-        session: { ...input.state.session, diagnosticAnswers: answers },
-        messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+        ...updatedState,
+        session: { ...updatedState.session, diagnosticAnswers: answers },
+        messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
         pendingQuestionKey: null,
         pendingQuestionCategory: null,
         pendingQuestionSlotType: null,
@@ -272,9 +347,9 @@ export async function processConversationTurn(input: {
     if (knownLevel && knownExperience && knownHand) {
       const reply = `Perfecto, con lo que me cuentas ya puedo orientarte sobre ${focusedProduct.name}. Es un set pensado para acompañarte en esta etapa; revisa su composición y condición, y si quieres puedo compararlo con otras opciones disponibles.`;
       const state: ConversationState = {
-        ...input.state,
-        session: { ...input.state.session, diagnosticAnswers: answers },
-        messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+        ...updatedState,
+        session: { ...updatedState.session, diagnosticAnswers: answers },
+        messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
         pendingQuestionKey: null,
         pendingQuestionCategory: null,
         pendingQuestionSlotType: null,
@@ -292,9 +367,9 @@ export async function processConversationTurn(input: {
         ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ${nextAdviceQuestion.key === "handedness" ? `¿${subject} como diestro o zurdo?` : nextAdviceQuestion.customerQuestion}`
         : `Perfecto. Con estos datos ya puedo orientarte sobre ${focusedProduct.name}.`;
     const state: ConversationState = {
-      ...input.state,
-      session: { ...input.state.session, diagnosticAnswers: answers },
-      messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+      ...updatedState,
+      session: { ...updatedState.session, diagnosticAnswers: answers },
+      messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
       pendingQuestionKey: nextAdviceQuestion?.key ?? null,
       pendingQuestionCategory: "PRODUCT_ADVICE",
       pendingQuestionSlotType: nextAdviceQuestion?.key === "skill" ? "HANDICAP" : nextAdviceQuestion?.key === "setExperience" ? "BOOLEAN_PREFERENCE" : nextAdviceQuestion ? "HANDEDNESS" : null,
@@ -320,9 +395,9 @@ export async function processConversationTurn(input: {
       family: product.productFamily,
     }));
     const state: ConversationState = {
-      ...input.state,
+      ...updatedState,
       messages: [
-        ...input.state.messages,
+        ...updatedState.messages,
         { role: "user", content: input.message },
         { role: "assistant", content: reply },
       ],
@@ -356,63 +431,13 @@ export async function processConversationTurn(input: {
         interpretation.objection ?? "",
       ].join(" ")
     : "";
-  const interpretedAnswers = Object.fromEntries(
-    (interpretation?.declaredFacts ?? []).map((fact) => [
-      fact.field,
-      fact.semanticStatus === "NONE"
-        ? "NONE"
-        : fact.semanticStatus === "UNKNOWN"
-          ? "ANSWERED_UNKNOWN"
-          : fact.semanticStatus === "DECLINED"
-            ? "DECLINED"
-            : fact.value,
-    ]),
-  );
-  // The interpreter's update is the state consumed by policy/domain execution.
-  // Keeping participants here prevents the normal fitting branch from
-  // reverting an OTHER_PERSON target back to the logged-in buyer.
-  const interpretedState: ConversationState = {
-    ...input.state,
-    session: {
-      ...input.state.session,
-      diagnosticAnswers: {
-        ...input.state.session.diagnosticAnswers,
-        ...interpretedAnswers,
-      },
-    },
-    participants,
-  };
   const turn = classifyConversationTurn(
-    interpretedState,
+    updatedState,
     `${input.message} ${hints}`,
     context.profile,
+    participants.player.relationToBuyer === "SELF" ? null : participants.player.displayReference,
   );
-  // Question copy follows the resolved player entity. Domain rules still use
-  // the same canonical slots; this only prevents a third-person purchase from
-  // addressing the buyer as if they were the golfer.
-  const playerReference = participants.player.relationToBuyer === "SELF"
-    ? null
-    : participants.player.displayReference;
-  const perspectiveReply = playerReference
-    ? turn.reply
-        .replace(/¿Juegas como diestro o zurdo\?/gi, `¿${playerReference} juega como diestro o zurdo?`)
-        .replace(/juegas como diestro/gi, `${playerReference} juega como diestro`)
-        .replace(/juegas como zurdo/gi, `${playerReference} juega como zurdo`)
-    : turn.reply;
-  const policyTurn = perspectiveReply === turn.reply
-    ? turn
-    : {
-        ...turn,
-        reply: perspectiveReply,
-        state: {
-          ...turn.state,
-          messages: turn.state.messages.map((message, index, messages) =>
-            index === messages.length - 1 && message.role === "assistant"
-              ? { ...message, content: perspectiveReply }
-              : message,
-          ),
-        },
-      };
+  const policyTurn = turn;
   // A direct recommendation request is an action, not another diagnostic turn.
   // Execute the existing deterministic pipeline immediately when a category is active.
   if ((!turn.nextQuestion || requestsRecommendation) && turn.state.session.requestedCategory) {

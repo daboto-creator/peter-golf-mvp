@@ -530,6 +530,7 @@ export function classifyConversationTurn(
   state: ConversationState,
   text: string,
   profile: MiGolfProfile | null = null,
+  playerReference: string | null = null,
 ): ConversationResult {
   const contextual = resolveContextualShortAnswer({
     pendingQuestionKey: state.pendingQuestionKey,
@@ -592,6 +593,9 @@ export function classifyConversationTurn(
     extractedFacts.length >= 2 && !objection
       ? `Perfecto: entiendo que ${extractedFacts.join(" y ")}. `
       : "";
+  const nextPrompt = next?.id === "handedness" && playerReference
+    ? `¿${playerReference} juega como diestro o zurdo?`
+    : next?.prompt;
   const reply = isProtectedRequest(text)
     ? "No puedo modificar el Match ni compartir información comercial interna. El Match se mantiene porque lo calcula el sistema con tu perfil y la configuración real del equipo."
     : objection === "NEED_TO_THINK"
@@ -605,7 +609,7 @@ export function classifyConversationTurn(
             : distanceOnlyRequest
               ? "Claro. ¿Quieres ganar distancia principalmente con el Driver o con otro palo?"
               : `${understandingPrefix}${
-                  next?.prompt ??
+                  nextPrompt ??
                   (category
                     ? "Ya tengo lo necesario para revisar inventario real y compatibilidad."
                     : "¿Qué equipo buscas: Driver, Fairway, Hybrid, Hierros, Wedge o Putter?")
