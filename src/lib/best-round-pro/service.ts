@@ -12,6 +12,7 @@ import {
   evaluateFocusedProductAgainstKnownFacts,
   getNextProductAdviceQuestion,
   getPlayerPerspective,
+  questionPromptFor,
 } from "@/lib/best-round-pro/conversation";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
 import type {
@@ -306,10 +307,11 @@ export async function processConversationTurn(input: {
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REFERENCE_CLARIFICATION"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     if (focusedProduct) {
-      const question = "Para saber si este producto encaja contigo, ¿juegas como diestro o zurdo?";
+      const handQuestion = questionPromptFor({ key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL", targetEntity: "PLAYER" }, playerPerspective, focusedProduct.category);
+      const question = `Para saber si este producto encaja ${playerPerspective.isSelf ? "contigo" : `con el juego de ${playerPerspective.subject}`}, ${handQuestion?.toLowerCase() ?? "necesito confirmar la mano del jugador."}`;
       const reply = asksWhatData
-        ? `Para evaluar ${focusedProduct.name} necesito principalmente saber si juegas diestro o zurdo, tu nivel o handicap y qué buscas con el set. Empecemos por lo más importante: ¿juegas como diestro o zurdo?`
-        : `Claro, revisemos si ${focusedProduct.name} encaja contigo. ${question}`;
+        ? `Para evaluar ${focusedProduct.name} necesito principalmente confirmar la mano de ${playerPerspective.isSelf ? "quien lo va a usar" : playerPerspective.subject}, su nivel o handicap y qué busca con el set. Empecemos por lo más importante: ${handQuestion}`
+        : `Claro, revisemos si ${focusedProduct.name} encaja ${playerPerspective.isSelf ? "contigo" : `con el juego de ${playerPerspective.subject}`}. ${question}`;
       const state: ConversationState = {
         ...updatedState,
         messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
@@ -376,12 +378,12 @@ export async function processConversationTurn(input: {
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_COMPLETED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     const nextAdviceQuestion = getNextProductAdviceQuestion({ answers });
-    const subject = participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`;
     const playerLabel = participants.player.relationToBuyer === "SELF" ? "tu" : `${participants.player.displayReference}`;
+    const semanticQuestion = questionPromptFor(nextAdviceQuestion, playerPerspective, focusedProduct.category);
     const reply = asksData
       ? `Para evaluar ${focusedProduct.name} necesito principalmente saber si ${playerLabel} juega diestro o zurdo, su nivel aproximado y si es su primer set. ${knownHand ? `Ya sé que ${participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`} ${hand === "LEFT" ? "zurdo" : hand === "RIGHT" ? "diestro" : answers.handedness === "LEFT" ? "zurdo" : "diestro"};` : "Empecemos por la mano;"} ¿${participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`} como diestro o zurdo?`
-      : nextAdviceQuestion
-        ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ${nextAdviceQuestion.key === "handedness" ? `¿${subject} como diestro o zurdo?` : nextAdviceQuestion.customerQuestion}`
+      : semanticQuestion
+        ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ${semanticQuestion}`
         : `Perfecto. Con estos datos ya puedo orientarte sobre ${focusedProduct.name}.`;
     const state: ConversationState = {
       ...updatedState,

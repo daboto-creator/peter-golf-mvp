@@ -137,12 +137,22 @@ export function getNextProductAdviceQuestion(input: {
   answers: Record<string, string | number | boolean | null>;
 }) {
   if (input.answers.handedness !== "LEFT" && input.answers.handedness !== "RIGHT")
-    return { key: "handedness", customerQuestion: "¿Juegas como diestro o zurdo?" };
+    return { key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const };
   if (!input.answers.setExperience && !input.answers.experience)
-    return { key: "setExperience", customerQuestion: "¿Es tu primer set o ya juegas actualmente?" };
+    return { key: "setExperience", meaning: "ASK_SET_EXPERIENCE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const };
   if (!input.answers.skill && input.answers.handicap === undefined)
-    return { key: "skill", customerQuestion: "¿Cómo describirías tu nivel: principiante, intermedio o avanzado?" };
+    return { key: "skill", meaning: "ASK_PLAYER_SKILL_LEVEL", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const };
   return null;
+}
+
+export function questionPromptFor(spec: ReturnType<typeof getNextProductAdviceQuestion>, perspective: PlayerPerspective, category: string | null) {
+  if (!spec) return null;
+  const player = perspective.isSelf ? "tú" : perspective.subject;
+  const possessive = perspective.isSelf ? "tu" : perspective.possessive;
+  if (spec.meaning === "ASK_PLAYER_HANDEDNESS") return perspective.isSelf ? "¿Juegas como diestro o zurdo?" : `¿${player} juega como diestro o zurdo?`;
+  if (spec.meaning === "ASK_SET_EXPERIENCE") return perspective.isSelf ? "¿Es tu primer set o ya juegas actualmente?" : `¿Es el primer set de ${player} o ya juega actualmente?`;
+  if (spec.meaning === "ASK_PLAYER_SKILL_LEVEL") return perspective.isSelf ? "¿Cómo describirías tu nivel: principiante, intermedio o avanzado?" : `¿Cómo describirías el nivel de ${possessive} juego: principiante, intermedio o avanzado?`;
+  return `¿Qué te gustaría contarnos sobre ${category ?? "tu equipo"}?`;
 }
 
 export type ConversationResult = {
