@@ -209,20 +209,40 @@ export async function processConversationTurn(input: {
     }
     const experience = Boolean(answers.setExperience) || /primer set|primera vez|apenas empie|principiante|ya juego|juego actualmente|reemplaz/.test(normalizedMessage);
     if (experience) answers.experience = normalizedMessage;
+    const knownExperience = Boolean(answers.setExperience || answers.experience);
+    const knownLevel = Boolean(answers.skill || answers.handicap);
+    if (knownLevel && knownExperience && knownHand) {
+      const reply = `Perfecto, con lo que me cuentas ya puedo orientarte sobre ${focusedProduct.name}. Es un set pensado para acompañarte en esta etapa; revisa su composición y condición, y si quieres puedo compararlo con otras opciones disponibles.`;
+      const state: ConversationState = {
+        ...input.state,
+        session: { ...input.state.session, diagnosticAnswers: answers },
+        messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+        pendingQuestionKey: null,
+        pendingQuestionCategory: null,
+        pendingQuestionSlotType: null,
+        lastFocusedProduct: focusedProduct,
+        productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
+      };
+      return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_COMPLETED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+    }
     const reply = asksData
       ? `Para evaluar ${focusedProduct.name} necesito principalmente tu mano, si es tu primer set y tu nivel aproximado. ${knownHand ? `Ya sé que juegas ${hand === "LEFT" ? "zurdo" : hand === "RIGHT" ? "diestro" : answers.handedness === "LEFT" ? "zurdo" : "diestro"};` : "Empecemos por la mano;"} ¿es tu primer set o ya juegas actualmente?`
-      : knownHand
-        ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ¿es tu primer set o ya juegas actualmente?`
+      : knownLevel
+        ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ¿qué buscas principalmente: empezar con un set completo o reemplazar el equipo que ya tienes?`
+        : knownExperience
+          ? `Perfecto. ¿Cómo describirías tu nivel: principiante, intermedio o avanzado?`
+          : knownHand
+            ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ¿es tu primer set o ya juegas actualmente?`
         : `Para saber si ${focusedProduct.name} encaja contigo, ¿juegas como diestro o zurdo?`;
     const state: ConversationState = {
       ...input.state,
       session: { ...input.state.session, diagnosticAnswers: answers },
       messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
-      pendingQuestionKey: knownHand ? "setExperience" : "handedness",
+      pendingQuestionKey: knownLevel ? "objective" : knownExperience ? "skill" : knownHand ? "setExperience" : "handedness",
       pendingQuestionCategory: "PRODUCT_ADVICE",
-      pendingQuestionSlotType: knownHand ? "BOOLEAN_PREFERENCE" : "HANDEDNESS",
+      pendingQuestionSlotType: knownLevel ? "OBJECTIVE" : knownExperience ? "HANDICAP" : knownHand ? "BOOLEAN_PREFERENCE" : "HANDEDNESS",
       lastFocusedProduct: focusedProduct,
-      productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: knownHand ? "setExperience" : "handedness", collectedAnswers: answers },
+      productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: knownLevel ? "objective" : knownExperience ? "skill" : knownHand ? "setExperience" : "handedness", collectedAnswers: answers },
     };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_PROGRESS"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
