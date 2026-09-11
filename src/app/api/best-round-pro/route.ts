@@ -76,6 +76,14 @@ const requestSchema = z.object({
         pendingQuestionKey: z.string().nullable(),
         collectedAnswers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
       }).optional().default({ active: false, product: null, pendingQuestionKey: null, collectedAnswers: {} }),
+      participants: z.object({
+        buyer: z.object({ isLoggedInUser: z.literal(true) }),
+        player: z.object({
+          relationToBuyer: z.enum(["SELF", "SPOUSE", "CHILD", "FRIEND", "OTHER", "UNKNOWN"]),
+          displayReference: z.string(),
+          facts: z.record(z.string(), z.object({ status: z.enum(["KNOWN", "UNKNOWN", "NONE", "NOT_APPLICABLE", "DECLINED"]), value: z.unknown().optional(), confidence: z.number(), source: z.enum(["USER", "INFERRED"]) })),
+        }),
+      }).optional().default({ buyer: { isLoggedInUser: true }, player: { relationToBuyer: "SELF", displayReference: "tú", facts: {} } }),
     })
     .default(initialConversationState()),
 });

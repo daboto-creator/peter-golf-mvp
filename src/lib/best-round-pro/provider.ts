@@ -21,6 +21,7 @@ const factSchema = z.object({
   ]),
   value: z.union([z.string(), z.number()]),
   durable: z.boolean(),
+  semanticStatus: z.enum(["KNOWN", "UNKNOWN", "NONE", "NOT_APPLICABLE", "DECLINED"]).default("KNOWN"),
 });
 export const conversationInterpretationSchema = z.object({
   dialogueAct: z.enum([
@@ -53,6 +54,11 @@ export const conversationInterpretationSchema = z.object({
   asksWhatInformationNeeded: z.boolean().default(false),
   topicChanged: z.boolean().default(false),
   confidence: z.number().min(0).max(1).default(1),
+  entities: z.object({
+    purchaseTarget: z.enum(["SELF", "OTHER_PERSON"]).default("SELF"),
+    relationship: z.enum(["SPOUSE", "CHILD", "FRIEND", "OTHER", "UNKNOWN"]).default("UNKNOWN"),
+    playerReference: z.string().nullable().default(null),
+  }).default({ purchaseTarget: "SELF", relationship: "UNKNOWN", playerReference: null }),
 });
 export type ConversationInterpretation = z.infer<
   typeof conversationInterpretationSchema

@@ -148,6 +148,20 @@ export async function processConversationTurn(input: {
     }
   }
   const normalizedMessage = normalizeConversationText(input.message);
+  const participants = {
+    ...input.state.participants,
+    player: {
+      ...input.state.participants.player,
+      relationToBuyer: interpretation?.entities.purchaseTarget === "OTHER_PERSON"
+        ? interpretation.entities.relationship === "SPOUSE" ? "SPOUSE" : interpretation.entities.relationship === "CHILD" ? "CHILD" : interpretation.entities.relationship === "FRIEND" ? "FRIEND" : "OTHER"
+        : input.state.participants.player.relationToBuyer,
+      displayReference: interpretation?.entities.playerReference ?? input.state.participants.player.displayReference,
+      facts: { ...input.state.participants.player.facts },
+    },
+  };
+  for (const fact of interpretation?.declaredFacts ?? []) {
+    participants.player.facts[fact.field] = { status: fact.semanticStatus, value: fact.value, confidence: interpretation?.confidence ?? 1, source: "USER" };
+  }
   const asksWhatData = isAdviceMetaQuestion(input.message);
   const asksProductAdvice = isProductAdviceLanguage(input.message) || interpretation?.dialogueAct === "PRODUCT_ADVICE";
   const requestsRecommendation = asksProductAdvice || interpretation?.dialogueAct === "FITTING_REQUEST";
@@ -200,6 +214,7 @@ export async function processConversationTurn(input: {
         pendingQuestionSlotType: "HANDEDNESS",
         lastFocusedProduct: focusedProduct,
         productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: input.state.session.diagnosticAnswers },
+        participants,
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_STARTED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
@@ -207,8 +222,8 @@ export async function processConversationTurn(input: {
   if (focusedProduct && (input.state.productAdvice?.active || input.state.pendingQuestionCategory === "PRODUCT_ADVICE")) {
     const answers = { ...input.state.session.diagnosticAnswers };
     for (const fact of interpretation?.declaredFacts ?? []) {
-      if (["handedness", "handicap", "setExperience", "skill"].includes(fact.field))
-        answers[fact.field] = fact.value;
+      if (["handedness", "handicap", "setExperience", "skill", "objective"].includes(fact.field))
+        answers[fact.field] = fact.semanticStatus === "NONE" ? "NONE" : fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" : fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value;
     }
     const hand = /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/.test(normalizedMessage)
       ? "LEFT"
@@ -233,6 +248,7 @@ export async function processConversationTurn(input: {
         pendingQuestionSlotType: null,
         lastFocusedProduct: focusedProduct,
         productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
+        participants,
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, catalogProducts: alternatives.products, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
@@ -269,6 +285,7 @@ export async function processConversationTurn(input: {
       pendingQuestionSlotType: nextAdviceQuestion?.key === "skill" ? "HANDICAP" : nextAdviceQuestion?.key === "setExperience" ? "BOOLEAN_PREFERENCE" : nextAdviceQuestion ? "HANDEDNESS" : null,
       lastFocusedProduct: focusedProduct,
       productAdvice: { active: Boolean(nextAdviceQuestion), product: focusedProduct, pendingQuestionKey: nextAdviceQuestion?.key ?? null, collectedAnswers: answers },
+      participants,
     };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_PROGRESS"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }

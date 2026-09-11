@@ -45,6 +45,18 @@ export type ConversationState = {
     pendingQuestionKey: string | null;
     collectedAnswers: Record<string, string | number | boolean | null>;
   };
+  participants: ConversationParticipants;
+};
+
+export type FactStatus = "KNOWN" | "UNKNOWN" | "NONE" | "NOT_APPLICABLE" | "DECLINED";
+export type SemanticFact<T> = { status: FactStatus; value?: T; confidence: number; source: "USER" | "INFERRED" };
+export type ConversationParticipants = {
+  buyer: { isLoggedInUser: true };
+  player: {
+    relationToBuyer: "SELF" | "SPOUSE" | "CHILD" | "FRIEND" | "OTHER" | "UNKNOWN";
+    displayReference: string;
+    facts: Record<string, SemanticFact<unknown>>;
+  };
 };
 
 export type CatalogProductReference = {
@@ -148,6 +160,10 @@ export function initialConversationState(): ConversationState {
       product: null,
       pendingQuestionKey: null,
       collectedAnswers: {},
+    },
+    participants: {
+      buyer: { isLoggedInUser: true },
+      player: { relationToBuyer: "SELF", displayReference: "tú", facts: {} },
     },
   };
 }
@@ -383,6 +399,8 @@ function parseAnswers(
     answers.objective = "REDUCE_SLICE";
   if (/slice|slide|slise|slaice/i.test(text) && category === "DRIVER")
     answers.objective ??= "REDUCE_SLICE";
+  if (pendingQuestionKey === "objective" && /\b(nada|ninguna cosa|no quiere mejorar|sin cambiar|igual que ahora)\b/i.test(text))
+    answers.objective = "NONE";
   const numericSlot = ["skill", "gapping", "swingSpeed", "length"].includes(
     pendingQuestionKey ?? "",
   );
@@ -596,6 +614,7 @@ export function classifyConversationTurn(
     lastCatalogResults: state.lastCatalogResults,
     lastFocusedProduct: state.lastFocusedProduct,
     productAdvice: state.productAdvice,
+    participants: state.participants,
   };
   return { state: nextState, reply, nextQuestion: next, objection, events };
 }
