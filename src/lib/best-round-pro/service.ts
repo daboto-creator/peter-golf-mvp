@@ -332,9 +332,9 @@ export async function processConversationTurn(input: {
       if (["handedness", "handicap", "setExperience", "skill", "objective"].includes(fact.field))
         answers[fact.field] = fact.semanticStatus === "NONE" ? "NONE" : fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" : fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value;
     }
-    const hand = /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/.test(normalizedMessage)
+    const hand = !interpretation && /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/.test(normalizedMessage)
       ? "LEFT"
-      : /\b(?:diestro|diestra|derecho|derecha|right)\b/.test(normalizedMessage)
+      : !interpretation && /\b(?:diestro|diestra|derecho|derecha|right)\b/.test(normalizedMessage)
         ? "RIGHT"
         : null;
     if (hand) answers.handedness = hand;
@@ -359,7 +359,7 @@ export async function processConversationTurn(input: {
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, catalogProducts: alternatives.products, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
-    const experience = Boolean(answers.setExperience) || /primer set|primera vez|apenas empie|principiante|ya juego|juego actualmente|reemplaz/.test(normalizedMessage);
+    const experience = Boolean(answers.setExperience) || (!interpretation && /primer set|primera vez|apenas empie|principiante|ya juego|juego actualmente|reemplaz/.test(normalizedMessage));
     if (experience) answers.experience = normalizedMessage;
     const knownExperience = Boolean(answers.setExperience || answers.experience);
     const knownLevel = Boolean(answers.skill || answers.handicap);
