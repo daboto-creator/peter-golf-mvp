@@ -142,6 +142,7 @@ export async function processConversationTurn(input: {
   const normalizedMessage = normalizeConversationText(input.message);
   const asksWhatData = isAdviceMetaQuestion(input.message);
   const asksProductAdvice = isProductAdviceLanguage(input.message) || interpretation?.dialogueAct === "PRODUCT_ADVICE";
+  const requestsRecommendation = asksProductAdvice || interpretation?.dialogueAct === "FITTING_REQUEST";
   const asksProductReason = interpretation?.dialogueAct === "ASK_PRODUCT_REASON" || /\bpor\s+que|porque|que\s+viste|por\s+que\s+lo\b/.test(normalizedMessage);
   const focusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
@@ -305,7 +306,9 @@ export async function processConversationTurn(input: {
     `${input.message} ${hints}`,
     context.profile,
   );
-  if (!turn.nextQuestion && turn.state.session.requestedCategory) {
+  // A direct recommendation request is an action, not another diagnostic turn.
+  // Execute the existing deterministic pipeline immediately when a category is active.
+  if ((!turn.nextQuestion || requestsRecommendation) && turn.state.session.requestedCategory) {
     const inventory = await loadInventoryUnits();
     if (inventory.error)
       return {
