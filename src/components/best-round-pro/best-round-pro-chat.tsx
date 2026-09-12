@@ -103,10 +103,13 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
     setError(null);
     if (catalogProducts.length) setProductsExpanded(false);
     try {
+      const currentPageProduct = (() => {
+        try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-current-product") ?? "null"); } catch { return null; }
+      })();
       const response = await fetch("/api/best-round-pro", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message: text, state }),
+        body: JSON.stringify({ message: text, state, currentPageProduct }),
       });
       const payload = (await response.json()) as {
         state?: ConversationState;
@@ -264,7 +267,7 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
                     {item.candidate.productHref ? <Link
                       className="text-pg-gold text-sm font-semibold"
                       href={item.candidate.productHref}
-                      onClick={() => window.dispatchEvent(new CustomEvent("best-round-pro:close"))}
+                        onClick={() => { window.sessionStorage.setItem("best-round-pro-current-product-id", item.candidate.productId); window.dispatchEvent(new CustomEvent("best-round-pro:close")); }}
                     >
                       Ver producto
                     </Link> : null}
@@ -293,7 +296,7 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
                         <p className="text-muted-foreground text-xs">{product.setType ? "Set completo" : product.categoryName ?? "Producto"}</p>
                         <h3 className="truncate font-semibold">{product.name}</h3>
                         <p className="text-muted-foreground text-sm">{getConditionLabel(product.condition, product.conditionGrade, product.conditionScore)} · {customerPrice(product.price)} MXN</p>
-                        <Link className="text-pg-gold mt-1 inline-flex min-h-9 items-center text-sm font-semibold" href={href} onClick={() => window.dispatchEvent(new CustomEvent("best-round-pro:close"))}>Ver producto</Link>
+                        <Link className="text-pg-gold mt-1 inline-flex min-h-9 items-center text-sm font-semibold" href={href} onClick={() => { window.sessionStorage.setItem("best-round-pro-current-product", JSON.stringify({ id: product.id, slug: product.slug, name: product.name, family: product.productFamily ?? null })); window.dispatchEvent(new CustomEvent("best-round-pro:close")); }}>Ver producto</Link>
                       </div>
                     </CardContent>
                   </Card>

@@ -6,6 +6,11 @@ import { getLastInterpreterTelemetry, processConversationTurn } from "@/lib/best
 
 const requestSchema = z.object({
   message: z.string().trim().min(1).max(800),
+  currentPageProduct: z.object({
+    id: z.string(), slug: z.string(), name: z.string(), category: z.string().nullable(),
+    condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
+    handedness: z.string().nullable().optional().default(null), family: z.string().nullable().optional().default(null),
+  }).nullable().optional().default(null),
   state: z
     .object({
       session: z.object({

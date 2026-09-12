@@ -228,7 +228,7 @@ export default async function ProductDetailPage({
                 />
               )}
 
-              <BestRoundProProductCta productId={product.id} />
+              <BestRoundProProductCta productId={product.id} slug={product.slug} name={product.name} family={product.productFamily ?? null} />
 
               <section
                 aria-labelledby="purchase-confidence-title"

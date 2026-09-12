@@ -156,6 +156,7 @@ export async function loadMiGolfContext() {
 export async function processConversationTurn(input: {
   state: ConversationState;
   message: string;
+  currentPageProduct?: CatalogProductReference | null;
 }) {
   const withFinalReply = <T extends { state: ConversationState; reply: string }>(
     result: T,
@@ -186,7 +187,7 @@ export async function processConversationTurn(input: {
     context = { user: null, profile: null, equipment: [], objectives: [] };
   }
   const fallbackIntent = routeConversationIntent(input.message);
-  let preFocusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
+  let preFocusedProduct = input.currentPageProduct ?? input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
   const provider = getConversationProvider();
   let interpretation: Awaited<ReturnType<NonNullable<typeof provider>["interpretTurn"]>> | null = null;
@@ -557,7 +558,17 @@ export async function processConversationTurn(input: {
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_PROGRESS"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
   if (isCatalogIntent(intent)) {
-    const catalog = await searchCommercialCatalog(input.message);
+    const requestedHand = updatedState.session.diagnosticAnswers.handedness;
+    const constrainedSetSearch = interpretation?.category === "SET" && (requestedHand === "LEFT" || requestedHand === "RIGHT");
+    const catalog = await (constrainedSetSearch
+      ? await searchCompleteSetAlternatives(requestedHand as "LEFT" | "RIGHT").then((result) => ({
+          products: result.products,
+          error: result.error,
+          message: result.products.length
+            ? `Encontré ${result.products.length} set${result.products.length === 1 ? "" : "s"} completo${result.products.length === 1 ? "" : "s"} compatibles.`
+            : `Ahora mismo no tengo un set completo para ${requestedHand === "LEFT" ? "zurdo" : "diestro"} disponible.`,
+        }))
+      : searchCommercialCatalog(input.message));
     const reply = catalog.message;
     const references: CatalogProductReference[] = catalog.products.map((product) => ({
       id: product.id,
