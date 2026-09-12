@@ -10,6 +10,7 @@ import {
 describe("conversation interpretation contract", () => {
   it("fills structural defaults and normalizes complete-set aliases", () => {
     const normalized = normalizeInterpretationShape({
+      dialogueAct: "CATALOG_SEARCH",
       category: "COMPLETE_SET",
       intent: "ACTIVE_RESEARCH",
     });
