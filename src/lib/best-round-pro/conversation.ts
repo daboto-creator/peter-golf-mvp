@@ -722,7 +722,7 @@ export function terminalOutcomeMessage(
     return `Ahora mismo no tengo ${categoryLabel}${hand} disponibles. Prefiero no recomendarte algo que no encaje contigo.`;
   if (outcome === "NO_RESPONSIBLE_MATCH")
     return "Sí encontré algunas opciones, pero ninguna encaja lo suficiente contigo como para recomendarla responsablemente.";
-  return "Antes de recomendarte algo con confianza, necesito un dato técnico más de tu juego.";
+  return "No pude determinar un siguiente paso seguro. Puedo mostrarte opciones disponibles o revisar un producto concreto.";
 }
 
 export function priceObjectionReply(

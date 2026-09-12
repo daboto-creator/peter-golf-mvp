@@ -313,7 +313,7 @@ describe("Best Round Pro conversation", () => {
       terminalOutcomeMessage("NO_RESPONSIBLE_MATCH", "WEDGE", null),
     ).toMatch(/encaja.*responsablemente/i);
     expect(terminalOutcomeMessage("INSUFFICIENT_DATA", "PUTTER", null)).toMatch(
-      /necesito un dato/i,
+      /siguiente paso seguro/i,
     );
   });
 

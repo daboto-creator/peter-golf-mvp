@@ -97,6 +97,19 @@ export async function POST(request: Request) {
   try {
     const body = requestSchema.parse(await request.json());
     const result = await processConversationTurn(body);
+    const telemetry = getLastInterpreterTelemetry();
+    console.info("best_round_pro_turn_trace", {
+      providerSucceeded: telemetry.providerSucceeded,
+      interpretationSource: telemetry.interpretationSource,
+      dialogueAct: telemetry.dialogueAct ?? null,
+      productFamily: result.state.session.requestedCategory,
+      pendingBefore: body.state.pendingQuestionKey,
+      stateChanged: JSON.stringify(body.state.session) !== JSON.stringify(result.state.session),
+      nextQuestionKey: result.nextQuestion?.id ?? result.state.pendingQuestionKey,
+      plannedAction: result.recommendation ? "RUN_RECOMMENDATION" : result.nextQuestion ? "ASK_NEXT_QUESTION" : "RETURN_TERMINAL_OUTCOME",
+      executedAction: result.recommendation ? "RUN_RECOMMENDATION" : result.nextQuestion ? "ASK_NEXT_QUESTION" : "RETURN_TERMINAL_OUTCOME",
+      stallDetected: false,
+    });
     return NextResponse.json({
       state: result.state,
       reply: result.reply,
@@ -107,7 +120,7 @@ export async function POST(request: Request) {
       outcome: result.outcome ?? null,
       error: "error" in result ? result.error : null,
       telemetry: {
-        ...getLastInterpreterTelemetry(),
+        ...telemetry,
         inputTokens: 0,
         outputTokens: 0,
         researchCalls: 0,

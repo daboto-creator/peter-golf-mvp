@@ -55,6 +55,7 @@ export type ConversationInterpreterTelemetry = {
   providerTimedOut?: boolean;
   jsonParsed?: boolean | null;
   validationIssues?: Array<{ path: string; code: string; expected?: string; received?: string }>;
+  dialogueAct?: string | null;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -69,6 +70,7 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   providerTimedOut: false,
   jsonParsed: null,
   validationIssues: [],
+  dialogueAct: null,
 };
 
 export function getLastInterpreterTelemetry() {
@@ -224,6 +226,7 @@ export async function processConversationTurn(input: {
         interpretationSource: "LLM",
         interpretationConfidence: interpretation.confidence,
         stage: "REDUCE_STATE",
+        dialogueAct: interpretation.dialogueAct,
       };
     } catch (error) {
       lastInterpreterTelemetry = {
@@ -296,7 +299,7 @@ export async function processConversationTurn(input: {
     participants,
   };
   const playerPerspective = getPlayerPerspective(participants);
-  const intent = interpretation?.dialogueAct === "CATALOG_SEARCH" || interpretation?.dialogueAct === "PRODUCT_DETAILS"
+  const intent = interpretation?.category === "SET" || interpretation?.dialogueAct === "CATALOG_SEARCH" || interpretation?.dialogueAct === "PRODUCT_DETAILS"
     ? "CATALOG_SEARCH" as const
     : interpretation?.dialogueAct === "PRODUCT_ADVICE" || interpretation?.dialogueAct === "FITTING_REQUEST"
       ? "FITTING_RECOMMENDATION" as const
