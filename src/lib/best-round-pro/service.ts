@@ -14,6 +14,9 @@ import {
   getPlayerPerspective,
   questionPromptFor,
   validateInterpretationAgainstContext,
+  normalizeStructuredFactValue,
+  validateCanonicalFactValue,
+  FACT_VALUE_DOMAINS,
 } from "@/lib/best-round-pro/conversation";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
 import type {
@@ -60,6 +63,10 @@ export type ConversationInterpreterTelemetry = {
   answersPendingQuestion?: boolean;
   declaredFactKeys?: string[];
   declaredFactStatuses?: string[];
+  declaredFacts?: Array<{ key: string; canonicalValue: string | number | null; status: string }>;
+  semanticStateChanged?: boolean;
+  playerFactsChanged?: boolean;
+  pendingQuestionChanged?: boolean;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -78,6 +85,7 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   answersPendingQuestion: false,
   declaredFactKeys: [],
   declaredFactStatuses: [],
+  declaredFacts: [],
 };
 
 export function getLastInterpreterTelemetry() {
@@ -223,7 +231,11 @@ export async function processConversationTurn(input: {
             key: pendingKey,
             meaning: pendingMeaning[pendingKey] ?? "ANSWER_PENDING_QUESTION",
             targetEntity: "PLAYER",
-            expectedSemanticDomain: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"],
+            expectedValues: pendingKey === "handedness" ? [...FACT_VALUE_DOMAINS.handedness]
+              : pendingKey === "skill" ? [...FACT_VALUE_DOMAINS.skill]
+                : pendingKey === "setExperience" ? [...FACT_VALUE_DOMAINS.setExperience]
+                  : [],
+            allowedStatuses: pendingKey === "objective" ? ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] : ["KNOWN", "UNKNOWN", "DECLINED"],
           } : null,
           pendingAssistantOffer: input.state.pendingAssistantOffer ? {
             action: input.state.pendingAssistantOffer.action,
@@ -248,6 +260,11 @@ export async function processConversationTurn(input: {
         answersPendingQuestion: interpretation.answersPendingQuestion,
         declaredFactKeys: interpretation.declaredFacts.map((fact) => fact.field),
         declaredFactStatuses: interpretation.declaredFacts.map((fact) => fact.semanticStatus),
+        declaredFacts: interpretation.declaredFacts.map((fact) => ({
+          key: fact.field,
+          canonicalValue: typeof fact.value === "string" || typeof fact.value === "number" ? normalizeStructuredFactValue(fact.field, fact.value) : null,
+          status: fact.semanticStatus,
+        })),
       };
     } catch (error) {
       lastInterpreterTelemetry = {
@@ -294,11 +311,22 @@ export async function processConversationTurn(input: {
       participants.player.displayReference = relation === "SPOUSE" ? "tu esposo" : relation === "CHILD" ? "tu hijo" : relation === "FRIEND" ? "tu amigo" : "la persona para quien lo buscas";
     }
   }
-  for (const fact of interpretation?.declaredFacts ?? []) {
+  const canonicalFacts = (interpretation?.declaredFacts ?? []).filter((fact) => {
+    const value = typeof fact.value === "string" || typeof fact.value === "number"
+      ? normalizeStructuredFactValue(fact.field, fact.value)
+      : undefined;
+    return validateCanonicalFactValue(fact.field, value, fact.semanticStatus);
+  }).map((fact) => ({
+    ...fact,
+    value: typeof fact.value === "string" || typeof fact.value === "number"
+      ? normalizeStructuredFactValue(fact.field, fact.value)
+      : fact.value,
+  }));
+  for (const fact of canonicalFacts) {
     participants.player.facts[fact.field] = { status: fact.semanticStatus, value: fact.value, confidence: interpretation?.confidence ?? 1, source: "USER" };
   }
   const interpretedAnswers = Object.fromEntries(
-    (interpretation?.declaredFacts ?? []).map((fact) => [
+    canonicalFacts.map((fact) => [
       fact.field,
       fact.semanticStatus === "NONE" ? "NONE" :
         fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" :
@@ -307,7 +335,7 @@ export async function processConversationTurn(input: {
   );
   const pendingKey = input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey;
   const answeredPending = interpretation?.answersPendingQuestion && pendingKey &&
-    (interpretation.declaredFacts.some((fact) => fact.field === pendingKey));
+    (canonicalFacts.some((fact) => fact.field === pendingKey));
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
   const updatedState: ConversationState = {
@@ -328,6 +356,14 @@ export async function processConversationTurn(input: {
       ? { ...input.state.productAdvice, pendingQuestionKey: null }
       : input.state.productAdvice,
   };
+  lastInterpreterTelemetry.playerFactsChanged = canonicalFacts.length > 0;
+  lastInterpreterTelemetry.pendingQuestionChanged = (pendingKey ?? null) !== (answeredPending ? null : pendingKey ?? null);
+  lastInterpreterTelemetry.semanticStateChanged = canonicalFacts.length > 0 || Boolean(answeredPending);
+  lastInterpreterTelemetry.declaredFacts = canonicalFacts.map((fact) => ({
+    key: fact.field,
+    canonicalValue: typeof fact.value === "string" || typeof fact.value === "number" ? fact.value : null,
+    status: fact.semanticStatus,
+  }));
   const playerPerspective = getPlayerPerspective(participants);
   const intent = interpretation?.category === "SET" || interpretation?.dialogueAct === "CATALOG_SEARCH" || interpretation?.dialogueAct === "PRODUCT_DETAILS"
     ? "CATALOG_SEARCH" as const
@@ -396,7 +432,7 @@ export async function processConversationTurn(input: {
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REFERENCE_CLARIFICATION"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     if (focusedProduct) {
-      const handQuestion = questionPromptFor({ key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL", targetEntity: "PLAYER" }, playerPerspective, focusedProduct.category);
+      const handQuestion = questionPromptFor({ key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL", targetEntity: "PLAYER", expectedValues: [...FACT_VALUE_DOMAINS.handedness], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] }, playerPerspective, focusedProduct.category);
       const question = `Para saber si este producto encaja ${playerPerspective.isSelf ? "contigo" : `con el juego de ${playerPerspective.subject}`}, ${handQuestion?.toLowerCase() ?? "necesito confirmar la mano del jugador."}`;
       const reply = asksWhatData
         ? `Para evaluar ${focusedProduct.name} necesito principalmente confirmar la mano de ${playerPerspective.isSelf ? "quien lo va a usar" : playerPerspective.subject}, su nivel o handicap y qué busca con el set. Empecemos por lo más importante: ${handQuestion}`

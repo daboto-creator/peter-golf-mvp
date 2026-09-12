@@ -11,10 +11,33 @@ import {
   terminalOutcomeMessage,
   evaluateFocusedProductAgainstKnownFacts,
   getNextProductAdviceQuestion,
+  normalizeStructuredFactValue,
+  validateCanonicalFactValue,
+  validateInterpretationAgainstContext,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
 describe("Best Round Pro conversation", () => {
+  it("separates canonical fact values from semantic statuses", () => {
+    const question = getNextProductAdviceQuestion({ answers: {} });
+    expect(question?.expectedValues).toEqual(["RIGHT", "LEFT"]);
+    expect(question?.allowedStatuses).toContain("UNKNOWN");
+    expect(question?.allowedStatuses).not.toContain("RIGHT");
+    expect(normalizeStructuredFactValue("handedness", "LEFT_HANDED")).toBe("LEFT");
+    expect(validateCanonicalFactValue("handedness", "LEFT", "KNOWN")).toBe(true);
+    expect(validateCanonicalFactValue("handedness", "KNOWN", "KNOWN")).toBe(false);
+  });
+
+  it("canonicalizes a pending answer even when the model labels it confirmation", () => {
+    const result = validateInterpretationAgainstContext(
+      { dialogueAct: "CONFIRMATION", answersPendingQuestion: true, declaredFacts: [{ field: "handedness" }] },
+      { key: "handedness" },
+      null,
+    );
+    expect(result.dialogueAct).toBe("ANSWER_PENDING_QUESTION");
+    expect(result.answersPendingQuestion).toBe(true);
+  });
+
   it("re-evaluates focused product after canonical hand update", () => {
     const product = { id: "strata", slug: "strata", name: "Strata Set", category: "Set", condition: "new", price: 9799, productHref: "/productos/strata", imagePath: null, handedness: "RIGHT", family: "set" };
     expect(evaluateFocusedProductAgainstKnownFacts({ product, answers: { handedness: "LEFT" } }).status).toBe("HARD_INCOMPATIBLE");

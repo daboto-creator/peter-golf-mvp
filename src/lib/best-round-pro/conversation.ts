@@ -61,6 +61,36 @@ export type ConversationState = {
 
 export type FactStatus = "KNOWN" | "UNKNOWN" | "NONE" | "NOT_APPLICABLE" | "DECLINED";
 export type SemanticFact<T> = { status: FactStatus; value?: T; confidence: number; source: "USER" | "INFERRED" };
+export const FACT_VALUE_DOMAINS = {
+  handedness: ["RIGHT", "LEFT"],
+  skill: ["BEGINNER", "INTERMEDIATE", "ADVANCED"],
+  setExperience: ["FIRST_SET", "CURRENT_PLAYER"],
+  shotTendency: ["STRAIGHT", "SLICE", "HOOK"],
+  conditionPreference: ["NEW_ONLY", "USED_ACCEPTABLE"],
+} as const;
+
+export type CanonicalFactField = keyof typeof FACT_VALUE_DOMAINS;
+
+export function normalizeStructuredFactValue(field: string, value: string | number) {
+  if (typeof value !== "string") return value;
+  const aliases: Record<string, string> = {
+    LEFT_HANDED: "LEFT",
+    RIGHT_HANDED: "RIGHT",
+    LEFT_HANDEDNESS: "LEFT",
+    RIGHT_HANDEDNESS: "RIGHT",
+    BEGINNER_LEVEL: "BEGINNER",
+    INTERMEDIATE_LEVEL: "INTERMEDIATE",
+    ADVANCED_LEVEL: "ADVANCED",
+  };
+  const normalized = aliases[value.trim().toUpperCase()] ?? value.trim().toUpperCase();
+  return normalized;
+}
+
+export function validateCanonicalFactValue(field: string, value: string | number | null | undefined, status: FactStatus) {
+  if (status !== "KNOWN") return value == null || typeof value === "string" || typeof value === "number";
+  const domain = FACT_VALUE_DOMAINS[field as CanonicalFactField];
+  return !domain || (typeof value === "string" && (domain as readonly string[]).includes(value));
+}
 export type ConversationParticipants = {
   buyer: { isLoggedInUser: true };
   player: {
@@ -158,11 +188,11 @@ export function getNextProductAdviceQuestion(input: {
   answers: Record<string, string | number | boolean | null>;
 }) {
   if (input.answers.handedness !== "LEFT" && input.answers.handedness !== "RIGHT")
-    return { key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const };
+    return { key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.handedness], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
   if (!input.answers.setExperience && !input.answers.experience)
-    return { key: "setExperience", meaning: "ASK_SET_EXPERIENCE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const };
+    return { key: "setExperience", meaning: "ASK_SET_EXPERIENCE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.setExperience], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
   if (!input.answers.skill && input.answers.handicap === undefined)
-    return { key: "skill", meaning: "ASK_PLAYER_SKILL_LEVEL", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const };
+    return { key: "skill", meaning: "ASK_PLAYER_SKILL_LEVEL", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.skill], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
   return null;
 }
 
