@@ -51,6 +51,10 @@ export type ConversationInterpreterTelemetry = {
   interpretationConfidence: number | null;
   stage?: string;
   errorCode?: string | null;
+  providerHttpStatus?: number | null;
+  providerTimedOut?: boolean;
+  jsonParsed?: boolean | null;
+  validationIssues?: Array<{ path: string; code: string; expected?: string; received?: string }>;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -61,6 +65,10 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   interpretationConfidence: null,
   stage: "LOAD_CONTEXT",
   errorCode: null,
+  providerHttpStatus: null,
+  providerTimedOut: false,
+  jsonParsed: null,
+  validationIssues: [],
 };
 
 export function getLastInterpreterTelemetry() {
@@ -223,6 +231,16 @@ export async function processConversationTurn(input: {
         providerErrorType: error instanceof Error ? error.name : "UNKNOWN",
         stage: "INTERPRET_TURN",
         errorCode: "INTERPRETER_FALLBACK",
+        providerHttpStatus: error && typeof error === "object" && "diagnostics" in error
+          ? (error as { diagnostics?: { httpStatus?: number } }).diagnostics?.httpStatus ?? null
+          : null,
+        providerTimedOut: error instanceof Error && error.name === "AbortError",
+        jsonParsed: error && typeof error === "object" && "diagnostics" in error
+          ? (error as { diagnostics?: { jsonParsed?: boolean } }).diagnostics?.jsonParsed ?? null
+          : null,
+        validationIssues: error && typeof error === "object" && "diagnostics" in error
+          ? (error as { diagnostics?: { validationIssues?: ConversationInterpreterTelemetry["validationIssues"] } }).diagnostics?.validationIssues ?? []
+          : [],
       };
       interpretation = null;
     }
