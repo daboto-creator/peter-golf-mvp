@@ -518,7 +518,13 @@ export async function processConversationTurn(input: {
   const policyTurn = turn;
   // A direct recommendation request is an action, not another diagnostic turn.
   // Execute the existing deterministic pipeline immediately when a category is active.
-  if ((!turn.nextQuestion || requestsRecommendation) && turn.state.session.requestedCategory) {
+  // Complete sets are a catalog/product-family flow; the club-only Match
+  // engine deliberately does not accept SET and would throw RangeError.
+  if (
+    (!turn.nextQuestion || requestsRecommendation) &&
+    turn.state.session.requestedCategory &&
+    turn.state.session.requestedCategory !== "SET"
+  ) {
     const inventory = await loadInventoryUnits();
     if (inventory.error)
       return {
