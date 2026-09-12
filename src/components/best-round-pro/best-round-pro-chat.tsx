@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 import {
   initialConversationState,
@@ -9,7 +10,8 @@ import {
 } from "@/lib/best-round-pro/conversation";
 import type { ConversationOutcomeResult } from "@/lib/best-round-pro/conversation";
 import type { CommercialRankingResult } from "@/lib/recommendations/commercial-ranking";
-import { formatMoneyMinorUnits } from "@/lib/catalog/presentation";
+import type { PublicProductSummary } from "@/lib/catalog/public-products";
+import { formatMoneyMinorUnits, getConditionLabel, resolvePublicImagePath } from "@/lib/catalog/presentation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -30,7 +32,7 @@ const confidenceLabels = {
   HIGH: "Alta",
 } as const;
 const reasonLabels: Record<string, string> = {
-  BEST_TECHNICAL_MATCH: "Es la opción que mejor encaja técnicamente contigo.",
+  BEST_TECHNICAL_MATCH: "Mejor compatibilidad técnica entre las opciones disponibles.",
   BEST_RESPONSIBLE_OPTION:
     "Es una opción responsable con los datos disponibles.",
   BEST_VALUE:
@@ -41,47 +43,91 @@ const reasonLabels: Record<string, string> = {
   SLIGHTLY_ABOVE_BUDGET:
     "Está ligeramente por encima del presupuesto indicado.",
   LOWER_CONFIDENCE: "La confianza es limitada porque faltan algunos datos.",
-  LIMITED_AVAILABILITY: "La disponibilidad es limitada.",
 };
 
 function customerPrice(amount: number) {
   return formatMoneyMinorUnits(amount).replace(/\.00$/, "");
 }
 
-export function BestRoundProChat() {
-  const [state, setState] = useState<ConversationState>(
-    initialConversationState(),
-  );
+export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
+  const [state, setState] = useState<ConversationState>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.sessionStorage.getItem("best-round-pro-session");
+        if (saved) {
+          const parsed = JSON.parse(saved) as ConversationState;
+          if (parsed?.session && Array.isArray(parsed.messages)) {
+            return {
+              ...initialConversationState(),
+              ...parsed,
+              lastCatalogResults: parsed.lastCatalogResults ?? [],
+              lastFocusedProduct: parsed.lastFocusedProduct ?? null,
+            };
+          }
+        }
+      } catch { /* optional storage */ }
+    }
+    return initialConversationState();
+  });
   const [input, setInput] = useState("");
   const [reply, setReply] = useState(
-    "Soy Best Round Pro. Te ayudo a encontrar equipo real que encaje con tu juego.",
+    "Soy Best Round Pro Agent. Puedo ayudarte a elegir equipo, resolver dudas sobre productos, revisar inventario real y acompañarte durante tu compra. Si quieres, también te asesoro según tu juego.",
   );
-  const [recommendation, setRecommendation] =
-    useState<CommercialRankingResult | null>(null);
+  const [recommendation, setRecommendation] = useState<CommercialRankingResult | null>(() => {
+    if (typeof window !== "undefined") {
+      try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-recommendation") ?? "null") as CommercialRankingResult | null; } catch { /* optional storage */ }
+    }
+    return null;
+  });
+  const [catalogProducts, setCatalogProducts] = useState<PublicProductSummary[]>(() => {
+    if (typeof window !== "undefined") {
+      try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-catalog-products") ?? "[]") as PublicProductSummary[]; } catch { /* optional storage */ }
+    }
+    return [];
+  });
+  const [productsExpanded, setProductsExpanded] = useState(true);
   const [outcome, setOutcome] = useState<ConversationOutcomeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem("best-round-pro-session", JSON.stringify(state));
+    } catch {
+      // Storage is optional.
+    }
+  }, [state]);
   const send = async (message = input) => {
     const text = message.trim();
     if (!text || busy) return;
     setBusy(true);
     setError(null);
+    if (catalogProducts.length) setProductsExpanded(false);
     try {
+      const currentPageProduct = (() => {
+        try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-current-product") ?? "null"); } catch { return null; }
+      })();
       const response = await fetch("/api/best-round-pro", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message: text, state }),
+        body: JSON.stringify({ message: text, state, currentPageProduct }),
       });
       const payload = (await response.json()) as {
         state?: ConversationState;
         reply?: string;
         recommendation?: CommercialRankingResult | null;
+        catalogProducts?: PublicProductSummary[] | null;
         outcome?: ConversationOutcomeResult | null;
       };
       if (!response.ok || !payload.state) throw new Error("request");
       setState(payload.state);
       setReply(payload.reply ?? "");
       setRecommendation(payload.recommendation ?? null);
+      const products = payload.catalogProducts;
+      if (products) setCatalogProducts(products);
+      try { window.sessionStorage.setItem("best-round-pro-recommendation", JSON.stringify(payload.recommendation ?? null)); } catch { /* optional storage */ }
+      if (products) {
+        try { window.sessionStorage.setItem("best-round-pro-catalog-products", JSON.stringify(products)); } catch { /* optional storage */ }
+      }
       setOutcome(payload.outcome ?? null);
       setInput("");
     } catch {
@@ -93,8 +139,8 @@ export function BestRoundProChat() {
     }
   };
   return (
-    <section className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.82fr_1.18fr]">
-      <Card className="border-pg-black/10 bg-pg-black text-white">
+    <section className={embedded ? "grid gap-4" : "mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.82fr_1.18fr]"}>
+      {!embedded ? <Card className="border-pg-black/10 bg-pg-black text-white">
         <CardHeader>
           <p className="text-pg-gold text-xs font-semibold tracking-[0.18em] uppercase">
             Best Round Pro
@@ -126,6 +172,9 @@ export function BestRoundProChat() {
             onClick={() => {
               setState(initialConversationState());
               setRecommendation(null);
+              setCatalogProducts([]);
+              try { window.sessionStorage.removeItem("best-round-pro-recommendation"); } catch { /* optional storage */ }
+              try { window.sessionStorage.removeItem("best-round-pro-catalog-products"); } catch { /* optional storage */ }
               setOutcome(null);
               setReply("Empecemos de nuevo. ¿Qué equipo buscas?");
             }}
@@ -133,11 +182,11 @@ export function BestRoundProChat() {
             Nueva consulta
           </Button>
         </CardContent>
-      </Card>
+      </Card> : null}
       <Card>
         <CardHeader>
           <CardTitle className="font-heading text-2xl">
-            Hablemos de tu juego
+            ¿Cómo te ayudo hoy?
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -215,16 +264,47 @@ export function BestRoundProChat() {
                         .filter(Boolean)
                         .join(" ")}
                     </p>
-                    <Link
+                    {item.candidate.productHref ? <Link
                       className="text-pg-gold text-sm font-semibold"
-                      href="/productos"
+                      href={item.candidate.productHref}
+                        onClick={() => { window.sessionStorage.setItem("best-round-pro-current-product-id", item.candidate.productId); window.dispatchEvent(new CustomEvent("best-round-pro:close")); }}
                     >
-                      Ver inventario
-                    </Link>
+                      Ver producto
+                    </Link> : null}
                   </CardContent>
                 </Card>
               ))}
             </div>
+          ) : null}
+          {catalogProducts.length > 0 && recommendation === null ? (
+            <>
+            <button type="button" className="text-pg-gold text-left text-sm font-semibold underline" onClick={() => setProductsExpanded((value) => !value)}>
+              {productsExpanded ? "Ocultar productos" : `Ver productos (${catalogProducts.length})`}
+            </button>
+            {productsExpanded ? (
+            <div className="grid gap-3" aria-label="Resultados del catálogo">
+              {catalogProducts.map((product) => {
+                const href = `/productos/${encodeURIComponent(product.slug)}`;
+                const image = resolvePublicImagePath(product.images[0]?.storagePath ?? null);
+                return (
+                  <Card key={product.id} className="border-border/70">
+                    <CardContent className="flex gap-3 p-4">
+                      <div className="bg-muted flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl">
+                        {image ? <Image src={image} alt="" width={64} height={64} unoptimized className="size-full object-cover" /> : <span className="text-muted-foreground text-[10px]">Sin imagen</span>}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-muted-foreground text-xs">{product.setType ? "Set completo" : product.categoryName ?? "Producto"}</p>
+                        <h3 className="truncate font-semibold">{product.name}</h3>
+                        <p className="text-muted-foreground text-sm">{getConditionLabel(product.condition, product.conditionGrade, product.conditionScore)} · {customerPrice(product.price)} MXN</p>
+                        <Link className="text-pg-gold mt-1 inline-flex min-h-9 items-center text-sm font-semibold" href={href} onClick={() => { window.sessionStorage.setItem("best-round-pro-current-product", JSON.stringify({ id: product.id, slug: product.slug, name: product.name, family: product.productFamily ?? null })); window.dispatchEvent(new CustomEvent("best-round-pro:close")); }}>Ver producto</Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+            ) : null}
+            </>
           ) : null}
           {recommendation?.status !== "RECOMMENDATIONS" && outcome ? (
             <div role="status" className="rounded-xl border border-pg-gold/30 bg-pg-gold/10 p-4 text-sm leading-6">
@@ -238,7 +318,7 @@ export function BestRoundProChat() {
               onKeyDown={(event) => {
                 if (event.key === "Enter") void send();
               }}
-              placeholder="Cuéntame qué buscas…"
+              placeholder="Pregúntame por drivers, sets, wedges, inventario, productos o tu juego…"
               className="border-input bg-background min-h-11 flex-1 rounded-xl border px-4 text-sm"
               disabled={busy}
             />

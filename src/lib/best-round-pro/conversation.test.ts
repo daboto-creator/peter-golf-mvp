@@ -9,10 +9,44 @@ import {
   priceObjectionReply,
   resolveContextualShortAnswer,
   terminalOutcomeMessage,
+  evaluateFocusedProductAgainstKnownFacts,
+  getNextProductAdviceQuestion,
+  normalizeStructuredFactValue,
+  validateCanonicalFactValue,
+  normalizeCanonicalFactStatus,
+  validateInterpretationAgainstContext,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
 describe("Best Round Pro conversation", () => {
+  it("separates canonical fact values from semantic statuses", () => {
+    const question = getNextProductAdviceQuestion({ answers: {} });
+    expect(question?.expectedValues).toEqual(["RIGHT", "LEFT"]);
+    expect(question?.allowedStatuses).toContain("UNKNOWN");
+    expect(question?.allowedStatuses).not.toContain("RIGHT");
+    expect(normalizeStructuredFactValue("handedness", "LEFT_HANDED")).toBe("LEFT");
+    expect(validateCanonicalFactValue("handedness", "LEFT", "KNOWN")).toBe(true);
+    expect(validateCanonicalFactValue("handedness", "KNOWN", "KNOWN")).toBe(false);
+    expect(normalizeCanonicalFactStatus("handedness", "LEFT", "UNKNOWN")).toBe("KNOWN");
+    expect(normalizeCanonicalFactStatus("handedness", null, "UNKNOWN")).toBe("UNKNOWN");
+  });
+
+  it("canonicalizes a pending answer even when the model labels it confirmation", () => {
+    const result = validateInterpretationAgainstContext(
+      { dialogueAct: "CONFIRMATION", answersPendingQuestion: true, declaredFacts: [{ field: "handedness" }] },
+      { key: "handedness" },
+      null,
+    );
+    expect(result.dialogueAct).toBe("ANSWER_PENDING_QUESTION");
+    expect(result.answersPendingQuestion).toBe(true);
+  });
+
+  it("re-evaluates focused product after canonical hand update", () => {
+    const product = { id: "strata", slug: "strata", name: "Strata Set", category: "Set", condition: "new", price: 9799, productHref: "/productos/strata", imagePath: null, handedness: "RIGHT", family: "set" };
+    expect(evaluateFocusedProductAgainstKnownFacts({ product, answers: { handedness: "LEFT" } }).status).toBe("HARD_INCOMPATIBLE");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT" } })?.key).toBe("setExperience");
+    expect(evaluateFocusedProductAgainstKnownFacts({ product: { ...product, handedness: "right" }, answers: { handedness: "LEFT" } }).status).toBe("HARD_INCOMPATIBLE");
+  });
   it.each([
     "driver",
     "drive",
@@ -44,6 +78,24 @@ describe("Best Round Pro conversation", () => {
     expect(detectCategory(message)).toBe(category);
   });
 
+  it.each(["quiero un set", "busco palos completos", "juego de palos"])(
+    "treats complete sets as a first-class product family (%s)",
+    (message) => {
+      expect(detectCategory(message)).toBe("SET");
+      expect(interpretGolfCategory(message)?.category).toBe("SET");
+    },
+  );
+
+  it("uses semantic wedge distance wording without golf jargon", () => {
+    const question = nextQuestionFor("WEDGE", null, {
+      ...initialConversationState().session,
+      requestedCategory: "WEDGE",
+      diagnosticAnswers: { handedness: "RIGHT" },
+    });
+    expect(question?.prompt).toContain("Qué distancia quieres cubrir");
+    expect(question?.prompt.toLowerCase()).not.toContain("hueco");
+  });
+
   it("extracts category, handedness, and shot tendency from one turn", () => {
     const result = classifyConversationTurn(
       initialConversationState(),
@@ -54,6 +106,75 @@ describe("Best Round Pro conversation", () => {
     expect(result.state.session.diagnosticAnswers.shotTendency).toBe("SLICE");
     expect(result.reply).toContain("buscas un Driver");
     expect(result.reply).not.toContain("¿Qué equipo buscas");
+  });
+
+  it.each(["distancia", "más distancia", "pegar más lejos", "quiero más yardas", "más perdón", "menos slice"])(
+    "closes the pending driver objective slot for %s",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "DRIVER";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.pendingQuestionKey = "objective";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.objective).toBeTruthy();
+      expect(result.nextQuestion?.id).not.toBe("objective");
+    },
+  );
+
+  it("consumes a semantic NONE objective and never re-asks it", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "DRIVER";
+    state.session.diagnosticAnswers.handedness = "RIGHT";
+    state.pendingQuestionKey = "objective";
+    const result = classifyConversationTurn(state, "nada");
+    expect(result.state.session.diagnosticAnswers.objective).toBe("NONE");
+    expect(result.nextQuestion?.id).not.toBe("objective");
+    expect(result.state.pendingQuestionKey).not.toBe("objective");
+  });
+
+  it.each(["no sé", "no se", "ni idea"])(
+    "consumes unknown swing speed (%s) without looping",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "DRIVER";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.pendingQuestionKey = "swingSpeed";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.swingSpeed).toBe(
+        "ANSWERED_UNKNOWN",
+      );
+      expect(result.nextQuestion?.id).not.toBe("swingSpeed");
+    },
+  );
+
+  it("consumes a declined handicap answer without repeating the slot", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "DRIVER";
+    state.session.diagnosticAnswers.handedness = "RIGHT";
+    state.pendingQuestionKey = "skill";
+    const result = classifyConversationTurn(state, "prefiero no decirlo");
+    expect(result.state.session.diagnosticAnswers.handicap).toBe("DECLINED");
+    expect(result.nextQuestion?.id).not.toBe("skill");
+  });
+
+  it("routes policy from updated state rather than stale state", () => {
+    const stale = initialConversationState();
+    stale.session.requestedCategory = "DRIVER";
+    stale.session.diagnosticAnswers.handedness = "RIGHT";
+    stale.pendingQuestionKey = "objective";
+    const updated = {
+      ...stale,
+      session: {
+        ...stale.session,
+        diagnosticAnswers: { ...stale.session.diagnosticAnswers, objective: "NONE" },
+      },
+    };
+    const result = classifyConversationTurn(updated, "respuesta ya procesada");
+    expect(result.state.session.diagnosticAnswers.objective).toBe("NONE");
+    expect(result.nextQuestion?.id).not.toBe("objective");
+    expect(classifyConversationTurn(stale, "respuesta ya procesada").state.pendingQuestionKey).toBe(
+      "objective",
+    );
   });
 
   it.each(["30", "handicap 30", "hcp 30"])(
@@ -198,6 +319,19 @@ describe("Best Round Pro conversation", () => {
     });
   });
 
+  it.each(["ninguno", "no tengo fallos", "recto", "normal", "no sé"])(
+    "closes driver common-miss slot for %s",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "DRIVER";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.session.diagnosticAnswers.objective = "MORE_DISTANCE";
+      state.pendingQuestionKey = "shotTendency";
+      const result = classifyConversationTurn(state, message);
+      expect(result.nextQuestion?.id).not.toBe("shotTendency");
+    },
+  );
+
   it("provides explicit customer-safe terminal outcome messages", () => {
     expect(terminalOutcomeMessage("NO_INVENTORY", "IRON", "RIGHT")).toMatch(
       /no tengo.*hierros.*diestro/i,
@@ -206,7 +340,7 @@ describe("Best Round Pro conversation", () => {
       terminalOutcomeMessage("NO_RESPONSIBLE_MATCH", "WEDGE", null),
     ).toMatch(/encaja.*responsablemente/i);
     expect(terminalOutcomeMessage("INSUFFICIENT_DATA", "PUTTER", null)).toMatch(
-      /necesito un dato/i,
+      /siguiente paso seguro/i,
     );
   });
 

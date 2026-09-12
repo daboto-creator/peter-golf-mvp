@@ -11,6 +11,7 @@ import { ProductImage } from "@/components/catalog/product-image";
 import { ProductPrice } from "@/components/catalog/product-price";
 import { ProductSpecifications } from "@/components/catalog/product-specifications";
 import { AddToCartForm } from "@/components/cart/add-to-cart-form";
+import { BestRoundProProductCta } from "@/components/best-round-pro/best-round-pro-product-cta";
 import { PublicFooter } from "@/components/catalog/public-footer";
 import { PublicHeader } from "@/components/catalog/public-header";
 import { getConditionLabel } from "@/lib/catalog/presentation";
@@ -227,12 +228,7 @@ export default async function ProductDetailPage({
                 />
               )}
 
-              <Link
-                href={`/best-round-pro?product=${encodeURIComponent(product.slug)}`}
-                className="border-border text-pg-black hover:bg-muted mt-3 flex min-h-11 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition-colors"
-              >
-                ¿Es bueno para mí?
-              </Link>
+              <BestRoundProProductCta productId={product.id} slug={product.slug} name={product.name} family={product.productFamily ?? null} />
 
               <section
                 aria-labelledby="purchase-confidence-title"

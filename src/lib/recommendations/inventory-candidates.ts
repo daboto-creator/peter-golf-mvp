@@ -109,6 +109,10 @@ export async function loadInventoryUnits(): Promise<InventoryCandidateLoadResult
     const firstPartyUnits: InventoryUnit[] = (firstParty.data ?? []).map(
       (row) => ({
         productId: row.product_id,
+        productHref:
+          typeof (row as Record<string, unknown>).product_slug === "string"
+            ? `/productos/${encodeURIComponent((row as Record<string, unknown>).product_slug as string)}`
+            : null,
         unitId: row.unit_id,
         canonicalModelId: row.canonical_model_id,
         source: "FIRST_PARTY",
@@ -129,6 +133,10 @@ export async function loadInventoryUnits(): Promise<InventoryCandidateLoadResult
         return [
           {
             productId: row.listing_id,
+            productHref:
+              typeof (row as Record<string, unknown>).slug === "string"
+                ? `/productos/${encodeURIComponent((row as Record<string, unknown>).slug as string)}`
+                : null,
             unitId: row.listing_id,
             canonicalModelId: null,
             source: "MARKETPLACE",
@@ -145,6 +153,20 @@ export async function loadInventoryUnits(): Promise<InventoryCandidateLoadResult
         ];
       },
     );
+    const firstPartyIds = firstPartyUnits.map((unit) => unit.productId);
+    if (firstPartyIds.length) {
+      const { data: products } = await client
+        .from("products" as never)
+        .select("id,slug")
+        .in("id", firstPartyIds);
+      const hrefById = new Map(
+        ((products ?? []) as unknown as Array<{ id: string; slug: string }>).map(
+          (product) => [product.id, `/productos/${encodeURIComponent(product.slug)}`],
+        ),
+      );
+      for (const unit of firstPartyUnits)
+        unit.productHref = hrefById.get(unit.productId) ?? unit.productHref ?? null;
+    }
     return {
       data: [...firstPartyUnits, ...marketplaceUnits].filter(
         (unit) =>

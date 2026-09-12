@@ -176,8 +176,10 @@ function normalizeProductSummary(
     clubType: product.club_specs?.club_type ?? null,
     bagType: product.bag_specs?.bag_type ?? null,
     setType: product.set_specs?.set_type ?? null,
+    // Complete-set advice must use the authoritative set spec. A set may also
+    // expose component club specs, but those must not override set handedness.
     handedness:
-      product.club_specs?.handedness ?? product.set_specs?.handedness ?? null,
+      product.set_specs?.handedness ?? product.club_specs?.handedness ?? null,
     shaftFlex:
       product.club_specs?.shaft_flex ?? product.set_specs?.shaft_flex ?? null,
     shaftMaterial:
