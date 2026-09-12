@@ -52,6 +52,11 @@ export type ConversationState = {
     targetProductIds: string[];
     createdAtTurn: number;
   } | null;
+  conversationLoop: {
+    lastQuestionKey: string | null;
+    consecutiveSameQuestionCount: number;
+    lastSemanticFingerprint: string | null;
+  };
 };
 
 export type FactStatus = "KNOWN" | "UNKNOWN" | "NONE" | "NOT_APPLICABLE" | "DECLINED";
@@ -83,6 +88,21 @@ export function getPlayerPerspective(participants: ConversationParticipants): Pl
     possessive: isSelf ? "tu" : "su",
     isSelf,
   };
+}
+
+export function validateInterpretationAgainstContext<T extends { dialogueAct: string; answersPendingQuestion: boolean; declaredFacts: Array<{ field: string }> }>(
+  interpretation: T,
+  pendingQuestion: { key: string } | null,
+  pendingAssistantOffer: ConversationState["pendingAssistantOffer"],
+): T {
+  if (!pendingQuestion) return interpretation;
+  const answered = interpretation.declaredFacts.some((fact) => fact.field === pendingQuestion.key);
+  if (answered) {
+    return { ...interpretation, dialogueAct: "ANSWER_PENDING_QUESTION", answersPendingQuestion: true };
+  }
+  if (interpretation.dialogueAct === "CONFIRMATION" && !pendingAssistantOffer)
+    return { ...interpretation, dialogueAct: "OTHER" };
+  return interpretation;
 }
 
 export type CatalogProductReference = {
@@ -202,6 +222,7 @@ export function initialConversationState(): ConversationState {
       player: { relationToBuyer: "SELF", displayReference: "tú", facts: {} },
     },
     pendingAssistantOffer: null,
+    conversationLoop: { lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null },
   };
 }
 
@@ -673,6 +694,7 @@ export function classifyConversationTurn(
     productAdvice: state.productAdvice,
     participants: state.participants,
     pendingAssistantOffer: state.pendingAssistantOffer,
+    conversationLoop: state.conversationLoop,
   };
   return { state: nextState, reply, nextQuestion: next, objection, events };
 }

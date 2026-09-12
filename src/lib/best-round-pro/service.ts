@@ -13,6 +13,7 @@ import {
   getNextProductAdviceQuestion,
   getPlayerPerspective,
   questionPromptFor,
+  validateInterpretationAgainstContext,
 } from "@/lib/best-round-pro/conversation";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
 import type {
@@ -56,6 +57,9 @@ export type ConversationInterpreterTelemetry = {
   jsonParsed?: boolean | null;
   validationIssues?: Array<{ path: string; code: string; expected?: string; received?: string }>;
   dialogueAct?: string | null;
+  answersPendingQuestion?: boolean;
+  declaredFactKeys?: string[];
+  declaredFactStatuses?: string[];
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -71,6 +75,9 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   jsonParsed: null,
   validationIssues: [],
   dialogueAct: null,
+  answersPendingQuestion: false,
+  declaredFactKeys: [],
+  declaredFactStatuses: [],
 };
 
 export function getLastInterpreterTelemetry() {
@@ -226,6 +233,11 @@ export async function processConversationTurn(input: {
           } : null,
         },
       });
+      interpretation = validateInterpretationAgainstContext(
+        interpretation,
+        pendingKey ? { key: pendingKey } : null,
+        input.state.pendingAssistantOffer,
+      );
       lastInterpreterTelemetry = {
         ...lastInterpreterTelemetry,
         providerSucceeded: true,
@@ -233,6 +245,9 @@ export async function processConversationTurn(input: {
         interpretationConfidence: interpretation.confidence,
         stage: "REDUCE_STATE",
         dialogueAct: interpretation.dialogueAct,
+        answersPendingQuestion: interpretation.answersPendingQuestion,
+        declaredFactKeys: interpretation.declaredFacts.map((fact) => fact.field),
+        declaredFactStatuses: interpretation.declaredFacts.map((fact) => fact.semanticStatus),
       };
     } catch (error) {
       lastInterpreterTelemetry = {
@@ -290,6 +305,9 @@ export async function processConversationTurn(input: {
           fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value,
     ]),
   );
+  const pendingKey = input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey;
+  const answeredPending = interpretation?.answersPendingQuestion && pendingKey &&
+    (interpretation.declaredFacts.some((fact) => fact.field === pendingKey));
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
   const updatedState: ConversationState = {
@@ -303,6 +321,12 @@ export async function processConversationTurn(input: {
       },
     },
     participants,
+    pendingQuestionKey: answeredPending ? null : input.state.pendingQuestionKey,
+    pendingQuestionCategory: answeredPending ? null : input.state.pendingQuestionCategory,
+    pendingQuestionSlotType: answeredPending ? null : input.state.pendingQuestionSlotType,
+    productAdvice: answeredPending && input.state.productAdvice
+      ? { ...input.state.productAdvice, pendingQuestionKey: null }
+      : input.state.productAdvice,
   };
   const playerPerspective = getPlayerPerspective(participants);
   const intent = interpretation?.category === "SET" || interpretation?.dialogueAct === "CATALOG_SEARCH" || interpretation?.dialogueAct === "PRODUCT_DETAILS"
@@ -407,10 +431,11 @@ export async function processConversationTurn(input: {
     const knownHand = answers.handedness === "LEFT" || answers.handedness === "RIGHT";
     const evaluation = evaluateFocusedProductAgainstKnownFacts({ product: focusedProduct, answers });
     const productHand = focusedProduct.handedness === "LEFT" || focusedProduct.handedness === "RIGHT" ? focusedProduct.handedness : null;
-    if (evaluation.status === "HARD_INCOMPATIBLE" && hand && productHand) {
-      const alternatives = await searchCompleteSetAlternatives(hand);
+    if (evaluation.status === "HARD_INCOMPATIBLE" && (answers.handedness === "LEFT" || answers.handedness === "RIGHT") && productHand) {
+      const playerHand = answers.handedness;
+      const alternatives = await searchCompleteSetAlternatives(playerHand);
       const expected = productHand === "RIGHT" ? "diestro" : "zurdo";
-      const reply = `Este ${focusedProduct.name} disponible es para ${expected}, así que no te serviría si juegas ${hand === "LEFT" ? "zurdo" : "diestro"}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} para ti.` : `Revisé el inventario y ahora mismo no tengo otro set completo para ${hand === "LEFT" ? "zurdo" : "diestro"} disponible.`} Si quieres, puedo ayudarte a buscar otra alternativa.`;
+      const reply = `Este ${focusedProduct.name} disponible es para ${expected}, así que no te serviría si juegas ${playerHand === "LEFT" ? "zurdo" : "diestro"}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} para ti.` : `Revisé el inventario y ahora mismo no tengo otro set completo para ${playerHand === "LEFT" ? "zurdo" : "diestro"} disponible.`} Si quieres, puedo ayudarte a buscar otra alternativa.`;
       const state: ConversationState = {
         ...updatedState,
         session: { ...updatedState.session, diagnosticAnswers: answers },
@@ -443,9 +468,19 @@ export async function processConversationTurn(input: {
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_COMPLETED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     const nextAdviceQuestion = getNextProductAdviceQuestion({ answers });
+    const semanticFingerprint = JSON.stringify({ answers, product: focusedProduct.id });
+    const previousLoop = updatedState.conversationLoop ?? { lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null };
+    const repeatedWithoutProgress = previousLoop.lastQuestionKey === nextAdviceQuestion?.key && previousLoop.lastSemanticFingerprint === semanticFingerprint;
+    const nextLoop = {
+      lastQuestionKey: nextAdviceQuestion?.key ?? null,
+      consecutiveSameQuestionCount: repeatedWithoutProgress ? previousLoop.consecutiveSameQuestionCount + 1 : 0,
+      lastSemanticFingerprint: semanticFingerprint,
+    };
     const playerLabel = participants.player.relationToBuyer === "SELF" ? "tu" : `${participants.player.displayReference}`;
     const semanticQuestion = questionPromptFor(nextAdviceQuestion, playerPerspective, focusedProduct.category);
-    const reply = asksData
+    const reply = repeatedWithoutProgress
+      ? "Para no hacerte repetir la misma pregunta, puedo continuar con una recomendación general o puedes indicarme qué dato prefieres compartir."
+      : asksData
       ? `Para evaluar ${focusedProduct.name} necesito principalmente saber si ${playerLabel} juega diestro o zurdo, su nivel aproximado y si es su primer set. ${knownHand ? `Ya sé que ${participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`} ${hand === "LEFT" ? "zurdo" : hand === "RIGHT" ? "diestro" : answers.handedness === "LEFT" ? "zurdo" : "diestro"};` : "Empecemos por la mano;"} ¿${participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`} como diestro o zurdo?`
       : semanticQuestion
         ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ${semanticQuestion}`
@@ -461,6 +496,7 @@ export async function processConversationTurn(input: {
       productAdvice: { active: Boolean(nextAdviceQuestion), product: focusedProduct, pendingQuestionKey: nextAdviceQuestion?.key ?? null, collectedAnswers: answers },
       pendingAssistantOffer: null,
       participants,
+      conversationLoop: nextLoop,
     };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_PROGRESS"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }

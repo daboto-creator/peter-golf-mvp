@@ -89,6 +89,11 @@ const requestSchema = z.object({
         targetProductIds: z.array(z.string()),
         createdAtTurn: z.number(),
       }).nullable().optional().default(null),
+      conversationLoop: z.object({
+        lastQuestionKey: z.string().nullable(),
+        consecutiveSameQuestionCount: z.number().int().nonnegative(),
+        lastSemanticFingerprint: z.string().nullable(),
+      }).optional().default({ lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null }),
     })
     .default(initialConversationState()),
 });
@@ -109,8 +114,13 @@ export async function POST(request: Request) {
       providerValidationIssues: telemetry.validationIssues ?? [],
       interpretationSource: telemetry.interpretationSource,
       dialogueAct: telemetry.dialogueAct ?? null,
+      dialogueActRaw: telemetry.dialogueAct ?? null,
+      answersPendingQuestion: telemetry.answersPendingQuestion ?? false,
+      declaredFactKeys: telemetry.declaredFactKeys ?? [],
+      declaredFactStatuses: telemetry.declaredFactStatuses ?? [],
       productFamily: result.state.session.requestedCategory,
       pendingBefore: body.state.pendingQuestionKey,
+      pendingAfter: result.state.pendingQuestionKey,
       stateChanged: JSON.stringify(body.state.session) !== JSON.stringify(result.state.session),
       nextQuestionKey: result.nextQuestion?.id ?? result.state.pendingQuestionKey,
       plannedAction: result.recommendation ? "RUN_RECOMMENDATION" : result.nextQuestion ? "ASK_NEXT_QUESTION" : "RETURN_TERMINAL_OUTCOME",
