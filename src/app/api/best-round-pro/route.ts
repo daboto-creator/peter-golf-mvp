@@ -125,7 +125,7 @@ export async function POST(request: Request) {
       nextQuestionKey: result.nextQuestion?.id ?? result.state.pendingQuestionKey,
       plannedAction: result.recommendation ? "RUN_RECOMMENDATION" : result.nextQuestion ? "ASK_NEXT_QUESTION" : "RETURN_TERMINAL_OUTCOME",
       executedAction: result.recommendation ? "RUN_RECOMMENDATION" : result.nextQuestion ? "ASK_NEXT_QUESTION" : "RETURN_TERMINAL_OUTCOME",
-      stallDetected: false,
+      stallDetected: (result.state.conversationLoop?.consecutiveSameQuestionCount ?? 0) >= 2,
     });
     return NextResponse.json({
       state: result.state,
