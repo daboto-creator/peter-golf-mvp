@@ -174,7 +174,7 @@ export function evaluateFocusedProductAgainstKnownFacts(input: {
   answers: Record<string, string | number | boolean | null>;
 }) {
   const playerHand = input.answers.handedness;
-  const productHand = input.product.handedness;
+  const productHand = typeof input.product.handedness === "string" ? input.product.handedness.toUpperCase() : input.product.handedness;
   if ((playerHand === "LEFT" || playerHand === "RIGHT") &&
       (productHand === "LEFT" || productHand === "RIGHT") && playerHand !== productHand) {
     return { status: "HARD_INCOMPATIBLE" as const, reason: "RIGHT_OR_LEFT_HANDED_PRODUCT_MISMATCH" };

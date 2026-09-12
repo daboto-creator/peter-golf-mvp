@@ -334,8 +334,10 @@ export async function processConversationTurn(input: {
     ]),
   );
   const pendingKey = input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey;
-  const answeredPending = interpretation?.answersPendingQuestion && pendingKey &&
-    (canonicalFacts.some((fact) => fact.field === pendingKey));
+  // A canonical fact matching the active question is authoritative even if
+  // the model's boolean flag is inconsistent. This prevents valid answers
+  // from remaining pending and being asked again.
+  const answeredPending = Boolean(pendingKey && canonicalFacts.some((fact) => fact.field === pendingKey));
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
   const updatedState: ConversationState = {
