@@ -100,6 +100,13 @@ export async function POST(request: Request) {
     const telemetry = getLastInterpreterTelemetry();
     console.info("best_round_pro_turn_trace", {
       providerSucceeded: telemetry.providerSucceeded,
+      providerCalled: telemetry.providerCalled,
+      providerHttpStatus: telemetry.providerHttpStatus ?? null,
+      providerTimedOut: telemetry.providerTimedOut ?? false,
+      providerErrorType: telemetry.providerErrorType,
+      providerJsonParsed: telemetry.jsonParsed ?? null,
+      providerValidationSucceeded: telemetry.providerSucceeded && (telemetry.validationIssues?.length ?? 0) === 0,
+      providerValidationIssues: telemetry.validationIssues ?? [],
       interpretationSource: telemetry.interpretationSource,
       dialogueAct: telemetry.dialogueAct ?? null,
       productFamily: result.state.session.requestedCategory,

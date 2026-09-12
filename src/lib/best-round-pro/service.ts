@@ -218,6 +218,12 @@ export async function processConversationTurn(input: {
             targetEntity: "PLAYER",
             expectedSemanticDomain: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"],
           } : null,
+          pendingAssistantOffer: input.state.pendingAssistantOffer ? {
+            action: input.state.pendingAssistantOffer.action,
+            targetProducts: input.state.lastCatalogResults
+              .filter((product) => input.state.pendingAssistantOffer?.targetProductIds.includes(product.id))
+              .map((product) => ({ id: product.id, name: product.name, family: product.family })),
+          } : null,
         },
       });
       lastInterpreterTelemetry = {
