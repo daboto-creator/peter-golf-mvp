@@ -91,6 +91,12 @@ export function validateCanonicalFactValue(field: string, value: string | number
   const domain = FACT_VALUE_DOMAINS[field as CanonicalFactField];
   return !domain || (typeof value === "string" && (domain as readonly string[]).includes(value));
 }
+
+export function normalizeCanonicalFactStatus(field: string, value: string | number | null | undefined, status: FactStatus): FactStatus {
+  const canonical = typeof value === "string" || typeof value === "number" ? normalizeStructuredFactValue(field, value) : value;
+  if (status !== "KNOWN" && canonical != null && validateCanonicalFactValue(field, canonical, "KNOWN")) return "KNOWN";
+  return status;
+}
 export type ConversationParticipants = {
   buyer: { isLoggedInUser: true };
   player: {

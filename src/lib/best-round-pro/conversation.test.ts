@@ -13,6 +13,7 @@ import {
   getNextProductAdviceQuestion,
   normalizeStructuredFactValue,
   validateCanonicalFactValue,
+  normalizeCanonicalFactStatus,
   validateInterpretationAgainstContext,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
@@ -26,6 +27,8 @@ describe("Best Round Pro conversation", () => {
     expect(normalizeStructuredFactValue("handedness", "LEFT_HANDED")).toBe("LEFT");
     expect(validateCanonicalFactValue("handedness", "LEFT", "KNOWN")).toBe(true);
     expect(validateCanonicalFactValue("handedness", "KNOWN", "KNOWN")).toBe(false);
+    expect(normalizeCanonicalFactStatus("handedness", "LEFT", "UNKNOWN")).toBe("KNOWN");
+    expect(normalizeCanonicalFactStatus("handedness", null, "UNKNOWN")).toBe("UNKNOWN");
   });
 
   it("canonicalizes a pending answer even when the model labels it confirmation", () => {

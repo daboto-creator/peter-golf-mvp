@@ -72,8 +72,16 @@ export function normalizeInterpretationShape(raw: unknown) {
   const category = value.category === "COMPLETE_SET" || value.category === "COMPLETE SET" || value.category === "SETS"
     ? "SET"
     : value.category ?? null;
+  const dialogueAliases: Record<string, string> = {
+    ANSWER_PENDING: "ANSWER_PENDING_QUESTION",
+    ANSWER_PENDING_SLOT: "ANSWER_PENDING_QUESTION",
+    ANSWER: "ANSWER_PENDING_QUESTION",
+    PRODUCT_SELECTION: "PRODUCT_ADVICE",
+    SELECT_PRODUCT: "PRODUCT_ADVICE",
+  };
+  const rawDialogueAct = value.dialogueAct;
   return {
-    dialogueAct: value.dialogueAct,
+    dialogueAct: typeof rawDialogueAct === "string" ? dialogueAliases[rawDialogueAct] ?? rawDialogueAct : rawDialogueAct,
     intent: value.intent ?? "UNKNOWN",
     category,
     productReference: value.productReference ?? null,
@@ -102,7 +110,7 @@ export class ConversationProviderError extends Error {
       httpStatus?: number;
       timedOut?: boolean;
       jsonParsed?: boolean;
-      validationIssues?: Array<{ path: string; code: string; expected?: string; received?: string }>;
+      validationIssues?: Array<{ path: string; code: string; expected?: string; received?: string; receivedValue?: string }>;
     } = {},
   ) {
     super(message);
@@ -234,6 +242,7 @@ class OpenAICompatibleProvider implements BestRoundConversationProvider {
           code: issue.code,
           expected: "expected" in issue ? String(issue.expected) : undefined,
           received: "received" in issue ? String(issue.received) : undefined,
+          receivedValue: issue.path.join(".") === "dialogueAct" && "received" in issue ? String(issue.received) : undefined,
         })).slice(0, 12),
       });
     }

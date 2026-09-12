@@ -16,6 +16,7 @@ import {
   validateInterpretationAgainstContext,
   normalizeStructuredFactValue,
   validateCanonicalFactValue,
+  normalizeCanonicalFactStatus,
   FACT_VALUE_DOMAINS,
 } from "@/lib/best-round-pro/conversation";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
@@ -58,7 +59,7 @@ export type ConversationInterpreterTelemetry = {
   providerHttpStatus?: number | null;
   providerTimedOut?: boolean;
   jsonParsed?: boolean | null;
-  validationIssues?: Array<{ path: string; code: string; expected?: string; received?: string }>;
+  validationIssues?: Array<{ path: string; code: string; expected?: string; received?: string; receivedValue?: string }>;
   dialogueAct?: string | null;
   answersPendingQuestion?: boolean;
   declaredFactKeys?: string[];
@@ -185,7 +186,7 @@ export async function processConversationTurn(input: {
     context = { user: null, profile: null, equipment: [], objectives: [] };
   }
   const fallbackIntent = routeConversationIntent(input.message);
-  const preFocusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
+  let preFocusedProduct = input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
   const provider = getConversationProvider();
   let interpretation: Awaited<ReturnType<NonNullable<typeof provider>["interpretTurn"]>> | null = null;
@@ -286,6 +287,17 @@ export async function processConversationTurn(input: {
       interpretation = null;
     }
   }
+  if (interpretation?.productReference) {
+    const reference = interpretation.productReference.trim().toLowerCase();
+    const candidates = [
+      ...input.state.lastCatalogResults,
+      ...(input.state.lastFocusedProduct ? [input.state.lastFocusedProduct] : []),
+    ];
+    const exact = candidates.find((product) =>
+      product.name.toLowerCase() === reference || product.slug.toLowerCase() === reference || product.id.toLowerCase() === reference,
+    );
+    if (exact) preFocusedProduct = exact;
+  }
   const normalizedMessage = normalizeConversationText(input.message);
   const participants = {
     ...input.state.participants,
@@ -315,12 +327,17 @@ export async function processConversationTurn(input: {
     const value = typeof fact.value === "string" || typeof fact.value === "number"
       ? normalizeStructuredFactValue(fact.field, fact.value)
       : undefined;
-    return validateCanonicalFactValue(fact.field, value, fact.semanticStatus);
+    return validateCanonicalFactValue(fact.field, value, normalizeCanonicalFactStatus(fact.field, value, fact.semanticStatus));
   }).map((fact) => ({
     ...fact,
     value: typeof fact.value === "string" || typeof fact.value === "number"
       ? normalizeStructuredFactValue(fact.field, fact.value)
       : fact.value,
+    semanticStatus: normalizeCanonicalFactStatus(
+      fact.field,
+      typeof fact.value === "string" || typeof fact.value === "number" ? normalizeStructuredFactValue(fact.field, fact.value) : fact.value,
+      fact.semanticStatus,
+    ),
   }));
   for (const fact of canonicalFacts) {
     participants.player.facts[fact.field] = { status: fact.semanticStatus, value: fact.value, confidence: interpretation?.confidence ?? 1, source: "USER" };
@@ -468,7 +485,8 @@ export async function processConversationTurn(input: {
     const asksData = asksWhatData;
     const knownHand = answers.handedness === "LEFT" || answers.handedness === "RIGHT";
     const evaluation = evaluateFocusedProductAgainstKnownFacts({ product: focusedProduct, answers });
-    const productHand = focusedProduct.handedness === "LEFT" || focusedProduct.handedness === "RIGHT" ? focusedProduct.handedness : null;
+    const normalizedProductHand = typeof focusedProduct.handedness === "string" ? focusedProduct.handedness.toUpperCase() : null;
+    const productHand = normalizedProductHand === "LEFT" || normalizedProductHand === "RIGHT" ? normalizedProductHand : null;
     if (evaluation.status === "HARD_INCOMPATIBLE" && (answers.handedness === "LEFT" || answers.handedness === "RIGHT") && productHand) {
       const playerHand = answers.handedness;
       const alternatives = await searchCompleteSetAlternatives(playerHand);
