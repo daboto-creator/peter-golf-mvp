@@ -376,6 +376,11 @@ export async function processConversationTurn(input: {
   // the model's boolean flag is inconsistent. This prevents valid answers
   // from remaining pending and being asked again.
   const answeredPending = Boolean(pendingKey && canonicalFacts.some((fact) => fact.field === pendingKey));
+  const resolvedFactKeysThisTurn = new Set<string>(
+    canonicalFacts
+      .filter((fact) => fact.semanticStatus === "KNOWN")
+      .map((fact) => fact.field),
+  );
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
   const updatedState: ConversationState = {
@@ -476,7 +481,7 @@ export async function processConversationTurn(input: {
     const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct, pendingAssistantOffer: { action: "START_PRODUCT_ADVICE", targetProductIds: [focusedProduct.id], createdAtTurn: updatedState.messages.length + 1 } };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
-  if (asksProductAdvice || (asksWhatData && focusedProduct && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
+  if (asksProductAdvice || (!answeredPending && asksWhatData && focusedProduct && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
     if (!focusedProduct && updatedState.lastCatalogResults.length > 1) {
       const names = updatedState.lastCatalogResults.slice(0, 2).map((product) => product.name);
       const reply = `¿Te refieres a ${names[0]} o a ${names[1]}?`;
@@ -560,16 +565,17 @@ export async function processConversationTurn(input: {
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_COMPLETED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     const nextAdviceQuestion = getNextProductAdviceQuestion({ answers });
-    const semanticFingerprint = JSON.stringify({ answers, product: focusedProduct.id });
+    const resolvedQuestion = nextAdviceQuestion && resolvedFactKeysThisTurn.has(nextAdviceQuestion.key) ? null : nextAdviceQuestion;
+    const semanticFingerprint = JSON.stringify({ answers, product: focusedProduct.id, resolved: [...resolvedFactKeysThisTurn].sort() });
     const previousLoop = updatedState.conversationLoop ?? { lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null };
-    const repeatedWithoutProgress = previousLoop.lastQuestionKey === nextAdviceQuestion?.key && previousLoop.lastSemanticFingerprint === semanticFingerprint;
+    const repeatedWithoutProgress = previousLoop.lastQuestionKey === resolvedQuestion?.key && previousLoop.lastSemanticFingerprint === semanticFingerprint;
     const nextLoop = {
-      lastQuestionKey: nextAdviceQuestion?.key ?? null,
+      lastQuestionKey: resolvedQuestion?.key ?? null,
       consecutiveSameQuestionCount: repeatedWithoutProgress ? previousLoop.consecutiveSameQuestionCount + 1 : 0,
       lastSemanticFingerprint: semanticFingerprint,
     };
     const playerLabel = participants.player.relationToBuyer === "SELF" ? "tu" : `${participants.player.displayReference}`;
-    const semanticQuestion = questionPromptFor(nextAdviceQuestion, playerPerspective, focusedProduct.category);
+    const semanticQuestion = questionPromptFor(resolvedQuestion, playerPerspective, focusedProduct.category);
     const reply = repeatedWithoutProgress
       ? "Para no hacerte repetir la misma pregunta, puedo continuar con una recomendación general o puedes indicarme qué dato prefieres compartir."
       : asksData
@@ -581,11 +587,11 @@ export async function processConversationTurn(input: {
       ...updatedState,
       session: { ...updatedState.session, diagnosticAnswers: answers },
       messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
-      pendingQuestionKey: nextAdviceQuestion?.key ?? null,
+      pendingQuestionKey: resolvedQuestion?.key ?? null,
       pendingQuestionCategory: "PRODUCT_ADVICE",
-      pendingQuestionSlotType: nextAdviceQuestion?.key === "skill" ? "HANDICAP" : nextAdviceQuestion?.key === "setExperience" ? "BOOLEAN_PREFERENCE" : nextAdviceQuestion ? "HANDEDNESS" : null,
+      pendingQuestionSlotType: resolvedQuestion?.key === "skill" ? "HANDICAP" : resolvedQuestion?.key === "setExperience" ? "BOOLEAN_PREFERENCE" : resolvedQuestion ? "HANDEDNESS" : null,
       lastFocusedProduct: focusedProduct,
-      productAdvice: { active: Boolean(nextAdviceQuestion), product: focusedProduct, pendingQuestionKey: nextAdviceQuestion?.key ?? null, collectedAnswers: answers },
+      productAdvice: { active: Boolean(resolvedQuestion), product: focusedProduct, pendingQuestionKey: resolvedQuestion?.key ?? null, collectedAnswers: answers },
       pendingAssistantOffer: null,
       participants,
       conversationLoop: nextLoop,
