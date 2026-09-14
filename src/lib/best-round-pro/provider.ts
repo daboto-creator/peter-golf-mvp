@@ -35,6 +35,7 @@ export const conversationInterpretationSchema = z.object({
     .enum(["DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER", "SET"])
     .nullable(),
   productReference: z.string().max(120).nullable(),
+  reasonMode: z.enum(["CATALOG_REASON", "PERSONAL_FIT_REASON"]).nullable().default(null),
   declaredFacts: z.array(factSchema).max(8),
   temporaryPreferences: z.array(z.string().max(80)).max(8),
   objection: z
@@ -85,6 +86,7 @@ export function normalizeInterpretationShape(raw: unknown) {
     intent: value.intent ?? "UNKNOWN",
     category,
     productReference: value.productReference ?? null,
+    reasonMode: value.reasonMode ?? null,
     declaredFacts: Array.isArray(value.declaredFacts) ? value.declaredFacts : [],
     temporaryPreferences: Array.isArray(value.temporaryPreferences) ? value.temporaryPreferences : [],
     objection: value.objection ?? null,
@@ -225,7 +227,8 @@ class OpenAICompatibleProvider implements BestRoundConversationProvider {
   ) {
     const system =
       "Eres Best Round Pro y debes devolver exactamente este contrato JSON. Interpreta significado, no frases exactas. OUTPUT CONTRACT: { dialogueAct: CATALOG_SEARCH|PRODUCT_ADVICE|ASK_PRODUCT_REASON|ASK_PRODUCT_DETAILS|ASK_COMPARISON|ANSWER_PENDING_QUESTION|ASK_WHAT_INFORMATION_NEEDED|CHANGE_PRODUCT|CHANGE_TOPIC|FITTING_REQUEST|STORE_QUESTION|GENERAL_GOLF|CONFIRMATION|CORRECTION|GREETING|THANKS|GOODBYE|SMALL_TALK|HELP_REQUEST|CLARIFICATION|USER_FRUSTRATION|GENERAL_QUESTION|PRODUCT_DETAILS|OTHER, intent: BUY_NOW|EXPLORING|ACTIVE_RESEARCH|UNKNOWN, category: DRIVER|FAIRWAY_WOOD|HYBRID|IRON|WEDGE|PUTTER|SET|null, productReference: string|null, declaredFacts: array of {field: handedness|handicap|shotTendency|objective|brand|conditionPreference|swingSpeed|setExperience|skill|purchaseTarget|relationship, value: string|number, durable: boolean, semanticStatus: KNOWN|UNKNOWN|NONE|NOT_APPLICABLE|DECLINED}, temporaryPreferences: string[], objection: PRICE|UNCERTAIN_FIT|BRAND|NEW_VS_USED|NEED_TO_THINK|WANT_OTHER_OPTION|null, wantsRecommendation: boolean, wantsHandoff: boolean, answersPendingQuestion: boolean, asksForExplanation: boolean, asksWhatInformationNeeded: boolean, topicChanged: boolean, confidence: number, entities: {purchaseTarget: SELF|OTHER_PERSON, relationship: SPOUSE|CHILD|FRIEND|OTHER|UNKNOWN, playerReference: string|null} }. VALUE AND STATUS ARE DISTINCT: semanticStatus is one of KNOWN|UNKNOWN|NONE|NOT_APPLICABLE|DECLINED; when KNOWN, value must be the canonical value (handedness RIGHT|LEFT, skill BEGINNER|INTERMEDIATE|ADVANCED, setExperience FIRST_SET|CURRENT_PLAYER), never the status itself. If pendingQuestion is supplied, use its expectedValues and allowedStatuses to interpret the answer. Taxonomía category: SET incluye set completo, juego completo de palos, equipo completo de golf y palos completos. Buscar/comprar/mostrar opciones es CATALOG_SEARCH y conserva category aunque no haya fitting; conveniencia es PRODUCT_ADVICE. 'qué necesitas/qué dato te falta' es ASK_WHAT_INFORMATION_NEEDED. Una oferta pendiente START_PRODUCT_ADVICE y un 'sí/dale/revisemos' implican CONFIRMATION. 'principiante' con ASK_PLAYER_SKILL_LEVEL es skill BEGINNER; 'primer set' con ASK_SET_EXPERIENCE es FIRST_SET. Distingue BUYER y PLAYER; los hechos del cónyuge/hijo/amigo pertenecen al PLAYER. Si una familia de golf es clara, no devuelvas category null; OTHER sólo para conversación ajena al dominio. No inventes decisiones de Match, precio, disponibilidad o ranking; las decide el backend.";
-    const rawText = await this.complete(system, payload);
+    const semanticReasonInstruction = " reasonMode debe ser CATALOG_REASON cuando preguntan por qué apareció/muestraste el producto, y PERSONAL_FIT_REASON cuando preguntan por qué les conviene o es para ellos. Incluye siempre reasonMode en el JSON.";
+    const rawText = await this.complete(system + semanticReasonInstruction, payload);
     let parsed: unknown;
     try {
       parsed = JSON.parse(extractJson(rawText));

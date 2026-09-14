@@ -18,7 +18,9 @@ import {
   validateCanonicalFactValue,
   normalizeCanonicalFactStatus,
   FACT_VALUE_DOMAINS,
+  type ConversationProductContext,
 } from "@/lib/best-round-pro/conversation";
+import { getPublicProductBySlug } from "@/lib/catalog/public-products";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
 import type {
   MiGolfEquipment,
@@ -156,7 +158,7 @@ export async function loadMiGolfContext() {
 export async function processConversationTurn(input: {
   state: ConversationState;
   message: string;
-  currentPageProduct?: CatalogProductReference | null;
+  currentPageProduct?: ConversationProductContext | null;
 }) {
   const withFinalReply = <T extends { state: ConversationState; reply: string }>(
     result: T,
@@ -187,7 +189,25 @@ export async function processConversationTurn(input: {
     context = { user: null, profile: null, equipment: [], objectives: [] };
   }
   const fallbackIntent = routeConversationIntent(input.message);
-  let preFocusedProduct = input.currentPageProduct ?? input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
+  let pageProductReference: CatalogProductReference | null = null;
+  if (input.currentPageProduct) {
+    const loaded = await getPublicProductBySlug(input.currentPageProduct.slug);
+    if (loaded.data) {
+      pageProductReference = {
+        id: loaded.data.id,
+        slug: loaded.data.slug,
+        name: loaded.data.name,
+        category: loaded.data.categoryName,
+        condition: loaded.data.condition,
+        price: loaded.data.price,
+        productHref: `/productos/${encodeURIComponent(loaded.data.slug)}`,
+        imagePath: loaded.data.images[0]?.storagePath ?? null,
+        handedness: loaded.data.handedness ?? loaded.data.setSpecs?.handedness ?? null,
+        family: loaded.data.productFamily,
+      };
+    }
+  }
+  let preFocusedProduct = pageProductReference ?? input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
   const provider = getConversationProvider();
   let interpretation: Awaited<ReturnType<NonNullable<typeof provider>["interpretTurn"]>> | null = null;
@@ -402,6 +422,7 @@ export async function processConversationTurn(input: {
   const asksProductReason = interpretation
     ? interpretation.dialogueAct === "ASK_PRODUCT_REASON" || interpretation.asksForExplanation
     : /\bpor\s+que|porque|que\s+viste|por\s+que\s+lo\b/.test(normalizedMessage);
+  const personalFitReason = interpretation?.reasonMode === "PERSONAL_FIT_REASON";
   const socialAct = interpretation?.dialogueAct ?? (intent === "OTHER" ? fallbackSocialIntent(input.message) : null);
   const appendSocialReply = (reply: string, event: string) => ({
     state: { ...updatedState, messages: [...updatedState.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
@@ -436,6 +457,20 @@ export async function processConversationTurn(input: {
     return { state, reply: question, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_CONFIRMED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
   if (asksProductReason && focusedProduct && !updatedState.productAdvice?.active) {
+    if (personalFitReason) {
+      const reply = `Todavía necesito comprobar si ${focusedProduct.name} es adecuado para ti. Empecemos por revisar los datos más importantes de tu juego.`;
+      const state: ConversationState = {
+        ...updatedState,
+        messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+        pendingQuestionKey: "handedness",
+        pendingQuestionCategory: "PRODUCT_ADVICE",
+        pendingQuestionSlotType: "HANDEDNESS",
+        lastFocusedProduct: focusedProduct,
+        productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
+        pendingAssistantOffer: null,
+      };
+      return { state, reply, nextQuestion: null, objection: null, events: ["PERSONAL_FIT_REASON"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+    }
     const targetPhrase = playerPerspective.isSelf ? "encaja contigo" : `encaja con el juego de ${playerPerspective.displayReference}`;
     const reply = `Te mostré ${focusedProduct.name} porque es la opción de set completo disponible que encontré en el catálogo. Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`;
     const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct, pendingAssistantOffer: { action: "START_PRODUCT_ADVICE", targetProductIds: [focusedProduct.id], createdAtTurn: updatedState.messages.length + 1 } };

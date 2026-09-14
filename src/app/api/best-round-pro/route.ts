@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { initialConversationState } from "@/lib/best-round-pro/conversation";
+import { initialConversationState, type ConversationProductContext } from "@/lib/best-round-pro/conversation";
 import { getLastInterpreterTelemetry, processConversationTurn } from "@/lib/best-round-pro/service";
 
 const requestSchema = z.object({
   message: z.string().trim().min(1).max(800),
   currentPageProduct: z.object({
-    id: z.string(), slug: z.string(), name: z.string(), category: z.string().nullable(),
-    condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
-    handedness: z.string().nullable().optional().default(null), family: z.string().nullable().optional().default(null),
+    id: z.string(), slug: z.string(), name: z.string(), productFamily: z.string().nullable(),
   }).nullable().optional().default(null),
   state: z
     .object({
@@ -104,8 +102,10 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  let rawRequestBody: unknown = null;
   try {
-    const body = requestSchema.parse(await request.json());
+    rawRequestBody = await request.json();
+    const body = requestSchema.parse(rawRequestBody) as z.infer<typeof requestSchema> & { currentPageProduct: ConversationProductContext | null };
     const result = await processConversationTurn(body);
     const telemetry = getLastInterpreterTelemetry();
     console.info("best_round_pro_turn_trace", {
@@ -153,8 +153,16 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    if (error instanceof z.ZodError)
+    if (error instanceof z.ZodError) {
+      console.info("best_round_pro_request_validation_error", {
+        issuePaths: error.issues.map((issue) => issue.path.join(".")),
+        issueCodes: error.issues.map((issue) => issue.code),
+        expectedTypes: error.issues.map((issue) => "expected" in issue ? String(issue.expected) : null),
+        receivedTypes: error.issues.map((issue) => "received" in issue ? typeof issue.received : null),
+        hasCurrentPageProduct: Boolean(rawRequestBody && typeof rawRequestBody === "object" && "currentPageProduct" in rawRequestBody && (rawRequestBody as { currentPageProduct?: unknown }).currentPageProduct),
+      });
       return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400 });
+    }
     console.error("best_round_pro_runtime_error", {
       stage: "SERIALIZE_RESPONSE",
       errorCode: error instanceof Error ? error.name : "UNKNOWN_ERROR",

@@ -154,6 +154,13 @@ export type CatalogProductReference = {
   family: string | null;
 };
 
+export type ConversationProductContext = {
+  id: string;
+  slug: string;
+  name: string;
+  productFamily: string | null;
+};
+
 export type ProductAdviceAction =
   | "SURFACE_INCOMPATIBILITY"
   | "ASK_NEXT_QUESTION"
