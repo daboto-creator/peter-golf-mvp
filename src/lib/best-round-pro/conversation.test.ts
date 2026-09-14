@@ -42,6 +42,23 @@ describe("Best Round Pro conversation", () => {
     expect(next).toEqual(previous);
   });
 
+  it("broadens an exhausted SET scope for a generic left-handed continuation", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["SET"], "EXACT", "SET", true, "NO_COMPATIBLE_INVENTORY", "BROADEN_SCOPE", "PREVIOUS_SCOPE_EXHAUSTED");
+    expect(next?.mode).toBe("ALL_EQUIPMENT");
+    expect(next?.families).toContain("SET");
+    expect(next?.families).toContain("DRIVER");
+    expect(next?.source).toBe("INHERITED_CONTEXT");
+  });
+
+  it("lets explicit driver/wedge availability replace an exhausted SET scope", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["DRIVER", "WEDGE"], "MULTI_FAMILY", null, true, "NO_COMPATIBLE_INVENTORY", "REPLACE_SCOPE", "EXPLICIT_CURRENT_TURN");
+    expect(next?.families).toEqual(["DRIVER", "WEDGE"]);
+    expect(next?.mode).toBe("MULTI_FAMILY");
+    expect(next?.families).not.toContain("SET");
+  });
+
   it("separates canonical fact values from semantic statuses", () => {
     const question = getNextProductAdviceQuestion({ answers: {} });
     expect(question?.expectedValues).toEqual(["RIGHT", "LEFT"]);

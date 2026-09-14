@@ -69,6 +69,8 @@ export type ConversationInterpreterTelemetry = {
   declaredFactStatuses?: string[];
   declaredFacts?: Array<{ key: string; canonicalValue: string | number | null; status: string }>;
   requestedProductFamilies?: string[];
+  searchContinuationRelation?: string | null;
+  searchContinuationReason?: string | null;
   semanticStateChanged?: boolean;
   playerFactsChanged?: boolean;
   pendingQuestionChanged?: boolean;
@@ -92,6 +94,8 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   declaredFactStatuses: [],
   declaredFacts: [],
   requestedProductFamilies: [],
+  searchContinuationRelation: null,
+  searchContinuationReason: null,
 };
 
 export function getLastInterpreterTelemetry() {
@@ -248,6 +252,9 @@ export async function processConversationTurn(input: {
           recentTurns: input.state.messages.slice(-6),
           focusedProduct: preFocusedProduct ? { name: preFocusedProduct.name, family: preFocusedProduct.family } : null,
           activeAdvice: Boolean(input.state.productAdvice?.active),
+          previousSearchFamilies: input.state.searchScope?.families ?? [],
+          previousSearchOutcome: input.state.searchOutcome,
+          lastExecutedAction: input.state.lastExecutedAction,
           participantContext: {
             relationToBuyer: input.state.participants.player.relationToBuyer,
             displayReference: input.state.participants.player.displayReference,
@@ -291,6 +298,8 @@ export async function processConversationTurn(input: {
           status: fact.semanticStatus,
         })),
         requestedProductFamilies: interpretation.requestedProductFamilies,
+        searchContinuationRelation: interpretation.searchContinuationRelation,
+        searchContinuationReason: interpretation.searchContinuationReason,
       };
     } catch (error) {
       lastInterpreterTelemetry = {
@@ -391,6 +400,9 @@ export async function processConversationTurn(input: {
     interpretation?.searchScopeMode,
     interpretation?.category,
     interpretation?.dialogueAct === "CATALOG_SEARCH",
+    input.state.searchOutcome,
+    interpretation?.searchContinuationRelation,
+    interpretation?.searchContinuationReason,
   );
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
@@ -412,6 +424,12 @@ export async function processConversationTurn(input: {
       ? { ...input.state.productAdvice, pendingQuestionKey: null }
       : input.state.productAdvice,
     searchScope: resolvedSearchScope,
+    searchContinuation: interpretation?.searchContinuationRelation
+      ? {
+          relation: interpretation.searchContinuationRelation,
+          reason: interpretation.searchContinuationReason ?? "EXPLICIT_CURRENT_TURN",
+        }
+      : null,
   };
   lastInterpreterTelemetry.playerFactsChanged = canonicalFacts.length > 0;
   lastInterpreterTelemetry.pendingQuestionChanged = (pendingKey ?? null) !== (answeredPending ? null : pendingKey ?? null);
@@ -470,6 +488,7 @@ export async function processConversationTurn(input: {
       pendingQuestionSlotType: "HANDEDNESS",
       pendingAssistantOffer: null,
       productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
+      lastExecutedAction: "START_PRODUCT_ADVICE",
     };
     return { state, reply: question, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_CONFIRMED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
@@ -485,12 +504,13 @@ export async function processConversationTurn(input: {
         lastFocusedProduct: focusedProduct,
         productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
         pendingAssistantOffer: null,
+        lastExecutedAction: "START_PRODUCT_ADVICE",
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PERSONAL_FIT_REASON"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     const targetPhrase = playerPerspective.isSelf ? "encaja contigo" : `encaja con el juego de ${playerPerspective.displayReference}`;
     const reply = `Te mostré ${focusedProduct.name} porque es la opción de set completo disponible que encontré en el catálogo. Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`;
-    const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct, pendingAssistantOffer: { action: "START_PRODUCT_ADVICE", targetProductIds: [focusedProduct.id], createdAtTurn: updatedState.messages.length + 1 } };
+    const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct, pendingAssistantOffer: { action: "START_PRODUCT_ADVICE", targetProductIds: [focusedProduct.id], createdAtTurn: updatedState.messages.length + 1 }, lastExecutedAction: "EXPLAIN_CATALOG_REASON" };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
   if (asksProductAdvice || (!answeredPending && asksWhatData && focusedProduct && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
@@ -555,6 +575,8 @@ export async function processConversationTurn(input: {
         lastFocusedProduct: focusedProduct,
         productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
         participants,
+        searchOutcome: "HARD_INCOMPATIBLE",
+        lastExecutedAction: "RETURN_HARD_INCOMPATIBILITY",
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, catalogProducts: alternatives.products, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
@@ -634,7 +656,7 @@ export async function processConversationTurn(input: {
             products: result.products,
             error: result.error,
             message: result.products.length
-              ? `Encontré ${result.products.length} opciones compatibles${handLabel}.`
+              ? `Encontré ${result.products.length} opciones disponibles${handLabel}.`
               : `Ahora mismo no tengo ${scopeLabel}${handLabel} disponibles.`,
           };
         })
@@ -666,6 +688,12 @@ export async function processConversationTurn(input: {
       lastFocusedProduct: references.length === 1 ? references[0] : updatedState.lastFocusedProduct,
       productAdvice: { active: false, product: null, pendingQuestionKey: null, collectedAnswers: {} },
       pendingAssistantOffer: null,
+      searchOutcome: catalog.products.length > 0
+        ? "RESULTS_FOUND"
+        : requestedHand === "LEFT" || requestedHand === "RIGHT"
+          ? "NO_COMPATIBLE_INVENTORY"
+          : "NO_INVENTORY",
+      lastExecutedAction: catalog.products.length > 0 ? "SHOW_CATALOG_RESULTS" : "RETURN_NO_COMPATIBLE_INVENTORY",
     };
     return {
       state,

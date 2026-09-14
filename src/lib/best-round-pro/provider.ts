@@ -36,6 +36,8 @@ export const conversationInterpretationSchema = z.object({
     .nullable(),
   requestedProductFamilies: z.array(z.enum(["DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER", "SET"])).max(6).default([]),
   searchScopeMode: z.enum(["EXACT", "MULTI_FAMILY", "ALL_CLUBS", "ALL_EQUIPMENT"]).nullable().default(null),
+  searchContinuationRelation: z.enum(["KEEP_SCOPE", "BROADEN_SCOPE", "REPLACE_SCOPE"]).nullable().default(null),
+  searchContinuationReason: z.enum(["EXPLICIT_CURRENT_TURN", "ELLIPTICAL_CONTINUATION", "PREVIOUS_SCOPE_EXHAUSTED"]).nullable().default(null),
   productReference: z.string().max(120).nullable(),
   reasonMode: z.enum(["CATALOG_REASON", "PERSONAL_FIT_REASON"]).nullable().default(null),
   declaredFacts: z.array(factSchema).max(8),
@@ -89,6 +91,8 @@ export function normalizeInterpretationShape(raw: unknown) {
     category,
     requestedProductFamilies: Array.isArray(value.requestedProductFamilies) ? value.requestedProductFamilies : [],
     searchScopeMode: value.searchScopeMode ?? null,
+    searchContinuationRelation: value.searchContinuationRelation ?? null,
+    searchContinuationReason: value.searchContinuationReason ?? null,
     productReference: value.productReference ?? null,
     reasonMode: value.reasonMode ?? null,
     declaredFacts: Array.isArray(value.declaredFacts) ? value.declaredFacts : [],
@@ -137,6 +141,9 @@ export type SafeConversationPayload = {
     recentTurns: Array<{ role: "user" | "assistant"; content: string }>;
     focusedProduct: { name: string; family: string | null } | null;
     activeAdvice: boolean;
+    previousSearchFamilies?: string[];
+    previousSearchOutcome?: string | null;
+    lastExecutedAction?: string | null;
     participantContext?: { relationToBuyer: string; displayReference: string };
     pendingQuestion?: {
       key: string;
@@ -231,7 +238,7 @@ class OpenAICompatibleProvider implements BestRoundConversationProvider {
   ) {
     const system =
       "Eres Best Round Pro y debes devolver exactamente este contrato JSON. Interpreta significado, no frases exactas. OUTPUT CONTRACT: { dialogueAct: CATALOG_SEARCH|PRODUCT_ADVICE|ASK_PRODUCT_REASON|ASK_PRODUCT_DETAILS|ASK_COMPARISON|ANSWER_PENDING_QUESTION|ASK_WHAT_INFORMATION_NEEDED|CHANGE_PRODUCT|CHANGE_TOPIC|FITTING_REQUEST|STORE_QUESTION|GENERAL_GOLF|CONFIRMATION|CORRECTION|GREETING|THANKS|GOODBYE|SMALL_TALK|HELP_REQUEST|CLARIFICATION|USER_FRUSTRATION|GENERAL_QUESTION|PRODUCT_DETAILS|OTHER, intent: BUY_NOW|EXPLORING|ACTIVE_RESEARCH|UNKNOWN, category: DRIVER|FAIRWAY_WOOD|HYBRID|IRON|WEDGE|PUTTER|SET|null, productReference: string|null, declaredFacts: array of {field: handedness|handicap|shotTendency|objective|brand|conditionPreference|swingSpeed|setExperience|skill|purchaseTarget|relationship, value: string|number, durable: boolean, semanticStatus: KNOWN|UNKNOWN|NONE|NOT_APPLICABLE|DECLINED}, temporaryPreferences: string[], objection: PRICE|UNCERTAIN_FIT|BRAND|NEW_VS_USED|NEED_TO_THINK|WANT_OTHER_OPTION|null, wantsRecommendation: boolean, wantsHandoff: boolean, answersPendingQuestion: boolean, asksForExplanation: boolean, asksWhatInformationNeeded: boolean, topicChanged: boolean, confidence: number, entities: {purchaseTarget: SELF|OTHER_PERSON, relationship: SPOUSE|CHILD|FRIEND|OTHER|UNKNOWN, playerReference: string|null} }. VALUE AND STATUS ARE DISTINCT: semanticStatus is one of KNOWN|UNKNOWN|NONE|NOT_APPLICABLE|DECLINED; when KNOWN, value must be the canonical value (handedness RIGHT|LEFT, skill BEGINNER|INTERMEDIATE|ADVANCED, setExperience FIRST_SET|CURRENT_PLAYER), never the status itself. If pendingQuestion is supplied, use its expectedValues and allowedStatuses to interpret the answer. Taxonomía category: SET incluye set completo, juego completo de palos, equipo completo de golf y palos completos. Buscar/comprar/mostrar opciones es CATALOG_SEARCH y conserva category aunque no haya fitting; conveniencia es PRODUCT_ADVICE. 'qué necesitas/qué dato te falta' es ASK_WHAT_INFORMATION_NEEDED. Una oferta pendiente START_PRODUCT_ADVICE y un 'sí/dale/revisemos' implican CONFIRMATION. 'principiante' con ASK_PLAYER_SKILL_LEVEL es skill BEGINNER; 'primer set' con ASK_SET_EXPERIENCE es FIRST_SET. Distingue BUYER y PLAYER; los hechos del cónyuge/hijo/amigo pertenecen al PLAYER. Si una familia de golf es clara, no devuelvas category null; OTHER sólo para conversación ajena al dominio. No inventes decisiones de Match, precio, disponibilidad o ranking; las decide el backend.";
-    const semanticReasonInstruction = " reasonMode debe ser CATALOG_REASON cuando preguntan por qué apareció/muestraste el producto, y PERSONAL_FIT_REASON cuando preguntan por qué les conviene o es para ellos. Incluye siempre reasonMode en el JSON. El contrato también exige requestedProductFamilies: array de DRIVER|FAIRWAY_WOOD|HYBRID|IRON|WEDGE|PUTTER|SET (vacío si no hay búsqueda explícita) y searchScopeMode: EXACT|MULTI_FAMILY|ALL_CLUBS|ALL_EQUIPMENT|null. Para búsquedas devuelve driver=DRIVER, wedge=WEDGE, putter=PUTTER, set=SET; 'otro bastón' usa requestedProductFamilies con DRIVER, FAIRWAY_WOOD, HYBRID, IRON, WEDGE, PUTTER y searchScopeMode=ALL_CLUBS; dos familias usa MULTI_FAMILY. Una búsqueda explícita reemplaza el alcance anterior, pero conserva hechos del jugador.";
+    const semanticReasonInstruction = " reasonMode debe ser CATALOG_REASON cuando preguntan por qué apareció/muestraste el producto, y PERSONAL_FIT_REASON cuando preguntan por qué les conviene o es para ellos. Incluye siempre reasonMode en el JSON. El contrato también exige requestedProductFamilies: array de DRIVER|FAIRWAY_WOOD|HYBRID|IRON|WEDGE|PUTTER|SET (vacío si no hay búsqueda explícita), searchScopeMode: EXACT|MULTI_FAMILY|ALL_CLUBS|ALL_EQUIPMENT|null, searchContinuationRelation: KEEP_SCOPE|BROADEN_SCOPE|REPLACE_SCOPE|null y searchContinuationReason: EXPLICIT_CURRENT_TURN|ELLIPTICAL_CONTINUATION|PREVIOUS_SCOPE_EXHAUSTED|null. Para búsquedas devuelve driver=DRIVER, wedge=WEDGE, putter=PUTTER, set=SET; 'otro bastón' usa ALL_CLUBS; una consulta genérica después de NO_COMPATIBLE_INVENTORY en SET usa BROADEN_SCOPE y ALL_EQUIPMENT. 'que tienes para zurdo' en ese contexto busca SET y clubes relevantes, no sólo SET. 'tienes un driver o un wedge?' y 'muéstrame drivers o wedges' son CATALOG_SEARCH con requestedProductFamilies=[DRIVER,WEDGE] y MULTI_FAMILY; sólo preguntas que pidan comparar o cuál conviene son ASK_COMPARISON. Una búsqueda explícita reemplaza el alcance anterior, pero conserva hechos del jugador.";
     const rawText = await this.complete(system + semanticReasonInstruction, payload);
     let parsed: unknown;
     try {

@@ -102,6 +102,12 @@ const requestSchema = z.object({
         mode: z.enum(["EXACT", "MULTI_FAMILY", "ALL_CLUBS", "ALL_EQUIPMENT"]),
         source: z.enum(["EXPLICIT_CURRENT_TURN", "INHERITED_CONTEXT"]),
       }).nullable().optional().default(null),
+      searchOutcome: z.enum(["RESULTS_FOUND", "NO_COMPATIBLE_INVENTORY", "NO_INVENTORY", "HARD_INCOMPATIBLE"]).nullable().optional().default(null),
+      lastExecutedAction: z.string().nullable().optional().default(null),
+      searchContinuation: z.object({
+        relation: z.enum(["KEEP_SCOPE", "BROADEN_SCOPE", "REPLACE_SCOPE"]),
+        reason: z.enum(["EXPLICIT_CURRENT_TURN", "ELLIPTICAL_CONTINUATION", "PREVIOUS_SCOPE_EXHAUSTED"]),
+      }).nullable().optional().default(null),
     })
     .default(initialConversationState()),
 });
@@ -147,9 +153,14 @@ export async function POST(request: Request) {
       focusedProductFamily: result.state.lastFocusedProduct?.family ?? result.state.productAdvice.product?.family ?? null,
       previousSearchFamilies: body.state.searchScope?.families ?? [],
       interpretedRequestedFamilies: telemetry.requestedProductFamilies ?? [],
+      previousSearchOutcome: body.state.searchOutcome ?? null,
+      lastExecutedAction: result.state.lastExecutedAction,
       activeSearchFamilies: result.state.searchScope?.families ?? [],
       searchScopeMode: result.state.searchScope?.mode ?? null,
       searchScopeSource: result.state.searchScope?.source ?? null,
+      searchContinuationRelation: telemetry.searchContinuationRelation ?? result.state.searchContinuation?.relation ?? null,
+      searchContinuationReason: telemetry.searchContinuationReason ?? result.state.searchContinuation?.reason ?? null,
+      playerHandedness: result.state.session.diagnosticAnswers.handedness ?? null,
       pendingBefore: body.state.pendingQuestionKey,
       pendingAfter: result.state.pendingQuestionKey,
       stateChanged: JSON.stringify(body.state.session) !== JSON.stringify(result.state.session),
