@@ -42,3 +42,21 @@ export async function searchCompleteSetAlternatives(handedness: "LEFT" | "RIGHT"
   const result = await listPublicProducts({ family: "set", available: true, handedness: handedness.toLowerCase() as "left" | "right" });
   return result.error ? { products: [], error: true } : { products: result.data.slice(0, 3), error: false };
 }
+
+export async function searchCatalogScope(input: {
+  families: string[];
+  handedness?: "LEFT" | "RIGHT";
+}) {
+  const result = await listPublicProducts({ available: true });
+  if (result.error) return { products: [], error: true };
+  const familyMatches = (product: PublicProductSummary, family: string) => {
+    if (family === "SET") return product.productFamily === "set";
+    const clubType = family.toLowerCase() === "fairway_wood" ? "fairway_wood" : family.toLowerCase();
+    return product.productFamily === "club" && product.clubType === clubType;
+  };
+  const products = result.data.filter((product) =>
+    input.families.some((family) => familyMatches(product, family)) &&
+    (!input.handedness || product.handedness === input.handedness.toLowerCase()),
+  ).slice(0, 3);
+  return { products, error: false };
+}

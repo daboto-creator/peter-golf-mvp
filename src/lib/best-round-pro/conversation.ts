@@ -57,6 +57,7 @@ export type ConversationState = {
     consecutiveSameQuestionCount: number;
     lastSemanticFingerprint: string | null;
   };
+  searchScope: SearchScope | null;
 };
 
 export type FactStatus = "KNOWN" | "UNKNOWN" | "NONE" | "NOT_APPLICABLE" | "DECLINED";
@@ -160,6 +161,43 @@ export type ConversationProductContext = {
   name: string;
   productFamily: string | null;
 };
+
+export type SearchScope = {
+  families: ProductFamily[];
+  mode: "EXACT" | "MULTI_FAMILY" | "ALL_CLUBS" | "ALL_EQUIPMENT";
+  source: "EXPLICIT_CURRENT_TURN" | "INHERITED_CONTEXT";
+};
+
+export const ALL_CLUB_FAMILIES: ProductFamily[] = [
+  "DRIVER",
+  "FAIRWAY_WOOD",
+  "HYBRID",
+  "IRON",
+  "WEDGE",
+  "PUTTER",
+];
+
+export function resolveSearchScope(
+  previous: SearchScope | null,
+  requestedFamilies: ProductFamily[],
+  requestedMode: SearchScope["mode"] | null | undefined,
+  category: ProductFamily | null | undefined,
+  isCatalogSearch: boolean,
+): SearchScope | null {
+  const explicitFamilies = requestedFamilies.length
+    ? requestedFamilies
+    : isCatalogSearch && category
+      ? [category]
+      : [];
+  const mode = requestedMode ??
+    (explicitFamilies.length > 1 ? "MULTI_FAMILY" : explicitFamilies.length === 1 ? "EXACT" : null);
+  if (!explicitFamilies.length && mode !== "ALL_CLUBS") return previous;
+  return {
+    families: explicitFamilies.length ? explicitFamilies : ALL_CLUB_FAMILIES,
+    mode: mode ?? "ALL_CLUBS",
+    source: "EXPLICIT_CURRENT_TURN",
+  };
+}
 
 export type ProductAdviceAction =
   | "SURFACE_INCOMPATIBILITY"
@@ -266,6 +304,7 @@ export function initialConversationState(): ConversationState {
     },
     pendingAssistantOffer: null,
     conversationLoop: { lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null },
+    searchScope: null,
   };
 }
 
@@ -738,6 +777,7 @@ export function classifyConversationTurn(
     participants: state.participants,
     pendingAssistantOffer: state.pendingAssistantOffer,
     conversationLoop: state.conversationLoop,
+    searchScope: state.searchScope,
   };
   return { state: nextState, reply, nextQuestion: next, objection, events };
 }

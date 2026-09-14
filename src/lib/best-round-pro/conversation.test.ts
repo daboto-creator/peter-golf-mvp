@@ -15,10 +15,33 @@ import {
   validateCanonicalFactValue,
   normalizeCanonicalFactStatus,
   validateInterpretationAgainstContext,
+  resolveSearchScope,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
 describe("Best Round Pro conversation", () => {
+  it("replaces an inherited SET scope with an explicit multi-family scope", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["DRIVER", "WEDGE"], "MULTI_FAMILY", null, true);
+    expect(next?.families).toEqual(["DRIVER", "WEDGE"]);
+    expect(next?.mode).toBe("MULTI_FAMILY");
+    expect(next?.source).toBe("EXPLICIT_CURRENT_TURN");
+  });
+
+  it("broadens an inherited SET scope to ALL_CLUBS without dropping player facts", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, [], "ALL_CLUBS", null, true);
+    expect(next?.families).toEqual(["DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER"]);
+    expect(next?.families).not.toContain("SET");
+    expect(next?.mode).toBe("ALL_CLUBS");
+  });
+
+  it("inherits SET only when the new turn has no explicit catalog scope", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, [], null, null, true);
+    expect(next).toEqual(previous);
+  });
+
   it("separates canonical fact values from semantic statuses", () => {
     const question = getNextProductAdviceQuestion({ answers: {} });
     expect(question?.expectedValues).toEqual(["RIGHT", "LEFT"]);

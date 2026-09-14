@@ -97,6 +97,11 @@ const requestSchema = z.object({
         consecutiveSameQuestionCount: z.number().int().nonnegative(),
         lastSemanticFingerprint: z.string().nullable(),
       }).optional().default({ lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null }),
+      searchScope: z.object({
+        families: z.array(z.enum(["DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER", "SET"])),
+        mode: z.enum(["EXACT", "MULTI_FAMILY", "ALL_CLUBS", "ALL_EQUIPMENT"]),
+        source: z.enum(["EXPLICIT_CURRENT_TURN", "INHERITED_CONTEXT"]),
+      }).nullable().optional().default(null),
     })
     .default(initialConversationState()),
 });
@@ -108,6 +113,17 @@ export async function POST(request: Request) {
     const body = requestSchema.parse(rawRequestBody) as z.infer<typeof requestSchema> & { currentPageProduct: ConversationProductContext | null };
     const result = await processConversationTurn(body);
     const telemetry = getLastInterpreterTelemetry();
+    const plannedAction = "catalogProducts" in result
+      ? ((result.catalogProducts?.length ?? 0) > 0 ? "SHOW_CATALOG_RESULTS" : "RETURN_NO_COMPATIBLE_INVENTORY")
+      : result.events.includes("PRODUCT_ADVICE_HARD_INCOMPATIBILITY")
+        ? "RETURN_HARD_INCOMPATIBILITY"
+        : result.nextQuestion
+          ? "ASK_NEXT_QUESTION"
+          : result.recommendation
+            ? "RUN_RECOMMENDATION"
+            : "intent" in result && result.intent === "PRODUCT_ADVICE"
+              ? "START_PRODUCT_ADVICE"
+              : "RETURN_TERMINAL_OUTCOME";
     console.info("best_round_pro_turn_trace", {
       providerSucceeded: telemetry.providerSucceeded,
       providerCalled: telemetry.providerCalled,
@@ -128,12 +144,18 @@ export async function POST(request: Request) {
       playerFactsChanged: telemetry.playerFactsChanged,
       pendingQuestionChanged: telemetry.pendingQuestionChanged,
       productFamily: result.state.session.requestedCategory,
+      focusedProductFamily: result.state.lastFocusedProduct?.family ?? result.state.productAdvice.product?.family ?? null,
+      previousSearchFamilies: body.state.searchScope?.families ?? [],
+      interpretedRequestedFamilies: telemetry.requestedProductFamilies ?? [],
+      activeSearchFamilies: result.state.searchScope?.families ?? [],
+      searchScopeMode: result.state.searchScope?.mode ?? null,
+      searchScopeSource: result.state.searchScope?.source ?? null,
       pendingBefore: body.state.pendingQuestionKey,
       pendingAfter: result.state.pendingQuestionKey,
       stateChanged: JSON.stringify(body.state.session) !== JSON.stringify(result.state.session),
       nextQuestionKey: result.nextQuestion?.id ?? result.state.pendingQuestionKey,
-      plannedAction: result.recommendation ? "RUN_RECOMMENDATION" : result.nextQuestion ? "ASK_NEXT_QUESTION" : "RETURN_TERMINAL_OUTCOME",
-      executedAction: result.recommendation ? "RUN_RECOMMENDATION" : result.nextQuestion ? "ASK_NEXT_QUESTION" : "RETURN_TERMINAL_OUTCOME",
+      plannedAction,
+      executedAction: plannedAction,
       stallDetected: (result.state.conversationLoop?.consecutiveSameQuestionCount ?? 0) >= 2,
     });
     return NextResponse.json({

@@ -12,6 +12,7 @@ import {
   evaluateFocusedProductAgainstKnownFacts,
   getNextProductAdviceQuestion,
   getPlayerPerspective,
+  resolveSearchScope,
   questionPromptFor,
   validateInterpretationAgainstContext,
   normalizeStructuredFactValue,
@@ -46,7 +47,7 @@ import {
   normalizeConversationText,
   fallbackSocialIntent,
 } from "@/lib/best-round-pro/intent-router";
-import { searchCommercialCatalog, searchCompleteSetAlternatives } from "@/lib/best-round-pro/catalog-search";
+import { searchCommercialCatalog, searchCompleteSetAlternatives, searchCatalogScope } from "@/lib/best-round-pro/catalog-search";
 import type { CatalogProductReference } from "@/lib/best-round-pro/conversation";
 
 type ProfileRow = Record<string, unknown>;
@@ -67,6 +68,7 @@ export type ConversationInterpreterTelemetry = {
   declaredFactKeys?: string[];
   declaredFactStatuses?: string[];
   declaredFacts?: Array<{ key: string; canonicalValue: string | number | null; status: string }>;
+  requestedProductFamilies?: string[];
   semanticStateChanged?: boolean;
   playerFactsChanged?: boolean;
   pendingQuestionChanged?: boolean;
@@ -89,6 +91,7 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   declaredFactKeys: [],
   declaredFactStatuses: [],
   declaredFacts: [],
+  requestedProductFamilies: [],
 };
 
 export function getLastInterpreterTelemetry() {
@@ -287,6 +290,7 @@ export async function processConversationTurn(input: {
           canonicalValue: typeof fact.value === "string" || typeof fact.value === "number" ? normalizeStructuredFactValue(fact.field, fact.value) : null,
           status: fact.semanticStatus,
         })),
+        requestedProductFamilies: interpretation.requestedProductFamilies,
       };
     } catch (error) {
       lastInterpreterTelemetry = {
@@ -381,6 +385,13 @@ export async function processConversationTurn(input: {
       .filter((fact) => fact.semanticStatus === "KNOWN")
       .map((fact) => fact.field),
   );
+  const resolvedSearchScope = resolveSearchScope(
+    input.state.searchScope,
+    interpretation?.requestedProductFamilies ?? [],
+    interpretation?.searchScopeMode,
+    interpretation?.category,
+    interpretation?.dialogueAct === "CATALOG_SEARCH",
+  );
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
   const updatedState: ConversationState = {
@@ -400,6 +411,7 @@ export async function processConversationTurn(input: {
     productAdvice: answeredPending && input.state.productAdvice
       ? { ...input.state.productAdvice, pendingQuestionKey: null }
       : input.state.productAdvice,
+    searchScope: resolvedSearchScope,
   };
   lastInterpreterTelemetry.playerFactsChanged = canonicalFacts.length > 0;
   lastInterpreterTelemetry.pendingQuestionChanged = (pendingKey ?? null) !== (answeredPending ? null : pendingKey ?? null);
@@ -600,16 +612,33 @@ export async function processConversationTurn(input: {
   }
   if (isCatalogIntent(intent)) {
     const requestedHand = updatedState.session.diagnosticAnswers.handedness;
-    const constrainedSetSearch = interpretation?.category === "SET" && (requestedHand === "LEFT" || requestedHand === "RIGHT");
-    const catalog = await (constrainedSetSearch
-      ? await searchCompleteSetAlternatives(requestedHand as "LEFT" | "RIGHT").then((result) => ({
-          products: result.products,
-          error: result.error,
-          message: result.products.length
-            ? `Encontré ${result.products.length} set${result.products.length === 1 ? "" : "s"} completo${result.products.length === 1 ? "" : "s"} compatibles.`
-            : `Ahora mismo no tengo un set completo para ${requestedHand === "LEFT" ? "zurdo" : "diestro"} disponible.`,
-        }))
-      : searchCommercialCatalog(input.message));
+    const scopeFamilies = updatedState.searchScope?.families ?? (interpretation?.category ? [interpretation.category] : []);
+    const familyLabels: Record<string, string> = {
+      DRIVER: "drivers",
+      FAIRWAY_WOOD: "maderas de calle",
+      HYBRID: "híbridos",
+      IRON: "hierros",
+      WEDGE: "wedges",
+      PUTTER: "putters",
+      SET: "sets completos",
+    };
+    const catalog = scopeFamilies.length > 0
+      ? await searchCatalogScope({
+          families: scopeFamilies,
+          handedness: requestedHand === "LEFT" || requestedHand === "RIGHT" ? requestedHand : undefined,
+        }).then((result) => {
+          const labels = scopeFamilies.map((family) => familyLabels[family] ?? family.toLowerCase());
+          const scopeLabel = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} y ${labels.at(-1)}` : labels[0];
+          const handLabel = requestedHand === "LEFT" ? " para zurdo" : requestedHand === "RIGHT" ? " para diestro" : "";
+          return {
+            products: result.products,
+            error: result.error,
+            message: result.products.length
+              ? `Encontré ${result.products.length} opciones compatibles${handLabel}.`
+              : `Ahora mismo no tengo ${scopeLabel}${handLabel} disponibles.`,
+          };
+        })
+      : await searchCommercialCatalog(input.message);
     const reply = catalog.message;
     const references: CatalogProductReference[] = catalog.products.map((product) => ({
       id: product.id,
@@ -634,7 +663,7 @@ export async function processConversationTurn(input: {
       pendingQuestionCategory: null,
       pendingQuestionSlotType: null,
       lastCatalogResults: references,
-      lastFocusedProduct: references.length === 1 ? references[0] : null,
+      lastFocusedProduct: references.length === 1 ? references[0] : updatedState.lastFocusedProduct,
       productAdvice: { active: false, product: null, pendingQuestionKey: null, collectedAnswers: {} },
       pendingAssistantOffer: null,
     };

@@ -31,4 +31,34 @@ describe("conversation interpretation contract", () => {
     expect(parsed.dialogueAct).toBe("ANSWER_PENDING_QUESTION");
     expect(parsed.wantsRecommendation).toBe(false);
   });
+
+  it("keeps explicit multi-family search scope separate from product category", () => {
+    const parsed = conversationInterpretationSchema.parse(
+      normalizeInterpretationShape({
+        dialogueAct: "CATALOG_SEARCH",
+        intent: "ACTIVE_RESEARCH",
+        category: null,
+        requestedProductFamilies: ["DRIVER", "WEDGE"],
+        searchScopeMode: "MULTI_FAMILY",
+        confidence: 0.95,
+      }),
+    );
+    expect(parsed.requestedProductFamilies).toEqual(["DRIVER", "WEDGE"]);
+    expect(parsed.searchScopeMode).toBe("MULTI_FAMILY");
+  });
+
+  it("represents an all-clubs broadening without inheriting SET", () => {
+    const parsed = conversationInterpretationSchema.parse(
+      normalizeInterpretationShape({
+        dialogueAct: "CATALOG_SEARCH",
+        intent: "ACTIVE_RESEARCH",
+        category: null,
+        requestedProductFamilies: ["DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER"],
+        searchScopeMode: "ALL_CLUBS",
+        confidence: 0.95,
+      }),
+    );
+    expect(parsed.requestedProductFamilies).not.toContain("SET");
+    expect(parsed.searchScopeMode).toBe("ALL_CLUBS");
+  });
 });
