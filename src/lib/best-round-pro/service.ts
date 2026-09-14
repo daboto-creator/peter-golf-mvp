@@ -71,6 +71,7 @@ export type ConversationInterpreterTelemetry = {
   requestedProductFamilies?: string[];
   searchContinuationRelation?: string | null;
   searchContinuationReason?: string | null;
+  catalogScopeIntent?: string | null;
   semanticStateChanged?: boolean;
   playerFactsChanged?: boolean;
   pendingQuestionChanged?: boolean;
@@ -96,6 +97,7 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   requestedProductFamilies: [],
   searchContinuationRelation: null,
   searchContinuationReason: null,
+  catalogScopeIntent: null,
 };
 
 export function getLastInterpreterTelemetry() {
@@ -253,7 +255,7 @@ export async function processConversationTurn(input: {
           focusedProduct: preFocusedProduct ? { name: preFocusedProduct.name, family: preFocusedProduct.family } : null,
           activeAdvice: Boolean(input.state.productAdvice?.active),
           previousSearchFamilies: input.state.searchScope?.families ?? [],
-          previousSearchOutcome: input.state.searchOutcome,
+          previousSearchOutcome: input.state.catalogSearchOutcome,
           lastExecutedAction: input.state.lastExecutedAction,
           participantContext: {
             relationToBuyer: input.state.participants.player.relationToBuyer,
@@ -300,6 +302,7 @@ export async function processConversationTurn(input: {
         requestedProductFamilies: interpretation.requestedProductFamilies,
         searchContinuationRelation: interpretation.searchContinuationRelation,
         searchContinuationReason: interpretation.searchContinuationReason,
+        catalogScopeIntent: interpretation.catalogScopeIntent,
       };
     } catch (error) {
       lastInterpreterTelemetry = {
@@ -375,6 +378,10 @@ export async function processConversationTurn(input: {
   }));
   for (const fact of canonicalFacts) {
     participants.player.facts[fact.field] = { status: fact.semanticStatus, value: fact.value, confidence: interpretation?.confidence ?? 1, source: "USER" };
+    if (fact.field === "handedness" && fact.semanticStatus === "KNOWN" && (fact.value === "LEFT" || fact.value === "RIGHT")) {
+      const applied = participants.player.facts.handedness?.value;
+      if (applied !== fact.value) throw new Error("CANONICAL_FACT_APPLICATION_FAILED");
+    }
   }
   const interpretedAnswers = Object.fromEntries(
     canonicalFacts.map((fact) => [
@@ -400,9 +407,10 @@ export async function processConversationTurn(input: {
     interpretation?.searchScopeMode,
     interpretation?.category,
     interpretation?.dialogueAct === "CATALOG_SEARCH",
-    input.state.searchOutcome,
+    input.state.catalogSearchOutcome,
     interpretation?.searchContinuationRelation,
     interpretation?.searchContinuationReason,
+    interpretation?.catalogScopeIntent,
   );
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
@@ -430,6 +438,8 @@ export async function processConversationTurn(input: {
           reason: interpretation.searchContinuationReason ?? "EXPLICIT_CURRENT_TURN",
         }
       : null,
+    catalogSearchOutcome: input.state.catalogSearchOutcome,
+    compatibilityOutcome: input.state.compatibilityOutcome,
   };
   lastInterpreterTelemetry.playerFactsChanged = canonicalFacts.length > 0;
   lastInterpreterTelemetry.pendingQuestionChanged = (pendingKey ?? null) !== (answeredPending ? null : pendingKey ?? null);
@@ -545,7 +555,7 @@ export async function processConversationTurn(input: {
   }
   if (focusedProduct && (updatedState.productAdvice?.active || updatedState.pendingQuestionCategory === "PRODUCT_ADVICE")) {
     const answers = { ...updatedState.session.diagnosticAnswers };
-    for (const fact of interpretation?.declaredFacts ?? []) {
+    for (const fact of canonicalFacts) {
       if (["handedness", "handicap", "setExperience", "skill", "objective"].includes(fact.field))
         answers[fact.field] = fact.semanticStatus === "NONE" ? "NONE" : fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" : fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value;
     }
@@ -575,7 +585,8 @@ export async function processConversationTurn(input: {
         lastFocusedProduct: focusedProduct,
         productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
         participants,
-        searchOutcome: "HARD_INCOMPATIBLE",
+        catalogSearchOutcome: alternatives.products.length ? "RESULTS_FOUND" : "NO_COMPATIBLE_INVENTORY",
+        compatibilityOutcome: "HARD_INCOMPATIBLE",
         lastExecutedAction: "RETURN_HARD_INCOMPATIBILITY",
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, catalogProducts: alternatives.products, outcome: null, intent: "PRODUCT_ADVICE" as const };
@@ -652,11 +663,12 @@ export async function processConversationTurn(input: {
           const labels = scopeFamilies.map((family) => familyLabels[family] ?? family.toLowerCase());
           const scopeLabel = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} y ${labels.at(-1)}` : labels[0];
           const handLabel = requestedHand === "LEFT" ? " para zurdo" : requestedHand === "RIGHT" ? " para diestro" : "";
+          const availabilityLabel = result.products.length === 1 ? "1 opción disponible" : `${result.products.length} opciones disponibles`;
           return {
             products: result.products,
             error: result.error,
             message: result.products.length
-              ? `Encontré ${result.products.length} opciones disponibles${handLabel}.`
+              ? `Encontré ${availabilityLabel}${handLabel}.`
               : `Ahora mismo no tengo ${scopeLabel}${handLabel} disponibles.`,
           };
         })
@@ -688,7 +700,7 @@ export async function processConversationTurn(input: {
       lastFocusedProduct: references.length === 1 ? references[0] : updatedState.lastFocusedProduct,
       productAdvice: { active: false, product: null, pendingQuestionKey: null, collectedAnswers: {} },
       pendingAssistantOffer: null,
-      searchOutcome: catalog.products.length > 0
+      catalogSearchOutcome: catalog.products.length > 0
         ? "RESULTS_FOUND"
         : requestedHand === "LEFT" || requestedHand === "RIGHT"
           ? "NO_COMPATIBLE_INVENTORY"

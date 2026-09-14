@@ -58,16 +58,19 @@ export type ConversationState = {
     lastSemanticFingerprint: string | null;
   };
   searchScope: SearchScope | null;
-  searchOutcome: SearchOutcome | null;
+  catalogSearchOutcome: CatalogSearchOutcome | null;
+  compatibilityOutcome: CompatibilityOutcome | null;
   lastExecutedAction: string | null;
   searchContinuation: SearchContinuation | null;
 };
 
-export type SearchOutcome = "RESULTS_FOUND" | "NO_COMPATIBLE_INVENTORY" | "NO_INVENTORY" | "HARD_INCOMPATIBLE";
+export type CatalogSearchOutcome = "RESULTS_FOUND" | "NO_COMPATIBLE_INVENTORY" | "NO_INVENTORY";
+export type CompatibilityOutcome = "MATCH" | "HARD_INCOMPATIBLE" | "UNKNOWN";
 export type SearchContinuation = {
   relation: "KEEP_SCOPE" | "BROADEN_SCOPE" | "REPLACE_SCOPE";
   reason: "EXPLICIT_CURRENT_TURN" | "ELLIPTICAL_CONTINUATION" | "PREVIOUS_SCOPE_EXHAUSTED";
 };
+export type CatalogScopeIntent = "EXPLICIT_FAMILIES" | "INHERIT_PREVIOUS_FAMILY" | "ALL_CLUBS" | "ALL_HANDED_EQUIPMENT" | "ALL_EQUIPMENT";
 
 export type FactStatus = "KNOWN" | "UNKNOWN" | "NONE" | "NOT_APPLICABLE" | "DECLINED";
 export type SemanticFact<T> = { status: FactStatus; value?: T; confidence: number; source: "USER" | "INFERRED" };
@@ -193,21 +196,31 @@ export function resolveSearchScope(
   requestedMode: SearchScope["mode"] | null | undefined,
   category: ProductFamily | null | undefined,
   isCatalogSearch: boolean,
-  previousOutcome: SearchOutcome | null = null,
+  previousOutcome: CatalogSearchOutcome | null = null,
   continuationRelation: SearchContinuation["relation"] | null = null,
   continuationReason: SearchContinuation["reason"] | null = null,
+  scopeIntent: CatalogScopeIntent | null = null,
 ): SearchScope | null {
-  const previousScopeExhausted = previousOutcome === "NO_COMPATIBLE_INVENTORY" || previousOutcome === "NO_INVENTORY" || previousOutcome === "HARD_INCOMPATIBLE";
+  const previousScopeExhausted = previousOutcome === "NO_COMPATIBLE_INVENTORY" || previousOutcome === "NO_INVENTORY";
+  const explicitBroadScope = scopeIntent === "ALL_HANDED_EQUIPMENT" || scopeIntent === "ALL_EQUIPMENT";
+  const explicitClubScope = scopeIntent === "ALL_CLUBS";
   const shouldBroadenExhaustedScope = isCatalogSearch && previousScopeExhausted && previous?.families.length === 1 && previous.families[0] === "SET" &&
+    !explicitBroadScope && !explicitClubScope &&
     (continuationRelation === "BROADEN_SCOPE" || continuationReason === "PREVIOUS_SCOPE_EXHAUSTED" || (!requestedFamilies.length && !requestedMode && !category));
-  const explicitFamilies = shouldBroadenExhaustedScope
+  const explicitFamilies = explicitBroadScope || explicitClubScope
+    ? []
+    : shouldBroadenExhaustedScope
     ? []
     : requestedFamilies.length
     ? requestedFamilies
     : isCatalogSearch && category
       ? [category]
       : [];
-  const mode = shouldBroadenExhaustedScope
+  const mode = explicitBroadScope
+    ? "ALL_EQUIPMENT"
+    : explicitClubScope
+      ? "ALL_CLUBS"
+      : shouldBroadenExhaustedScope
     ? "ALL_EQUIPMENT"
     : requestedMode ??
     (explicitFamilies.length > 1 ? "MULTI_FAMILY" : explicitFamilies.length === 1 ? "EXACT" : null);
@@ -325,7 +338,8 @@ export function initialConversationState(): ConversationState {
     pendingAssistantOffer: null,
     conversationLoop: { lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null },
     searchScope: null,
-    searchOutcome: null,
+    catalogSearchOutcome: null,
+    compatibilityOutcome: null,
     lastExecutedAction: null,
     searchContinuation: null,
   };
@@ -801,7 +815,8 @@ export function classifyConversationTurn(
     pendingAssistantOffer: state.pendingAssistantOffer,
     conversationLoop: state.conversationLoop,
     searchScope: state.searchScope,
-    searchOutcome: state.searchOutcome,
+    catalogSearchOutcome: state.catalogSearchOutcome,
+    compatibilityOutcome: state.compatibilityOutcome,
     lastExecutedAction: state.lastExecutedAction,
     searchContinuation: state.searchContinuation,
   };

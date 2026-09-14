@@ -61,4 +61,21 @@ describe("conversation interpretation contract", () => {
     expect(parsed.requestedProductFamilies).not.toContain("SET");
     expect(parsed.searchScopeMode).toBe("ALL_CLUBS");
   });
+
+  it("represents broad left-handed availability separately from explicit families", () => {
+    const parsed = conversationInterpretationSchema.parse(
+      normalizeInterpretationShape({
+        dialogueAct: "CATALOG_SEARCH",
+        intent: "ACTIVE_RESEARCH",
+        category: "SET",
+        requestedProductFamilies: [],
+        catalogScopeIntent: "ALL_HANDED_EQUIPMENT",
+        searchScopeMode: "ALL_EQUIPMENT",
+        searchContinuationRelation: "KEEP_SCOPE",
+        confidence: 0.95,
+      }),
+    );
+    expect(parsed.catalogScopeIntent).toBe("ALL_HANDED_EQUIPMENT");
+    expect(parsed.requestedProductFamilies).toEqual([]);
+  });
 });

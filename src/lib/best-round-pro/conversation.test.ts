@@ -59,6 +59,13 @@ describe("Best Round Pro conversation", () => {
     expect(next?.families).not.toContain("SET");
   });
 
+  it("uses explicit broad-inventory intent even when the previous family was SET", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["SET"], "EXACT", "SET", true, "NO_COMPATIBLE_INVENTORY", "KEEP_SCOPE", null, "ALL_HANDED_EQUIPMENT");
+    expect(next?.mode).toBe("ALL_EQUIPMENT");
+    expect(next?.families).toEqual(["SET", "DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER"]);
+  });
+
   it("separates canonical fact values from semantic statuses", () => {
     const question = getNextProductAdviceQuestion({ answers: {} });
     expect(question?.expectedValues).toEqual(["RIGHT", "LEFT"]);

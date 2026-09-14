@@ -102,7 +102,10 @@ const requestSchema = z.object({
         mode: z.enum(["EXACT", "MULTI_FAMILY", "ALL_CLUBS", "ALL_EQUIPMENT"]),
         source: z.enum(["EXPLICIT_CURRENT_TURN", "INHERITED_CONTEXT"]),
       }).nullable().optional().default(null),
-      searchOutcome: z.enum(["RESULTS_FOUND", "NO_COMPATIBLE_INVENTORY", "NO_INVENTORY", "HARD_INCOMPATIBLE"]).nullable().optional().default(null),
+      catalogSearchOutcome: z.enum(["RESULTS_FOUND", "NO_COMPATIBLE_INVENTORY", "NO_INVENTORY"]).nullable().optional().default(null),
+      compatibilityOutcome: z.enum(["MATCH", "HARD_INCOMPATIBLE", "UNKNOWN"]).nullable().optional().default(null),
+      /** Legacy client field; it is read only as a catalog-search outcome and never accepts HARD_INCOMPATIBLE. */
+      searchOutcome: z.enum(["RESULTS_FOUND", "NO_COMPATIBLE_INVENTORY", "NO_INVENTORY"]).nullable().optional(),
       lastExecutedAction: z.string().nullable().optional().default(null),
       searchContinuation: z.object({
         relation: z.enum(["KEEP_SCOPE", "BROADEN_SCOPE", "REPLACE_SCOPE"]),
@@ -116,7 +119,14 @@ export async function POST(request: Request) {
   let rawRequestBody: unknown = null;
   try {
     rawRequestBody = await request.json();
-    const body = requestSchema.parse(rawRequestBody) as z.infer<typeof requestSchema> & { currentPageProduct: ConversationProductContext | null };
+    const parsedBody = requestSchema.parse(rawRequestBody) as z.infer<typeof requestSchema> & { currentPageProduct: ConversationProductContext | null };
+    const body = {
+      ...parsedBody,
+      state: {
+        ...parsedBody.state,
+        catalogSearchOutcome: parsedBody.state.catalogSearchOutcome ?? parsedBody.state.searchOutcome ?? null,
+      },
+    };
     const result = await processConversationTurn(body);
     const telemetry = getLastInterpreterTelemetry();
     const plannedAction = "catalogProducts" in result
@@ -146,6 +156,11 @@ export async function POST(request: Request) {
       declaredFactKeys: telemetry.declaredFactKeys ?? [],
       declaredFactStatuses: telemetry.declaredFactStatuses ?? [],
       declaredFacts: telemetry.declaredFacts ?? [],
+      rawHandednessStatus: telemetry.declaredFactKeys?.includes("handedness")
+        ? telemetry.declaredFactStatuses?.[telemetry.declaredFactKeys.indexOf("handedness")] ?? null
+        : null,
+      canonicalHandedness: telemetry.declaredFacts?.find((fact) => fact.key === "handedness")?.canonicalValue ?? null,
+      playerHandednessAfter: result.state.session.diagnosticAnswers.handedness ?? null,
       semanticStateChanged: telemetry.semanticStateChanged,
       playerFactsChanged: telemetry.playerFactsChanged,
       pendingQuestionChanged: telemetry.pendingQuestionChanged,
@@ -153,14 +168,17 @@ export async function POST(request: Request) {
       focusedProductFamily: result.state.lastFocusedProduct?.family ?? result.state.productAdvice.product?.family ?? null,
       previousSearchFamilies: body.state.searchScope?.families ?? [],
       interpretedRequestedFamilies: telemetry.requestedProductFamilies ?? [],
-      previousSearchOutcome: body.state.searchOutcome ?? null,
+      previousSearchOutcome: body.state.catalogSearchOutcome ?? null,
       lastExecutedAction: result.state.lastExecutedAction,
       activeSearchFamilies: result.state.searchScope?.families ?? [],
       searchScopeMode: result.state.searchScope?.mode ?? null,
       searchScopeSource: result.state.searchScope?.source ?? null,
       searchContinuationRelation: telemetry.searchContinuationRelation ?? result.state.searchContinuation?.relation ?? null,
       searchContinuationReason: telemetry.searchContinuationReason ?? result.state.searchContinuation?.reason ?? null,
+      catalogScopeIntent: telemetry.catalogScopeIntent ?? null,
       playerHandedness: result.state.session.diagnosticAnswers.handedness ?? null,
+      compatibilityOutcome: result.state.compatibilityOutcome ?? null,
+      catalogSearchOutcome: result.state.catalogSearchOutcome ?? null,
       pendingBefore: body.state.pendingQuestionKey,
       pendingAfter: result.state.pendingQuestionKey,
       stateChanged: JSON.stringify(body.state.session) !== JSON.stringify(result.state.session),
