@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Silueta de golfista en follow-through">
+  <circle cx="50" cy="50" r="48" fill="#fff"/>
+  <g fill="none" stroke="#111" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="43" cy="22" r="7" stroke-width="5"/>
+    <path d="M43 30c-2 11-4 20-1 29l8 16M42 37l-15 12M42 38l18 13M50 75l-10 15M50 75l16 10" stroke-width="6"/>
+    <path d="M57 39c15-9 27-17 35-27" stroke="#b18a3a" stroke-width="3"/>
+  </g>
+</svg>

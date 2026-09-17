@@ -1,7 +1,9 @@
 import type { MatchCategory } from "@/lib/mi-golf/domain";
 
+export type ProductFamily = MatchCategory | "SET";
+
 export type CategoryInterpretation = {
-  category: MatchCategory;
+  category: ProductFamily;
   confidence: "HIGH" | "MEDIUM";
   clubNumber: number | null;
   subtype: "SAND" | "GAP" | "LOB" | "APPROACH" | null;
@@ -32,6 +34,9 @@ export function interpretGolfCategory(
     /\b(?:madera|wood|hierro|fierro|iron)\s*(\d{1,2})\b/,
   );
   const clubNumber = clubNumberMatch ? Number(clubNumberMatch[1]) : null;
+
+  if (/\b(set|sets|juego\s+de\s+palos|palos\s+completos)\b/.test(text))
+    return { category: "SET", confidence: "HIGH", clubNumber: null, subtype: null };
 
   // Exact/common synonyms are checked before typo variants.
   if (/\b(driver|drivers|drive)\b/.test(text))
@@ -110,6 +115,6 @@ export function interpretGolfCategory(
   return null;
 }
 
-export function detectGolfCategory(input: string): MatchCategory | null {
+export function detectGolfCategory(input: string): ProductFamily | null {
   return interpretGolfCategory(input)?.category ?? null;
 }

@@ -4,6 +4,7 @@ import { Montserrat, Playfair_Display } from "next/font/google";
 import { serverEnv } from "@/env/server";
 import { publicEnv } from "@/env/public";
 import { BRAND_DESCRIPTION, BRAND_LOGOS, BRAND_NAME } from "@/lib/brand";
+import { BestRoundProAgentProvider } from "@/components/best-round-pro/best-round-pro-agent-provider";
 
 import "./globals.css";
 
@@ -73,6 +74,7 @@ export default function RootLayout({
             __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c"),
           }}
         />
+        <BestRoundProAgentProvider />
         {children}
       </body>
     </html>

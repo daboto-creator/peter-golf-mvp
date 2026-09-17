@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { PublicFooter } from "@/components/catalog/public-footer";
 import { PublicHeader } from "@/components/catalog/public-header";
+import { BestRoundProOpenButton } from "@/components/best-round-pro/best-round-pro-open-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -165,11 +166,7 @@ export default async function MiGolfPage() {
                 Cuando uses Best Round Pro, aquí podrás consultar tus
                 recomendaciones.
               </p>
-              <Button asChild className="mt-4 w-full">
-                <Link href="/best-round-pro">
-                  Pedir recomendación a Best Round Pro
-                </Link>
-              </Button>
+              <BestRoundProOpenButton>Pedir recomendación a Best Round Pro</BestRoundProOpenButton>
             </CardContent>
           </Card>
         </div>
