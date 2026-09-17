@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import {
   initialConversationState,
+  type CatalogProductReference,
   type ConversationState,
 } from "@/lib/best-round-pro/conversation";
 import type { ConversationOutcomeResult } from "@/lib/best-round-pro/conversation";
@@ -45,6 +46,21 @@ const reasonLabels: Record<string, string> = {
   LOWER_CONFIDENCE: "La confianza es limitada porque faltan algunos datos.",
 };
 
+function catalogReference(product: PublicProductSummary): CatalogProductReference {
+  return {
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    category: product.categoryName,
+    condition: product.condition,
+    price: product.price,
+    productHref: `/productos/${encodeURIComponent(product.slug)}`,
+    imagePath: product.images[0]?.storagePath ?? null,
+    handedness: product.handedness ?? null,
+    family: product.productFamily,
+  };
+}
+
 function customerPrice(amount: number) {
   return formatMoneyMinorUnits(amount).replace(/\.00$/, "");
 }
@@ -62,6 +78,8 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
               ...parsed,
               lastCatalogResults: parsed.lastCatalogResults ?? [],
               lastFocusedProduct: parsed.lastFocusedProduct ?? null,
+              lastInteractedProduct: parsed.lastInteractedProduct ?? null,
+              focusedProductSource: parsed.focusedProductSource ?? null,
             };
           }
         }
@@ -267,7 +285,12 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
                     {item.candidate.productHref ? <Link
                       className="text-pg-gold text-sm font-semibold"
                       href={item.candidate.productHref}
-                      onClick={() => { window.sessionStorage.setItem("best-round-pro-current-product", JSON.stringify({ id: item.candidate.productId, slug: item.candidate.productHref?.split("/").pop() ?? item.candidate.productId, name: `${item.candidate.brand ?? ""} ${item.candidate.model ?? ""}`.trim(), productFamily: null })); window.dispatchEvent(new CustomEvent("best-round-pro:close")); }}
+                      onClick={() => {
+                        const selected: CatalogProductReference = { id: item.candidate.productId, slug: item.candidate.productHref?.split("/").pop() ?? item.candidate.productId, name: `${item.candidate.brand ?? ""} ${item.candidate.model ?? ""}`.trim(), category: item.candidate.category ?? null, condition: item.candidate.condition ?? "unknown", price: item.candidate.priceMxnMinor ?? 0, productHref: item.candidate.productHref ?? "", imagePath: null, handedness: item.candidate.technicalSpecs?.handedness ?? null, family: item.candidate.category ?? null };
+                        setState((current) => ({ ...current, lastInteractedProduct: selected, lastFocusedProduct: selected, focusedProductSource: "PRODUCT_CARD_CLICK" }));
+                        window.sessionStorage.setItem("best-round-pro-current-product", JSON.stringify({ id: selected.id, slug: selected.slug, name: selected.name, productFamily: selected.family, source: "PRODUCT_CARD_CLICK" }));
+                        window.dispatchEvent(new CustomEvent("best-round-pro:close"));
+                      }}
                     >
                       Ver producto
                     </Link> : null}
@@ -296,7 +319,12 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
                         <p className="text-muted-foreground text-xs">{product.setType ? "Set completo" : product.categoryName ?? "Producto"}</p>
                         <h3 className="truncate font-semibold">{product.name}</h3>
                         <p className="text-muted-foreground text-sm">{getConditionLabel(product.condition, product.conditionGrade, product.conditionScore)} · {customerPrice(product.price)} MXN</p>
-                        <Link className="text-pg-gold mt-1 inline-flex min-h-9 items-center text-sm font-semibold" href={href} onClick={() => { window.sessionStorage.setItem("best-round-pro-current-product", JSON.stringify({ id: product.id, slug: product.slug, name: product.name, productFamily: product.productFamily ?? null })); window.dispatchEvent(new CustomEvent("best-round-pro:close")); }}>Ver producto</Link>
+                        <Link className="text-pg-gold mt-1 inline-flex min-h-9 items-center text-sm font-semibold" href={href} onClick={() => {
+                          const selected = catalogReference(product);
+                          setState((current) => ({ ...current, lastInteractedProduct: selected, lastFocusedProduct: selected, focusedProductSource: "PRODUCT_CARD_CLICK" }));
+                          window.sessionStorage.setItem("best-round-pro-current-product", JSON.stringify({ id: selected.id, slug: selected.slug, name: selected.name, productFamily: selected.family, source: "PRODUCT_CARD_CLICK" }));
+                          window.dispatchEvent(new CustomEvent("best-round-pro:close"));
+                        }}>Ver producto</Link>
                       </div>
                     </CardContent>
                   </Card>

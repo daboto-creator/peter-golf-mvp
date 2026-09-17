@@ -40,6 +40,8 @@ export type ConversationState = {
   /** Customer-safe catalog context used to resolve follow-up references such as "ese". */
   lastCatalogResults: CatalogProductReference[];
   lastFocusedProduct: CatalogProductReference | null;
+  lastInteractedProduct: CatalogProductReference | null;
+  focusedProductSource: "CURRENT_PAGE" | "PRODUCT_CARD_CLICK" | "EXPLICIT_NAME" | "UNIQUE_RECENT_RESULT" | "RECOMMENDATION" | null;
   productAdvice: {
     active: boolean;
     product: CatalogProductReference | null;
@@ -325,6 +327,8 @@ export function initialConversationState(): ConversationState {
     pendingQuestionSlotType: null,
     lastCatalogResults: [],
     lastFocusedProduct: null,
+    lastInteractedProduct: null,
+    focusedProductSource: null,
     productAdvice: {
       active: false,
       product: null,
@@ -810,6 +814,8 @@ export function classifyConversationTurn(
     pendingQuestionSlotType: next?.slotType ?? null,
     lastCatalogResults: state.lastCatalogResults,
     lastFocusedProduct: state.lastFocusedProduct,
+    lastInteractedProduct: state.lastInteractedProduct,
+    focusedProductSource: state.focusedProductSource,
     productAdvice: state.productAdvice,
     participants: state.participants,
     pendingAssistantOffer: state.pendingAssistantOffer,

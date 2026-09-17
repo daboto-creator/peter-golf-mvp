@@ -69,6 +69,12 @@ const requestSchema = z.object({
         condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
         handedness: z.string().nullable().optional().default(null), family: z.string().nullable().optional().default(null),
       }).nullable().default(null),
+      lastInteractedProduct: z.object({
+        id: z.string(), slug: z.string(), name: z.string(), category: z.string().nullable(),
+        condition: z.string(), price: z.number(), productHref: z.string(), imagePath: z.string().nullable(),
+        handedness: z.string().nullable().optional().default(null), family: z.string().nullable().optional().default(null),
+      }).nullable().default(null),
+      focusedProductSource: z.enum(["CURRENT_PAGE", "PRODUCT_CARD_CLICK", "EXPLICIT_NAME", "UNIQUE_RECENT_RESULT", "RECOMMENDATION"]).nullable().default(null),
       productAdvice: z.object({
         active: z.boolean(),
         product: z.object({
@@ -129,17 +135,16 @@ export async function POST(request: Request) {
     };
     const result = await processConversationTurn(body);
     const telemetry = getLastInterpreterTelemetry();
-    const plannedAction = "catalogProducts" in result
-      ? ((result.catalogProducts?.length ?? 0) > 0 ? "SHOW_CATALOG_RESULTS" : "RETURN_NO_COMPATIBLE_INVENTORY")
-      : result.events.includes("PRODUCT_ADVICE_HARD_INCOMPATIBILITY")
-        ? "RETURN_HARD_INCOMPATIBILITY"
-        : result.nextQuestion
-          ? "ASK_NEXT_QUESTION"
-          : result.recommendation
-            ? "RUN_RECOMMENDATION"
-            : "intent" in result && result.intent === "PRODUCT_ADVICE"
-              ? "START_PRODUCT_ADVICE"
-              : "RETURN_TERMINAL_OUTCOME";
+    const plannedAction = result.state.lastExecutedAction
+      ?? ("catalogProducts" in result
+        ? ((result.catalogProducts?.length ?? 0) > 0 ? "SHOW_CATALOG_RESULTS" : "RETURN_NO_COMPATIBLE_INVENTORY")
+        : result.events.includes("PRODUCT_ADVICE_HARD_INCOMPATIBILITY")
+          ? "RETURN_HARD_INCOMPATIBILITY"
+          : result.nextQuestion || result.state.pendingQuestionKey
+            ? "ASK_NEXT_QUESTION"
+            : result.recommendation
+              ? "RUN_RECOMMENDATION"
+              : "RETURN_TERMINAL_OUTCOME");
     console.info("best_round_pro_turn_trace", {
       providerSucceeded: telemetry.providerSucceeded,
       providerCalled: telemetry.providerCalled,
@@ -166,6 +171,12 @@ export async function POST(request: Request) {
       pendingQuestionChanged: telemetry.pendingQuestionChanged,
       productFamily: result.state.session.requestedCategory,
       focusedProductFamily: result.state.lastFocusedProduct?.family ?? result.state.productAdvice.product?.family ?? null,
+      focusedProductId: result.state.lastFocusedProduct?.id ?? result.state.productAdvice.product?.id ?? null,
+      focusedProductSource: result.state.focusedProductSource ?? null,
+      lastInteractedProductId: result.state.lastInteractedProduct?.id ?? null,
+      currentPageProductId: body.currentPageProduct?.id ?? null,
+      resolvedReferenceProductId: result.state.lastFocusedProduct?.id ?? null,
+      referenceResolutionSource: result.state.focusedProductSource ?? null,
       previousSearchFamilies: body.state.searchScope?.families ?? [],
       interpretedRequestedFamilies: telemetry.requestedProductFamilies ?? [],
       previousSearchOutcome: body.state.catalogSearchOutcome ?? null,

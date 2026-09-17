@@ -7,7 +7,7 @@ export function BestRoundProProductCta({ productId, slug, name, productFamily }:
       data-best-round-pro-exclusion
       className="border-border text-pg-black hover:bg-muted mt-3 flex min-h-11 w-full items-center justify-center rounded-xl border px-4 text-sm font-semibold transition-colors"
       onClick={() => {
-        window.sessionStorage.setItem("best-round-pro-current-product", JSON.stringify({ id: productId, slug, name, productFamily }));
+        window.sessionStorage.setItem("best-round-pro-current-product", JSON.stringify({ id: productId, slug, name, productFamily, source: "CURRENT_PAGE" }));
         window.dispatchEvent(new CustomEvent("best-round-pro:open", { detail: { source: "PRODUCT", productId } }));
       }}
     >
