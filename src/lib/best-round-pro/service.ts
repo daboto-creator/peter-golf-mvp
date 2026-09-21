@@ -15,13 +15,15 @@ import {
   resolveProductReference,
   resolveSearchScope,
   questionPromptFor,
-  validateInterpretationAgainstContext,
   normalizeStructuredFactValue,
   validateCanonicalFactValue,
   normalizeCanonicalFactStatus,
+  resolvePendingAnswerFact,
   FACT_VALUE_DOMAINS,
+  type CanonicalCurrentTurnFact,
   type ConversationProductContext,
 } from "@/lib/best-round-pro/conversation";
+import type { DialogueAct, FactMutationIntent } from "@/lib/best-round-pro/contract";
 import { getPublicProductBySlug } from "@/lib/catalog/public-products";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
 import type {
@@ -63,8 +65,10 @@ export type ConversationInterpreterTelemetry = {
   providerHttpStatus?: number | null;
   providerTimedOut?: boolean;
   jsonParsed?: boolean | null;
-  validationIssues?: Array<{ path: string; code: string; expected?: string; received?: string; receivedValue?: string }>;
+  validationIssues?: Array<{ field?: string; path: string; code: string; expected?: string; received?: string; receivedValue?: string | number | boolean | null }>;
   dialogueAct?: string | null;
+  rawDialogueAct?: string | null;
+  effectiveDialogueAct?: string | null;
   answersPendingQuestion?: boolean;
   declaredFactKeys?: string[];
   declaredFactStatuses?: string[];
@@ -76,6 +80,15 @@ export type ConversationInterpreterTelemetry = {
   semanticStateChanged?: boolean;
   playerFactsChanged?: boolean;
   pendingQuestionChanged?: boolean;
+  pendingBefore?: string | null;
+  pendingFactKeyMatched?: string | null;
+  pendingAfter?: string | null;
+  rawDeclaredFacts?: Array<{ key: string; status: string; source: string }>;
+  acceptedCurrentTurnFacts?: Array<{ key: string; canonicalValue: string | number | null; status: string; source: string }>;
+  rejectedContextEchoFacts?: Array<{ key: string; reason: string }>;
+  factMutationIntent?: FactMutationIntent;
+  playerFactsBefore?: Record<string, string | number | boolean | null>;
+  playerFactsAfter?: Record<string, string | number | boolean | null>;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -103,6 +116,14 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
 
 export function getLastInterpreterTelemetry() {
   return lastInterpreterTelemetry;
+}
+
+function telemetryPlayerFacts(answers: Record<string, string | number | boolean | null>) {
+  return Object.fromEntries(
+    ["handedness", "setExperience", "skill", "handicap", "shotTendency", "swingSpeed"]
+      .filter((key) => answers[key] !== undefined)
+      .map((key) => [key, answers[key]]),
+  );
 }
 
 function profileFrom(
@@ -289,11 +310,6 @@ export async function processConversationTurn(input: {
           } : null,
         },
       });
-      interpretation = validateInterpretationAgainstContext(
-        interpretation,
-        pendingKey ? { key: pendingKey } : null,
-        input.state.pendingAssistantOffer,
-      );
       if (interpretation.catalogScopeIntent === "ALL_HANDED_EQUIPMENT" && interpretation.dialogueAct === "ASK_COMPARISON") {
         interpretation = { ...interpretation, dialogueAct: "CATALOG_SEARCH" };
       }
@@ -304,6 +320,8 @@ export async function processConversationTurn(input: {
         interpretationConfidence: interpretation.confidence,
         stage: "REDUCE_STATE",
         dialogueAct: interpretation.dialogueAct,
+        rawDialogueAct: interpretation.rawDialogueAct ?? interpretation.dialogueAct,
+        effectiveDialogueAct: interpretation.dialogueAct,
         answersPendingQuestion: interpretation.answersPendingQuestion,
         declaredFactKeys: interpretation.declaredFacts.map((fact) => fact.field),
         declaredFactStatuses: interpretation.declaredFacts.map((fact) => fact.semanticStatus),
@@ -316,6 +334,12 @@ export async function processConversationTurn(input: {
         searchContinuationRelation: interpretation.searchContinuationRelation,
         searchContinuationReason: interpretation.searchContinuationReason,
         catalogScopeIntent: interpretation.catalogScopeIntent,
+        rawDeclaredFacts: interpretation.declaredFacts.map((fact) => ({
+          key: fact.field,
+          status: fact.semanticStatus,
+          source: fact.source,
+        })),
+        factMutationIntent: interpretation.factMutationIntent,
       };
     } catch (error) {
       lastInterpreterTelemetry = {
@@ -395,7 +419,14 @@ export async function processConversationTurn(input: {
       participants.player.displayReference = relation === "SPOUSE" ? "tu esposo" : relation === "CHILD" ? "tu hijo" : relation === "FRIEND" ? "tu amigo" : "la persona para quien lo buscas";
     }
   }
-  const canonicalFacts = (interpretation?.declaredFacts ?? []).filter((fact) => {
+  const pendingKey = input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey;
+  const pendingAnswerCandidate = resolvePendingAnswerFact(pendingKey, normalizedMessage);
+  const existingPendingValue = pendingKey ? input.state.session.diagnosticAnswers[pendingKey] : undefined;
+  const pendingAnswerFact = pendingAnswerCandidate &&
+    (existingPendingValue === undefined || existingPendingValue === null || existingPendingValue === pendingAnswerCandidate.value)
+    ? pendingAnswerCandidate
+    : null;
+  const normalizedProviderFacts: CanonicalCurrentTurnFact[] = (interpretation?.declaredFacts ?? []).filter((fact) => {
     const value = typeof fact.value === "string" || typeof fact.value === "number"
       ? normalizeStructuredFactValue(fact.field, fact.value)
       : undefined;
@@ -410,7 +441,47 @@ export async function processConversationTurn(input: {
       typeof fact.value === "string" || typeof fact.value === "number" ? normalizeStructuredFactValue(fact.field, fact.value) : fact.value,
       fact.semanticStatus,
     ),
+    source: fact.source,
   }));
+  const canonicalFacts: CanonicalCurrentTurnFact[] = pendingAnswerFact ? [pendingAnswerFact] : [];
+  const rejectedContextEchoFacts: Array<{ key: string; reason: string }> = [];
+  const existingAnswers = input.state.session.diagnosticAnswers;
+  for (const fact of normalizedProviderFacts) {
+    if (pendingAnswerFact?.field === fact.field) continue;
+    const existing = existingAnswers[fact.field];
+    const hasExisting = existing !== undefined && existing !== null && existing !== "";
+    if (pendingKey && fact.field === pendingKey && (!hasExisting || existing === fact.value)) {
+      canonicalFacts.push({ ...fact, source: "CURRENT_USER_PENDING_ANSWER" });
+      continue;
+    }
+    const isCorrection = fact.source === "CURRENT_USER_CORRECTION" &&
+      interpretation?.factMutationIntent === "CORRECT_EXISTING" &&
+      (interpretation.rawDialogueAct ?? interpretation.dialogueAct) === "CORRECTION";
+    const isNewExplicit = fact.source === "CURRENT_USER_EXPLICIT" &&
+      interpretation?.factMutationIntent === "SET_NEW" && !hasExisting;
+    if (isCorrection || isNewExplicit) {
+      canonicalFacts.push(fact);
+      continue;
+    }
+    rejectedContextEchoFacts.push({
+      key: fact.field,
+      reason: hasExisting ? "KNOWN_FACT_NOT_EXPLICITLY_CORRECTED" : "NO_CURRENT_TURN_MUTATION_EVIDENCE",
+    });
+  }
+  const answeredPending = Boolean(pendingKey && canonicalFacts.some((fact) => fact.field === pendingKey));
+  const rawDialogueAct = interpretation?.rawDialogueAct ?? interpretation?.dialogueAct ?? null;
+  const effectiveDialogueAct: DialogueAct | null = answeredPending
+    ? "ANSWER_PENDING_QUESTION"
+    : interpretation?.dialogueAct === "CONFIRMATION" && pendingKey && !input.state.pendingAssistantOffer
+      ? "OTHER"
+      : interpretation?.dialogueAct ?? null;
+  if (interpretation) {
+    interpretation = {
+      ...interpretation,
+      dialogueAct: effectiveDialogueAct ?? "OTHER",
+      answersPendingQuestion: answeredPending || interpretation.answersPendingQuestion,
+    };
+  }
   for (const fact of canonicalFacts) {
     participants.player.facts[fact.field] = { status: fact.semanticStatus, value: fact.value, confidence: interpretation?.confidence ?? 1, source: "USER" };
     if (fact.field === "handedness" && fact.semanticStatus === "KNOWN" && (fact.value === "LEFT" || fact.value === "RIGHT")) {
@@ -426,11 +497,6 @@ export async function processConversationTurn(input: {
           fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value,
     ]),
   );
-  const pendingKey = input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey;
-  // A canonical fact matching the active question is authoritative even if
-  // the model's boolean flag is inconsistent. This prevents valid answers
-  // from remaining pending and being asked again.
-  const answeredPending = Boolean(pendingKey && canonicalFacts.some((fact) => fact.field === pendingKey));
   const resolvedFactKeysThisTurn = new Set<string>(
     canonicalFacts
       .filter((fact) => fact.semanticStatus === "KNOWN")
@@ -441,7 +507,7 @@ export async function processConversationTurn(input: {
     interpretation?.requestedProductFamilies ?? [],
     interpretation?.searchScopeMode,
     interpretation?.category,
-    interpretation?.dialogueAct === "CATALOG_SEARCH",
+    effectiveDialogueAct === "CATALOG_SEARCH",
     input.state.catalogSearchOutcome,
     interpretation?.searchContinuationRelation,
     interpretation?.searchContinuationReason,
@@ -485,6 +551,23 @@ export async function processConversationTurn(input: {
   lastInterpreterTelemetry.playerFactsChanged = canonicalFacts.length > 0;
   lastInterpreterTelemetry.pendingQuestionChanged = (pendingKey ?? null) !== (answeredPending ? null : pendingKey ?? null);
   lastInterpreterTelemetry.semanticStateChanged = canonicalFacts.length > 0 || Boolean(answeredPending);
+  lastInterpreterTelemetry.rawDialogueAct = rawDialogueAct;
+  lastInterpreterTelemetry.effectiveDialogueAct = effectiveDialogueAct;
+  lastInterpreterTelemetry.dialogueAct = effectiveDialogueAct;
+  lastInterpreterTelemetry.answersPendingQuestion = answeredPending || interpretation?.answersPendingQuestion || false;
+  lastInterpreterTelemetry.pendingBefore = pendingKey ?? null;
+  lastInterpreterTelemetry.pendingFactKeyMatched = answeredPending ? pendingKey : null;
+  lastInterpreterTelemetry.pendingAfter = answeredPending ? null : pendingKey ?? null;
+  lastInterpreterTelemetry.acceptedCurrentTurnFacts = canonicalFacts.map((fact) => ({
+    key: fact.field,
+    canonicalValue: fact.value,
+    status: fact.semanticStatus,
+    source: fact.source,
+  }));
+  lastInterpreterTelemetry.rejectedContextEchoFacts = rejectedContextEchoFacts;
+  lastInterpreterTelemetry.factMutationIntent = interpretation?.factMutationIntent ?? (pendingAnswerFact ? "SET_NEW" : "NONE");
+  lastInterpreterTelemetry.playerFactsBefore = telemetryPlayerFacts(input.state.session.diagnosticAnswers);
+  lastInterpreterTelemetry.playerFactsAfter = telemetryPlayerFacts(updatedState.session.diagnosticAnswers);
   lastInterpreterTelemetry.declaredFacts = canonicalFacts.map((fact) => ({
     key: fact.field,
     canonicalValue: typeof fact.value === "string" || typeof fact.value === "number" ? fact.value : null,

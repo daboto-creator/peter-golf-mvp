@@ -34,7 +34,7 @@ import {
   type CatalogProductReference,
   type ConversationState,
 } from "./conversation";
-import { processConversationTurn } from "./service";
+import { getLastInterpreterTelemetry, processConversationTurn } from "./service";
 
 const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT"): CatalogProductReference => ({
   id,
@@ -244,5 +244,127 @@ describe("Best Round Pro source-gap regressions", () => {
     const result = await processConversationTurn({ state, message: "qué dato te falta?" });
     expect(result.state.pendingQuestionKey).toBe("setExperience");
     expect(result.reply).not.toMatch(/juegas como diestro o zurdo/i);
+  });
+
+  it("consumes 'ya juego' and 'principiante' once despite bad raw planner acts", async () => {
+    const state = knownLeftState();
+    const focused = product("GT3");
+    state.lastFocusedProduct = focused;
+    state.focusedProductSource = "PRODUCT_CARD_CLICK";
+    state.pendingQuestionKey = "setExperience";
+    state.pendingQuestionCategory = "PRODUCT_ADVICE";
+    state.productAdvice = { active: true, product: focused, pendingQuestionKey: "setExperience", collectedAnswers: { handedness: "LEFT" } };
+    mocks.interpretation.mockResolvedValueOnce({
+      ...interpretation("OTHER"),
+      rawDialogueAct: "ASK_SET_EXPERIENCE",
+    });
+
+    const experience = await processConversationTurn({ state, message: "ya juego" });
+    expect(experience.state.session.diagnosticAnswers.setExperience).toBe("CURRENT_PLAYER");
+    expect(experience.state.pendingQuestionKey).toBe("skill");
+    expect(experience.reply).not.toMatch(/Para no hacerte repetir/i);
+    expect(getLastInterpreterTelemetry()).toMatchObject({
+      rawDialogueAct: "ASK_SET_EXPERIENCE",
+      effectiveDialogueAct: "ANSWER_PENDING_QUESTION",
+      pendingBefore: "setExperience",
+      pendingFactKeyMatched: "setExperience",
+      pendingAfter: null,
+    });
+
+    mocks.interpretation.mockResolvedValueOnce({
+      ...interpretation("OTHER"),
+      rawDialogueAct: "ASK_PLAYER_SKILL_LEVEL",
+    });
+    const skill = await processConversationTurn({ state: experience.state, message: "principiante" });
+    expect(skill.state.session.diagnosticAnswers.skill).toBe("BEGINNER");
+    expect(skill.state.pendingQuestionKey).not.toBe("skill");
+    expect(skill.reply).not.toMatch(/Para no hacerte repetir/i);
+    expect(getLastInterpreterTelemetry()).toMatchObject({
+      effectiveDialogueAct: "ANSWER_PENDING_QUESTION",
+      pendingFactKeyMatched: "skill",
+    });
+  });
+
+  it("rejects context-echoed facts on a recommendation request", async () => {
+    const state = knownLeftState();
+    state.session.diagnosticAnswers.setExperience = "CURRENT_PLAYER";
+    state.session.diagnosticAnswers.skill = "BEGINNER";
+    state.lastFocusedProduct = product("GT3");
+    state.focusedProductSource = "RECOMMENDATION";
+    mocks.interpretation.mockResolvedValueOnce({
+      ...interpretation("PRODUCT_ADVICE"),
+      factMutationIntent: "SET_NEW",
+      declaredFacts: [
+        { field: "handedness", value: "RIGHT", durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" },
+        { field: "setExperience", value: "FIRST_SET", durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" },
+        { field: "skill", value: "BEGINNER", durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" },
+      ],
+    });
+
+    const result = await processConversationTurn({ state, message: "dale recomiendame" });
+    expect(result.state.session.diagnosticAnswers).toMatchObject({
+      handedness: "LEFT",
+      setExperience: "CURRENT_PLAYER",
+      skill: "BEGINNER",
+    });
+    expect(getLastInterpreterTelemetry().acceptedCurrentTurnFacts).toEqual([]);
+    expect(getLastInterpreterTelemetry().rejectedContextEchoFacts).toHaveLength(3);
+  });
+
+  it("allows an explicit correction to replace a known durable fact", async () => {
+    const state = knownLeftState();
+    mocks.interpretation.mockResolvedValueOnce({
+      ...interpretation("CORRECTION"),
+      rawDialogueAct: "CORRECTION",
+      factMutationIntent: "CORRECT_EXISTING",
+      declaredFacts: [{
+        field: "handedness",
+        value: "RIGHT",
+        durable: true,
+        semanticStatus: "KNOWN",
+        source: "CURRENT_USER_CORRECTION",
+      }],
+    });
+
+    const result = await processConversationTurn({ state, message: "me equivoqué, soy diestro" });
+    expect(result.state.session.diagnosticAnswers.handedness).toBe("RIGHT");
+    expect(getLastInterpreterTelemetry().acceptedCurrentTurnFacts).toContainEqual(expect.objectContaining({
+      key: "handedness",
+      canonicalValue: "RIGHT",
+      source: "CURRENT_USER_CORRECTION",
+    }));
+  });
+
+  it("completes the current-page driver pending sequence without repeats", async () => {
+    let state = initialConversationState();
+    mocks.currentPageProduct = publicProduct(product("STEALTH", "RIGHT"));
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+    let result = await processConversationTurn({
+      state,
+      message: "este palo es indicado para mi?",
+      currentPageProduct: { id: "STEALTH", slug: "stealth", name: "Product STEALTH", productFamily: "DRIVER" },
+    });
+    expect(result.state.pendingQuestionKey).toBe("handedness");
+    expect(result.state.referenceResolution.source).toBe("CURRENT_PAGE");
+
+    for (const [message, value, next] of [
+      ["diestro", "RIGHT", "setExperience"],
+      ["ya juego", "CURRENT_PLAYER", "skill"],
+      ["avanzado", "ADVANCED", null],
+    ] as const) {
+      mocks.interpretation.mockResolvedValueOnce(interpretation("OTHER"));
+      result = await processConversationTurn({
+        state: result.state,
+        message,
+        currentPageProduct: { id: "STEALTH", slug: "stealth", name: "Product STEALTH", productFamily: "DRIVER" },
+      });
+      state = result.state;
+      const key = message === "diestro" ? "handedness" : message === "ya juego" ? "setExperience" : "skill";
+      expect(state.session.diagnosticAnswers[key]).toBe(value);
+      expect(state.pendingQuestionKey).toBe(next);
+      expect(result.reply).not.toMatch(/Para no hacerte repetir/i);
+      expect(state.conversationLoop.consecutiveSameQuestionCount).toBeLessThan(2);
+      expect(state.referenceResolution.source).toBe("CURRENT_PAGE");
+    }
   });
 });

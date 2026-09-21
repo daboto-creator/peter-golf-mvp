@@ -7,7 +7,7 @@ import {
   normalizeInterpretationShape,
   providerValidationIssues,
 } from "./provider";
-import { SEARCH_SCOPE_MODES } from "./contract";
+import { DIALOGUE_ACTS, SEARCH_SCOPE_MODES } from "./contract";
 
 describe("conversation interpretation contract", () => {
   it("fills structural defaults and normalizes complete-set aliases", () => {
@@ -92,7 +92,8 @@ describe("conversation interpretation contract", () => {
         requestedProductFamilies: [],
         catalogScopeIntent: "ALL_HANDED_EQUIPMENT",
         searchScopeMode: "ALL_EQUIPMENT",
-        declaredFacts: [{ field: "handedness", value: "LEFT", durable: true, semanticStatus: "KNOWN" }],
+        declaredFacts: [{ field: "handedness", value: "LEFT", durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" }],
+        factMutationIntent: "SET_NEW",
       }),
     );
     expect(parsed.success).toBe(true);
@@ -100,7 +101,7 @@ describe("conversation interpretation contract", () => {
     expect(parsed.data.dialogueAct).toBe("CATALOG_SEARCH");
     expect(parsed.data.catalogScopeIntent).toBe("ALL_HANDED_EQUIPMENT");
     expect(parsed.data.searchScopeMode).toBe("ALL_EQUIPMENT");
-    expect(parsed.data.declaredFacts[0]).toMatchObject({ field: "handedness", value: "LEFT", semanticStatus: "KNOWN" });
+    expect(parsed.data.declaredFacts[0]).toMatchObject({ field: "handedness", value: "LEFT", semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
   });
 
   it("normalizes a provider concept collision to the canonical search mode", () => {
@@ -127,5 +128,33 @@ describe("conversation interpretation contract", () => {
       code: "invalid_value",
       receivedValue: "UNSUPPORTED_SCOPE",
     }));
+  });
+
+  it("keeps planner question actions out of the canonical user DialogueAct contract", () => {
+    expect(DIALOGUE_ACTS).not.toContain("ASK_SET_EXPERIENCE");
+    expect(DIALOGUE_ACTS).not.toContain("ASK_PLAYER_SKILL_LEVEL");
+    const valid = conversationInterpretationSchema.parse(normalizeInterpretationShape({
+      dialogueAct: "OTHER",
+      intent: "UNKNOWN",
+    }));
+    expect(conversationInterpretationSchema.safeParse({ ...valid, dialogueAct: "ASK_SET_EXPERIENCE" }).success).toBe(false);
+    expect(conversationInterpretationSchema.safeParse({ ...valid, dialogueAct: "ASK_PLAYER_SKILL_LEVEL" }).success).toBe(false);
+  });
+
+  it("normalizes a legacy planner label safely while retaining its pending fact", () => {
+    const parsed = conversationInterpretationSchema.parse(normalizeInterpretationShape({
+      dialogueAct: "ASK_PLAYER_SKILL_LEVEL",
+      intent: "UNKNOWN",
+      declaredFacts: [{
+        field: "skill",
+        value: "BEGINNER",
+        durable: true,
+        semanticStatus: "KNOWN",
+        source: "CURRENT_USER_PENDING_ANSWER",
+      }],
+      factMutationIntent: "SET_NEW",
+    }));
+    expect(parsed.dialogueAct).toBe("OTHER");
+    expect(parsed.declaredFacts[0]).toMatchObject({ field: "skill", value: "BEGINNER" });
   });
 });

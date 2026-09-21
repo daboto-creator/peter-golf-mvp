@@ -14,9 +14,9 @@ import {
   normalizeStructuredFactValue,
   validateCanonicalFactValue,
   normalizeCanonicalFactStatus,
-  validateInterpretationAgainstContext,
   resolveSearchScope,
   resolveProductReference,
+  resolvePendingAnswerFact,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
@@ -172,14 +172,21 @@ describe("Best Round Pro conversation", () => {
     expect(normalizeCanonicalFactStatus("handedness", null, "UNKNOWN")).toBe("UNKNOWN");
   });
 
-  it("canonicalizes a pending answer even when the model labels it confirmation", () => {
-    const result = validateInterpretationAgainstContext(
-      { dialogueAct: "CONFIRMATION", answersPendingQuestion: true, declaredFacts: [{ field: "handedness" }] },
-      { key: "handedness" },
-      null,
-    );
-    expect(result.dialogueAct).toBe("ANSWER_PENDING_QUESTION");
-    expect(result.answersPendingQuestion).toBe(true);
+  it.each([
+    ["setExperience", "ya juego", "CURRENT_PLAYER"],
+    ["setExperience", "ya tengo equipo", "CURRENT_PLAYER"],
+    ["setExperience", "no es mi primer set", "CURRENT_PLAYER"],
+    ["skill", "principiante", "BEGINNER"],
+    ["skill", "intermedio", "INTERMEDIATE"],
+    ["skill", "avanzado", "ADVANCED"],
+    ["handedness", "zurdo", "LEFT"],
+    ["handedness", "diestro", "RIGHT"],
+  ])("consumes pending %s answer %s as %s", (key, message, expected) => {
+    expect(resolvePendingAnswerFact(key, message)).toMatchObject({
+      field: key,
+      value: expected,
+      source: "CURRENT_USER_PENDING_ANSWER",
+    });
   });
 
   it("re-evaluates focused product after canonical hand update", () => {

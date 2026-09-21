@@ -4,6 +4,10 @@ import { z } from "zod";
 
 import { serverEnv } from "@/env/server";
 import {
+  CURRENT_TURN_FACT_SOURCES,
+  DIALOGUE_ACT_CONTRACT,
+  DIALOGUE_ACTS,
+  FACT_MUTATION_INTENTS,
   SEARCH_SCOPE_MODE_CONTRACT,
   SEARCH_SCOPE_MODES,
 } from "@/lib/best-round-pro/contract";
@@ -26,14 +30,10 @@ const factSchema = z.object({
   value: z.union([z.string(), z.number()]),
   durable: z.boolean(),
   semanticStatus: z.enum(["KNOWN", "UNKNOWN", "NONE", "NOT_APPLICABLE", "DECLINED"]).default("KNOWN"),
+  source: z.enum(CURRENT_TURN_FACT_SOURCES).default("CONTEXT_INFERRED"),
 });
 export const conversationInterpretationSchema = z.object({
-  dialogueAct: z.enum([
-    "CATALOG_SEARCH", "PRODUCT_ADVICE", "ASK_PRODUCT_REASON", "ASK_PRODUCT_DETAILS",
-    "ASK_COMPARISON", "ASK_PRODUCT_FIT", "ANSWER_PENDING_QUESTION", "ASK_WHAT_INFORMATION_NEEDED",
-    "CHANGE_PRODUCT", "CHANGE_TOPIC", "FITTING_REQUEST", "STORE_QUESTION",
-    "GENERAL_GOLF", "CONFIRMATION", "CORRECTION", "GREETING", "THANKS", "GOODBYE", "SMALL_TALK", "HELP_REQUEST", "CLARIFICATION", "USER_FRUSTRATION", "GENERAL_QUESTION", "PRODUCT_DETAILS", "OTHER",
-  ]),
+  dialogueAct: z.enum(DIALOGUE_ACTS),
   intent: z.enum(["BUY_NOW", "EXPLORING", "ACTIVE_RESEARCH", "UNKNOWN"]),
   category: z
     .enum(["DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER", "SET"])
@@ -46,6 +46,7 @@ export const conversationInterpretationSchema = z.object({
   productReference: z.string().max(120).nullable(),
   reasonMode: z.enum(["CATALOG_REASON", "PERSONAL_FIT_REASON"]).nullable().default(null),
   declaredFacts: z.array(factSchema).max(8),
+  factMutationIntent: z.enum(FACT_MUTATION_INTENTS).default("NONE"),
   temporaryPreferences: z.array(z.string().max(80)).max(8),
   objection: z
     .enum([
@@ -70,9 +71,9 @@ export const conversationInterpretationSchema = z.object({
     playerReference: z.string().nullable().default(null),
   }).default({ purchaseTarget: "SELF", relationship: "UNKNOWN", playerReference: null }),
 });
-export type ConversationInterpretation = z.infer<
-  typeof conversationInterpretationSchema
->;
+export type ConversationInterpretation = z.infer<typeof conversationInterpretationSchema> & {
+  rawDialogueAct?: string | null;
+};
 
 export function normalizeInterpretationShape(raw: unknown) {
   const value = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
@@ -88,6 +89,12 @@ export function normalizeInterpretationShape(raw: unknown) {
     ANSWER: "ANSWER_PENDING_QUESTION",
     PRODUCT_SELECTION: "PRODUCT_ADVICE",
     SELECT_PRODUCT: "PRODUCT_ADVICE",
+    ASK_SET_EXPERIENCE: "OTHER",
+    ASK_PLAYER_SKILL_LEVEL: "OTHER",
+    ASK_HANDEDNESS: "OTHER",
+    ASK_PLAYER_HANDEDNESS: "OTHER",
+    ASK_GAPPING: "OTHER",
+    ASK_SWING_SPEED: "OTHER",
   };
   const rawDialogueAct = value.dialogueAct;
   const catalogScopeIntent = value.catalogScopeIntent ?? null;
@@ -108,7 +115,12 @@ export function normalizeInterpretationShape(raw: unknown) {
     searchContinuationReason: value.searchContinuationReason ?? null,
     productReference: value.productReference ?? null,
     reasonMode: value.reasonMode ?? null,
-    declaredFacts: Array.isArray(value.declaredFacts) ? value.declaredFacts : [],
+    declaredFacts: Array.isArray(value.declaredFacts)
+      ? value.declaredFacts.map((fact) => fact && typeof fact === "object"
+        ? { ...(fact as Record<string, unknown>), source: (fact as Record<string, unknown>).source ?? "CONTEXT_INFERRED" }
+        : fact)
+      : [],
+    factMutationIntent: value.factMutationIntent ?? "NONE",
     temporaryPreferences: Array.isArray(value.temporaryPreferences) ? value.temporaryPreferences : [],
     objection: value.objection ?? null,
     wantsRecommendation: value.wantsRecommendation ?? false,
@@ -286,10 +298,10 @@ class OpenAICompatibleProvider implements BestRoundConversationProvider {
       "session" | "userTurn" | "nextQuestionKey" | "pendingQuestionSlotType" | "conversationContext"
     >,
   ) {
-    const system =
-      `Eres Best Round Pro y debes devolver exactamente este contrato JSON. Interpreta significado, no frases exactas. OUTPUT CONTRACT: { dialogueAct: CATALOG_SEARCH|PRODUCT_ADVICE|ASK_PRODUCT_REASON|ASK_PRODUCT_DETAILS|ASK_PRODUCT_FIT|ASK_COMPARISON|ANSWER_PENDING_QUESTION|ASK_WHAT_INFORMATION_NEEDED|CHANGE_PRODUCT|CHANGE_TOPIC|FITTING_REQUEST|STORE_QUESTION|GENERAL_GOLF|CONFIRMATION|CORRECTION|GREETING|THANKS|GOODBYE|SMALL_TALK|HELP_REQUEST|CLARIFICATION|USER_FRUSTRATION|GENERAL_QUESTION|PRODUCT_DETAILS|OTHER, intent: BUY_NOW|EXPLORING|ACTIVE_RESEARCH|UNKNOWN, category: DRIVER|FAIRWAY_WOOD|HYBRID|IRON|WEDGE|PUTTER|SET|null, requestedProductFamilies: array of DRIVER|FAIRWAY_WOOD|HYBRID|IRON|WEDGE|PUTTER|SET, searchScopeMode: ${SEARCH_SCOPE_MODE_CONTRACT}|null, catalogScopeIntent: EXPLICIT_FAMILIES|INHERIT_PREVIOUS_FAMILY|ALL_CLUBS|ALL_HANDED_EQUIPMENT|ALL_EQUIPMENT|null, productReference: string|null, declaredFacts: array of {field: handedness|handicap|shotTendency|objective|brand|conditionPreference|swingSpeed|setExperience|skill|purchaseTarget|relationship, value: string|number, durable: boolean, semanticStatus: KNOWN|UNKNOWN|NONE|NOT_APPLICABLE|DECLINED}, temporaryPreferences: string[], objection: PRICE|UNCERTAIN_FIT|BRAND|NEW_VS_USED|NEED_TO_THINK|WANT_OTHER_OPTION|null, wantsRecommendation: boolean, wantsHandoff: boolean, answersPendingQuestion: boolean, asksForExplanation: boolean, asksWhatInformationNeeded: boolean, topicChanged: boolean, confidence: number, entities: {purchaseTarget: SELF|OTHER_PERSON, relationship: SPOUSE|CHILD|FRIEND|OTHER|UNKNOWN, playerReference: string|null} }. VALUE AND STATUS ARE DISTINCT: semanticStatus is one of KNOWN|UNKNOWN|NONE|NOT_APPLICABLE|DECLINED; when KNOWN, value must be the canonical value (handedness RIGHT|LEFT, skill BEGINNER|INTERMEDIATE|ADVANCED, setExperience FIRST_SET|CURRENT_PLAYER), never the status itself. If pendingQuestion is supplied, use its expectedValues and allowedStatuses to interpret the answer. Taxonomía category: SET incluye set completo, juego completo de palos, equipo completo de golf y palos completos. Buscar/comprar/mostrar opciones es CATALOG_SEARCH y conserva category aunque no haya fitting; conveniencia es PRODUCT_ADVICE. 'este me sirve', 'me conviene este' y 'este es adecuado para mí' son ASK_PRODUCT_FIT; resuelve el producto desde currentPageProduct, lastInteractedProduct o focusedProduct. 'qué necesitas/qué dato te falta' es ASK_WHAT_INFORMATION_NEEDED. Una oferta pendiente START_PRODUCT_ADVICE y un 'sí/dale/revisemos' implican CONFIRMATION. 'principiante' con ASK_PLAYER_SKILL_LEVEL es skill BEGINNER; 'primer set' con ASK_SET_EXPERIENCE es FIRST_SET. Distingue BUYER y PLAYER; los hechos del cónyuge/hijo/amigo pertenecen al PLAYER. Si una familia de golf es clara, no devuelvas category null; OTHER sólo para conversación ajena al dominio. No inventes decisiones de Match, precio, disponibilidad o ranking; las decide el backend.`;
-    const semanticReasonInstruction = ` reasonMode debe ser CATALOG_REASON cuando preguntan por qué apareció/muestraste el producto, y PERSONAL_FIT_REASON cuando preguntan por qué les conviene o es para ellos. Incluye siempre reasonMode en el JSON. ASK_PRODUCT_FIT es para 'este me sirve', 'me conviene este' o 'este es adecuado para mí' y requiere resolver el producto por contexto, no iniciar una búsqueda. El contrato exige catalogScopeIntent: EXPLICIT_FAMILIES|INHERIT_PREVIOUS_FAMILY|ALL_CLUBS|ALL_HANDED_EQUIPMENT|ALL_EQUIPMENT|null, requestedProductFamilies: array de DRIVER|FAIRWAY_WOOD|HYBRID|IRON|WEDGE|PUTTER|SET (vacío si el alcance es amplio), searchScopeMode: ${SEARCH_SCOPE_MODE_CONTRACT}|null, searchContinuationRelation: KEEP_SCOPE|BROADEN_SCOPE|REPLACE_SCOPE|null y searchContinuationReason: EXPLICIT_CURRENT_TURN|ELLIPTICAL_CONTINUATION|PREVIOUS_SCOPE_EXHAUSTED|null. 'qué tienes para zurdo', 'qué tienes disponible para zurdo' y 'qué opciones tienes para alguien zurdo' son CATALOG_SEARCH con catalogScopeIntent=ALL_HANDED_EQUIPMENT, searchScopeMode=ALL_EQUIPMENT y declaredFacts handedness=LEFT/KNOWN, aunque antes se hablara de SET. Las variantes para diestro declaran RIGHT/KNOWN. 'otro bastón para zurdo' usa ALL_CLUBS y excluye SET. 'tienes un driver o un wedge?' y 'muéstrame drivers o wedges' son CATALOG_SEARCH con catalogScopeIntent=EXPLICIT_FAMILIES, requestedProductFamilies=[DRIVER,WEDGE] y MULTI_FAMILY; sólo preguntas que pidan comparar son ASK_COMPARISON. 'este me sirve?' es ASK_PRODUCT_FIT. Una búsqueda explícita reemplaza el alcance anterior, pero conserva hechos del jugador.`;
-    const rawText = await this.complete(system + semanticReasonInstruction, payload);
+    const system = `Eres Best Round Pro. Analiza exclusivamente el MENSAJE ACTUAL DEL USUARIO y devuelve JSON. dialogueAct describe la intención del usuario y sólo puede ser ${DIALOGUE_ACT_CONTRACT}. Nunca uses acciones del planificador como ASK_SET_EXPERIENCE, ASK_PLAYER_SKILL_LEVEL, ASK_HANDEDNESS, ASK_GAPPING o ASK_SWING_SPEED como dialogueAct. Contrato: { dialogueAct, intent: BUY_NOW|EXPLORING|ACTIVE_RESEARCH|UNKNOWN, category: DRIVER|FAIRWAY_WOOD|HYBRID|IRON|WEDGE|PUTTER|SET|null, requestedProductFamilies: array, searchScopeMode: ${SEARCH_SCOPE_MODE_CONTRACT}|null, catalogScopeIntent: EXPLICIT_FAMILIES|INHERIT_PREVIOUS_FAMILY|ALL_CLUBS|ALL_HANDED_EQUIPMENT|ALL_EQUIPMENT|null, searchContinuationRelation: KEEP_SCOPE|BROADEN_SCOPE|REPLACE_SCOPE|null, searchContinuationReason: EXPLICIT_CURRENT_TURN|ELLIPTICAL_CONTINUATION|PREVIOUS_SCOPE_EXHAUSTED|null, productReference: string|null, reasonMode: CATALOG_REASON|PERSONAL_FIT_REASON|null, declaredFacts: array, factMutationIntent: NONE|SET_NEW|CORRECT_EXISTING, temporaryPreferences: array, objection: PRICE|UNCERTAIN_FIT|BRAND|NEW_VS_USED|NEED_TO_THINK|WANT_OTHER_OPTION|null, wantsRecommendation: boolean, wantsHandoff: boolean, answersPendingQuestion: boolean, asksForExplanation: boolean, asksWhatInformationNeeded: boolean, topicChanged: boolean, confidence: number, entities }. declaredFacts contiene únicamente hechos comunicados nuevamente por el MENSAJE ACTUAL, nunca hechos copiados del contexto. Cada hecho es {field, value, durable, semanticStatus, source}, donde source es CURRENT_USER_EXPLICIT, CURRENT_USER_PENDING_ANSWER, CURRENT_USER_CORRECTION o CONTEXT_INFERRED. Omite hechos que sólo vengan del contexto. Usa factMutationIntent=SET_NEW para hechos nuevos explícitos, CORRECT_EXISTING sólo cuando el usuario corrige explícitamente un hecho previo, y NONE si no comunica hechos. Si responde pendingQuestion, usa dialogueAct=ANSWER_PENDING_QUESTION, answersPendingQuestion=true, source=CURRENT_USER_PENDING_ANSWER y el valor canónico indicado. 'ya juego', 'ya tengo equipo', 'llevo tiempo jugando' y 'no es mi primer set' significan setExperience=CURRENT_PLAYER. 'principiante', 'intermedio' y 'avanzado' significan skill=BEGINNER, INTERMEDIATE y ADVANCED. 'qué tienes para zurdo' es CATALOG_SEARCH, catalogScopeIntent=ALL_HANDED_EQUIPMENT, searchScopeMode=ALL_EQUIPMENT y handedness=LEFT/KNOWN/CURRENT_USER_EXPLICIT. Los valores conocidos canónicos incluyen handedness RIGHT|LEFT y setExperience FIRST_SET|CURRENT_PLAYER. No inventes compatibilidad, precio, stock ni ranking.`;
+    const providerSchemaDetails = " requestedProductFamilies sólo admite DRIVER|FAIRWAY_WOOD|HYBRID|IRON|WEDGE|PUTTER|SET. Cada declaredFact.field sólo admite handedness|handicap|shotTendency|objective|brand|conditionPreference|swingSpeed|setExperience|skill|purchaseTarget|relationship; value es string o number; durable es boolean; semanticStatus es KNOWN|UNKNOWN|NONE|NOT_APPLICABLE|DECLINED. temporaryPreferences es string[]. entities es {purchaseTarget: SELF|OTHER_PERSON, relationship: SPOUSE|CHILD|FRIEND|OTHER|UNKNOWN, playerReference: string|null}. Incluye siempre todos los campos raíz del contrato. pendingQuestion.meaning es metadata del planificador sobre la pregunta anterior; no es un dialogueAct permitido para el usuario.";
+    const semanticReasonInstruction = " 'este me sirve' es ASK_PRODUCT_FIT. reasonMode es CATALOG_REASON cuando preguntan por qué apareció un producto y PERSONAL_FIT_REASON cuando preguntan por qué les conviene. Una oferta pendiente seguida de sí/dale/revisemos es CONFIRMATION, sin declarar hechos del jugador. Buscar o mostrar opciones es CATALOG_SEARCH; comparar explícitamente es ASK_COMPARISON. Distingue BUYER y PLAYER.";
+    const rawText = await this.complete(system + providerSchemaDetails + semanticReasonInstruction, payload);
     let parsed: unknown;
     try {
       parsed = JSON.parse(extractJson(rawText));
@@ -304,7 +316,10 @@ class OpenAICompatibleProvider implements BestRoundConversationProvider {
         validationIssues: providerValidationIssues(parsed),
       });
     }
-    return result.data;
+    const rawDialogueAct = parsed && typeof parsed === "object" && typeof (parsed as Record<string, unknown>).dialogueAct === "string"
+      ? String((parsed as Record<string, unknown>).dialogueAct)
+      : null;
+    return { ...result.data, rawDialogueAct };
   }
   async explainRecommendation(payload: SafeConversationPayload) {
     const system =

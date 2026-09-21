@@ -12,7 +12,7 @@ import {
   interpretGolfCategory,
   type ProductFamily,
 } from "./category-normalization";
-import type { SearchScopeMode } from "./contract";
+import type { CurrentTurnFactSource, SearchScopeMode } from "./contract";
 
 export type ConversationObjection =
   | "PRICE"
@@ -114,6 +114,43 @@ export function normalizeCanonicalFactStatus(field: string, value: string | numb
   if (status !== "KNOWN" && canonical != null && validateCanonicalFactValue(field, canonical, "KNOWN")) return "KNOWN";
   return status;
 }
+
+export type CanonicalCurrentTurnFact = {
+  field: string;
+  value: string | number;
+  durable: boolean;
+  semanticStatus: FactStatus;
+  source: CurrentTurnFactSource;
+};
+
+export function resolvePendingAnswerFact(
+  pendingFactKey: string | null,
+  normalizedMessage: string,
+): CanonicalCurrentTurnFact | null {
+  const known = (field: string, value: string): CanonicalCurrentTurnFact => ({
+    field,
+    value,
+    durable: true,
+    semanticStatus: "KNOWN",
+    source: "CURRENT_USER_PENDING_ANSWER",
+  });
+  if (pendingFactKey === "handedness") {
+    if (/\b(zurdo|zurda|izquierdo|izquierda|left)\b/.test(normalizedMessage)) return known("handedness", "LEFT");
+    if (/\b(diestro|diestra|derecho|derecha|right)\b/.test(normalizedMessage)) return known("handedness", "RIGHT");
+  }
+  if (pendingFactKey === "setExperience") {
+    if (/\b(ya juego|ya tengo equipo|llevo tiempo jugando|no es mi primer set|juego actualmente|current player)\b/.test(normalizedMessage))
+      return known("setExperience", "CURRENT_PLAYER");
+    if (/\b(primer set|mi primer set|primera vez|first set)\b/.test(normalizedMessage))
+      return known("setExperience", "FIRST_SET");
+  }
+  if (pendingFactKey === "skill") {
+    if (/\b(principiante|beginner)\b/.test(normalizedMessage)) return known("skill", "BEGINNER");
+    if (/\b(intermedio|intermedia|intermediate)\b/.test(normalizedMessage)) return known("skill", "INTERMEDIATE");
+    if (/\b(avanzado|avanzada|advanced)\b/.test(normalizedMessage)) return known("skill", "ADVANCED");
+  }
+  return null;
+}
 export type ConversationParticipants = {
   buyer: { isLoggedInUser: true };
   player: {
@@ -141,21 +178,6 @@ export function getPlayerPerspective(participants: ConversationParticipants): Pl
     possessive: isSelf ? "tu" : "su",
     isSelf,
   };
-}
-
-export function validateInterpretationAgainstContext<T extends { dialogueAct: string; answersPendingQuestion: boolean; declaredFacts: Array<{ field: string }> }>(
-  interpretation: T,
-  pendingQuestion: { key: string } | null,
-  pendingAssistantOffer: ConversationState["pendingAssistantOffer"],
-): T {
-  if (!pendingQuestion) return interpretation;
-  const answered = interpretation.declaredFacts.some((fact) => fact.field === pendingQuestion.key);
-  if (answered) {
-    return { ...interpretation, dialogueAct: "ANSWER_PENDING_QUESTION", answersPendingQuestion: true };
-  }
-  if (interpretation.dialogueAct === "CONFIRMATION" && !pendingAssistantOffer)
-    return { ...interpretation, dialogueAct: "OTHER" };
-  return interpretation;
 }
 
 export type CatalogProductReference = {
