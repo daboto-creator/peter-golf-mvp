@@ -5,11 +5,16 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { BestRoundProChat } from "./best-round-pro-chat";
 import { BEST_ROUND_PRO_AGENT_ASSET } from "@/lib/best-round-pro/launcher";
+import {
+  clearCurrentPageProduct,
+  useCurrentPageProduct,
+} from "@/lib/best-round-pro/page-product-context";
 
 const POSITION_KEY = "best-round-pro-agent-position";
 
 export function BestRoundProAgentProvider() {
   const pathname = usePathname();
+  const currentPageProduct = useCurrentPageProduct();
   const [open, setOpen] = useState(false);
   const [teaser, setTeaser] = useState(false);
   const [motion, setMotion] = useState(false);
@@ -39,6 +44,9 @@ export function BestRoundProAgentProvider() {
     setOpen(true);
   }, []);
 
+  useEffect(() => {
+    if (!/^\/productos\/[^/]+\/?$/.test(pathname)) clearCurrentPageProduct();
+  }, [pathname]);
   useEffect(() => {
     const openFromContext = () => openShell();
     const closeFromContext = closeShell;
@@ -167,7 +175,7 @@ export function BestRoundProAgentProvider() {
               <button type="button" aria-label="Cerrar Best Round Pro Agent" className="inline-flex size-10 items-center justify-center rounded-lg border border-pg-gold bg-pg-gold text-2xl font-semibold text-pg-black hover:bg-white focus-visible:outline-2 focus-visible:outline-white" onClick={closeShell}>×</button>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-4"><BestRoundProChat embedded /></div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4"><BestRoundProChat embedded currentPageProduct={currentPageProduct} /></div>
         </aside>
       </div> : null}
     </>

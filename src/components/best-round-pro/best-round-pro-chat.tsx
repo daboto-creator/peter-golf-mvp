@@ -8,6 +8,7 @@ import {
   applyProductCardSelection,
   initialConversationState,
   type CatalogProductReference,
+  type ConversationProductContext,
   type ConversationState,
 } from "@/lib/best-round-pro/conversation";
 import { persistProductCardClick } from "@/lib/best-round-pro/client-session";
@@ -67,7 +68,13 @@ function customerPrice(amount: number) {
   return formatMoneyMinorUnits(amount).replace(/\.00$/, "");
 }
 
-export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
+export function BestRoundProChat({
+  embedded = false,
+  currentPageProduct = null,
+}: {
+  embedded?: boolean;
+  currentPageProduct?: ConversationProductContext | null;
+}) {
   const [state, setState] = useState<ConversationState>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -132,9 +139,6 @@ export function BestRoundProChat({ embedded = false }: { embedded?: boolean }) {
     setError(null);
     if (catalogProducts.length) setProductsExpanded(false);
     try {
-      const currentPageProduct = (() => {
-        try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-current-product") ?? "null"); } catch { return null; }
-      })();
       const response = await fetch("/api/best-round-pro", {
         method: "POST",
         headers: { "content-type": "application/json" },

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { initialConversationState, type ConversationProductContext } from "@/lib/best-round-pro/conversation";
+import { SEARCH_SCOPE_MODES } from "@/lib/best-round-pro/contract";
 import { getLastInterpreterTelemetry, processConversationTurn } from "@/lib/best-round-pro/service";
 
 const requestSchema = z.object({
@@ -109,7 +110,7 @@ const requestSchema = z.object({
       }).optional().default({ lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null }),
       searchScope: z.object({
         families: z.array(z.enum(["DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER", "SET"])),
-        mode: z.enum(["EXACT", "MULTI_FAMILY", "ALL_CLUBS", "ALL_EQUIPMENT"]),
+        mode: z.enum(SEARCH_SCOPE_MODES),
         source: z.enum(["EXPLICIT_CURRENT_TURN", "INHERITED_CONTEXT"]),
       }).nullable().optional().default(null),
       catalogSearchOutcome: z.enum(["RESULTS_FOUND", "NO_COMPATIBLE_INVENTORY", "NO_INVENTORY"]).nullable().optional().default(null),

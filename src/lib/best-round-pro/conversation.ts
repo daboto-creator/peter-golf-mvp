@@ -12,6 +12,7 @@ import {
   interpretGolfCategory,
   type ProductFamily,
 } from "./category-normalization";
+import type { SearchScopeMode } from "./contract";
 
 export type ConversationObjection =
   | "PRICE"
@@ -255,7 +256,7 @@ export type ConversationProductContext = {
 
 export type SearchScope = {
   families: ProductFamily[];
-  mode: "EXACT" | "MULTI_FAMILY" | "ALL_CLUBS" | "ALL_EQUIPMENT";
+  mode: SearchScopeMode;
   source: "EXPLICIT_CURRENT_TURN" | "INHERITED_CONTEXT";
 };
 

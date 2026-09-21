@@ -139,6 +139,37 @@ describe("Best Round Pro source-gap regressions", () => {
     expect(result.state.referenceResolution).toEqual({ productId: "A", source: "CURRENT_PAGE" });
   });
 
+  it("resolves 'este equipo me sirve' from the authoritative product page", async () => {
+    const state = initialConversationState();
+    mocks.currentPageProduct = publicProduct(product("PAGE-PRODUCT"));
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+
+    const result = await processConversationTurn({
+      state,
+      message: "este equipo me sirve?",
+      currentPageProduct: { id: "PAGE-PRODUCT", slug: "page-product", name: "Product PAGE-PRODUCT", productFamily: "club" },
+    });
+    expect(result.state.referenceResolution).toEqual({ productId: "PAGE-PRODUCT", source: "CURRENT_PAGE" });
+    expect(result.events).not.toContain("PRODUCT_REFERENCE_CLARIFICATION");
+    expect(result.events).not.toContain("COMMERCIAL_CATALOG_SEARCH");
+  });
+
+  it("reuses known LEFT and immediately rejects a RIGHT current-page product", async () => {
+    const state = knownLeftState();
+    mocks.currentPageProduct = publicProduct(product("RIGHT-PAGE", "RIGHT"));
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+
+    const result = await processConversationTurn({
+      state,
+      message: "este wedge me sirve?",
+      currentPageProduct: { id: "RIGHT-PAGE", slug: "right-page", name: "Product RIGHT-PAGE", productFamily: "WEDGE" },
+    });
+    expect(result.state.referenceResolution).toEqual({ productId: "RIGHT-PAGE", source: "CURRENT_PAGE" });
+    expect(result.state.compatibilityOutcome).toBe("HARD_INCOMPATIBLE");
+    expect(result.state.pendingQuestionKey).not.toBe("handedness");
+    expect(result.events.some((event) => event.includes("HARD_INCOMPATIBILITY"))).toBe(true);
+  });
+
   it("uses an explicit card click ahead of old focused context", async () => {
     const state = knownLeftState();
     state.lastCatalogResults = [product("A"), product("B"), product("C")];

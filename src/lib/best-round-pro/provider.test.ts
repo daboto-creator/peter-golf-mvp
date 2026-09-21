@@ -5,7 +5,9 @@ vi.mock("server-only", () => ({}));
 import {
   conversationInterpretationSchema,
   normalizeInterpretationShape,
+  providerValidationIssues,
 } from "./provider";
+import { SEARCH_SCOPE_MODES } from "./contract";
 
 describe("conversation interpretation contract", () => {
   it("fills structural defaults and normalizes complete-set aliases", () => {
@@ -76,6 +78,54 @@ describe("conversation interpretation contract", () => {
       }),
     );
     expect(parsed.catalogScopeIntent).toBe("ALL_HANDED_EQUIPMENT");
+    expect(parsed.searchScopeMode).toBe("ALL_EQUIPMENT");
     expect(parsed.requestedProductFamilies).toEqual([]);
+    expect(SEARCH_SCOPE_MODES).toEqual(["EXACT", "MULTI_FAMILY", "ALL_CLUBS", "ALL_EQUIPMENT"]);
+  });
+
+  it("validates the exact broad-left provider contract without fallback", () => {
+    const parsed = conversationInterpretationSchema.safeParse(
+      normalizeInterpretationShape({
+        dialogueAct: "CATALOG_SEARCH",
+        intent: "ACTIVE_RESEARCH",
+        category: null,
+        requestedProductFamilies: [],
+        catalogScopeIntent: "ALL_HANDED_EQUIPMENT",
+        searchScopeMode: "ALL_EQUIPMENT",
+        declaredFacts: [{ field: "handedness", value: "LEFT", durable: true, semanticStatus: "KNOWN" }],
+      }),
+    );
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.dialogueAct).toBe("CATALOG_SEARCH");
+    expect(parsed.data.catalogScopeIntent).toBe("ALL_HANDED_EQUIPMENT");
+    expect(parsed.data.searchScopeMode).toBe("ALL_EQUIPMENT");
+    expect(parsed.data.declaredFacts[0]).toMatchObject({ field: "handedness", value: "LEFT", semanticStatus: "KNOWN" });
+  });
+
+  it("normalizes a provider concept collision to the canonical search mode", () => {
+    const parsed = conversationInterpretationSchema.parse(
+      normalizeInterpretationShape({
+        dialogueAct: "CATALOG_SEARCH",
+        intent: "ACTIVE_RESEARCH",
+        catalogScopeIntent: "ALL_HANDED_EQUIPMENT",
+        searchScopeMode: "ALL_HANDED_EQUIPMENT",
+      }),
+    );
+    expect(parsed.catalogScopeIntent).toBe("ALL_HANDED_EQUIPMENT");
+    expect(parsed.searchScopeMode).toBe("ALL_EQUIPMENT");
+  });
+
+  it("reports a safe scalar receivedValue for enum validation failures", () => {
+    expect(providerValidationIssues({
+      dialogueAct: "CATALOG_SEARCH",
+      intent: "ACTIVE_RESEARCH",
+      searchScopeMode: "UNSUPPORTED_SCOPE",
+    })).toContainEqual(expect.objectContaining({
+      field: "searchScopeMode",
+      path: "searchScopeMode",
+      code: "invalid_value",
+      receivedValue: "UNSUPPORTED_SCOPE",
+    }));
   });
 });
