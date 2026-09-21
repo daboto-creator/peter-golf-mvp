@@ -42,6 +42,7 @@ export type ConversationState = {
   lastFocusedProduct: CatalogProductReference | null;
   lastInteractedProduct: CatalogProductReference | null;
   focusedProductSource: "CURRENT_PAGE" | "PRODUCT_CARD_CLICK" | "EXPLICIT_NAME" | "UNIQUE_RECENT_RESULT" | "RECOMMENDATION" | null;
+  referenceResolution: ReferenceResolutionResult;
   productAdvice: {
     active: boolean;
     product: CatalogProductReference | null;
@@ -168,6 +169,82 @@ export type CatalogProductReference = {
   handedness: string | null;
   family: string | null;
 };
+
+export type ReferenceResolutionSource =
+  | "CURRENT_PAGE"
+  | "PRODUCT_CARD_CLICK"
+  | "FOCUSED_CONTEXT"
+  | "EXPLICIT_NAME"
+  | "UNIQUE_RECENT_RESULT"
+  | "CLARIFICATION_REQUIRED";
+
+export type ReferenceResolutionResult = {
+  productId: string | null;
+  source: ReferenceResolutionSource;
+};
+
+export type ResolvedProductReference = ReferenceResolutionResult & {
+  product: CatalogProductReference | null;
+};
+
+export function resolveProductReference(input: {
+  currentPageProduct: CatalogProductReference | null;
+  lastInteractedProduct: CatalogProductReference | null;
+  focusedProduct: CatalogProductReference | null;
+  recentResults: CatalogProductReference[];
+  explicitProduct: CatalogProductReference | null;
+  explicitSubjectChange?: boolean;
+}): ResolvedProductReference {
+  const recentIds = new Set(input.recentResults.map((product) => product.id));
+  const clickedIsCurrent = Boolean(
+    input.lastInteractedProduct &&
+    (input.recentResults.length === 0 ||
+      recentIds.has(input.lastInteractedProduct.id) ||
+      input.currentPageProduct?.id === input.lastInteractedProduct.id),
+  );
+  const focusIsCurrent = Boolean(
+    input.focusedProduct &&
+    (input.recentResults.length === 0 || recentIds.has(input.focusedProduct.id)),
+  );
+  const result = (
+    product: CatalogProductReference,
+    source: Exclude<ReferenceResolutionSource, "CLARIFICATION_REQUIRED">,
+  ): ResolvedProductReference => ({ product, productId: product.id, source });
+
+  if (input.explicitSubjectChange && input.explicitProduct)
+    return result(input.explicitProduct, "EXPLICIT_NAME");
+  if (input.currentPageProduct) {
+    // A card click that navigated to this same product keeps its stronger
+    // interaction provenance while still resolving the current-page product.
+    if (clickedIsCurrent && input.lastInteractedProduct?.id === input.currentPageProduct.id)
+      return result(input.currentPageProduct, "PRODUCT_CARD_CLICK");
+    return result(input.currentPageProduct, "CURRENT_PAGE");
+  }
+  if (clickedIsCurrent && input.lastInteractedProduct)
+    return result(input.lastInteractedProduct, "PRODUCT_CARD_CLICK");
+  if (focusIsCurrent && input.focusedProduct)
+    return result(input.focusedProduct, "FOCUSED_CONTEXT");
+  if (input.explicitProduct) return result(input.explicitProduct, "EXPLICIT_NAME");
+  if (input.recentResults.length === 1)
+    return result(input.recentResults[0], "UNIQUE_RECENT_RESULT");
+  return { product: null, productId: null, source: "CLARIFICATION_REQUIRED" };
+}
+
+export function applyProductCardSelection(
+  state: ConversationState,
+  product: CatalogProductReference,
+): ConversationState {
+  return {
+    ...state,
+    lastInteractedProduct: product,
+    lastFocusedProduct: product,
+    focusedProductSource: "PRODUCT_CARD_CLICK",
+    referenceResolution: {
+      productId: product.id,
+      source: "PRODUCT_CARD_CLICK",
+    },
+  };
+}
 
 export type ConversationProductContext = {
   id: string;
@@ -329,6 +406,10 @@ export function initialConversationState(): ConversationState {
     lastFocusedProduct: null,
     lastInteractedProduct: null,
     focusedProductSource: null,
+    referenceResolution: {
+      productId: null,
+      source: "CLARIFICATION_REQUIRED",
+    },
     productAdvice: {
       active: false,
       product: null,
@@ -816,6 +897,7 @@ export function classifyConversationTurn(
     lastFocusedProduct: state.lastFocusedProduct,
     lastInteractedProduct: state.lastInteractedProduct,
     focusedProductSource: state.focusedProductSource,
+    referenceResolution: state.referenceResolution,
     productAdvice: state.productAdvice,
     participants: state.participants,
     pendingAssistantOffer: state.pendingAssistantOffer,

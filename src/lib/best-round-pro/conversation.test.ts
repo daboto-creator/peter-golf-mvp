@@ -16,10 +16,104 @@ import {
   normalizeCanonicalFactStatus,
   validateInterpretationAgainstContext,
   resolveSearchScope,
+  resolveProductReference,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
 describe("Best Round Pro conversation", () => {
+  const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT") => ({
+    id,
+    slug: id.toLowerCase(),
+    name: `Product ${id}`,
+    category: "Driver",
+    condition: "new",
+    price: 10000,
+    productHref: `/productos/${id.toLowerCase()}`,
+    imagePath: null,
+    handedness,
+    family: "club",
+  });
+
+  it("requires clarification when a stale focus is outside a new multi-result set", () => {
+    const resolution = resolveProductReference({
+      currentPageProduct: null,
+      lastInteractedProduct: null,
+      focusedProduct: product("X"),
+      recentResults: [product("A"), product("B"), product("C")],
+      explicitProduct: null,
+    });
+    expect(resolution).toMatchObject({ productId: null, source: "CLARIFICATION_REQUIRED" });
+  });
+
+  it("resolves a unique recent result without selecting from a multi-result list", () => {
+    expect(resolveProductReference({
+      currentPageProduct: null,
+      lastInteractedProduct: null,
+      focusedProduct: null,
+      recentResults: [product("A")],
+      explicitProduct: null,
+    })).toMatchObject({ productId: "A", source: "UNIQUE_RECENT_RESULT" });
+  });
+
+  it("prioritizes the current page over click and focused context", () => {
+    expect(resolveProductReference({
+      currentPageProduct: product("A"),
+      lastInteractedProduct: product("B"),
+      focusedProduct: product("C"),
+      recentResults: [product("A"), product("B"), product("C")],
+      explicitProduct: null,
+    })).toMatchObject({ productId: "A", source: "CURRENT_PAGE" });
+  });
+
+  it("prioritizes an explicit card click when no current page exists", () => {
+    expect(resolveProductReference({
+      currentPageProduct: null,
+      lastInteractedProduct: product("B"),
+      focusedProduct: product("C"),
+      recentResults: [product("A"), product("B"), product("C")],
+      explicitProduct: null,
+    })).toMatchObject({ productId: "B", source: "PRODUCT_CARD_CLICK" });
+  });
+
+  it("does not let an explicit name overwrite stronger current-page context without a subject change", () => {
+    expect(resolveProductReference({
+      currentPageProduct: product("A"),
+      lastInteractedProduct: null,
+      focusedProduct: null,
+      recentResults: [product("A"), product("B")],
+      explicitProduct: product("B"),
+    })).toMatchObject({ productId: "A", source: "CURRENT_PAGE" });
+    expect(resolveProductReference({
+      currentPageProduct: product("A"),
+      lastInteractedProduct: null,
+      focusedProduct: null,
+      recentResults: [product("A"), product("B")],
+      explicitProduct: product("B"),
+      explicitSubjectChange: true,
+    })).toMatchObject({ productId: "B", source: "EXPLICIT_NAME" });
+  });
+
+  it("retains card-click provenance after navigation to that same product", () => {
+    expect(resolveProductReference({
+      currentPageProduct: product("B"),
+      lastInteractedProduct: product("B"),
+      focusedProduct: product("B"),
+      recentResults: [product("A"), product("B"), product("C")],
+      explicitProduct: null,
+    })).toMatchObject({ productId: "B", source: "PRODUCT_CARD_CLICK" });
+  });
+
+  it.each(["LEFT", "RIGHT"] as const)("never selects handedness again when %s is known", (handedness) => {
+    expect(getNextProductAdviceQuestion({ answers: { handedness } })?.key).not.toBe("handedness");
+  });
+
+  it("surfaces opposite handedness before selecting another material question", () => {
+    const rightProduct = product("RIGHT-DRIVER", "RIGHT");
+    expect(evaluateFocusedProductAgainstKnownFacts({ product: rightProduct, answers: { handedness: "LEFT" } })).toMatchObject({
+      status: "HARD_INCOMPATIBLE",
+    });
+  });
+
   it("replaces an inherited SET scope with an explicit multi-family scope", () => {
     const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
     const next = resolveSearchScope(previous, ["DRIVER", "WEDGE"], "MULTI_FAMILY", null, true);

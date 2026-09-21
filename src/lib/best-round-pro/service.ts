@@ -12,6 +12,7 @@ import {
   evaluateFocusedProductAgainstKnownFacts,
   getNextProductAdviceQuestion,
   getPlayerPerspective,
+  resolveProductReference,
   resolveSearchScope,
   questionPromptFor,
   validateInterpretationAgainstContext,
@@ -336,6 +337,7 @@ export async function processConversationTurn(input: {
       interpretation = null;
     }
   }
+  let explicitProduct: CatalogProductReference | null = null;
   if (interpretation?.productReference) {
     const reference = interpretation.productReference.trim().toLowerCase();
     const candidates = [
@@ -344,18 +346,30 @@ export async function processConversationTurn(input: {
       ...(input.state.lastFocusedProduct ? [input.state.lastFocusedProduct] : []),
       ...input.state.lastCatalogResults,
     ];
-    const exact = candidates.find((product) =>
+    explicitProduct = candidates.find((product) =>
       product.name.toLowerCase() === reference || product.slug.toLowerCase() === reference || product.id.toLowerCase() === reference,
-    );
-    if (exact) {
-      preFocusedProduct = exact;
-      preFocusedProductSource = pageProductReference?.id === exact.id
-        ? "CURRENT_PAGE"
-        : input.state.lastInteractedProduct?.id === exact.id
-          ? "PRODUCT_CARD_CLICK"
-          : "EXPLICIT_NAME";
-    }
+    ) ?? null;
   }
+  const referenceResolution = resolveProductReference({
+    currentPageProduct: pageProductReference,
+    lastInteractedProduct: input.state.lastInteractedProduct,
+    focusedProduct: input.state.productAdvice?.product ?? input.state.lastFocusedProduct,
+    recentResults: input.state.lastCatalogResults,
+    explicitProduct,
+    explicitSubjectChange: interpretation?.dialogueAct === "CHANGE_PRODUCT",
+  });
+  preFocusedProduct = referenceResolution.product;
+  preFocusedProductSource = referenceResolution.source === "CURRENT_PAGE"
+    ? "CURRENT_PAGE"
+    : referenceResolution.source === "PRODUCT_CARD_CLICK"
+      ? "PRODUCT_CARD_CLICK"
+      : referenceResolution.source === "EXPLICIT_NAME"
+        ? "EXPLICIT_NAME"
+        : referenceResolution.source === "UNIQUE_RECENT_RESULT"
+          ? "UNIQUE_RECENT_RESULT"
+          : referenceResolution.source === "FOCUSED_CONTEXT"
+            ? input.state.focusedProductSource ?? "RECOMMENDATION"
+            : null;
   const normalizedMessage = normalizeConversationText(input.message);
   const participants = {
     ...input.state.participants,
@@ -454,6 +468,10 @@ export async function processConversationTurn(input: {
       : input.state.productAdvice,
     lastInteractedProduct: input.state.lastInteractedProduct,
     focusedProductSource: preFocusedProductSource,
+    referenceResolution: {
+      productId: referenceResolution.productId,
+      source: referenceResolution.source,
+    },
     searchScope: resolvedSearchScope,
     searchContinuation: interpretation?.searchContinuationRelation
       ? {
@@ -512,32 +530,25 @@ export async function processConversationTurn(input: {
     return appendSocialReply("Te lo pregunto porque ayuda a orientar el equipo al nivel de juego y evitar una opción demasiado exigente. Si no lo sabes, podemos seguir con otros datos.", "ADVICE_QUESTION_ANSWERED");
   }
   const focusedProduct = preFocusedProduct;
-  if (interpretation?.dialogueAct === "CONFIRMATION" && updatedState.pendingAssistantOffer?.action === "START_PRODUCT_ADVICE" && focusedProduct) {
-    const question = `Lo primero que necesito saber es si ${playerPerspective.isSelf ? "juegas" : `${playerPerspective.subject} juega`} como diestro o zurdo.`;
-    const state: ConversationState = {
-      ...updatedState,
-      messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: question }],
-      pendingQuestionKey: "handedness",
-      pendingQuestionCategory: "PRODUCT_ADVICE",
-      pendingQuestionSlotType: "HANDEDNESS",
-      pendingAssistantOffer: null,
-      productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
-      lastExecutedAction: "START_PRODUCT_ADVICE",
-    };
-    return { state, reply: question, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_CONFIRMED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
-  }
-  if (asksProductFit) {
+  const confirmsProductAdvice = interpretation?.dialogueAct === "CONFIRMATION" &&
+    updatedState.pendingAssistantOffer?.action === "START_PRODUCT_ADVICE";
+  const startsProductEvaluation = asksProductFit || confirmsProductAdvice ||
+    (asksProductReason && personalFitReason) || asksProductAdvice ||
+    (!answeredPending && asksWhatData && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE");
+  if (startsProductEvaluation) {
     if (!focusedProduct && updatedState.lastCatalogResults.length > 1) {
       const reply = "¿Cuál de las opciones quieres que revise? Selecciona un producto o dime su nombre.";
       const state: ConversationState = {
         ...updatedState,
         messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
-        lastExecutedAction: "ASK_PRODUCT_FIT",
+        referenceResolution: { productId: null, source: "CLARIFICATION_REQUIRED" },
+        lastExecutedAction: "CLARIFY_PRODUCT_REFERENCE",
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REFERENCE_CLARIFICATION"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     if (focusedProduct) {
-      const playerHand = updatedState.session.diagnosticAnswers.handedness;
+      const answers = updatedState.session.diagnosticAnswers;
+      const playerHand = answers.handedness;
       const productHand = typeof focusedProduct.handedness === "string" ? focusedProduct.handedness.toUpperCase() : null;
       if ((playerHand === "LEFT" || playerHand === "RIGHT") && (productHand === "LEFT" || productHand === "RIGHT") && playerHand !== productHand) {
         const playerLabel = playerHand === "LEFT" ? "zurdo" : "diestro";
@@ -550,87 +561,51 @@ export async function processConversationTurn(input: {
           focusedProductSource: preFocusedProductSource,
           compatibilityOutcome: "HARD_INCOMPATIBLE",
           lastExecutedAction: "RETURN_HARD_INCOMPATIBILITY",
-          productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: updatedState.session.diagnosticAnswers },
+          pendingAssistantOffer: null,
+          productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
         };
         return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_FIT_HARD_INCOMPATIBILITY"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
       }
-      if (playerHand !== "LEFT" && playerHand !== "RIGHT") {
-        const question = "Para comprobar si te sirve, necesito saber si juegas como diestro o zurdo.";
+      const nextAdviceQuestion = getNextProductAdviceQuestion({ answers });
+      if (nextAdviceQuestion) {
+        const question = questionPromptFor(nextAdviceQuestion, playerPerspective, focusedProduct.category) ??
+          "¿Qué otro dato de tu juego puedes compartir?";
+        const reply = asksWhatData
+          ? `Para evaluar ${focusedProduct.name}, el siguiente dato material que necesito es: ${question}`
+          : `Para revisar si ${focusedProduct.name} encaja ${playerPerspective.isSelf ? "contigo" : `con el juego de ${playerPerspective.subject}`}, ${question}`;
         const state: ConversationState = {
           ...updatedState,
-          messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: question }],
-          pendingQuestionKey: "handedness",
+          messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+          pendingQuestionKey: nextAdviceQuestion.key,
           pendingQuestionCategory: "PRODUCT_ADVICE",
-          pendingQuestionSlotType: "HANDEDNESS",
+          pendingQuestionSlotType: nextAdviceQuestion.key === "skill" ? "HANDICAP" : nextAdviceQuestion.key === "setExperience" ? "BOOLEAN_PREFERENCE" : "HANDEDNESS",
           lastFocusedProduct: focusedProduct,
           focusedProductSource: preFocusedProductSource,
-          productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
+          productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: nextAdviceQuestion.key, collectedAnswers: answers },
+          pendingAssistantOffer: null,
           lastExecutedAction: "ASK_NEXT_QUESTION",
         };
-        return { state, reply: question, nextQuestion: null, objection: null, events: ["PRODUCT_FIT_HAND_NEEDED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+        return { state, reply, nextQuestion: null, objection: null, events: [confirmsProductAdvice ? "PRODUCT_ADVICE_CONFIRMED" : "PRODUCT_ADVICE_STARTED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
       }
-      const reply = `Con la mano de juego que me indicaste, ${focusedProduct.name} pasa la comprobación de compatibilidad de mano. Para valorar el ajuste completo todavía puedo revisar otros datos de tu juego.`;
+      const reply = `Con los datos que me compartiste, ${focusedProduct.name} pasa las comprobaciones materiales disponibles. Puedo explicarte el ajuste o compararlo con otras opciones.`;
       const state: ConversationState = {
         ...updatedState,
         messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
         lastFocusedProduct: focusedProduct,
         focusedProductSource: preFocusedProductSource,
         compatibilityOutcome: "MATCH",
+        pendingAssistantOffer: null,
+        productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
         lastExecutedAction: "EXPLAIN_PERSONAL_FIT",
       };
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_FIT_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
   }
   if (asksProductReason && focusedProduct && !updatedState.productAdvice?.active) {
-    if (personalFitReason) {
-      const reply = `Todavía necesito comprobar si ${focusedProduct.name} es adecuado para ti. Empecemos por revisar los datos más importantes de tu juego.`;
-      const state: ConversationState = {
-        ...updatedState,
-        messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
-        pendingQuestionKey: "handedness",
-        pendingQuestionCategory: "PRODUCT_ADVICE",
-        pendingQuestionSlotType: "HANDEDNESS",
-        lastFocusedProduct: focusedProduct,
-        productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
-        pendingAssistantOffer: null,
-        lastExecutedAction: "START_PRODUCT_ADVICE",
-      };
-      return { state, reply, nextQuestion: null, objection: null, events: ["PERSONAL_FIT_REASON"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
-    }
     const targetPhrase = playerPerspective.isSelf ? "encaja contigo" : `encaja con el juego de ${playerPerspective.displayReference}`;
     const reply = `Te mostré ${focusedProduct.name} porque es la opción de set completo disponible que encontré en el catálogo. Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`;
     const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct, pendingAssistantOffer: { action: "START_PRODUCT_ADVICE", targetProductIds: [focusedProduct.id], createdAtTurn: updatedState.messages.length + 1 }, lastExecutedAction: "EXPLAIN_CATALOG_REASON" };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
-  }
-  if (asksProductAdvice || (!answeredPending && asksWhatData && focusedProduct && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE")) {
-    if (!focusedProduct && updatedState.lastCatalogResults.length > 1) {
-      const names = updatedState.lastCatalogResults.slice(0, 2).map((product) => product.name);
-      const reply = `¿Te refieres a ${names[0]} o a ${names[1]}?`;
-      const state: ConversationState = {
-        ...updatedState,
-        messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
-      };
-      return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REFERENCE_CLARIFICATION"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
-    }
-    if (focusedProduct) {
-      const handQuestion = questionPromptFor({ key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL", targetEntity: "PLAYER", expectedValues: [...FACT_VALUE_DOMAINS.handedness], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] }, playerPerspective, focusedProduct.category);
-      const question = `Para saber si este producto encaja ${playerPerspective.isSelf ? "contigo" : `con el juego de ${playerPerspective.subject}`}, ${handQuestion?.toLowerCase() ?? "necesito confirmar la mano del jugador."}`;
-      const reply = asksWhatData
-        ? `Para evaluar ${focusedProduct.name} necesito principalmente confirmar la mano de ${playerPerspective.isSelf ? "quien lo va a usar" : playerPerspective.subject}, su nivel o handicap y qué busca con el set. Empecemos por lo más importante: ${handQuestion}`
-        : `Claro, revisemos si ${focusedProduct.name} encaja ${playerPerspective.isSelf ? "contigo" : `con el juego de ${playerPerspective.subject}`}. ${question}`;
-      const state: ConversationState = {
-        ...updatedState,
-        messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
-        pendingQuestionKey: "handedness",
-        pendingQuestionCategory: "PRODUCT_ADVICE",
-        pendingQuestionSlotType: "HANDEDNESS",
-        lastFocusedProduct: focusedProduct,
-        productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: "handedness", collectedAnswers: updatedState.session.diagnosticAnswers },
-        pendingAssistantOffer: null,
-        participants,
-      };
-      return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_STARTED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
-    }
   }
   if (focusedProduct && (updatedState.productAdvice?.active || updatedState.pendingQuestionCategory === "PRODUCT_ADVICE")) {
     const answers = { ...updatedState.session.diagnosticAnswers };
@@ -712,7 +687,9 @@ export async function processConversationTurn(input: {
     const reply = repeatedWithoutProgress
       ? "Para no hacerte repetir la misma pregunta, puedo continuar con una recomendación general o puedes indicarme qué dato prefieres compartir."
       : asksData
-      ? `Para evaluar ${focusedProduct.name} necesito principalmente saber si ${playerLabel} juega diestro o zurdo, su nivel aproximado y si es su primer set. ${knownHand ? `Ya sé que ${participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`} ${hand === "LEFT" ? "zurdo" : hand === "RIGHT" ? "diestro" : answers.handedness === "LEFT" ? "zurdo" : "diestro"};` : "Empecemos por la mano;"} ¿${participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`} como diestro o zurdo?`
+      ? knownHand
+        ? `Para evaluar ${focusedProduct.name}, ya sé que ${participants.player.relationToBuyer === "SELF" ? "juegas" : `${participants.player.displayReference} juega`} ${answers.handedness === "LEFT" ? "zurdo" : "diestro"}. El siguiente dato material es: ${semanticQuestion ?? "puedo continuar con la información disponible."}`
+        : `Para evaluar ${focusedProduct.name}, empecemos por el siguiente dato material: ${semanticQuestion ?? `¿${playerLabel} juega como diestro o zurdo?`}`
       : semanticQuestion
         ? `Perfecto. Para orientarte mejor con ${focusedProduct.name}, ${semanticQuestion}`
         : `Perfecto. Con estos datos ya puedo orientarte sobre ${focusedProduct.name}.`;
@@ -786,6 +763,23 @@ export async function processConversationTurn(input: {
       handedness: product.handedness,
       family: product.productFamily,
     }));
+    const currentResultIds = new Set(references.map((product) => product.id));
+    const retainedInteraction = updatedState.lastInteractedProduct &&
+      (currentResultIds.has(updatedState.lastInteractedProduct.id) || pageProductReference?.id === updatedState.lastInteractedProduct.id)
+      ? updatedState.lastInteractedProduct
+      : null;
+    const nextFocusedProduct = references.length === 1
+      ? references[0]
+      : retainedInteraction && currentResultIds.has(retainedInteraction.id)
+        ? retainedInteraction
+        : null;
+    const nextReferenceResolution = resolveProductReference({
+      currentPageProduct: pageProductReference,
+      lastInteractedProduct: retainedInteraction,
+      focusedProduct: nextFocusedProduct,
+      recentResults: references,
+      explicitProduct: null,
+    });
     const state: ConversationState = {
       ...updatedState,
       messages: [
@@ -797,9 +791,21 @@ export async function processConversationTurn(input: {
       pendingQuestionCategory: null,
       pendingQuestionSlotType: null,
       lastCatalogResults: references,
-      lastFocusedProduct: references.length === 1 ? references[0] : updatedState.lastFocusedProduct,
-      lastInteractedProduct: updatedState.lastInteractedProduct,
-      focusedProductSource: references.length === 1 ? "UNIQUE_RECENT_RESULT" : updatedState.focusedProductSource,
+      lastFocusedProduct: nextFocusedProduct,
+      lastInteractedProduct: retainedInteraction,
+      focusedProductSource: nextReferenceResolution.source === "CURRENT_PAGE"
+        ? "CURRENT_PAGE"
+        : nextReferenceResolution.source === "PRODUCT_CARD_CLICK"
+          ? "PRODUCT_CARD_CLICK"
+          : nextReferenceResolution.source === "UNIQUE_RECENT_RESULT"
+            ? "UNIQUE_RECENT_RESULT"
+            : nextReferenceResolution.source === "FOCUSED_CONTEXT"
+              ? updatedState.focusedProductSource
+              : null,
+      referenceResolution: {
+        productId: nextReferenceResolution.productId,
+        source: nextReferenceResolution.source,
+      },
       productAdvice: { active: false, product: null, pendingQuestionKey: null, collectedAnswers: {} },
       pendingAssistantOffer: null,
       catalogSearchOutcome: catalog.products.length > 0

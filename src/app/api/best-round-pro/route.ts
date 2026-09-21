@@ -75,6 +75,10 @@ const requestSchema = z.object({
         handedness: z.string().nullable().optional().default(null), family: z.string().nullable().optional().default(null),
       }).nullable().default(null),
       focusedProductSource: z.enum(["CURRENT_PAGE", "PRODUCT_CARD_CLICK", "EXPLICIT_NAME", "UNIQUE_RECENT_RESULT", "RECOMMENDATION"]).nullable().default(null),
+      referenceResolution: z.object({
+        productId: z.string().nullable(),
+        source: z.enum(["CURRENT_PAGE", "PRODUCT_CARD_CLICK", "FOCUSED_CONTEXT", "EXPLICIT_NAME", "UNIQUE_RECENT_RESULT", "CLARIFICATION_REQUIRED"]),
+      }).optional().default({ productId: null, source: "CLARIFICATION_REQUIRED" }),
       productAdvice: z.object({
         active: z.boolean(),
         product: z.object({
@@ -135,16 +139,30 @@ export async function POST(request: Request) {
     };
     const result = await processConversationTurn(body);
     const telemetry = getLastInterpreterTelemetry();
-    const plannedAction = result.state.lastExecutedAction
-      ?? ("catalogProducts" in result
-        ? ((result.catalogProducts?.length ?? 0) > 0 ? "SHOW_CATALOG_RESULTS" : "RETURN_NO_COMPATIBLE_INVENTORY")
-        : result.events.includes("PRODUCT_ADVICE_HARD_INCOMPATIBILITY")
-          ? "RETURN_HARD_INCOMPATIBILITY"
-          : result.nextQuestion || result.state.pendingQuestionKey
+    const plannedAction = telemetry.dialogueAct === "ASK_PRODUCT_FIT"
+      ? "ASK_PRODUCT_FIT"
+      : telemetry.dialogueAct === "ASK_PRODUCT_REASON"
+        ? "EXPLAIN_PRODUCT_REASON"
+        : telemetry.dialogueAct === "CONFIRMATION"
+          ? "START_PRODUCT_ADVICE"
+          : telemetry.dialogueAct === "PRODUCT_ADVICE" || telemetry.dialogueAct === "FITTING_REQUEST"
+            ? "START_PRODUCT_ADVICE"
+            : telemetry.dialogueAct === "CATALOG_SEARCH"
+              ? "SEARCH_CATALOG"
+              : telemetry.dialogueAct ?? "ROUTE_FALLBACK";
+    const executedAction = result.events.includes("PRODUCT_REFERENCE_CLARIFICATION")
+      ? "CLARIFY_PRODUCT_REFERENCE"
+      : result.events.some((event) => event.includes("HARD_INCOMPATIBILITY"))
+        ? "RETURN_HARD_INCOMPATIBILITY"
+        : result.events.includes("COMMERCIAL_CATALOG_SEARCH")
+          ? (("catalogProducts" in result && (result.catalogProducts?.length ?? 0) > 0) ? "SHOW_CATALOG_RESULTS" : "RETURN_NO_COMPATIBLE_INVENTORY")
+          : result.state.lastExecutedAction ?? (result.nextQuestion || result.state.pendingQuestionKey
             ? "ASK_NEXT_QUESTION"
             : result.recommendation
               ? "RUN_RECOMMENDATION"
-              : "RETURN_TERMINAL_OUTCOME");
+              : result.events.some((event) => event.startsWith("SOCIAL_"))
+                ? "ANSWER_SOCIAL"
+                : "RETURN_TERMINAL_OUTCOME");
     console.info("best_round_pro_turn_trace", {
       providerSucceeded: telemetry.providerSucceeded,
       providerCalled: telemetry.providerCalled,
@@ -175,8 +193,9 @@ export async function POST(request: Request) {
       focusedProductSource: result.state.focusedProductSource ?? null,
       lastInteractedProductId: result.state.lastInteractedProduct?.id ?? null,
       currentPageProductId: body.currentPageProduct?.id ?? null,
-      resolvedReferenceProductId: result.state.lastFocusedProduct?.id ?? null,
-      referenceResolutionSource: result.state.focusedProductSource ?? null,
+      recentResultIds: result.state.lastCatalogResults.map((product) => product.id),
+      resolvedReferenceProductId: result.state.referenceResolution.productId,
+      referenceResolutionSource: result.state.referenceResolution.source,
       previousSearchFamilies: body.state.searchScope?.families ?? [],
       interpretedRequestedFamilies: telemetry.requestedProductFamilies ?? [],
       previousSearchOutcome: body.state.catalogSearchOutcome ?? null,
@@ -195,7 +214,7 @@ export async function POST(request: Request) {
       stateChanged: JSON.stringify(body.state.session) !== JSON.stringify(result.state.session),
       nextQuestionKey: result.nextQuestion?.id ?? result.state.pendingQuestionKey,
       plannedAction,
-      executedAction: plannedAction,
+      executedAction,
       stallDetected: (result.state.conversationLoop?.consecutiveSameQuestionCount ?? 0) >= 2,
     });
     return NextResponse.json({
@@ -209,6 +228,15 @@ export async function POST(request: Request) {
       error: "error" in result ? result.error : null,
       telemetry: {
         ...telemetry,
+        recentResultIds: result.state.lastCatalogResults.map((product) => product.id),
+        lastInteractedProductId: result.state.lastInteractedProduct?.id ?? null,
+        focusedProductId: result.state.lastFocusedProduct?.id ?? result.state.productAdvice.product?.id ?? null,
+        focusedProductSource: result.state.focusedProductSource ?? null,
+        currentPageProductId: body.currentPageProduct?.id ?? null,
+        resolvedReferenceProductId: result.state.referenceResolution.productId,
+        referenceResolutionSource: result.state.referenceResolution.source,
+        plannedAction,
+        executedAction,
         inputTokens: 0,
         outputTokens: 0,
         researchCalls: 0,
