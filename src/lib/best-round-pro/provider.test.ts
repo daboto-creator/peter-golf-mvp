@@ -34,6 +34,21 @@ describe("conversation interpretation contract", () => {
     expect(parsed.wantsRecommendation).toBe(false);
   });
 
+  it("accepts canonical handicap facts and rejects out-of-range values", () => {
+    const valid = conversationInterpretationSchema.safeParse(normalizeInterpretationShape({
+      dialogueAct: "ANSWER_PENDING_QUESTION",
+      intent: "UNKNOWN",
+      declaredFacts: [{ field: "handicapIndex", value: 18.4, durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" }],
+    }));
+    expect(valid.success).toBe(true);
+    const invalid = conversationInterpretationSchema.safeParse(normalizeInterpretationShape({
+      dialogueAct: "ANSWER_PENDING_QUESTION",
+      intent: "UNKNOWN",
+      declaredFacts: [{ field: "handicapIndex", value: 55, durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" }],
+    }));
+    expect(invalid.success).toBe(false);
+  });
+
   it("keeps explicit multi-family search scope separate from product category", () => {
     const parsed = conversationInterpretationSchema.parse(
       normalizeInterpretationShape({

@@ -17,10 +17,24 @@ import {
   resolveSearchScope,
   resolveProductReference,
   resolvePendingAnswerFact,
+  deriveSkillFromHandicap,
+  questionPromptFor,
+  getPlayerPerspective,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
 describe("Best Round Pro conversation", () => {
+  it.each([[8, "ADVANCED"], [18.4, "INTERMEDIATE"], [31, "BEGINNER"]] as const)(
+    "derives internal skill from handicap %s",
+    (handicap, expected) => expect(deriveSkillFromHandicap(handicap)).toBe(expected),
+  );
+
+  it("asks for handicap instead of subjective skill labels", () => {
+    const spec = getNextProductAdviceQuestion({ answers: { handedness: "RIGHT", setExperience: "CURRENT_PLAYER" } });
+    expect(spec?.key).toBe("skill");
+    expect(questionPromptFor(spec, getPlayerPerspective(initialConversationState().participants), "WEDGE")).toMatch(/handicap/i);
+    expect(questionPromptFor(spec, getPlayerPerspective(initialConversationState().participants), "WEDGE")).not.toMatch(/principiante|intermedio|avanzado/i);
+  });
   const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT") => ({
     id,
     slug: id.toLowerCase(),

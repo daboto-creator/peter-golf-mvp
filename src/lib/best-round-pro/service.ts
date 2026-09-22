@@ -19,6 +19,7 @@ import {
   validateCanonicalFactValue,
   normalizeCanonicalFactStatus,
   resolvePendingAnswerFact,
+  deriveSkillFromHandicap,
   FACT_VALUE_DOMAINS,
   type CanonicalCurrentTurnFact,
   type ConversationProductContext,
@@ -52,6 +53,26 @@ import {
 } from "@/lib/best-round-pro/intent-router";
 import { searchCommercialCatalog, searchCatalogScope } from "@/lib/best-round-pro/catalog-search";
 import type { CatalogProductReference } from "@/lib/best-round-pro/conversation";
+
+export function canonicalProductFamily(product: CatalogProductReference): string {
+  if (product.family && product.family !== "club") return product.family.toUpperCase();
+  const category = product.category?.toUpperCase() ?? "";
+  return (["DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER", "SET"] as const)
+    .find((family) => category.includes(family.replace("_", " ")) || category === family) ?? "EQUIPMENT";
+}
+
+export function safeFamilyLanguage(product: CatalogProductReference) {
+  switch (canonicalProductFamily(product)) {
+    case "WEDGE": return "este wedge y su papel en el juego corto, loft y gapping";
+    case "DRIVER": return "este driver, su loft, shaft y comportamiento desde el tee";
+    case "FAIRWAY_WOOD": return "esta madera, su loft y uso desde fairway o tee";
+    case "HYBRID": return "este híbrido y el espacio que puede cubrir entre maderas e hierros";
+    case "IRON": return "estos hierros, su composición, distancia y gapping";
+    case "PUTTER": return "este putter y su comportamiento en el green";
+    case "SET": return "este set, su composición y los palos incluidos";
+    default: return "este equipo y sus especificaciones disponibles";
+  }
+}
 
 type ProfileRow = Record<string, unknown>;
 export type ConversationInterpreterTelemetry = {
@@ -120,7 +141,7 @@ export function getLastInterpreterTelemetry() {
 
 function telemetryPlayerFacts(answers: Record<string, string | number | boolean | null>) {
   return Object.fromEntries(
-    ["handedness", "setExperience", "skill", "handicap", "shotTendency", "swingSpeed"]
+    ["handedness", "setExperience", "skill", "skillSource", "handicapIndex", "handicapStatus", "handicapSource", "handicap", "shotTendency", "swingSpeed"]
       .filter((key) => answers[key] !== undefined)
       .map((key) => [key, answers[key]]),
   );
@@ -263,7 +284,9 @@ export async function processConversationTurn(input: {
       const pendingMeaning: Record<string, string> = {
         handedness: "ASK_PLAYER_HANDEDNESS",
         setExperience: "ASK_SET_EXPERIENCE",
-        skill: "ASK_PLAYER_SKILL_LEVEL",
+        skill: "ASK_PLAYER_HANDICAP",
+        handicap: "ASK_PLAYER_HANDICAP",
+        handicapIndex: "ASK_PLAYER_HANDICAP",
         objective: "ASK_PLAYER_OBJECTIVE",
         shotTendency: "ASK_SHOT_TENDENCY",
         swingSpeed: "ASK_SWING_SPEED",
@@ -299,6 +322,7 @@ export async function processConversationTurn(input: {
             expectedValues: pendingKey === "handedness" ? [...FACT_VALUE_DOMAINS.handedness]
               : pendingKey === "skill" ? [...FACT_VALUE_DOMAINS.skill]
                 : pendingKey === "setExperience" ? [...FACT_VALUE_DOMAINS.setExperience]
+                  : pendingKey === "handicap" || pendingKey === "handicapIndex" ? ["0.0-54.0"]
                   : [],
             allowedStatuses: pendingKey === "objective" ? ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] : ["KNOWN", "UNKNOWN", "DECLINED"],
           } : null,
@@ -468,7 +492,10 @@ export async function processConversationTurn(input: {
       reason: hasExisting ? "KNOWN_FACT_NOT_EXPLICITLY_CORRECTED" : "NO_CURRENT_TURN_MUTATION_EVIDENCE",
     });
   }
-  const answeredPending = Boolean(pendingKey && canonicalFacts.some((fact) => fact.field === pendingKey));
+  const pendingFactMatches = (fact: CanonicalCurrentTurnFact) => Boolean(
+    pendingKey && (fact.field === pendingKey || (pendingKey === "skill" && ["handicapIndex", "handicapStatus"].includes(fact.field))),
+  );
+  const answeredPending = Boolean(pendingKey && canonicalFacts.some(pendingFactMatches));
   const rawDialogueAct = interpretation?.rawDialogueAct ?? interpretation?.dialogueAct ?? null;
   const effectiveDialogueAct: DialogueAct | null = answeredPending
     ? "ANSWER_PENDING_QUESTION"
@@ -661,7 +688,7 @@ export async function processConversationTurn(input: {
           messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
           pendingQuestionKey: nextAdviceQuestion.key,
           pendingQuestionCategory: "PRODUCT_ADVICE",
-          pendingQuestionSlotType: nextAdviceQuestion.key === "skill" ? "HANDICAP" : nextAdviceQuestion.key === "setExperience" ? "BOOLEAN_PREFERENCE" : "HANDEDNESS",
+          pendingQuestionSlotType: ["skill", "handicap", "handicapIndex"].includes(nextAdviceQuestion.key) ? "HANDICAP" : nextAdviceQuestion.key === "setExperience" ? "BOOLEAN_PREFERENCE" : "HANDEDNESS",
           lastFocusedProduct: focusedProduct,
           focusedProductSource: preFocusedProductSource,
           productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: nextAdviceQuestion.key, collectedAnswers: answers },
@@ -686,15 +713,28 @@ export async function processConversationTurn(input: {
   }
   if (asksProductReason && focusedProduct && !updatedState.productAdvice?.active) {
     const targetPhrase = playerPerspective.isSelf ? "encaja contigo" : `encaja con el juego de ${playerPerspective.displayReference}`;
-    const reply = `Te mostré ${focusedProduct.name} porque es la opción de set completo disponible que encontré en el catálogo. Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`;
+    const familyLanguage = safeFamilyLanguage(focusedProduct);
+    const reply = `Te mostré ${focusedProduct.name} porque es una opción disponible del catálogo (${familyLanguage}). Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`;
     const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct, pendingAssistantOffer: { action: "START_PRODUCT_ADVICE", targetProductIds: [focusedProduct.id], createdAtTurn: updatedState.messages.length + 1 }, lastExecutedAction: "EXPLAIN_CATALOG_REASON" };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
   if (focusedProduct && (updatedState.productAdvice?.active || updatedState.pendingQuestionCategory === "PRODUCT_ADVICE")) {
     const answers = { ...updatedState.session.diagnosticAnswers };
     for (const fact of canonicalFacts) {
-      if (["handedness", "handicap", "setExperience", "skill", "objective"].includes(fact.field))
+      if (["handedness", "handicap", "handicapIndex", "handicapStatus", "setExperience", "skill", "skillSource", "objective"].includes(fact.field))
         answers[fact.field] = fact.semanticStatus === "NONE" ? "NONE" : fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" : fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value;
+      if (fact.field === "skill" && fact.semanticStatus === "KNOWN") answers.skillSource = "USER_DECLARED";
+      if (fact.field === "handicapIndex" && fact.semanticStatus === "KNOWN") answers.handicapSource = "USER_DECLARED";
+    }
+    if (typeof answers.handicapIndex === "number") {
+      answers.handicapStatus = "KNOWN";
+      answers.handicapSource = "USER_DECLARED";
+      answers.skill = deriveSkillFromHandicap(answers.handicapIndex);
+      answers.skillSource = "DERIVED_FROM_HANDICAP";
+    } else if (answers.handicapStatus === "NONE") {
+      answers.handicapIndex = null;
+      answers.skill = "BEGINNER";
+      answers.skillSource = "DERIVED_NO_HANDICAP";
     }
     const hand = !interpretation && /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/.test(normalizedMessage)
       ? "LEFT"
@@ -740,9 +780,10 @@ export async function processConversationTurn(input: {
     const experience = Boolean(answers.setExperience) || (!interpretation && /primer set|primera vez|apenas empie|principiante|ya juego|juego actualmente|reemplaz/.test(normalizedMessage));
     if (experience) answers.experience = normalizedMessage;
     const knownExperience = Boolean(answers.setExperience || answers.experience);
-    const knownLevel = Boolean(answers.skill || answers.handicap);
+    const knownLevel = Boolean(answers.handicapIndex !== undefined || answers.handicap !== undefined || answers.handicapStatus || answers.skill);
     if (knownLevel && knownExperience && knownHand) {
-      const reply = `Perfecto, con lo que me cuentas ya puedo orientarte sobre ${focusedProduct.name}. Es un set pensado para acompañarte en esta etapa; revisa su composición y condición, y si quieres puedo compararlo con otras opciones disponibles.`;
+      const familyLanguage = safeFamilyLanguage(focusedProduct);
+      const reply = `Perfecto, con lo que me cuentas ya puedo orientarte sobre ${focusedProduct.name}. Podemos revisar ${familyLanguage}; no voy a asumir especificaciones que no estén en la ficha. Si quieres, también puedo compararlo con otras opciones disponibles.`;
       const state: ConversationState = {
         ...updatedState,
         session: { ...updatedState.session, diagnosticAnswers: answers },
@@ -782,7 +823,7 @@ export async function processConversationTurn(input: {
       messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
       pendingQuestionKey: resolvedQuestion?.key ?? null,
       pendingQuestionCategory: "PRODUCT_ADVICE",
-      pendingQuestionSlotType: resolvedQuestion?.key === "skill" ? "HANDICAP" : resolvedQuestion?.key === "setExperience" ? "BOOLEAN_PREFERENCE" : resolvedQuestion ? "HANDEDNESS" : null,
+      pendingQuestionSlotType: resolvedQuestion && ["skill", "handicap", "handicapIndex"].includes(resolvedQuestion.key) ? "HANDICAP" : resolvedQuestion?.key === "setExperience" ? "BOOLEAN_PREFERENCE" : resolvedQuestion ? "HANDEDNESS" : null,
       lastFocusedProduct: focusedProduct,
       productAdvice: { active: Boolean(resolvedQuestion), product: focusedProduct, pendingQuestionKey: resolvedQuestion?.key ?? null, collectedAnswers: answers },
       pendingAssistantOffer: null,
@@ -1028,6 +1069,7 @@ export async function processConversationTurn(input: {
     ) {
       try {
         const generated = await provider.explainRecommendation({
+          productFamilyContext: (turn.state.session.requestedCategory as "SET" | "DRIVER" | "FAIRWAY_WOOD" | "HYBRID" | "IRON" | "WEDGE" | "PUTTER" | null) ?? null,
           session: {
             category: turn.state.session.requestedCategory,
             intent: turn.state.session.purchaseIntent,

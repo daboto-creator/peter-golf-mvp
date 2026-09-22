@@ -34,7 +34,7 @@ import {
   type CatalogProductReference,
   type ConversationState,
 } from "./conversation";
-import { getLastInterpreterTelemetry, processConversationTurn } from "./service";
+import { canonicalProductFamily, getLastInterpreterTelemetry, processConversationTurn, safeFamilyLanguage } from "./service";
 
 const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT"): CatalogProductReference => ({
   id,
@@ -93,6 +93,15 @@ function knownLeftState(): ConversationState {
 }
 
 describe("Best Round Pro source-gap regressions", () => {
+  it.each([
+    ["SET", "set"], ["DRIVER", "driver"], ["FAIRWAY_WOOD", "madera"],
+    ["HYBRID", "híbrido"], ["IRON", "hierros"], ["WEDGE", "wedge"], ["PUTTER", "putter"],
+  ])("uses safe vocabulary for %s", (family, word) => {
+    const product = { id: family, slug: family.toLowerCase(), name: family, category: family, condition: "NEW", price: 0, productHref: "", imagePath: null, handedness: null, family };
+    expect(canonicalProductFamily(product)).toBe(family);
+    expect(safeFamilyLanguage(product).toLowerCase()).toContain(word);
+    if (family !== "SET") expect(safeFamilyLanguage(product)).not.toContain("set completo");
+  });
   beforeEach(() => {
     mocks.currentPageProduct = null;
     mocks.catalogProducts = [];

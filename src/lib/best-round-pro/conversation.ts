@@ -82,9 +82,19 @@ export const FACT_VALUE_DOMAINS = {
   handedness: ["RIGHT", "LEFT"],
   skill: ["BEGINNER", "INTERMEDIATE", "ADVANCED"],
   setExperience: ["FIRST_SET", "CURRENT_PLAYER"],
+  handicapStatus: ["KNOWN", "NONE", "UNKNOWN", "DECLINED"],
   shotTendency: ["STRAIGHT", "SLICE", "HOOK"],
   conditionPreference: ["NEW_ONLY", "USED_ACCEPTABLE"],
 } as const;
+
+export type HandicapStatus = "KNOWN" | "NONE" | "UNKNOWN" | "DECLINED";
+export type SkillSource = "USER_DECLARED" | "DERIVED_FROM_HANDICAP" | "DERIVED_NO_HANDICAP";
+
+export function deriveSkillFromHandicap(handicap: number): "BEGINNER" | "INTERMEDIATE" | "ADVANCED" {
+  if (handicap < 10) return "ADVANCED";
+  if (handicap < 25) return "INTERMEDIATE";
+  return "BEGINNER";
+}
 
 export type CanonicalFactField = keyof typeof FACT_VALUE_DOMAINS;
 
@@ -105,6 +115,7 @@ export function normalizeStructuredFactValue(field: string, value: string | numb
 
 export function validateCanonicalFactValue(field: string, value: string | number | null | undefined, status: FactStatus) {
   if (status !== "KNOWN") return value == null || typeof value === "string" || typeof value === "number";
+  if (field === "handicapIndex") return typeof value === "number" && value >= 0 && value <= 54;
   const domain = FACT_VALUE_DOMAINS[field as CanonicalFactField];
   return !domain || (typeof value === "string" && (domain as readonly string[]).includes(value));
 }
@@ -148,6 +159,26 @@ export function resolvePendingAnswerFact(
     if (/\b(principiante|beginner)\b/.test(normalizedMessage)) return known("skill", "BEGINNER");
     if (/\b(intermedio|intermedia|intermediate)\b/.test(normalizedMessage)) return known("skill", "INTERMEDIATE");
     if (/\b(avanzado|avanzada|advanced)\b/.test(normalizedMessage)) return known("skill", "ADVANCED");
+    if (/\bno\s+tengo\s+(?:un\s+)?handicap\b/i.test(normalizedMessage)) return { field: "handicapStatus", value: "NONE", durable: true, semanticStatus: "NONE", source: "CURRENT_USER_PENDING_ANSWER" };
+    if (/\bno\s+s[eé]\b/i.test(normalizedMessage)) return { field: "handicapStatus", value: "UNKNOWN", durable: true, semanticStatus: "UNKNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+    if (/\b(?:prefiero|no\s+quiero)\s+no\s+decir(?:lo)?\b/i.test(normalizedMessage)) return { field: "handicapStatus", value: "DECLINED", durable: true, semanticStatus: "DECLINED", source: "CURRENT_USER_PENDING_ANSWER" };
+    const handicapMatch = normalizedMessage.match(/(?:handicap|hcp)?\s*(\d+(?:\.\d+)?)/);
+    if (handicapMatch && Number(handicapMatch[1]) >= 0 && Number(handicapMatch[1]) <= 54)
+      return { field: "handicapIndex", value: Number(handicapMatch[1]), durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+  }
+  if (pendingFactKey === "handicap" || pendingFactKey === "handicapIndex") {
+    if (/\b(?:no|nunca)\s+(?:tengo|sé|se)\s+handicap\b|\bno\s+tengo\b/.test(normalizedMessage))
+      return { field: "handicapStatus", value: "NONE", durable: true, semanticStatus: "NONE", source: "CURRENT_USER_PENDING_ANSWER" };
+    if (/\b(?:no\s+s[eé]|no\s+sé|prefiero\s+no\s+decirlo)\b/.test(normalizedMessage))
+      return { field: "handicapStatus", value: "UNKNOWN", durable: true, semanticStatus: "UNKNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+    if (/\b(?:prefiero\s+no\s+decir|no\s+quiero\s+decir)\b/.test(normalizedMessage))
+      return { field: "handicapStatus", value: "DECLINED", durable: true, semanticStatus: "DECLINED", source: "CURRENT_USER_PENDING_ANSWER" };
+    const match = normalizedMessage.match(/(?:handicap|hcp)?\s*(\d+(?:\.\d+)?)/);
+    if (match) {
+      const value = Number(match[1]);
+      if (value >= 0 && value <= 54)
+        return { field: "handicapIndex", value, durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+    }
   }
   return null;
 }
@@ -377,18 +408,17 @@ export function getNextProductAdviceQuestion(input: {
     return { key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.handedness], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
   if (!input.answers.setExperience && !input.answers.experience)
     return { key: "setExperience", meaning: "ASK_SET_EXPERIENCE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.setExperience], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
-  if (!input.answers.skill && input.answers.handicap === undefined)
-    return { key: "skill", meaning: "ASK_PLAYER_SKILL_LEVEL", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.skill], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
+  if (input.answers.handicapIndex === undefined && input.answers.handicap === undefined && input.answers.handicapStatus === undefined)
+    return { key: "skill", meaning: "ASK_PLAYER_HANDICAP", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: ["0.0-54.0"], allowedStatuses: ["KNOWN", "NONE", "UNKNOWN", "DECLINED"] as FactStatus[] };
   return null;
 }
 
 export function questionPromptFor(spec: ReturnType<typeof getNextProductAdviceQuestion>, perspective: PlayerPerspective, category: string | null) {
   if (!spec) return null;
   const player = perspective.isSelf ? "tú" : perspective.subject;
-  const possessive = perspective.isSelf ? "tu" : perspective.possessive;
   if (spec.meaning === "ASK_PLAYER_HANDEDNESS") return perspective.isSelf ? "¿Juegas como diestro o zurdo?" : `¿${player} juega como diestro o zurdo?`;
   if (spec.meaning === "ASK_SET_EXPERIENCE") return perspective.isSelf ? "¿Es tu primer set o ya juegas actualmente?" : `¿Es el primer set de ${player} o ya juega actualmente?`;
-  if (spec.meaning === "ASK_PLAYER_SKILL_LEVEL") return perspective.isSelf ? "¿Cómo describirías tu nivel: principiante, intermedio o avanzado?" : `¿Cómo describirías el nivel de ${possessive} juego: principiante, intermedio o avanzado?`;
+  if (spec.meaning === "ASK_PLAYER_HANDICAP") return perspective.isSelf ? "¿Tienes handicap o Handicap Index? Si lo sabes, dime el número. Si no tienes uno, también está bien." : `¿${player} tiene handicap o Handicap Index? Si lo sabe, que me diga el número; si no tiene uno, también está bien.`;
   return `¿Qué te gustaría contarnos sobre ${category ?? "tu equipo"}?`;
 }
 
@@ -625,11 +655,11 @@ function parseAnswers(
   // interpreter supplies this status in normal production; this conservative
   // fallback keeps the deterministic path from re-asking the slot.
   if (
-    pendingQuestionKey === "skill" &&
+    (pendingQuestionKey === "skill" || pendingQuestionKey === "handicapIndex" || pendingQuestionKey === "handicap") &&
     /(?:prefiero|no quiero)\s+(?:no\s+)?decir|no\s+te\s+lo\s+quiero\s+decir/i.test(text)
   ) {
+    answers.handicapStatus = "DECLINED";
     answers.handicap = "DECLINED";
-    answers.skill = "DECLINED";
   }
   if (/\bno\s+(s[eé]|la\s+conozco|tengo\s+ese\s+dato)\b/i.test(text)) {
     if (current.swingSpeed === undefined)
@@ -697,7 +727,7 @@ function parseAnswers(
     answers.objective ??= "REDUCE_SLICE";
   if (pendingQuestionKey === "objective" && /\b(nada|ninguna cosa|no quiere mejorar|sin cambiar|igual que ahora)\b/i.test(text))
     answers.objective = "NONE";
-  const numericSlot = ["skill", "gapping", "swingSpeed", "length"].includes(
+  const numericSlot = ["skill", "handicapIndex", "handicap", "gapping", "swingSpeed", "length"].includes(
     pendingQuestionKey ?? "",
   );
   if (!numericSlot && /\b(\d{1,3})(?:\s*)(?:pesos|mxn|mil)?\b/i.test(text)) {
@@ -709,13 +739,22 @@ function parseAnswers(
     /(?:handicap|hcp|soy|tengo|como)?\s*(\d+(?:\.\d+)?)/i,
   );
   if (
-    (pendingQuestionKey === "skill" || /handicap|hcp/i.test(text)) &&
+    (pendingQuestionKey === "skill" || pendingQuestionKey === "handicapIndex" || pendingQuestionKey === "handicap" || /handicap|hcp/i.test(text)) &&
     handicap &&
     Number(handicap[1]) >= 0 &&
     Number(handicap[1]) <= 54
   ) {
+    answers.handicapIndex = Number(handicap[1]);
     answers.handicap = Number(handicap[1]);
+    answers.handicapStatus = "KNOWN";
     answers.skill = "ANSWERED_VALUE";
+  }
+  if ((pendingQuestionKey === "skill" || pendingQuestionKey === "handicapIndex" || pendingQuestionKey === "handicap") && /\bno\s+tengo\s+(?:un\s+)?handicap\b/i.test(text)) {
+    answers.handicapIndex = null;
+    answers.handicap = null;
+    answers.handicapStatus = "NONE";
+    answers.skill = "BEGINNER";
+    answers.skillSource = "DERIVED_NO_HANDICAP";
   }
   if (pendingQuestionKey === "gapping") {
     const gap = text.match(
