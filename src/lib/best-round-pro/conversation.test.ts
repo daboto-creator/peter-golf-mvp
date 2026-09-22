@@ -35,6 +35,12 @@ describe("Best Round Pro conversation", () => {
     expect(questionPromptFor(spec, getPlayerPerspective(initialConversationState().participants), "WEDGE")).toMatch(/handicap/i);
     expect(questionPromptFor(spec, getPlayerPerspective(initialConversationState().participants), "WEDGE")).not.toMatch(/principiante|intermedio|avanzado/i);
   });
+
+  it("uses category-aware advice eligibility", () => {
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT" }, productFamily: "WEDGE" })?.key).toBe("skill");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT", handicapIndex: 8 }, productFamily: "WEDGE" })?.key).toBe("gapping");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT" }, productFamily: "SET" })?.key).toBe("setExperience");
+  });
   const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT") => ({
     id,
     slug: id.toLowerCase(),

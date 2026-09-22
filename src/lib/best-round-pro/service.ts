@@ -110,6 +110,15 @@ export type ConversationInterpreterTelemetry = {
   factMutationIntent?: FactMutationIntent;
   playerFactsBefore?: Record<string, string | number | boolean | null>;
   playerFactsAfter?: Record<string, string | number | boolean | null>;
+  activeAdviceProductId?: string | null;
+  activeAdviceProductFamily?: string | null;
+  activeAdviceStatus?: string | null;
+  adviceOutcome?: string | null;
+  adviceEvidenceSufficient?: boolean;
+  materialMissingFactKeys?: string[];
+  productChangedThisTurn?: boolean;
+  playerFactsCarriedForward?: string[];
+  nextQuestionKey?: string | null;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -133,10 +142,29 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   searchContinuationRelation: null,
   searchContinuationReason: null,
   catalogScopeIntent: null,
+  activeAdviceProductId: null,
+  activeAdviceProductFamily: null,
+  activeAdviceStatus: null,
+  adviceOutcome: null,
+  adviceEvidenceSufficient: false,
+  materialMissingFactKeys: [],
+  productChangedThisTurn: false,
+  playerFactsCarriedForward: [],
+  nextQuestionKey: null,
 };
 
 export function getLastInterpreterTelemetry() {
   return lastInterpreterTelemetry;
+}
+
+function recordAdviceTelemetry(state: ConversationState, outcome: string | null, sufficient: boolean, missing: string[] = []) {
+  lastInterpreterTelemetry.activeAdviceProductId = state.activeAdvice?.productId ?? state.productAdvice?.product?.id ?? null;
+  lastInterpreterTelemetry.activeAdviceProductFamily = state.activeAdvice?.productFamily ?? null;
+  lastInterpreterTelemetry.activeAdviceStatus = state.activeAdvice?.status ?? null;
+  lastInterpreterTelemetry.adviceOutcome = outcome ?? state.activeAdvice?.outcome ?? null;
+  lastInterpreterTelemetry.adviceEvidenceSufficient = sufficient;
+  lastInterpreterTelemetry.materialMissingFactKeys = missing;
+  lastInterpreterTelemetry.nextQuestionKey = state.pendingQuestionKey;
 }
 
 function telemetryPlayerFacts(answers: Record<string, string | number | boolean | null>) {
@@ -259,6 +287,8 @@ export async function processConversationTurn(input: {
       };
     }
   }
+  const previousAdviceProductId = input.state.activeAdvice?.productId ?? input.state.productAdvice?.product?.id ?? input.state.lastFocusedProduct?.id ?? null;
+  const productChangedThisTurn = Boolean(pageProductReference && previousAdviceProductId && pageProductReference.id !== previousAdviceProductId);
   let preFocusedProduct = pageProductReference ?? input.state.lastInteractedProduct ?? input.state.productAdvice?.product ?? input.state.lastFocusedProduct ??
     (input.state.lastCatalogResults.length === 1 ? input.state.lastCatalogResults[0] : null);
   let preFocusedProductSource: ConversationState["focusedProductSource"] = pageProductReference
@@ -553,12 +583,15 @@ export async function processConversationTurn(input: {
       },
     },
     participants,
-    pendingQuestionKey: answeredPending ? null : input.state.pendingQuestionKey,
-    pendingQuestionCategory: answeredPending ? null : input.state.pendingQuestionCategory,
-    pendingQuestionSlotType: answeredPending ? null : input.state.pendingQuestionSlotType,
-    productAdvice: answeredPending && input.state.productAdvice
-      ? { ...input.state.productAdvice, pendingQuestionKey: null }
-      : input.state.productAdvice,
+    pendingQuestionKey: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionKey,
+    pendingQuestionCategory: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionCategory,
+    pendingQuestionSlotType: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionSlotType,
+    productAdvice: productChangedThisTurn
+      ? { active: false, product: pageProductReference, pendingQuestionKey: null, collectedAnswers: input.state.session.diagnosticAnswers }
+      : answeredPending && input.state.productAdvice
+        ? { ...input.state.productAdvice, pendingQuestionKey: null }
+        : input.state.productAdvice,
+    activeAdvice: productChangedThisTurn ? null : input.state.activeAdvice,
     lastInteractedProduct: input.state.lastInteractedProduct,
     focusedProductSource: preFocusedProductSource,
     referenceResolution: {
@@ -595,6 +628,8 @@ export async function processConversationTurn(input: {
   lastInterpreterTelemetry.factMutationIntent = interpretation?.factMutationIntent ?? (pendingAnswerFact ? "SET_NEW" : "NONE");
   lastInterpreterTelemetry.playerFactsBefore = telemetryPlayerFacts(input.state.session.diagnosticAnswers);
   lastInterpreterTelemetry.playerFactsAfter = telemetryPlayerFacts(updatedState.session.diagnosticAnswers);
+  lastInterpreterTelemetry.productChangedThisTurn = productChangedThisTurn;
+  lastInterpreterTelemetry.playerFactsCarriedForward = Object.keys(updatedState.session.diagnosticAnswers).filter((key) => input.state.session.diagnosticAnswers[key] !== undefined);
   lastInterpreterTelemetry.declaredFacts = canonicalFacts.map((fact) => ({
     key: fact.field,
     canonicalValue: typeof fact.value === "string" || typeof fact.value === "number" ? fact.value : null,
@@ -620,12 +655,17 @@ export async function processConversationTurn(input: {
     ? interpretation.dialogueAct === "ASK_PRODUCT_REASON" || interpretation.asksForExplanation
     : /\bpor\s+que|porque|que\s+viste|por\s+que\s+lo\b/.test(normalizedMessage);
   const personalFitReason = interpretation?.reasonMode === "PERSONAL_FIT_REASON";
+  const focusedProduct = preFocusedProduct;
   const socialAct = interpretation?.dialogueAct ?? (intent === "OTHER" ? fallbackSocialIntent(input.message) : null);
+  const activeAdviceContinuation = Boolean(
+    updatedState.activeAdvice && focusedProduct && updatedState.activeAdvice.productId === focusedProduct.id &&
+      !interpretation?.topicChanged && ["HELP_REQUEST", "CONFIRMATION", "OTHER", "GENERAL_QUESTION"].includes(interpretation?.dialogueAct ?? socialAct ?? ""),
+  );
   const appendSocialReply = (reply: string, event: string) => ({
     state: { ...updatedState, messages: [...updatedState.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
     reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent,
   });
-  if (!updatedState.productAdvice?.active && intent === "OTHER" && socialAct) {
+  if (!updatedState.productAdvice?.active && !activeAdviceContinuation && intent === "OTHER" && socialAct) {
     const replies: Record<string, string> = {
       GREETING: "¡Hola! Soy Best Round Pro. Puedo ayudarte a encontrar equipo, comparar productos, revisar disponibilidad o asesorarte según tu juego. ¿Qué estás buscando?",
       THANKS: "Con gusto. Si quieres, también puedo ayudarte a comparar opciones o revisar otra categoría.",
@@ -636,14 +676,13 @@ export async function processConversationTurn(input: {
     };
     if (replies[socialAct]) return appendSocialReply(replies[socialAct], `SOCIAL_${socialAct}`);
   }
-  if (updatedState.productAdvice?.active && interpretation?.dialogueAct === "GENERAL_QUESTION") {
+  if (updatedState.productAdvice?.active && interpretation?.dialogueAct === "GENERAL_QUESTION" && !activeAdviceContinuation) {
     return appendSocialReply("Te lo pregunto porque ayuda a orientar el equipo al nivel de juego y evitar una opción demasiado exigente. Si no lo sabes, podemos seguir con otros datos.", "ADVICE_QUESTION_ANSWERED");
   }
-  const focusedProduct = preFocusedProduct;
   const confirmsProductAdvice = interpretation?.dialogueAct === "CONFIRMATION" &&
     updatedState.pendingAssistantOffer?.action === "START_PRODUCT_ADVICE";
   const startsProductEvaluation = asksProductFit || confirmsProductAdvice ||
-    (asksProductReason && personalFitReason) || asksProductAdvice ||
+    (asksProductReason && personalFitReason) || asksProductAdvice || activeAdviceContinuation ||
     (!answeredPending && asksWhatData && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE");
   if (startsProductEvaluation) {
     if (!focusedProduct && updatedState.lastCatalogResults.length > 1) {
@@ -673,10 +712,12 @@ export async function processConversationTurn(input: {
           lastExecutedAction: "RETURN_HARD_INCOMPATIBILITY",
           pendingAssistantOffer: null,
           productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
+          activeAdvice: { productId: focusedProduct.id, productFamily: canonicalProductFamily(focusedProduct), status: "CONCLUDED", outcome: "HARD_INCOMPATIBLE" },
         };
+        recordAdviceTelemetry(state, "HARD_INCOMPATIBLE", true);
         return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_FIT_HARD_INCOMPATIBILITY"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
       }
-      const nextAdviceQuestion = getNextProductAdviceQuestion({ answers });
+      const nextAdviceQuestion = getNextProductAdviceQuestion({ answers, productFamily: canonicalProductFamily(focusedProduct) });
       if (nextAdviceQuestion) {
         const question = questionPromptFor(nextAdviceQuestion, playerPerspective, focusedProduct.category) ??
           "¿Qué otro dato de tu juego puedes compartir?";
@@ -692,12 +733,14 @@ export async function processConversationTurn(input: {
           lastFocusedProduct: focusedProduct,
           focusedProductSource: preFocusedProductSource,
           productAdvice: { active: true, product: focusedProduct, pendingQuestionKey: nextAdviceQuestion.key, collectedAnswers: answers },
+          activeAdvice: { productId: focusedProduct.id, productFamily: canonicalProductFamily(focusedProduct), status: "NEEDS_ONE_MORE_FACT" },
           pendingAssistantOffer: null,
           lastExecutedAction: "ASK_NEXT_QUESTION",
         };
+        recordAdviceTelemetry(state, "NEED_MORE_INFORMATION", false, [nextAdviceQuestion.key]);
         return { state, reply, nextQuestion: null, objection: null, events: [confirmsProductAdvice ? "PRODUCT_ADVICE_CONFIRMED" : "PRODUCT_ADVICE_STARTED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
       }
-      const reply = `Con los datos que me compartiste, ${focusedProduct.name} pasa las comprobaciones materiales disponibles. Puedo explicarte el ajuste o compararlo con otras opciones.`;
+      const reply = `Sí, ${focusedProduct.name} puede ser una buena opción para ti con los datos disponibles. Si quieres seguir con esta opción, ya estás en la ficha correcta; también puedo compararte una alternativa antes de decidir.`;
       const state: ConversationState = {
         ...updatedState,
         messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
@@ -706,8 +749,10 @@ export async function processConversationTurn(input: {
         compatibilityOutcome: "MATCH",
         pendingAssistantOffer: null,
         productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
+        activeAdvice: { productId: focusedProduct.id, productFamily: canonicalProductFamily(focusedProduct), status: "CONCLUDED", outcome: "RECOMMENDED" },
         lastExecutedAction: "EXPLAIN_PERSONAL_FIT",
       };
+      recordAdviceTelemetry(state, "RECOMMENDED", true);
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_FIT_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
   }
@@ -775,15 +820,19 @@ export async function processConversationTurn(input: {
         compatibilityOutcome: "HARD_INCOMPATIBLE",
         lastExecutedAction: "RETURN_HARD_INCOMPATIBILITY",
       };
+      recordAdviceTelemetry(state, "HARD_INCOMPATIBLE", true);
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_HARD_INCOMPATIBILITY"], recommendation: null, catalogProducts: alternatives.products, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     const experience = Boolean(answers.setExperience) || (!interpretation && /primer set|primera vez|apenas empie|principiante|ya juego|juego actualmente|reemplaz/.test(normalizedMessage));
     if (experience) answers.experience = normalizedMessage;
     const knownExperience = Boolean(answers.setExperience || answers.experience);
     const knownLevel = Boolean(answers.handicapIndex !== undefined || answers.handicap !== undefined || answers.handicapStatus || answers.skill);
-    if (knownLevel && knownExperience && knownHand) {
+    const family = canonicalProductFamily(focusedProduct);
+    const experienceRequired = family === "SET";
+    const materialQuestion = getNextProductAdviceQuestion({ answers, productFamily: family });
+    if (knownLevel && knownHand && (!experienceRequired || knownExperience) && !materialQuestion) {
       const familyLanguage = safeFamilyLanguage(focusedProduct);
-      const reply = `Perfecto, con lo que me cuentas ya puedo orientarte sobre ${focusedProduct.name}. Podemos revisar ${familyLanguage}; no voy a asumir especificaciones que no estén en la ficha. Si quieres, también puedo compararlo con otras opciones disponibles.`;
+      const reply = `Sí, ${focusedProduct.name} puede ser una buena opción para ti. La conclusión se basa en tu mano de juego y en los datos de tu perfil; en particular, podemos valorar ${familyLanguage}. Si buscas una decisión más segura, puedo comparar una alternativa antes de que continúes con esta ficha.`;
       const state: ConversationState = {
         ...updatedState,
         session: { ...updatedState.session, diagnosticAnswers: answers },
@@ -793,10 +842,14 @@ export async function processConversationTurn(input: {
         pendingQuestionSlotType: null,
         lastFocusedProduct: focusedProduct,
         productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
+        activeAdvice: { productId: focusedProduct.id, productFamily: family, status: "CONCLUDED", outcome: "RECOMMENDED_WITH_CAVEAT" },
+        compatibilityOutcome: "MATCH",
+        lastExecutedAction: "RETURN_ADVICE_WITH_CAVEAT",
       };
+      recordAdviceTelemetry(state, "RECOMMENDED_WITH_CAVEAT", true);
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_COMPLETED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
-    const nextAdviceQuestion = getNextProductAdviceQuestion({ answers });
+    const nextAdviceQuestion = materialQuestion;
     const resolvedQuestion = nextAdviceQuestion && resolvedFactKeysThisTurn.has(nextAdviceQuestion.key) ? null : nextAdviceQuestion;
     const semanticFingerprint = JSON.stringify({ answers, product: focusedProduct.id, resolved: [...resolvedFactKeysThisTurn].sort() });
     const previousLoop = updatedState.conversationLoop ?? { lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null };
@@ -826,10 +879,12 @@ export async function processConversationTurn(input: {
       pendingQuestionSlotType: resolvedQuestion && ["skill", "handicap", "handicapIndex"].includes(resolvedQuestion.key) ? "HANDICAP" : resolvedQuestion?.key === "setExperience" ? "BOOLEAN_PREFERENCE" : resolvedQuestion ? "HANDEDNESS" : null,
       lastFocusedProduct: focusedProduct,
       productAdvice: { active: Boolean(resolvedQuestion), product: focusedProduct, pendingQuestionKey: resolvedQuestion?.key ?? null, collectedAnswers: answers },
+      activeAdvice: resolvedQuestion ? { productId: focusedProduct.id, productFamily: canonicalProductFamily(focusedProduct), status: "NEEDS_ONE_MORE_FACT" } : updatedState.activeAdvice,
       pendingAssistantOffer: null,
       participants,
       conversationLoop: nextLoop,
     };
+    recordAdviceTelemetry(state, null, false, resolvedQuestion ? [resolvedQuestion.key] : []);
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_PROGRESS"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
   if (isCatalogIntent(intent)) {

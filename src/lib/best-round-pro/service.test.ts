@@ -251,8 +251,21 @@ describe("Best Round Pro source-gap regressions", () => {
     mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_WHAT_INFORMATION_NEEDED", { asksWhat: true }));
 
     const result = await processConversationTurn({ state, message: "qué dato te falta?" });
-    expect(result.state.pendingQuestionKey).toBe("setExperience");
+    expect(result.state.pendingQuestionKey).toBe("skill");
     expect(result.reply).not.toMatch(/juegas como diestro o zurdo/i);
+  });
+
+  it("keeps HELP_REQUEST inside active product advice", async () => {
+    const state = knownLeftState();
+    const focused = product("WEDGE");
+    focused.category = "Wedge";
+    state.lastFocusedProduct = focused;
+    state.productAdvice = { active: true, product: focused, pendingQuestionKey: "skill", collectedAnswers: { handedness: "LEFT", handicapIndex: 8 } };
+    state.activeAdvice = { productId: focused.id, productFamily: "WEDGE", status: "NEEDS_ONE_MORE_FACT" };
+    mocks.interpretation.mockResolvedValueOnce(interpretation("HELP_REQUEST"));
+    const result = await processConversationTurn({ state, message: "orientame" });
+    expect(result.reply).not.toContain("buscar productos");
+    expect(result.state.activeAdvice?.productFamily).toBe("WEDGE");
   });
 
   it("consumes 'ya juego' and 'principiante' once despite bad raw planner acts", async () => {
@@ -357,9 +370,8 @@ describe("Best Round Pro source-gap regressions", () => {
     expect(result.state.referenceResolution.source).toBe("CURRENT_PAGE");
 
     for (const [message, value, next] of [
-      ["diestro", "RIGHT", "setExperience"],
-      ["ya juego", "CURRENT_PLAYER", "skill"],
-      ["avanzado", "ADVANCED", null],
+      ["diestro", "RIGHT", "skill"],
+      ["8", 8, "objective"],
     ] as const) {
       mocks.interpretation.mockResolvedValueOnce(interpretation("OTHER"));
       result = await processConversationTurn({
@@ -368,7 +380,7 @@ describe("Best Round Pro source-gap regressions", () => {
         currentPageProduct: { id: "STEALTH", slug: "stealth", name: "Product STEALTH", productFamily: "DRIVER" },
       });
       state = result.state;
-      const key = message === "diestro" ? "handedness" : message === "ya juego" ? "setExperience" : "skill";
+      const key = message === "diestro" ? "handedness" : message === "8" ? "handicapIndex" : "objective";
       expect(state.session.diagnosticAnswers[key]).toBe(value);
       expect(state.pendingQuestionKey).toBe(next);
       expect(result.reply).not.toMatch(/Para no hacerte repetir/i);

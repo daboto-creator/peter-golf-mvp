@@ -22,6 +22,9 @@ export type ConversationObjection =
   | "NEED_TO_THINK"
   | "WANT_OTHER_OPTION";
 
+export type AdviceStatus = "COLLECTING_FACTS" | "READY_TO_EVALUATE" | "NEEDS_ONE_MORE_FACT" | "CONCLUDED";
+export type AdviceOutcome = "RECOMMENDED" | "RECOMMENDED_WITH_CAVEAT" | "NEED_MORE_INFORMATION" | "HARD_INCOMPATIBLE" | "NO_COMPATIBLE_INVENTORY";
+
 function isProtectedRequest(text: string) {
   return (
     /(ignora|omite|cambia|ponle|ajusta).*(regla|match|100)|\b(margen|margin|comision|comisión|costo|coste|ganancia)\b/i.test(
@@ -50,6 +53,12 @@ export type ConversationState = {
     pendingQuestionKey: string | null;
     collectedAnswers: Record<string, string | number | boolean | null>;
   };
+  activeAdvice: {
+    productId: string;
+    productFamily: string | null;
+    status: AdviceStatus;
+    outcome?: AdviceOutcome | null;
+  } | null;
   participants: ConversationParticipants;
   pendingAssistantOffer: {
     action: "START_PRODUCT_ADVICE" | "COMPARE_PRODUCTS" | "SHOW_ALTERNATIVES" | "CONTINUE_RECOMMENDATION";
@@ -403,13 +412,20 @@ export function evaluateFocusedProductAgainstKnownFacts(input: {
 
 export function getNextProductAdviceQuestion(input: {
   answers: Record<string, string | number | boolean | null>;
+  productFamily?: ProductFamily | string | null;
 }) {
   if (input.answers.handedness !== "LEFT" && input.answers.handedness !== "RIGHT")
     return { key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.handedness], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
-  if (!input.answers.setExperience && !input.answers.experience)
+  const family = input.productFamily?.toUpperCase() ?? "";
+  const isSet = !input.productFamily || family === "SET";
+  if (isSet && !input.answers.setExperience && !input.answers.experience)
     return { key: "setExperience", meaning: "ASK_SET_EXPERIENCE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.setExperience], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
   if (input.answers.handicapIndex === undefined && input.answers.handicap === undefined && input.answers.handicapStatus === undefined)
     return { key: "skill", meaning: "ASK_PLAYER_HANDICAP", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: ["0.0-54.0"], allowedStatuses: ["KNOWN", "NONE", "UNKNOWN", "DECLINED"] as FactStatus[] };
+  if (family === "WEDGE" && input.answers.gapping === undefined)
+    return { key: "gapping", meaning: "ASK_WEDGE_GAPPING", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [], allowedStatuses: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] as FactStatus[] };
+  if (family === "DRIVER" && input.answers.objective === undefined)
+    return { key: "objective", meaning: "ASK_DRIVER_OBJECTIVE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [], allowedStatuses: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] as FactStatus[] };
   return null;
 }
 
@@ -419,6 +435,8 @@ export function questionPromptFor(spec: ReturnType<typeof getNextProductAdviceQu
   if (spec.meaning === "ASK_PLAYER_HANDEDNESS") return perspective.isSelf ? "¿Juegas como diestro o zurdo?" : `¿${player} juega como diestro o zurdo?`;
   if (spec.meaning === "ASK_SET_EXPERIENCE") return perspective.isSelf ? "¿Es tu primer set o ya juegas actualmente?" : `¿Es el primer set de ${player} o ya juega actualmente?`;
   if (spec.meaning === "ASK_PLAYER_HANDICAP") return perspective.isSelf ? "¿Tienes handicap o Handicap Index? Si lo sabes, dime el número. Si no tienes uno, también está bien." : `¿${player} tiene handicap o Handicap Index? Si lo sabe, que me diga el número; si no tiene uno, también está bien.`;
+  if (spec.meaning === "ASK_WEDGE_GAPPING") return "¿Qué lofts o qué distancias cubres actualmente con tus wedges?";
+  if (spec.meaning === "ASK_DRIVER_OBJECTIVE") return "¿Qué quieres mejorar principalmente con este driver: distancia, precisión o reducir un miss?";
   return `¿Qué te gustaría contarnos sobre ${category ?? "tu equipo"}?`;
 }
 
@@ -469,6 +487,7 @@ export function initialConversationState(): ConversationState {
       pendingQuestionKey: null,
       collectedAnswers: {},
     },
+    activeAdvice: null,
     participants: {
       buyer: { isLoggedInUser: true },
       player: { relationToBuyer: "SELF", displayReference: "tú", facts: {} },
@@ -961,6 +980,7 @@ export function classifyConversationTurn(
     focusedProductSource: state.focusedProductSource,
     referenceResolution: state.referenceResolution,
     productAdvice: state.productAdvice,
+    activeAdvice: state.activeAdvice,
     participants: state.participants,
     pendingAssistantOffer: state.pendingAssistantOffer,
     conversationLoop: state.conversationLoop,
