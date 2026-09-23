@@ -371,7 +371,7 @@ describe("Best Round Pro source-gap regressions", () => {
 
     for (const [message, value, next] of [
       ["diestro", "RIGHT", "skill"],
-      ["8", 8, "objective"],
+      ["8", 8, "driverObjective"],
     ] as const) {
       mocks.interpretation.mockResolvedValueOnce(interpretation("OTHER"));
       result = await processConversationTurn({
