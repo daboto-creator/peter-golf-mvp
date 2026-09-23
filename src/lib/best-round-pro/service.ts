@@ -86,15 +86,22 @@ function familyLabel(family: string) {
   } as Record<string, string>)[family] ?? "producto de esta categoría";
 }
 
+function targetLevelForSet(input: { setType?: string | null; name: string; category?: string | null }) {
+  if (input.setType === "starter_set") return "BEGINNER" as const;
+  // Catalog positioning is authoritative when the product record uses the
+  // known beginner-oriented naming/category vocabulary; otherwise remain
+  // UNKNOWN instead of inventing a player level.
+  if (input.setType === "complete_set" && /\bstrata\b|\bstarter\b|\bbeginner\b|\bentry[- ]level\b/i.test(`${input.name} ${input.category ?? ""}`)) {
+    return "BEGINNER" as const;
+  }
+  return input.setType === "complete_set" ? "ALL_LEVELS" as const : null;
+}
+
 function productReferenceFromSummary(product: Awaited<ReturnType<typeof searchCatalogScope>>["products"][number]): CatalogProductReference {
   const family = product.productFamily === "set"
     ? "SET"
     : product.clubType?.toUpperCase() ?? product.productFamily;
-  const targetPlayerLevel = product.setType === "starter_set"
-    ? "BEGINNER"
-    : product.setType === "complete_set"
-      ? "ALL_LEVELS"
-      : null;
+  const targetPlayerLevel = targetLevelForSet(product);
   return {
     id: product.id,
     slug: product.slug,
@@ -381,11 +388,7 @@ export async function processConversationTurn(input: {
         imagePath: loaded.data.images[0]?.storagePath ?? null,
         handedness: loaded.data.handedness ?? loaded.data.setSpecs?.handedness ?? null,
         family: loaded.data.productFamily,
-        targetPlayerLevel: loaded.data.setType === "starter_set"
-          ? "BEGINNER"
-          : loaded.data.setType === "complete_set"
-            ? "ALL_LEVELS"
-            : null,
+        targetPlayerLevel: targetLevelForSet({ setType: loaded.data.setType, name: loaded.data.name, category: loaded.data.categoryName }),
       };
     }
   }
@@ -1134,11 +1137,7 @@ export async function processConversationTurn(input: {
       imagePath: product.images[0]?.storagePath ?? null,
       handedness: product.handedness,
       family: product.productFamily,
-      targetPlayerLevel: product.setType === "starter_set"
-        ? "BEGINNER"
-        : product.setType === "complete_set"
-          ? "ALL_LEVELS"
-          : null,
+      targetPlayerLevel: targetLevelForSet(product),
     }));
     const currentResultIds = new Set(references.map((product) => product.id));
     const retainedInteraction = updatedState.lastInteractedProduct &&
