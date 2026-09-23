@@ -51,7 +51,7 @@ export type ConversationState = {
     active: boolean;
     product: CatalogProductReference | null;
     pendingQuestionKey: string | null;
-    collectedAnswers: Record<string, string | number | boolean | null>;
+    collectedAnswers: Record<string, string | number | boolean | number[] | null>;
   };
   activeAdvice: {
     productId: string;
@@ -92,6 +92,7 @@ export const FACT_VALUE_DOMAINS = {
   skill: ["BEGINNER", "INTERMEDIATE", "ADVANCED"],
   setExperience: ["FIRST_SET", "CURRENT_PLAYER"],
   handicapStatus: ["KNOWN", "NONE", "UNKNOWN", "DECLINED"],
+  driverObjective: ["DISTANCE", "ACCURACY", "REDUCE_MISS"],
   shotTendency: ["STRAIGHT", "SLICE", "HOOK"],
   conditionPreference: ["NEW_ONLY", "USED_ACCEPTABLE"],
 } as const;
@@ -107,7 +108,8 @@ export function deriveSkillFromHandicap(handicap: number): "BEGINNER" | "INTERME
 
 export type CanonicalFactField = keyof typeof FACT_VALUE_DOMAINS;
 
-export function normalizeStructuredFactValue(field: string, value: string | number) {
+export function normalizeStructuredFactValue(field: string, value: string | number | number[]) {
+  if (Array.isArray(value)) return value;
   if (typeof value !== "string") return value;
   const aliases: Record<string, string> = {
     LEFT_HANDED: "LEFT",
@@ -122,14 +124,15 @@ export function normalizeStructuredFactValue(field: string, value: string | numb
   return normalized;
 }
 
-export function validateCanonicalFactValue(field: string, value: string | number | null | undefined, status: FactStatus) {
+export function validateCanonicalFactValue(field: string, value: string | number | number[] | null | undefined, status: FactStatus) {
   if (status !== "KNOWN") return value == null || typeof value === "string" || typeof value === "number";
   if (field === "handicapIndex") return typeof value === "number" && value >= 0 && value <= 54;
+  if (field === "currentWedgeLofts") return Array.isArray(value) && value.length > 0 && value.every((loft) => typeof loft === "number" && loft >= 40 && loft <= 64);
   const domain = FACT_VALUE_DOMAINS[field as CanonicalFactField];
   return !domain || (typeof value === "string" && (domain as readonly string[]).includes(value));
 }
 
-export function normalizeCanonicalFactStatus(field: string, value: string | number | null | undefined, status: FactStatus): FactStatus {
+export function normalizeCanonicalFactStatus(field: string, value: string | number | number[] | null | undefined, status: FactStatus): FactStatus {
   const canonical = typeof value === "string" || typeof value === "number" ? normalizeStructuredFactValue(field, value) : value;
   if (status !== "KNOWN" && canonical != null && validateCanonicalFactValue(field, canonical, "KNOWN")) return "KNOWN";
   return status;
@@ -137,7 +140,7 @@ export function normalizeCanonicalFactStatus(field: string, value: string | numb
 
 export type CanonicalCurrentTurnFact = {
   field: string;
-  value: string | number;
+  value: string | number | number[];
   durable: boolean;
   semanticStatus: FactStatus;
   source: CurrentTurnFactSource;
@@ -188,6 +191,16 @@ export function resolvePendingAnswerFact(
       if (value >= 0 && value <= 54)
         return { field: "handicapIndex", value, durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
     }
+  }
+  if (pendingFactKey === "objective" || pendingFactKey === "driverObjective") {
+    if (/\b(distancia|m[aá]s\s+(?:distancia|largo)|pegar\s+m[aá]s\s+largo)\b/.test(normalizedMessage)) return known("driverObjective", "DISTANCE");
+    if (/\b(precisi[oó]n|m[aá]s\s+recto|m[aá]s\s+control)\b/.test(normalizedMessage)) return known("driverObjective", "ACCURACY");
+    if (/\b(reducir|corregir|menos)\s+(?:mi\s+)?(?:slice|miss|hook)\b/.test(normalizedMessage)) return known("driverObjective", "REDUCE_MISS");
+  }
+  if (pendingFactKey === "currentWedgeLofts" || pendingFactKey === "gapping") {
+    const values = [...normalizedMessage.matchAll(/\b(4[0-9]|5[0-9]|6[0-4])\b/g)].map((match) => Number(match[1]));
+    const unique = [...new Set(values)];
+    if (unique.length) return { field: "currentWedgeLofts", value: unique, durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
   }
   return null;
 }
@@ -397,7 +410,7 @@ export type ActionResult = {
 
 export function evaluateFocusedProductAgainstKnownFacts(input: {
   product: CatalogProductReference;
-  answers: Record<string, string | number | boolean | null>;
+  answers: Record<string, string | number | boolean | number[] | null>;
 }) {
   const playerHand = input.answers.handedness;
   const productHand = typeof input.product.handedness === "string" ? input.product.handedness.toUpperCase() : input.product.handedness;
@@ -411,21 +424,22 @@ export function evaluateFocusedProductAgainstKnownFacts(input: {
 }
 
 export function getNextProductAdviceQuestion(input: {
-  answers: Record<string, string | number | boolean | null>;
+  answers: Record<string, string | number | boolean | number[] | null>;
   productFamily?: ProductFamily | string | null;
 }) {
   if (input.answers.handedness !== "LEFT" && input.answers.handedness !== "RIGHT")
     return { key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.handedness], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
   const family = input.productFamily?.toUpperCase() ?? "";
   const isSet = !input.productFamily || family === "SET";
-  if (isSet && !input.answers.setExperience && !input.answers.experience)
+  const handicapKnown = typeof input.answers.handicapIndex === "number" || (input.answers.handicapStatus === "KNOWN" && typeof input.answers.handicap === "number");
+  if (isSet && !input.answers.setExperience && !input.answers.experience && !handicapKnown)
     return { key: "setExperience", meaning: "ASK_SET_EXPERIENCE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.setExperience], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
   if (input.answers.handicapIndex === undefined && input.answers.handicap === undefined && input.answers.handicapStatus === undefined)
     return { key: "skill", meaning: "ASK_PLAYER_HANDICAP", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: ["0.0-54.0"], allowedStatuses: ["KNOWN", "NONE", "UNKNOWN", "DECLINED"] as FactStatus[] };
-  if (family === "WEDGE" && input.answers.gapping === undefined)
-    return { key: "gapping", meaning: "ASK_WEDGE_GAPPING", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [], allowedStatuses: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] as FactStatus[] };
-  if (family === "DRIVER" && input.answers.objective === undefined)
-    return { key: "objective", meaning: "ASK_DRIVER_OBJECTIVE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [], allowedStatuses: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] as FactStatus[] };
+  if (family === "WEDGE" && input.answers.currentWedgeLofts === undefined && input.answers.gapping === undefined)
+    return { key: "currentWedgeLofts", meaning: "ASK_WEDGE_LOFTS", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [], allowedStatuses: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] as FactStatus[] };
+  if (family === "DRIVER" && input.answers.driverObjective === undefined && input.answers.objective === undefined)
+    return { key: "driverObjective", meaning: "ASK_DRIVER_OBJECTIVE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [], allowedStatuses: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] as FactStatus[] };
   return null;
 }
 
@@ -435,7 +449,7 @@ export function questionPromptFor(spec: ReturnType<typeof getNextProductAdviceQu
   if (spec.meaning === "ASK_PLAYER_HANDEDNESS") return perspective.isSelf ? "¿Juegas como diestro o zurdo?" : `¿${player} juega como diestro o zurdo?`;
   if (spec.meaning === "ASK_SET_EXPERIENCE") return perspective.isSelf ? "¿Es tu primer set o ya juegas actualmente?" : `¿Es el primer set de ${player} o ya juega actualmente?`;
   if (spec.meaning === "ASK_PLAYER_HANDICAP") return perspective.isSelf ? "¿Tienes handicap o Handicap Index? Si lo sabes, dime el número. Si no tienes uno, también está bien." : `¿${player} tiene handicap o Handicap Index? Si lo sabe, que me diga el número; si no tiene uno, también está bien.`;
-  if (spec.meaning === "ASK_WEDGE_GAPPING") return "¿Qué lofts o qué distancias cubres actualmente con tus wedges?";
+  if (spec.meaning === "ASK_WEDGE_LOFTS") return "¿Qué lofts de wedge llevas hoy? Por ejemplo 50°, 54° y 58°.";
   if (spec.meaning === "ASK_DRIVER_OBJECTIVE") return "¿Qué quieres mejorar principalmente con este driver: distancia, precisión o reducir un miss?";
   return `¿Qué te gustaría contarnos sobre ${category ?? "tu equipo"}?`;
 }
@@ -665,7 +679,7 @@ export function parseCurrentEquipment(
 
 function parseAnswers(
   text: string,
-  current: Record<string, string | number | boolean | null>,
+  current: Record<string, string | number | boolean | number[] | null>,
   pendingQuestionKey: string | null,
   category: MatchCategory | null,
 ) {

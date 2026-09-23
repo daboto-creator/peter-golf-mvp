@@ -93,7 +93,7 @@ export type ConversationInterpreterTelemetry = {
   answersPendingQuestion?: boolean;
   declaredFactKeys?: string[];
   declaredFactStatuses?: string[];
-  declaredFacts?: Array<{ key: string; canonicalValue: string | number | null; status: string }>;
+  declaredFacts?: Array<{ key: string; canonicalValue: string | number | number[] | null; status: string }>;
   requestedProductFamilies?: string[];
   searchContinuationRelation?: string | null;
   searchContinuationReason?: string | null;
@@ -103,20 +103,29 @@ export type ConversationInterpreterTelemetry = {
   pendingQuestionChanged?: boolean;
   pendingBefore?: string | null;
   pendingFactKeyMatched?: string | null;
+  pendingNormalizerUsed?: string | null;
+  normalizedPendingValue?: string | number | number[] | null;
+  pendingConsumed?: boolean;
+  loopPrevented?: boolean;
+  loopReason?: string | null;
   pendingAfter?: string | null;
   rawDeclaredFacts?: Array<{ key: string; status: string; source: string }>;
-  acceptedCurrentTurnFacts?: Array<{ key: string; canonicalValue: string | number | null; status: string; source: string }>;
+  acceptedCurrentTurnFacts?: Array<{ key: string; canonicalValue: string | number | number[] | null; status: string; source: string }>;
   rejectedContextEchoFacts?: Array<{ key: string; reason: string }>;
   factMutationIntent?: FactMutationIntent;
-  playerFactsBefore?: Record<string, string | number | boolean | null>;
-  playerFactsAfter?: Record<string, string | number | boolean | null>;
+  playerFactsBefore?: Record<string, string | number | boolean | number[] | null>;
+  playerFactsAfter?: Record<string, string | number | boolean | number[] | null>;
   activeAdviceProductId?: string | null;
   activeAdviceProductFamily?: string | null;
   activeAdviceStatus?: string | null;
   adviceOutcome?: string | null;
   adviceEvidenceSufficient?: boolean;
   materialMissingFactKeys?: string[];
+  resolvedMaterialFactKeys?: string[];
   productChangedThisTurn?: boolean;
+  previousProductId?: string | null;
+  compatibilityOutcomeBeforeReset?: string | null;
+  compatibilityOutcomeAfterReset?: string | null;
   playerFactsCarriedForward?: string[];
   nextQuestionKey?: string | null;
 };
@@ -142,14 +151,23 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   searchContinuationRelation: null,
   searchContinuationReason: null,
   catalogScopeIntent: null,
+  pendingNormalizerUsed: null,
+  normalizedPendingValue: null,
+  pendingConsumed: false,
+  loopPrevented: false,
+  loopReason: null,
   activeAdviceProductId: null,
   activeAdviceProductFamily: null,
   activeAdviceStatus: null,
   adviceOutcome: null,
   adviceEvidenceSufficient: false,
   materialMissingFactKeys: [],
+  resolvedMaterialFactKeys: [],
   productChangedThisTurn: false,
   playerFactsCarriedForward: [],
+  previousProductId: null,
+  compatibilityOutcomeBeforeReset: null,
+  compatibilityOutcomeAfterReset: null,
   nextQuestionKey: null,
 };
 
@@ -167,12 +185,16 @@ function recordAdviceTelemetry(state: ConversationState, outcome: string | null,
   lastInterpreterTelemetry.nextQuestionKey = state.pendingQuestionKey;
 }
 
-function telemetryPlayerFacts(answers: Record<string, string | number | boolean | null>) {
+function telemetryPlayerFacts(answers: Record<string, string | number | boolean | number[] | null>) {
   return Object.fromEntries(
     ["handedness", "setExperience", "skill", "skillSource", "handicapIndex", "handicapStatus", "handicapSource", "handicap", "shotTendency", "swingSpeed"]
       .filter((key) => answers[key] !== undefined)
       .map((key) => [key, answers[key]]),
   );
+}
+
+function isCanonicalFactValue(value: unknown): value is string | number | number[] {
+  return typeof value === "string" || typeof value === "number" || (Array.isArray(value) && value.every((item) => typeof item === "number"));
 }
 
 function profileFrom(
@@ -381,7 +403,7 @@ export async function processConversationTurn(input: {
         declaredFactStatuses: interpretation.declaredFacts.map((fact) => fact.semanticStatus),
         declaredFacts: interpretation.declaredFacts.map((fact) => ({
           key: fact.field,
-          canonicalValue: typeof fact.value === "string" || typeof fact.value === "number" ? normalizeStructuredFactValue(fact.field, fact.value) : null,
+          canonicalValue: isCanonicalFactValue(fact.value) ? normalizeStructuredFactValue(fact.field, fact.value) : null,
           status: fact.semanticStatus,
         })),
         requestedProductFamilies: interpretation.requestedProductFamilies,
@@ -481,18 +503,18 @@ export async function processConversationTurn(input: {
     ? pendingAnswerCandidate
     : null;
   const normalizedProviderFacts: CanonicalCurrentTurnFact[] = (interpretation?.declaredFacts ?? []).filter((fact) => {
-    const value = typeof fact.value === "string" || typeof fact.value === "number"
+    const value = isCanonicalFactValue(fact.value)
       ? normalizeStructuredFactValue(fact.field, fact.value)
       : undefined;
     return validateCanonicalFactValue(fact.field, value, normalizeCanonicalFactStatus(fact.field, value, fact.semanticStatus));
   }).map((fact) => ({
     ...fact,
-    value: typeof fact.value === "string" || typeof fact.value === "number"
+    value: isCanonicalFactValue(fact.value)
       ? normalizeStructuredFactValue(fact.field, fact.value)
       : fact.value,
     semanticStatus: normalizeCanonicalFactStatus(
       fact.field,
-      typeof fact.value === "string" || typeof fact.value === "number" ? normalizeStructuredFactValue(fact.field, fact.value) : fact.value,
+      isCanonicalFactValue(fact.value) ? normalizeStructuredFactValue(fact.field, fact.value) : fact.value,
       fact.semanticStatus,
     ),
     source: fact.source,
@@ -523,7 +545,10 @@ export async function processConversationTurn(input: {
     });
   }
   const pendingFactMatches = (fact: CanonicalCurrentTurnFact) => Boolean(
-    pendingKey && (fact.field === pendingKey || (pendingKey === "skill" && ["handicapIndex", "handicapStatus"].includes(fact.field))),
+    pendingKey && (fact.field === pendingKey ||
+      (pendingKey === "skill" && ["handicapIndex", "handicapStatus"].includes(fact.field)) ||
+      (pendingKey === "objective" && fact.field === "driverObjective") ||
+      (pendingKey === "gapping" && fact.field === "currentWedgeLofts")),
   );
   const answeredPending = Boolean(pendingKey && canonicalFacts.some(pendingFactMatches));
   const rawDialogueAct = interpretation?.rawDialogueAct ?? interpretation?.dialogueAct ?? null;
@@ -572,15 +597,24 @@ export async function processConversationTurn(input: {
   );
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
+  const reducedDiagnosticAnswers = {
+    ...input.state.session.diagnosticAnswers,
+    ...interpretedAnswers,
+  } as Record<string, string | number | boolean | number[] | null>;
+  if (typeof reducedDiagnosticAnswers.handicapIndex === "number" && reducedDiagnosticAnswers.handicapIndex >= 0 && reducedDiagnosticAnswers.handicapIndex <= 54) {
+    reducedDiagnosticAnswers.handicapStatus = "KNOWN";
+    reducedDiagnosticAnswers.handicapSource ??= "USER_DECLARED";
+    reducedDiagnosticAnswers.skill = deriveSkillFromHandicap(reducedDiagnosticAnswers.handicapIndex);
+    reducedDiagnosticAnswers.skillSource = "DERIVED_FROM_HANDICAP";
+    reducedDiagnosticAnswers.setExperience ??= "CURRENT_PLAYER";
+    reducedDiagnosticAnswers.setExperienceSource ??= "DERIVED_FROM_HANDICAP";
+  }
   const updatedState: ConversationState = {
     ...input.state,
     session: {
       ...input.state.session,
       requestedCategory: interpretation?.category ?? input.state.session.requestedCategory,
-      diagnosticAnswers: {
-        ...input.state.session.diagnosticAnswers,
-        ...interpretedAnswers,
-      },
+      diagnosticAnswers: reducedDiagnosticAnswers,
     },
     participants,
     pendingQuestionKey: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionKey,
@@ -606,7 +640,7 @@ export async function processConversationTurn(input: {
         }
       : null,
     catalogSearchOutcome: input.state.catalogSearchOutcome,
-    compatibilityOutcome: input.state.compatibilityOutcome,
+    compatibilityOutcome: productChangedThisTurn ? null : input.state.compatibilityOutcome,
   };
   lastInterpreterTelemetry.playerFactsChanged = canonicalFacts.length > 0;
   lastInterpreterTelemetry.pendingQuestionChanged = (pendingKey ?? null) !== (answeredPending ? null : pendingKey ?? null);
@@ -617,6 +651,10 @@ export async function processConversationTurn(input: {
   lastInterpreterTelemetry.answersPendingQuestion = answeredPending || interpretation?.answersPendingQuestion || false;
   lastInterpreterTelemetry.pendingBefore = pendingKey ?? null;
   lastInterpreterTelemetry.pendingFactKeyMatched = answeredPending ? pendingKey : null;
+  lastInterpreterTelemetry.pendingNormalizerUsed = pendingAnswerFact ? `PENDING_${pendingAnswerFact.field}` : null;
+  lastInterpreterTelemetry.normalizedPendingValue = pendingAnswerFact?.value ?? null;
+  lastInterpreterTelemetry.pendingConsumed = answeredPending;
+  lastInterpreterTelemetry.resolvedMaterialFactKeys = [...resolvedFactKeysThisTurn];
   lastInterpreterTelemetry.pendingAfter = answeredPending ? null : pendingKey ?? null;
   lastInterpreterTelemetry.acceptedCurrentTurnFacts = canonicalFacts.map((fact) => ({
     key: fact.field,
@@ -629,10 +667,13 @@ export async function processConversationTurn(input: {
   lastInterpreterTelemetry.playerFactsBefore = telemetryPlayerFacts(input.state.session.diagnosticAnswers);
   lastInterpreterTelemetry.playerFactsAfter = telemetryPlayerFacts(updatedState.session.diagnosticAnswers);
   lastInterpreterTelemetry.productChangedThisTurn = productChangedThisTurn;
+  lastInterpreterTelemetry.previousProductId = previousAdviceProductId;
+  lastInterpreterTelemetry.compatibilityOutcomeBeforeReset = input.state.compatibilityOutcome;
+  lastInterpreterTelemetry.compatibilityOutcomeAfterReset = updatedState.compatibilityOutcome;
   lastInterpreterTelemetry.playerFactsCarriedForward = Object.keys(updatedState.session.diagnosticAnswers).filter((key) => input.state.session.diagnosticAnswers[key] !== undefined);
   lastInterpreterTelemetry.declaredFacts = canonicalFacts.map((fact) => ({
     key: fact.field,
-    canonicalValue: typeof fact.value === "string" || typeof fact.value === "number" ? fact.value : null,
+    canonicalValue: isCanonicalFactValue(fact.value) ? fact.value : null,
     status: fact.semanticStatus,
   }));
   const playerPerspective = getPlayerPerspective(participants);
@@ -766,7 +807,7 @@ export async function processConversationTurn(input: {
   if (focusedProduct && (updatedState.productAdvice?.active || updatedState.pendingQuestionCategory === "PRODUCT_ADVICE")) {
     const answers = { ...updatedState.session.diagnosticAnswers };
     for (const fact of canonicalFacts) {
-      if (["handedness", "handicap", "handicapIndex", "handicapStatus", "setExperience", "skill", "skillSource", "objective"].includes(fact.field))
+      if (["handedness", "handicap", "handicapIndex", "handicapStatus", "setExperience", "skill", "skillSource", "objective", "driverObjective", "currentWedgeLofts"].includes(fact.field))
         answers[fact.field] = fact.semanticStatus === "NONE" ? "NONE" : fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" : fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value;
       if (fact.field === "skill" && fact.semanticStatus === "KNOWN") answers.skillSource = "USER_DECLARED";
       if (fact.field === "handicapIndex" && fact.semanticStatus === "KNOWN") answers.handicapSource = "USER_DECLARED";
@@ -776,6 +817,8 @@ export async function processConversationTurn(input: {
       answers.handicapSource = "USER_DECLARED";
       answers.skill = deriveSkillFromHandicap(answers.handicapIndex);
       answers.skillSource = "DERIVED_FROM_HANDICAP";
+      answers.setExperience ??= "CURRENT_PLAYER";
+      answers.setExperienceSource ??= "DERIVED_FROM_HANDICAP";
     } else if (answers.handicapStatus === "NONE") {
       answers.handicapIndex = null;
       answers.skill = "BEGINNER";
@@ -860,7 +903,14 @@ export async function processConversationTurn(input: {
       lastSemanticFingerprint: semanticFingerprint,
     };
     const playerLabel = participants.player.relationToBuyer === "SELF" ? "tu" : `${participants.player.displayReference}`;
-    const semanticQuestion = questionPromptFor(resolvedQuestion, playerPerspective, focusedProduct.category);
+    const invalidWedgeLoftAnswer = pendingKey === "currentWedgeLofts" && !answeredPending && input.message.trim().length > 0;
+    const semanticQuestion = invalidWedgeLoftAnswer
+      ? "Necesito los lofts, no una distancia: indícamelos como 50°, 54° y 58°; si sólo conoces una medida, dime el loft exacto."
+      : questionPromptFor(resolvedQuestion, playerPerspective, focusedProduct.category);
+    if (invalidWedgeLoftAnswer) {
+      lastInterpreterTelemetry.loopPrevented = true;
+      lastInterpreterTelemetry.loopReason = "INVALID_WEDGE_LOFT_FORMAT";
+    }
     const reply = repeatedWithoutProgress
       ? "Para no hacerte repetir la misma pregunta, puedo continuar con una recomendación general o puedes indicarme qué dato prefieres compartir."
       : asksData
@@ -1102,7 +1152,7 @@ export async function processConversationTurn(input: {
       reply = terminalOutcomeMessage(
         outcomeType,
         category,
-        turn.state.session.diagnosticAnswers.handedness,
+            typeof turn.state.session.diagnosticAnswers.handedness === "string" ? turn.state.session.diagnosticAnswers.handedness : null,
       );
     const safeRecommendation =
       priceChoice && priceChoice.length > 1
@@ -1171,7 +1221,7 @@ export async function processConversationTurn(input: {
         message: terminalOutcomeMessage(
           "INSUFFICIENT_DATA",
           turn.state.session.requestedCategory ?? "equipment",
-          turn.state.session.diagnosticAnswers.handedness,
+          typeof turn.state.session.diagnosticAnswers.handedness === "string" ? turn.state.session.diagnosticAnswers.handedness : null,
         ),
       } satisfies ConversationOutcomeResult;
   const outcome = policyTurn.nextQuestion ? null : terminalOutcome;

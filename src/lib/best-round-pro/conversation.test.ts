@@ -38,8 +38,14 @@ describe("Best Round Pro conversation", () => {
 
   it("uses category-aware advice eligibility", () => {
     expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT" }, productFamily: "WEDGE" })?.key).toBe("skill");
-    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT", handicapIndex: 8 }, productFamily: "WEDGE" })?.key).toBe("gapping");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT", handicapIndex: 8 }, productFamily: "WEDGE" })?.key).toBe("currentWedgeLofts");
     expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT" }, productFamily: "SET" })?.key).toBe("setExperience");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT", handicapIndex: 8 }, productFamily: "SET" })).toBeNull();
+  });
+
+  it("consumes driver objectives and typed wedge lofts from pending context", () => {
+    expect(resolvePendingAnswerFact("driverObjective", "distancia")).toMatchObject({ field: "driverObjective", value: "DISTANCE" });
+    expect(resolvePendingAnswerFact("currentWedgeLofts", "50, 54 y 58")).toMatchObject({ field: "currentWedgeLofts", value: [50, 54, 58] });
   });
   const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT") => ({
     id,

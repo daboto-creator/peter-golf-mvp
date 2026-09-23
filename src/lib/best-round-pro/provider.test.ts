@@ -49,6 +49,15 @@ describe("conversation interpretation contract", () => {
     expect(invalid.success).toBe(false);
   });
 
+  it("accepts typed wedge loft arrays", () => {
+    const parsed = conversationInterpretationSchema.parse(normalizeInterpretationShape({
+      dialogueAct: "ANSWER_PENDING_QUESTION",
+      intent: "UNKNOWN",
+      declaredFacts: [{ field: "currentWedgeLofts", value: [50, 54, 58], durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" }],
+    }));
+    expect(parsed.declaredFacts[0].value).toEqual([50, 54, 58]);
+  });
+
   it("keeps explicit multi-family search scope separate from product category", () => {
     const parsed = conversationInterpretationSchema.parse(
       normalizeInterpretationShape({

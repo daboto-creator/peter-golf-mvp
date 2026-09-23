@@ -52,7 +52,7 @@ export type BestRoundProSessionSummary = {
   budgetMxnMinor: number | null;
   objections: string[];
   productsConsidered: string[];
-  diagnosticAnswers: Record<string, string | number | boolean | null>;
+  diagnosticAnswers: Record<string, string | number | boolean | number[] | null>;
   unresolvedQuestions: string[];
   summary: string | null;
 };
