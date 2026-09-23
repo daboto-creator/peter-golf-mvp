@@ -388,4 +388,64 @@ describe("Best Round Pro source-gap regressions", () => {
       expect(state.referenceResolution.source).toBe("CURRENT_PAGE");
     }
   });
+
+  it("offers only real same-family alternatives after a completed driver evaluation", async () => {
+    const state = initialConversationState();
+    state.session.diagnosticAnswers = {
+      handedness: "RIGHT",
+      handicapIndex: 8,
+      handicapStatus: "KNOWN",
+      skill: "ADVANCED",
+      skillSource: "DERIVED_FROM_HANDICAP",
+      driverObjective: "DISTANCE",
+    };
+    mocks.currentPageProduct = { ...publicProduct(product("STEALTH", "RIGHT")), clubType: "driver", productFamily: "club" };
+    mocks.catalogProducts = [
+      { ...publicProduct(product("STEALTH", "RIGHT")), clubType: "driver", productFamily: "club" },
+      { ...publicProduct(product("OTHER", "RIGHT")), clubType: "driver", productFamily: "club" },
+      { ...publicProduct(product("WEDGE", "RIGHT")), clubType: "wedge", productFamily: "club" },
+    ];
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+
+    const result = await processConversationTurn({
+      state,
+      message: "me recomiendas este driver",
+      currentPageProduct: { id: "STEALTH", slug: "stealth", name: "TaylorMade Stealth 2 Driver", productFamily: "DRIVER" },
+    });
+
+    expect(result.reply).toContain("OTHER");
+    expect(result.reply).not.toContain("WEDGE");
+    expect(result.reply).not.toMatch(/puedo comparar una alternativa/i);
+    expect(getLastInterpreterTelemetry()).toMatchObject({
+      comparableAlternativeIds: ["OTHER"],
+      comparableAlternativeCount: 1,
+      comparisonEligible: true,
+      comparisonOffered: true,
+    });
+  });
+
+  it("does not offer comparison when no same-family inventory exists", async () => {
+    const state = initialConversationState();
+    state.session.diagnosticAnswers = {
+      handedness: "RIGHT",
+      handicapIndex: 8,
+      handicapStatus: "KNOWN",
+      skill: "ADVANCED",
+      skillSource: "DERIVED_FROM_HANDICAP",
+      driverObjective: "DISTANCE",
+    };
+    mocks.currentPageProduct = { ...publicProduct(product("STEALTH", "RIGHT")), clubType: "driver", productFamily: "club" };
+    mocks.catalogProducts = [{ ...publicProduct(product("WEDGE", "RIGHT")), clubType: "wedge", productFamily: "club" }];
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+
+    const result = await processConversationTurn({
+      state,
+      message: "me recomiendas este driver",
+      currentPageProduct: { id: "STEALTH", slug: "stealth", name: "TaylorMade Stealth 2 Driver", productFamily: "DRIVER" },
+    });
+
+    expect(result.reply).toMatch(/no tengo otro driver comparable/i);
+    expect(getLastInterpreterTelemetry().comparableAlternativeCount).toBe(0);
+    expect(getLastInterpreterTelemetry().comparisonOffered).toBe(false);
+  });
 });

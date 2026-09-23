@@ -244,6 +244,8 @@ export type CatalogProductReference = {
   imagePath: string | null;
   handedness: string | null;
   family: string | null;
+  /** Authoritative positioning when supplied by the catalog; never inferred from advice text. */
+  targetPlayerLevel?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ALL_LEVELS" | "UNKNOWN" | null;
 };
 
 export type ReferenceResolutionSource =
