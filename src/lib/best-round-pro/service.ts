@@ -852,7 +852,7 @@ export async function processConversationTurn(input: {
     if (policyReply) return appendSocialReply(policyReply, "RETURN_STORE_POLICY");
     if (knowledgeProductData && focusedProduct) {
       const dto = toProductKnowledge(knowledgeProductData);
-      const reply = answerProductKnowledge(knowledgeIntent, dto);
+      const reply = answerProductKnowledge(knowledgeIntent, dto, input.message);
       if (reply) return appendKnowledgeReply(reply, knowledgeIntent === "PRODUCT_PRICE" ? "RETURN_PRODUCT_PRICE" : knowledgeIntent === "PRODUCT_AVAILABILITY" || knowledgeIntent === "PURCHASE_READINESS" ? "RETURN_PRODUCT_AVAILABILITY" : "RETURN_PRODUCT_FACTS", knowledgeProductData);
     }
     if (!focusedProduct) return appendKnowledgeReply("Dime qué producto quieres consultar o abre su ficha para revisar el dato exacto.", "RETURN_KNOWLEDGE_GAP");
