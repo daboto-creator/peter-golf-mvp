@@ -179,7 +179,20 @@ export function answerProductKnowledge(intent: KnowledgeIntent, product: Product
       if (/flex/.test(normalizedQuestion) && product.specs.shaftFlex == null) return "No tengo registrado el flex de la varilla de este producto.";
       if (/loft/.test(normalizedQuestion) && product.specs.loftDegrees == null) return "No tengo registrado el loft de este producto.";
       const available = Object.entries(product.specs).filter(([, value]) => value !== null && value !== undefined);
-      return available.length ? `Tengo registradas estas especificaciones: ${available.map(([key, value]) => `${key}: ${value}`).join(", ")}.` : "Esa especificación no está registrada para este producto.";
+      const labels: Record<string, string> = {
+        loftDegrees: "loft",
+        handedness: "mano",
+        shaftFlex: "flex de la varilla",
+        shaftMaterial: "material de la varilla",
+        shaftWeightGrams: "peso de la varilla",
+        lieDegrees: "lie",
+        bounceDegrees: "bounce",
+        grind: "grind",
+        modelYear: "año del modelo",
+      };
+      return available.length
+        ? `Tengo registradas estas especificaciones: ${available.map(([key, value]) => `${labels[key] ?? key}: ${value}`).join(", ")}.`
+        : "Esa especificación no está registrada para este producto.";
     }
     default: return null;
   }
