@@ -11,6 +11,7 @@ import {
   productReadiness,
   humanizeCatalogLabel,
   formatMoney,
+  interpretCategoryRecommendation,
 } from "./product-knowledge";
 import type { ProductKnowledgeDTO } from "./product-knowledge";
 
@@ -91,5 +92,29 @@ describe("Best Round product knowledge", () => {
     expect(formatMoney({ amountCents: 1119900, currency: "MXN" })).toBe("$11,199.00 MXN");
     expect(formatMoney({ amountCents: 12345, currency: "MXN" })).toBe("$123.45 MXN");
     expect(formatMoney({ amountCents: 0, currency: "MXN" })).toBe("$0.00 MXN");
+  });
+
+  it.each([
+    ["DRIVER", "10.5°", "objetivo de distancia"],
+    ["FAIRWAY_WOOD", "papel de la madera", "loft"],
+    ["HYBRID", "puente entre una madera y un hierro", "solap"],
+    ["IRON", "composición", "shaft"],
+    ["WEDGE", "loft", "gapping"],
+    ["PUTTER", "postura", "longitud"],
+    ["SET", "composición", "bolsa"],
+  ] as const)("interprets %s from structured facts", (...row) => {
+    const [family, expected] = row;
+    const result = interpretCategoryRecommendation({
+      family,
+      product: {
+        id: "synthetic", slug: "synthetic", name: "Synthetic 56°", canonicalProductFamily: family,
+        price: 100, currency: "MXN", formattedPrice: "$1.00 MXN", availability: "AVAILABLE", sellable: true,
+        condition: "NEW", handedness: "right", brand: "Synthetic", model: "Synthetic", specs: { loftDegrees: 10.5, shaftFlex: "Regular", shaftMaterial: "graphite" }, includedItems: null,
+        headcoverStatus: "UNKNOWN", sourceType: "FIRST_PARTY", sellerIdentityExposed: false, readiness: "READY", missingRequiredFields: [], missingRecommendedFields: [],
+      },
+      answers: { handicapIndex: 8, currentWedgeLofts: [60] },
+      targetPlayerLevel: family === "SET" ? "BEGINNER" : null,
+    });
+    expect(`${result.reason} ${result.interpretations.join(" ")}`).toMatch(new RegExp(expected, "i"));
   });
 });
