@@ -93,6 +93,29 @@ function knownLeftState(): ConversationState {
 }
 
 describe("Best Round Pro source-gap regressions", () => {
+  it("answers direct product price without starting fitting", async () => {
+    mocks.currentPageProduct = {
+      ...publicProduct(product("SYNTHETIC", "RIGHT")),
+      price: 12345,
+      currency: "MXN",
+      fulfillmentType: "in_stock",
+      brandName: "Synthetic",
+      clubType: "driver",
+      clubSpecs: null,
+      components: [],
+      accessoriesIncluded: [],
+    };
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+    const result = await processConversationTurn({
+      state: initialConversationState(),
+      message: "¿cuánto cuesta?",
+      currentPageProduct: { id: "SYNTHETIC", slug: "synthetic", name: "Synthetic Driver Alpha", productFamily: "DRIVER" },
+    });
+    expect(result.reply).toContain("12345");
+    expect(result.state.pendingQuestionKey).toBeNull();
+    expect(result.state.lastExecutedAction).toBe("RETURN_PRODUCT_PRICE");
+  });
+
   it.each([
     ["SET", "set"], ["DRIVER", "driver"], ["FAIRWAY_WOOD", "madera"],
     ["HYBRID", "híbrido"], ["IRON", "hierros"], ["WEDGE", "wedge"], ["PUTTER", "putter"],

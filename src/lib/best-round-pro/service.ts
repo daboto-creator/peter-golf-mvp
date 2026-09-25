@@ -53,6 +53,13 @@ import {
 } from "@/lib/best-round-pro/intent-router";
 import { searchCommercialCatalog, searchCatalogScope } from "@/lib/best-round-pro/catalog-search";
 import type { CatalogProductReference } from "@/lib/best-round-pro/conversation";
+import {
+  answerProductKnowledge,
+  answerStoreKnowledge,
+  classifyKnowledgeIntent,
+  toProductKnowledge,
+  type KnowledgeIntent,
+} from "@/lib/best-round-pro/product-knowledge";
 
 export function canonicalProductFamily(product: CatalogProductReference): string {
   if (product.family && product.family !== "club") return product.family.toUpperCase();
@@ -201,6 +208,16 @@ export type ConversationInterpreterTelemetry = {
   playerLevelFit?: string | null;
   targetPlayerLevel?: string | null;
   recommendationStrength?: string | null;
+  knowledgeIntent?: KnowledgeIntent;
+  factsRequested?: string[];
+  factsResolved?: string[];
+  factsUnavailable?: string[];
+  productSourceType?: string | null;
+  availabilityStatus?: string | null;
+  conditionStatus?: string | null;
+  policyTopic?: string | null;
+  policyResolutionStatus?: string | null;
+  productReadinessStatus?: string | null;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -251,6 +268,16 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   playerLevelFit: null,
   targetPlayerLevel: null,
   recommendationStrength: null,
+  knowledgeIntent: null,
+  factsRequested: [],
+  factsResolved: [],
+  factsUnavailable: [],
+  productSourceType: null,
+  availabilityStatus: null,
+  conditionStatus: null,
+  policyTopic: null,
+  policyResolutionStatus: null,
+  productReadinessStatus: null,
 };
 
 export function getLastInterpreterTelemetry() {
@@ -374,9 +401,11 @@ export async function processConversationTurn(input: {
   }
   const fallbackIntent = routeConversationIntent(input.message);
   let pageProductReference: CatalogProductReference | null = null;
+  let pageProductData: Awaited<ReturnType<typeof getPublicProductBySlug>>["data"] = null;
   if (input.currentPageProduct) {
     const loaded = await getPublicProductBySlug(input.currentPageProduct.slug);
     if (loaded.data) {
+      pageProductData = loaded.data;
       pageProductReference = {
         id: loaded.data.id,
         slug: loaded.data.slug,
@@ -554,6 +583,13 @@ export async function processConversationTurn(input: {
             ? input.state.focusedProductSource ?? "RECOMMENDATION"
             : null;
   const normalizedMessage = normalizeConversationText(input.message);
+  const knowledgeIntent = classifyKnowledgeIntent(input.message);
+  let knowledgeProductData = pageProductData;
+  if (knowledgeIntent && preFocusedProduct && !knowledgeProductData) {
+    const loadedKnowledgeProduct = await getPublicProductBySlug(preFocusedProduct.slug);
+    knowledgeProductData = loadedKnowledgeProduct.data;
+  }
+  lastInterpreterTelemetry.knowledgeIntent = knowledgeIntent;
   const participants = {
     ...input.state.participants,
     player: {
@@ -789,6 +825,39 @@ export async function processConversationTurn(input: {
     state: { ...updatedState, messages: [...updatedState.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
     reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent,
   });
+  const appendKnowledgeReply = (reply: string, event: string, productData?: NonNullable<typeof knowledgeProductData>) => {
+    const product = focusedProduct ?? null;
+    const state: ConversationState = {
+      ...updatedState,
+      messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+      lastFocusedProduct: product ?? updatedState.lastFocusedProduct,
+      focusedProductSource: product ? preFocusedProductSource : updatedState.focusedProductSource,
+      lastExecutedAction: event,
+    };
+    if (productData) {
+      const dto = toProductKnowledge(productData);
+      lastInterpreterTelemetry.productSourceType = dto.sourceType;
+      lastInterpreterTelemetry.availabilityStatus = dto.availability;
+      lastInterpreterTelemetry.conditionStatus = dto.condition;
+      lastInterpreterTelemetry.productReadinessStatus = dto.readiness;
+      lastInterpreterTelemetry.factsResolved = Object.entries(dto.specs).filter(([, value]) => value !== null).map(([key]) => key);
+      lastInterpreterTelemetry.factsUnavailable = Object.entries(dto.specs).filter(([, value]) => value === null).map(([key]) => key);
+    }
+    return { state, reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent: "PRODUCT_DETAILS" as const };
+  };
+  if (knowledgeIntent && knowledgeIntent !== "PRODUCT_COMPARISON") {
+    lastInterpreterTelemetry.policyTopic = knowledgeIntent.startsWith("STORE_") ? knowledgeIntent : null;
+    lastInterpreterTelemetry.policyResolutionStatus = knowledgeIntent.startsWith("STORE_") ? "NOT_IMPLEMENTED_OR_PARTIAL" : null;
+    const policyReply = answerStoreKnowledge(knowledgeIntent);
+    if (policyReply) return appendSocialReply(policyReply, "RETURN_STORE_POLICY");
+    if (knowledgeProductData && focusedProduct) {
+      const dto = toProductKnowledge(knowledgeProductData);
+      const reply = answerProductKnowledge(knowledgeIntent, dto);
+      if (reply) return appendKnowledgeReply(reply, knowledgeIntent === "PRODUCT_PRICE" ? "RETURN_PRODUCT_PRICE" : knowledgeIntent === "PRODUCT_AVAILABILITY" || knowledgeIntent === "PURCHASE_READINESS" ? "RETURN_PRODUCT_AVAILABILITY" : "RETURN_PRODUCT_FACTS", knowledgeProductData);
+    }
+    if (!focusedProduct) return appendKnowledgeReply("Dime qué producto quieres consultar o abre su ficha para revisar el dato exacto.", "RETURN_KNOWLEDGE_GAP");
+    return appendKnowledgeReply("Esa información no está registrada para este producto.", "RETURN_KNOWLEDGE_GAP", knowledgeProductData ?? undefined);
+  }
   if (!updatedState.productAdvice?.active && !activeAdviceContinuation && intent === "OTHER" && socialAct) {
     const replies: Record<string, string> = {
       GREETING: "¡Hola! Soy Best Round Pro. Puedo ayudarte a encontrar equipo, comparar productos, revisar disponibilidad o asesorarte según tu juego. ¿Qué estás buscando?",
