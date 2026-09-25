@@ -218,6 +218,13 @@ export type ConversationInterpreterTelemetry = {
   policyTopic?: string | null;
   policyResolutionStatus?: string | null;
   productReadinessStatus?: string | null;
+  commercialResponseMode?: "FACTUAL" | "GUIDED" | "RECOMMENDATION" | null;
+  commercialNextStep?: string | null;
+  policySource?: string | null;
+  sellerSourceIntent?: boolean;
+  primarySemanticIntent?: string | null;
+  secondarySemanticIntent?: string | null;
+  humanLabelMappingApplied?: boolean;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -846,7 +853,11 @@ export async function processConversationTurn(input: {
     return { state, reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent: "PRODUCT_DETAILS" as const };
   };
   if (knowledgeIntent && knowledgeIntent !== "PRODUCT_COMPARISON") {
+    lastInterpreterTelemetry.commercialResponseMode = knowledgeIntent.startsWith("STORE_") ? "GUIDED" : "FACTUAL";
+    lastInterpreterTelemetry.primarySemanticIntent = knowledgeIntent;
+    lastInterpreterTelemetry.humanLabelMappingApplied = knowledgeIntent === "PRODUCT_CONTENTS" || knowledgeIntent === "PRODUCT_SPEC";
     lastInterpreterTelemetry.policyTopic = knowledgeIntent.startsWith("STORE_") ? knowledgeIntent : null;
+    lastInterpreterTelemetry.policySource = knowledgeIntent.startsWith("STORE_") ? "BEST_ROUND_POLICY" : null;
     lastInterpreterTelemetry.policyResolutionStatus = knowledgeIntent.startsWith("STORE_") ? "NOT_IMPLEMENTED_OR_PARTIAL" : null;
     const policyReply = answerStoreKnowledge(knowledgeIntent);
     if (policyReply) return appendSocialReply(policyReply, "RETURN_STORE_POLICY");
@@ -1189,12 +1200,16 @@ export async function processConversationTurn(input: {
             products: result.products,
             error: result.error,
             message: result.products.length
-              ? `Encontré ${availabilityLabel}${handLabel}.`
+              ? result.products.length === 1
+                ? `Tengo ${availabilityLabel}${handLabel}. Puedo ayudarte a confirmar si encaja contigo y avanzar con esta opción.`
+                : `Tengo ${availabilityLabel}${handLabel}. Para orientarte entre ellas, dime qué mano de juego tienes o qué quieres mejorar.`
               : `Ahora mismo no tengo ${scopeLabel}${handLabel} disponibles.`,
           };
         })
       : await searchCommercialCatalog(input.message);
     const reply = catalog.message;
+    lastInterpreterTelemetry.commercialResponseMode = catalog.products.length ? "GUIDED" : "FACTUAL";
+    lastInterpreterTelemetry.commercialNextStep = catalog.products.length > 1 ? "CONFIRM_HANDEDNESS_OR_OBJECTIVE" : catalog.products.length === 1 ? "CONTINUE_PRODUCT_ADVICE" : null;
     const references: CatalogProductReference[] = catalog.products.map((product) => ({
       id: product.id,
       slug: product.slug,

@@ -19,6 +19,18 @@ export type KnowledgeIntent =
 
 export type ProductReadinessStatus = "READY" | "PARTIAL" | "INSUFFICIENT";
 
+export type StorePolicy = {
+  topic: "SHIPPING" | "RETURNS" | "CLAIMS" | "TRADE_IN";
+  source: "FIRST_PARTY" | "MARKETPLACE" | "GENERAL";
+  resolution: "KNOWN" | "PARTIAL" | "NOT_IMPLEMENTED";
+  buyerPaysShipping?: boolean;
+  freeShipping?: boolean;
+  partnerStockConfirmationHours?: number;
+  partnerHandoffHours?: number;
+  remorseReturnAllowed?: boolean;
+  validClaimReasons: string[];
+};
+
 export type ProductKnowledgeDTO = {
   id: string;
   slug: string;
@@ -157,9 +169,9 @@ export function toProductKnowledge(product: PublicProduct): ProductKnowledgeDTO 
 
 export function answerStoreKnowledge(intent: KnowledgeIntent) {
   switch (intent) {
-    case "STORE_SHIPPING": return "No tengo una política pública de envíos suficientemente definida para darte una promesa de tarifa, carrier o fecha. Puedo confirmar la disponibilidad del producto concreto.";
-    case "STORE_RETURNS": return "La política de devoluciones depende del tipo de producto y su origen. No quiero prometer una devolución de cortesía que no esté confirmada; puedo revisar el producto concreto y su política aplicable.";
-    case "STORE_CLAIMS": return "Si el pedido llega roto, conserva el embalaje y repórtalo por el canal de soporte para revisar el caso. No tengo aquí una garantía adicional que pueda prometerte.";
+    case "STORE_SHIPPING": return "Sí, hacemos envíos. El costo lo paga el comprador; no tengo registrado aquí un carrier, tarifa fija ni fecha de entrega para prometerte.";
+    case "STORE_RETURNS": return "Si sólo cambias de opinión, no hay devolución por arrepentimiento. Sí puedes reportar un problema si llega diferente a lo publicado, dañado, con especificaciones incorrectas, es falsificado o no funciona.";
+    case "STORE_CLAIMS": return "Si llega diferente a lo publicado, dañado, con especificaciones incorrectas, falsificado o no funciona, repórtalo por soporte para abrir un reclamo. Conserva el embalaje y la evidencia del pedido.";
     case "STORE_TRADE_IN": return "Trade-In es informativo en esta etapa: no puedo aceptar equipo ni calcular una cotización desde el chat. No se crea ninguna operación automáticamente.";
     default: return null;
   }
@@ -172,7 +184,7 @@ export function answerProductKnowledge(intent: KnowledgeIntent, product: Product
     case "PURCHASE_READINESS": return product.sellable === true ? `${product.name} está disponible para compra. Esto no garantiza una entrega el mismo día.` : "No puedo confirmar que este producto esté listo para compra ahora mismo.";
     case "PRODUCT_CONDITION": return product.condition ? `${product.name} figura como ${product.condition === "NEW" ? "nuevo" : product.condition === "USED" ? "usado" : product.condition.toLowerCase()}.` : "No tengo registrada la condición de este producto.";
     case "PRODUCT_SOURCE": return product.sourceType === "MARKETPLACE" ? "Este producto forma parte del Marketplace de Best Round. No puedo compartir la identidad del vendedor." : "Este producto pertenece al inventario de Best Round.";
-    case "PRODUCT_CONTENTS": return product.includedItems?.length ? `Este producto incluye: ${product.includedItems.join(", ")}.` : "No tengo registrada una composición completa para este producto.";
+    case "PRODUCT_CONTENTS": return product.includedItems?.length ? `Este producto incluye: ${product.includedItems.map(humanizeCatalogLabel).join(", ")}.` : "No tengo registrada una composición completa para este producto.";
     case "PRODUCT_SPEC": {
       const normalizedQuestion = question.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
       if (/peso.*varilla|pesa.*varilla|shaft.*weight|pesa.*shaft/.test(normalizedQuestion) && product.specs.shaftWeightGrams == null) return "No tengo registrado el peso de la varilla de este producto.";
@@ -190,10 +202,29 @@ export function answerProductKnowledge(intent: KnowledgeIntent, product: Product
         grind: "grind",
         modelYear: "año del modelo",
       };
+      const requestedFlex = /flex/.test(normalizedQuestion) && product.specs.shaftFlex != null;
+      if (requestedFlex) {
+        const flex = String(product.specs.shaftFlex).toLowerCase();
+        return `La varilla es ${flex.charAt(0).toUpperCase() + flex.slice(1)}${product.specs.shaftMaterial ? ` y de ${product.specs.shaftMaterial}` : ""}. ${flex === "regular" ? "Suele ser una opción más fácil de cargar que un Stiff; confirmaría la velocidad de swing antes de llamarlo el flex ideal." : "Para saber si es tu flex ideal, conviene contrastarlo con tu velocidad de swing."}`;
+      }
       return available.length
         ? `Tengo registradas estas especificaciones: ${available.map(([key, value]) => `${labels[key] ?? key}: ${value}`).join(", ")}.`
         : "Esa especificación no está registrada para este producto.";
     }
     default: return null;
   }
+}
+
+export function humanizeCatalogLabel(value: string) {
+  const normalized = value.replaceAll("_", " ").toLowerCase();
+  return ({
+    driver: "Driver",
+    "fairway wood": "madera de fairway",
+    hybrid: "híbrido",
+    iron: "hierros",
+    wedge: "wedge",
+    putter: "putter",
+    set: "set completo",
+    bag: "bolsa",
+  } as Record<string, string>)[normalized] ?? value;
 }

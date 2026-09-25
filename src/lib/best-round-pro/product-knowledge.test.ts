@@ -9,6 +9,7 @@ import {
   answerStoreKnowledge,
   classifyKnowledgeIntent,
   productReadiness,
+  humanizeCatalogLabel,
 } from "./product-knowledge";
 import type { ProductKnowledgeDTO } from "./product-knowledge";
 
@@ -51,11 +52,11 @@ describe("Best Round product knowledge", () => {
     const answer = answerProductKnowledge("PRODUCT_SPEC", product, "¿cuánto pesa la varilla?");
     expect(answer).toContain("No tengo registrado el peso");
     const knownAnswer = answerProductKnowledge("PRODUCT_SPEC", { ...product, specs: { ...product.specs, shaftFlex: "regular" } }, "¿qué flex tiene?");
-    expect(knownAnswer).toContain("regular");
+    expect(knownAnswer?.toLowerCase()).toContain("regular");
   });
 
   it("keeps store policy answers honest when policy is not configured", () => {
-    expect(answerStoreKnowledge("STORE_SHIPPING")).toMatch(/política pública/i);
+    expect(answerStoreKnowledge("STORE_SHIPPING")).toMatch(/hacemos envíos/i);
     expect(answerStoreKnowledge("STORE_TRADE_IN")).toMatch(/no puedo aceptar/i);
   });
 
@@ -77,5 +78,10 @@ describe("Best Round product knowledge", () => {
       condition: null,
       availability: "UNKNOWN",
     }).readiness).toBe("INSUFFICIENT");
+  });
+
+  it("uses customer-safe labels for stored composition values", () => {
+    expect(humanizeCatalogLabel("fairway_wood")).toBe("madera de fairway");
+    expect(humanizeCatalogLabel("iron")).toBe("hierros");
   });
 });
