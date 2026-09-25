@@ -111,7 +111,7 @@ describe("Best Round Pro source-gap regressions", () => {
       message: "¿cuánto cuesta?",
       currentPageProduct: { id: "SYNTHETIC", slug: "synthetic", name: "Synthetic Driver Alpha", productFamily: "DRIVER" },
     });
-    expect(result.reply).toContain("12345");
+    expect(result.reply).toContain("$123.45 MXN");
     expect(result.state.pendingQuestionKey).toBeNull();
     expect(result.state.lastExecutedAction).toBe("RETURN_PRODUCT_PRICE");
   });

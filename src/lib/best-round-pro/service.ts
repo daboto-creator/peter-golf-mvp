@@ -223,6 +223,11 @@ export type ConversationInterpreterTelemetry = {
   executedAdviceAction?: string | null;
   sameTurnAdviceCompleted?: boolean;
   sameTurnAdviceQuestionKey?: string | null;
+  priceAmountCents?: number | null;
+  priceCurrency?: string | null;
+  priceFormatted?: string | null;
+  shippingPolicySource?: string | null;
+  recommendationFactsUsed?: string[];
   commercialResponseMode?: "FACTUAL" | "GUIDED" | "RECOMMENDATION" | null;
   commercialNextStep?: string | null;
   policySource?: string | null;
@@ -596,7 +601,7 @@ export async function processConversationTurn(input: {
             : null;
   const normalizedMessage = normalizeConversationText(input.message);
   const knowledgeIntent = classifyKnowledgeIntent(input.message);
-  const mixedAdviceIntent = Boolean(knowledgeIntent && isProductAdviceLanguage(input.message));
+  let mixedAdviceIntent = Boolean(knowledgeIntent && isProductAdviceLanguage(input.message));
   lastInterpreterTelemetry.primarySemanticIntent = knowledgeIntent;
   lastInterpreterTelemetry.secondarySemanticIntent = mixedAdviceIntent ? "PRODUCT_ADVICE" : null;
   lastInterpreterTelemetry.mixedIntent = mixedAdviceIntent;
@@ -777,6 +782,9 @@ export async function processConversationTurn(input: {
     catalogSearchOutcome: input.state.catalogSearchOutcome,
     compatibilityOutcome: productChangedThisTurn ? null : input.state.compatibilityOutcome,
   };
+  mixedAdviceIntent = Boolean(knowledgeIntent && (mixedAdviceIntent || answeredPending && (updatedState.activeAdvice || updatedState.productAdvice?.active)));
+  lastInterpreterTelemetry.secondarySemanticIntent = mixedAdviceIntent ? "PRODUCT_ADVICE" : null;
+  lastInterpreterTelemetry.mixedIntent = mixedAdviceIntent;
   lastInterpreterTelemetry.playerFactsChanged = canonicalFacts.length > 0;
   lastInterpreterTelemetry.pendingQuestionChanged = (pendingKey ?? null) !== (answeredPending ? null : pendingKey ?? null);
   lastInterpreterTelemetry.semanticStateChanged = canonicalFacts.length > 0 || Boolean(answeredPending);
@@ -852,6 +860,9 @@ export async function processConversationTurn(input: {
     };
     if (productData) {
       const dto = toProductKnowledge(productData);
+      lastInterpreterTelemetry.priceAmountCents = dto.price;
+      lastInterpreterTelemetry.priceCurrency = dto.currency;
+      lastInterpreterTelemetry.priceFormatted = dto.formattedPrice;
       lastInterpreterTelemetry.productSourceType = dto.sourceType;
       lastInterpreterTelemetry.availabilityStatus = dto.availability;
       lastInterpreterTelemetry.conditionStatus = dto.condition;
@@ -892,9 +903,13 @@ export async function processConversationTurn(input: {
     lastInterpreterTelemetry.sameTurnAdviceCompleted = adviceComplete;
     lastInterpreterTelemetry.sameTurnAdviceQuestionKey = adviceComplete ? null : nextAdviceQuestion?.key ?? null;
     if (dto) {
+      lastInterpreterTelemetry.priceAmountCents = dto.price;
+      lastInterpreterTelemetry.priceCurrency = dto.currency;
+      lastInterpreterTelemetry.priceFormatted = dto.formattedPrice;
       lastInterpreterTelemetry.productSourceType = dto.sourceType;
       lastInterpreterTelemetry.availabilityStatus = dto.availability;
       lastInterpreterTelemetry.conditionStatus = dto.condition;
+      lastInterpreterTelemetry.shippingPolicySource = knowledgeIntent?.startsWith("STORE_") ? "BEST_ROUND_POLICY" : null;
     }
     return { state, reply, nextQuestion: null, objection: null, events: ["MIXED_KNOWLEDGE_AND_ADVICE"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }

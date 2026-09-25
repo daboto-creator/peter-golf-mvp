@@ -38,6 +38,7 @@ export type ProductKnowledgeDTO = {
   canonicalProductFamily: string | null;
   price: number | null;
   currency: string | null;
+  formattedPrice: string | null;
   availability: "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
   sellable: boolean | null;
   condition: string | null;
@@ -152,6 +153,7 @@ export function toProductKnowledge(product: PublicProduct): ProductKnowledgeDTO 
     canonicalProductFamily: family,
     price: product.price,
     currency: product.currency,
+    formattedPrice: product.price === null ? null : formatMoney({ amountCents: product.price, currency: product.currency }),
     availability,
     sellable: availability === "AVAILABLE",
     condition: normalizeCondition(product.condition),
@@ -169,7 +171,7 @@ export function toProductKnowledge(product: PublicProduct): ProductKnowledgeDTO 
 
 export function answerStoreKnowledge(intent: KnowledgeIntent) {
   switch (intent) {
-    case "STORE_SHIPPING": return "Sí, hacemos envíos. El costo lo paga el comprador; no tengo registrado aquí un carrier, tarifa fija ni fecha de entrega para prometerte.";
+    case "STORE_SHIPPING": return "Sí, hacemos envíos. El costo corre por cuenta del comprador y se determina según el pedido y destino.";
     case "STORE_RETURNS": return "Si sólo cambias de opinión, no hay devolución por arrepentimiento. Sí puedes reportar un problema si llega diferente a lo publicado, dañado, con especificaciones incorrectas, es falsificado o no funciona.";
     case "STORE_CLAIMS": return "Si llega diferente a lo publicado, dañado, con especificaciones incorrectas, falsificado o no funciona, repórtalo por soporte para abrir un reclamo. Conserva el embalaje y la evidencia del pedido.";
     case "STORE_TRADE_IN": return "Trade-In es informativo en esta etapa: no puedo aceptar equipo ni calcular una cotización desde el chat. No se crea ninguna operación automáticamente.";
@@ -179,11 +181,11 @@ export function answerStoreKnowledge(intent: KnowledgeIntent) {
 
 export function answerProductKnowledge(intent: KnowledgeIntent, product: ProductKnowledgeDTO, question = "") {
   switch (intent) {
-    case "PRODUCT_PRICE": return product.price === null ? "No tengo registrado el precio público actual de este producto." : `El precio público actual de ${product.name} es ${product.currency ?? ""} ${product.price}.`;
+    case "PRODUCT_PRICE": return product.formattedPrice === null ? "No tengo registrado el precio público actual de este producto." : `El precio público actual de ${product.name} es ${product.formattedPrice}.`;
     case "PRODUCT_AVAILABILITY": return product.availability === "AVAILABLE" ? `${product.name} está disponible para compra.` : product.availability === "UNAVAILABLE" ? `${product.name} no está disponible ahora mismo.` : "No tengo confirmada la disponibilidad actual de este producto.";
     case "PURCHASE_READINESS": return product.sellable === true ? `${product.name} está disponible para compra. Esto no garantiza una entrega el mismo día.` : "No puedo confirmar que este producto esté listo para compra ahora mismo.";
     case "PRODUCT_CONDITION": return product.condition ? `${product.name} figura como ${product.condition === "NEW" ? "nuevo" : product.condition === "USED" ? "usado" : product.condition.toLowerCase()}.` : "No tengo registrada la condición de este producto.";
-    case "PRODUCT_SOURCE": return product.sourceType === "MARKETPLACE" ? "Este producto forma parte del Marketplace de Best Round. No puedo compartir la identidad del vendedor." : "Este producto pertenece al inventario de Best Round.";
+    case "PRODUCT_SOURCE": return product.sourceType === "MARKETPLACE" ? "Este producto lo vende un Partner de Best Round." : "Sí, este producto lo vende directamente Best Round.";
     case "PRODUCT_CONTENTS": return product.includedItems?.length ? `Este producto incluye: ${product.includedItems.map(humanizeCatalogLabel).join(", ")}.` : "No tengo registrada una composición completa para este producto.";
     case "PRODUCT_SPEC": {
       const normalizedQuestion = question.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -213,6 +215,16 @@ export function answerProductKnowledge(intent: KnowledgeIntent, product: Product
     }
     default: return null;
   }
+}
+
+export function formatMoney(input: { amountCents: number; currency: string }) {
+  if (!Number.isSafeInteger(input.amountCents) || input.amountCents < 0) return "Precio no disponible";
+  const cents = BigInt(input.amountCents);
+  const hundred = BigInt(100);
+  const whole = cents / hundred;
+  const fraction = String(cents % hundred).padStart(2, "0");
+  const grouped = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return input.currency.toUpperCase() === "MXN" ? `$${grouped}.${fraction} MXN` : `${input.currency.toUpperCase()} ${grouped}.${fraction}`;
 }
 
 export function humanizeCatalogLabel(value: string) {

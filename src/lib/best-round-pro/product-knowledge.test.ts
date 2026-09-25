@@ -10,6 +10,7 @@ import {
   classifyKnowledgeIntent,
   productReadiness,
   humanizeCatalogLabel,
+  formatMoney,
 } from "./product-knowledge";
 import type { ProductKnowledgeDTO } from "./product-knowledge";
 
@@ -34,6 +35,7 @@ describe("Best Round product knowledge", () => {
       canonicalProductFamily: "DRIVER",
       price: 100,
       currency: "MXN",
+      formattedPrice: "$1.00 MXN",
       availability: "AVAILABLE",
       sellable: true,
       condition: "NEW",
@@ -83,5 +85,11 @@ describe("Best Round product knowledge", () => {
   it("uses customer-safe labels for stored composition values", () => {
     expect(humanizeCatalogLabel("fairway_wood")).toBe("madera de fairway");
     expect(humanizeCatalogLabel("iron")).toBe("hierros");
+  });
+
+  it("formats integer cents without exposing raw money storage", () => {
+    expect(formatMoney({ amountCents: 1119900, currency: "MXN" })).toBe("$11,199.00 MXN");
+    expect(formatMoney({ amountCents: 12345, currency: "MXN" })).toBe("$123.45 MXN");
+    expect(formatMoney({ amountCents: 0, currency: "MXN" })).toBe("$0.00 MXN");
   });
 });
