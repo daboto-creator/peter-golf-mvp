@@ -6,7 +6,7 @@ import { BRAND_NAME } from "@/lib/brand";
 
 export function PublicHeader() {
   return (
-    <header className="border-border/80 sticky top-0 z-50 border-b bg-white/95 backdrop-blur-md">
+    <header data-site-header className="border-border/80 sticky top-0 z-50 border-b bg-white/95 backdrop-blur-md">
       <div className="bg-pg-black text-white">
         <div className="mx-auto flex min-h-8 max-w-7xl items-center justify-center gap-3 px-4 py-1.5 text-center text-[0.62rem] font-semibold tracking-[0.12em] uppercase sm:justify-between sm:px-6 lg:px-8">
           <span>Envíos a todo México</span>

@@ -10,7 +10,9 @@ import type { CommercialRankingResult } from "@/lib/recommendations/commercial-r
 import {
   detectGolfCategory,
   interpretGolfCategory,
+  type ProductFamily,
 } from "./category-normalization";
+import type { CurrentTurnFactSource, SearchScopeMode } from "./contract";
 
 export type ConversationObjection =
   | "PRICE"
@@ -19,6 +21,9 @@ export type ConversationObjection =
   | "NEW_VS_USED"
   | "NEED_TO_THINK"
   | "WANT_OTHER_OPTION";
+
+export type AdviceStatus = "COLLECTING_FACTS" | "READY_TO_EVALUATE" | "NEEDS_ONE_MORE_FACT" | "CONCLUDED";
+export type AdviceOutcome = "RECOMMENDED" | "RECOMMENDED_WITH_CAVEAT" | "NEED_MORE_INFORMATION" | "HARD_INCOMPATIBLE" | "NO_COMPATIBLE_INVENTORY";
 
 function isProtectedRequest(text: string) {
   return (
@@ -36,7 +41,420 @@ export type ConversationState = {
   pendingQuestionKey: string | null;
   pendingQuestionCategory: string | null;
   pendingQuestionSlotType: NextBestQuestion["slotType"] | null;
+  /** Customer-safe catalog context used to resolve follow-up references such as "ese". */
+  lastCatalogResults: CatalogProductReference[];
+  lastFocusedProduct: CatalogProductReference | null;
+  lastInteractedProduct: CatalogProductReference | null;
+  focusedProductSource: "CURRENT_PAGE" | "PRODUCT_CARD_CLICK" | "EXPLICIT_NAME" | "UNIQUE_RECENT_RESULT" | "RECOMMENDATION" | null;
+  referenceResolution: ReferenceResolutionResult;
+  productAdvice: {
+    active: boolean;
+    product: CatalogProductReference | null;
+    pendingQuestionKey: string | null;
+    collectedAnswers: Record<string, string | number | boolean | number[] | null>;
+  };
+  activeAdvice: {
+    productId: string;
+    productFamily: string | null;
+    status: AdviceStatus;
+    outcome?: AdviceOutcome | null;
+  } | null;
+  participants: ConversationParticipants;
+  pendingAssistantOffer: {
+    action: "START_PRODUCT_ADVICE" | "COMPARE_PRODUCTS" | "SHOW_ALTERNATIVES" | "CONTINUE_RECOMMENDATION";
+    targetProductIds: string[];
+    createdAtTurn: number;
+  } | null;
+  conversationLoop: {
+    lastQuestionKey: string | null;
+    consecutiveSameQuestionCount: number;
+    lastSemanticFingerprint: string | null;
+  };
+  searchScope: SearchScope | null;
+  catalogSearchOutcome: CatalogSearchOutcome | null;
+  compatibilityOutcome: CompatibilityOutcome | null;
+  lastExecutedAction: string | null;
+  searchContinuation: SearchContinuation | null;
 };
+
+export type CatalogSearchOutcome = "RESULTS_FOUND" | "NO_COMPATIBLE_INVENTORY" | "NO_INVENTORY";
+export type CompatibilityOutcome = "MATCH" | "HARD_INCOMPATIBLE" | "UNKNOWN";
+export type SearchContinuation = {
+  relation: "KEEP_SCOPE" | "BROADEN_SCOPE" | "REPLACE_SCOPE";
+  reason: "EXPLICIT_CURRENT_TURN" | "ELLIPTICAL_CONTINUATION" | "PREVIOUS_SCOPE_EXHAUSTED";
+};
+export type CatalogScopeIntent = "EXPLICIT_FAMILIES" | "INHERIT_PREVIOUS_FAMILY" | "ALL_CLUBS" | "ALL_HANDED_EQUIPMENT" | "ALL_EQUIPMENT";
+
+export type FactStatus = "KNOWN" | "UNKNOWN" | "NONE" | "NOT_APPLICABLE" | "DECLINED";
+export type SemanticFact<T> = { status: FactStatus; value?: T; confidence: number; source: "USER" | "INFERRED" };
+export const FACT_VALUE_DOMAINS = {
+  handedness: ["RIGHT", "LEFT"],
+  skill: ["BEGINNER", "INTERMEDIATE", "ADVANCED"],
+  setExperience: ["FIRST_SET", "CURRENT_PLAYER"],
+  handicapStatus: ["KNOWN", "NONE", "UNKNOWN", "DECLINED"],
+  driverObjective: ["DISTANCE", "ACCURACY", "REDUCE_MISS"],
+  shotTendency: ["STRAIGHT", "SLICE", "HOOK"],
+  conditionPreference: ["NEW_ONLY", "USED_ACCEPTABLE"],
+} as const;
+
+export type HandicapStatus = "KNOWN" | "NONE" | "UNKNOWN" | "DECLINED";
+export type SkillSource = "USER_DECLARED" | "DERIVED_FROM_HANDICAP" | "DERIVED_NO_HANDICAP";
+
+export function deriveSkillFromHandicap(handicap: number): "BEGINNER" | "INTERMEDIATE" | "ADVANCED" {
+  if (handicap < 10) return "ADVANCED";
+  if (handicap < 25) return "INTERMEDIATE";
+  return "BEGINNER";
+}
+
+export type CanonicalFactField = keyof typeof FACT_VALUE_DOMAINS;
+
+export function normalizeStructuredFactValue(field: string, value: string | number | number[]) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return value;
+  const aliases: Record<string, string> = {
+    LEFT_HANDED: "LEFT",
+    RIGHT_HANDED: "RIGHT",
+    LEFT_HANDEDNESS: "LEFT",
+    RIGHT_HANDEDNESS: "RIGHT",
+    BEGINNER_LEVEL: "BEGINNER",
+    INTERMEDIATE_LEVEL: "INTERMEDIATE",
+    ADVANCED_LEVEL: "ADVANCED",
+  };
+  const normalized = aliases[value.trim().toUpperCase()] ?? value.trim().toUpperCase();
+  return normalized;
+}
+
+export function validateCanonicalFactValue(field: string, value: string | number | number[] | null | undefined, status: FactStatus) {
+  if (status !== "KNOWN") return value == null || typeof value === "string" || typeof value === "number";
+  if (field === "handicapIndex") return typeof value === "number" && value >= 0 && value <= 54;
+  if (field === "currentWedgeLofts") return Array.isArray(value) && value.length > 0 && value.every((loft) => typeof loft === "number" && loft >= 40 && loft <= 64);
+  const domain = FACT_VALUE_DOMAINS[field as CanonicalFactField];
+  return !domain || (typeof value === "string" && (domain as readonly string[]).includes(value));
+}
+
+export function normalizeCanonicalFactStatus(field: string, value: string | number | number[] | null | undefined, status: FactStatus): FactStatus {
+  const canonical = typeof value === "string" || typeof value === "number" ? normalizeStructuredFactValue(field, value) : value;
+  if (status !== "KNOWN" && canonical != null && validateCanonicalFactValue(field, canonical, "KNOWN")) return "KNOWN";
+  return status;
+}
+
+export type CanonicalCurrentTurnFact = {
+  field: string;
+  value: string | number | number[];
+  durable: boolean;
+  semanticStatus: FactStatus;
+  source: CurrentTurnFactSource;
+};
+
+export function resolvePendingAnswerFact(
+  pendingFactKey: string | null,
+  normalizedMessage: string,
+): CanonicalCurrentTurnFact | null {
+  const known = (field: string, value: string): CanonicalCurrentTurnFact => ({
+    field,
+    value,
+    durable: true,
+    semanticStatus: "KNOWN",
+    source: "CURRENT_USER_PENDING_ANSWER",
+  });
+  if (pendingFactKey === "handedness") {
+    if (/\b(zurdo|zurda|izquierdo|izquierda|left)\b/.test(normalizedMessage)) return known("handedness", "LEFT");
+    if (/\b(diestro|diestra|derecho|derecha|right)\b/.test(normalizedMessage)) return known("handedness", "RIGHT");
+  }
+  if (pendingFactKey === "setExperience") {
+    if (/\b(ya juego|ya tengo equipo|llevo tiempo jugando|no es mi primer set|juego actualmente|current player)\b/.test(normalizedMessage))
+      return known("setExperience", "CURRENT_PLAYER");
+    if (/\b(primer set|mi primer set|primera vez|first set)\b/.test(normalizedMessage))
+      return known("setExperience", "FIRST_SET");
+  }
+  if (pendingFactKey === "skill") {
+    if (/\b(principiante|beginner)\b/.test(normalizedMessage)) return known("skill", "BEGINNER");
+    if (/\b(intermedio|intermedia|intermediate)\b/.test(normalizedMessage)) return known("skill", "INTERMEDIATE");
+    if (/\b(avanzado|avanzada|advanced)\b/.test(normalizedMessage)) return known("skill", "ADVANCED");
+    if (/\bno\s+tengo\s+(?:un\s+)?handicap\b/i.test(normalizedMessage)) return { field: "handicapStatus", value: "NONE", durable: true, semanticStatus: "NONE", source: "CURRENT_USER_PENDING_ANSWER" };
+    if (/\bno\s+s[eé]\b/i.test(normalizedMessage)) return { field: "handicapStatus", value: "UNKNOWN", durable: true, semanticStatus: "UNKNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+    if (/\b(?:prefiero|no\s+quiero)\s+no\s+decir(?:lo)?\b/i.test(normalizedMessage)) return { field: "handicapStatus", value: "DECLINED", durable: true, semanticStatus: "DECLINED", source: "CURRENT_USER_PENDING_ANSWER" };
+    const handicapMatch = normalizedMessage.match(/(?:handicap|hcp)?\s*(\d+(?:\.\d+)?)/);
+    if (handicapMatch && Number(handicapMatch[1]) >= 0 && Number(handicapMatch[1]) <= 54)
+      return { field: "handicapIndex", value: Number(handicapMatch[1]), durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+  }
+  if (pendingFactKey === "handicap" || pendingFactKey === "handicapIndex") {
+    if (/\b(?:no|nunca)\s+(?:tengo|sé|se)\s+handicap\b|\bno\s+tengo\b/.test(normalizedMessage))
+      return { field: "handicapStatus", value: "NONE", durable: true, semanticStatus: "NONE", source: "CURRENT_USER_PENDING_ANSWER" };
+    if (/\b(?:no\s+s[eé]|no\s+sé|prefiero\s+no\s+decirlo)\b/.test(normalizedMessage))
+      return { field: "handicapStatus", value: "UNKNOWN", durable: true, semanticStatus: "UNKNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+    if (/\b(?:prefiero\s+no\s+decir|no\s+quiero\s+decir)\b/.test(normalizedMessage))
+      return { field: "handicapStatus", value: "DECLINED", durable: true, semanticStatus: "DECLINED", source: "CURRENT_USER_PENDING_ANSWER" };
+    const match = normalizedMessage.match(/(?:handicap|hcp)?\s*(\d+(?:\.\d+)?)/);
+    if (match) {
+      const value = Number(match[1]);
+      if (value >= 0 && value <= 54)
+        return { field: "handicapIndex", value, durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+    }
+  }
+  if (pendingFactKey === "objective" || pendingFactKey === "driverObjective") {
+    if (/\b(distancia|m[aá]s\s+(?:distancia|largo)|pegar\s+m[aá]s\s+largo)\b/.test(normalizedMessage)) return known("driverObjective", "DISTANCE");
+    if (/\b(precisi[oó]n|m[aá]s\s+recto|m[aá]s\s+control)\b/.test(normalizedMessage)) return known("driverObjective", "ACCURACY");
+    if (/\b(reducir|corregir|menos)\s+(?:mi\s+)?(?:slice|miss|hook)\b/.test(normalizedMessage)) return known("driverObjective", "REDUCE_MISS");
+  }
+  if (pendingFactKey === "currentWedgeLofts" || pendingFactKey === "gapping") {
+    const values = [...normalizedMessage.matchAll(/\b(4[0-9]|5[0-9]|6[0-4])\b/g)].map((match) => Number(match[1]));
+    const unique = [...new Set(values)];
+    if (unique.length) return { field: "currentWedgeLofts", value: unique, durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+  }
+  return null;
+}
+export type ConversationParticipants = {
+  buyer: { isLoggedInUser: true };
+  player: {
+    relationToBuyer: "SELF" | "SPOUSE" | "CHILD" | "FRIEND" | "OTHER" | "UNKNOWN";
+    displayReference: string;
+    facts: Record<string, SemanticFact<unknown>>;
+  };
+};
+
+export type PlayerPerspective = {
+  relationToBuyer: ConversationParticipants["player"]["relationToBuyer"];
+  displayReference: string;
+  subject: string;
+  possessive: string;
+  isSelf: boolean;
+};
+
+export function getPlayerPerspective(participants: ConversationParticipants): PlayerPerspective {
+  const isSelf = participants.player.relationToBuyer === "SELF";
+  const displayReference = isSelf ? "tú" : participants.player.displayReference;
+  return {
+    relationToBuyer: participants.player.relationToBuyer,
+    displayReference,
+    subject: displayReference,
+    possessive: isSelf ? "tu" : "su",
+    isSelf,
+  };
+}
+
+export type CatalogProductReference = {
+  id: string;
+  slug: string;
+  name: string;
+  category: string | null;
+  condition: string;
+  price: number;
+  productHref: string;
+  imagePath: string | null;
+  handedness: string | null;
+  family: string | null;
+  /** Authoritative positioning when supplied by the catalog; never inferred from advice text. */
+  targetPlayerLevel?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ALL_LEVELS" | "UNKNOWN" | null;
+};
+
+export type ReferenceResolutionSource =
+  | "CURRENT_PAGE"
+  | "PRODUCT_CARD_CLICK"
+  | "FOCUSED_CONTEXT"
+  | "EXPLICIT_NAME"
+  | "UNIQUE_RECENT_RESULT"
+  | "CLARIFICATION_REQUIRED";
+
+export type ReferenceResolutionResult = {
+  productId: string | null;
+  source: ReferenceResolutionSource;
+};
+
+export type ResolvedProductReference = ReferenceResolutionResult & {
+  product: CatalogProductReference | null;
+};
+
+export function resolveProductReference(input: {
+  currentPageProduct: CatalogProductReference | null;
+  lastInteractedProduct: CatalogProductReference | null;
+  focusedProduct: CatalogProductReference | null;
+  recentResults: CatalogProductReference[];
+  explicitProduct: CatalogProductReference | null;
+  explicitSubjectChange?: boolean;
+}): ResolvedProductReference {
+  const recentIds = new Set(input.recentResults.map((product) => product.id));
+  const clickedIsCurrent = Boolean(
+    input.lastInteractedProduct &&
+    (input.recentResults.length === 0 ||
+      recentIds.has(input.lastInteractedProduct.id) ||
+      input.currentPageProduct?.id === input.lastInteractedProduct.id),
+  );
+  const focusIsCurrent = Boolean(
+    input.focusedProduct &&
+    (input.recentResults.length === 0 || recentIds.has(input.focusedProduct.id)),
+  );
+  const result = (
+    product: CatalogProductReference,
+    source: Exclude<ReferenceResolutionSource, "CLARIFICATION_REQUIRED">,
+  ): ResolvedProductReference => ({ product, productId: product.id, source });
+
+  if (input.explicitSubjectChange && input.explicitProduct)
+    return result(input.explicitProduct, "EXPLICIT_NAME");
+  if (input.currentPageProduct) {
+    // A card click that navigated to this same product keeps its stronger
+    // interaction provenance while still resolving the current-page product.
+    if (clickedIsCurrent && input.lastInteractedProduct?.id === input.currentPageProduct.id)
+      return result(input.currentPageProduct, "PRODUCT_CARD_CLICK");
+    return result(input.currentPageProduct, "CURRENT_PAGE");
+  }
+  if (clickedIsCurrent && input.lastInteractedProduct)
+    return result(input.lastInteractedProduct, "PRODUCT_CARD_CLICK");
+  if (focusIsCurrent && input.focusedProduct)
+    return result(input.focusedProduct, "FOCUSED_CONTEXT");
+  if (input.explicitProduct) return result(input.explicitProduct, "EXPLICIT_NAME");
+  if (input.recentResults.length === 1)
+    return result(input.recentResults[0], "UNIQUE_RECENT_RESULT");
+  return { product: null, productId: null, source: "CLARIFICATION_REQUIRED" };
+}
+
+export function applyProductCardSelection(
+  state: ConversationState,
+  product: CatalogProductReference,
+): ConversationState {
+  return {
+    ...state,
+    lastInteractedProduct: product,
+    lastFocusedProduct: product,
+    focusedProductSource: "PRODUCT_CARD_CLICK",
+    referenceResolution: {
+      productId: product.id,
+      source: "PRODUCT_CARD_CLICK",
+    },
+  };
+}
+
+export type ConversationProductContext = {
+  id: string;
+  slug: string;
+  name: string;
+  productFamily: string | null;
+};
+
+export type SearchScope = {
+  families: ProductFamily[];
+  mode: SearchScopeMode;
+  source: "EXPLICIT_CURRENT_TURN" | "INHERITED_CONTEXT";
+};
+
+export const ALL_CLUB_FAMILIES: ProductFamily[] = [
+  "DRIVER",
+  "FAIRWAY_WOOD",
+  "HYBRID",
+  "IRON",
+  "WEDGE",
+  "PUTTER",
+];
+export const ALL_HANDED_EQUIPMENT_FAMILIES: ProductFamily[] = ["SET", ...ALL_CLUB_FAMILIES];
+
+export function resolveSearchScope(
+  previous: SearchScope | null,
+  requestedFamilies: ProductFamily[],
+  requestedMode: SearchScope["mode"] | null | undefined,
+  category: ProductFamily | null | undefined,
+  isCatalogSearch: boolean,
+  previousOutcome: CatalogSearchOutcome | null = null,
+  continuationRelation: SearchContinuation["relation"] | null = null,
+  continuationReason: SearchContinuation["reason"] | null = null,
+  scopeIntent: CatalogScopeIntent | null = null,
+): SearchScope | null {
+  const previousScopeExhausted = previousOutcome === "NO_COMPATIBLE_INVENTORY" || previousOutcome === "NO_INVENTORY";
+  const explicitBroadScope = scopeIntent === "ALL_HANDED_EQUIPMENT" || scopeIntent === "ALL_EQUIPMENT";
+  const explicitClubScope = scopeIntent === "ALL_CLUBS";
+  const shouldBroadenExhaustedScope = isCatalogSearch && previousScopeExhausted && previous?.families.length === 1 && previous.families[0] === "SET" &&
+    !explicitBroadScope && !explicitClubScope &&
+    (continuationRelation === "BROADEN_SCOPE" || continuationReason === "PREVIOUS_SCOPE_EXHAUSTED" || (!requestedFamilies.length && !requestedMode && !category));
+  const explicitFamilies = explicitBroadScope || explicitClubScope
+    ? []
+    : shouldBroadenExhaustedScope
+    ? []
+    : requestedFamilies.length
+    ? requestedFamilies
+    : isCatalogSearch && category
+      ? [category]
+      : [];
+  const mode = explicitBroadScope
+    ? "ALL_EQUIPMENT"
+    : explicitClubScope
+      ? "ALL_CLUBS"
+      : shouldBroadenExhaustedScope
+    ? "ALL_EQUIPMENT"
+    : requestedMode ??
+    (explicitFamilies.length > 1 ? "MULTI_FAMILY" : explicitFamilies.length === 1 ? "EXACT" : null);
+  if (!explicitFamilies.length && mode !== "ALL_CLUBS" && mode !== "ALL_EQUIPMENT") return previous;
+  return {
+    families: explicitFamilies.length ? explicitFamilies : mode === "ALL_EQUIPMENT" ? ALL_HANDED_EQUIPMENT_FAMILIES : ALL_CLUB_FAMILIES,
+    mode: mode ?? "ALL_CLUBS",
+    source: shouldBroadenExhaustedScope ? "INHERITED_CONTEXT" : "EXPLICIT_CURRENT_TURN",
+  };
+}
+
+export type ProductAdviceAction =
+  | "SURFACE_INCOMPATIBILITY"
+  | "ASK_NEXT_QUESTION"
+  | "PROVIDE_ADVICE";
+
+export type NextAction =
+  | "ANSWER_SOCIAL" | "ANSWER_DIRECT_QUESTION" | "ASK_NEXT_QUESTION"
+  | "ASK_CLARIFICATION" | "SEARCH_CATALOG" | "SEARCH_ALTERNATIVES"
+  | "RUN_RECOMMENDATION" | "RUN_COMPARISON" | "EXPLAIN_PRODUCT"
+  | "EXPLAIN_PRODUCT_REASON" | "SURFACE_INCOMPATIBILITY"
+  | "RETURN_RECOMMENDATIONS" | "RETURN_TERMINAL_OUTCOME";
+
+export type ActionResult = {
+  action: NextAction;
+  status: "COMPLETED" | "FAILED";
+  error?: string | null;
+  products?: unknown[];
+  recommendationOutcome?: string | null;
+  nextQuestion?: NextBestQuestion | null;
+};
+
+export function evaluateFocusedProductAgainstKnownFacts(input: {
+  product: CatalogProductReference;
+  answers: Record<string, string | number | boolean | number[] | null>;
+}) {
+  const playerHand = input.answers.handedness;
+  const productHand = typeof input.product.handedness === "string" ? input.product.handedness.toUpperCase() : input.product.handedness;
+  if ((playerHand === "LEFT" || playerHand === "RIGHT") &&
+      (productHand === "LEFT" || productHand === "RIGHT") && playerHand !== productHand) {
+    return { status: "HARD_INCOMPATIBLE" as const, reason: "RIGHT_OR_LEFT_HANDED_PRODUCT_MISMATCH" };
+  }
+  if (input.answers.handedness && (input.answers.setExperience || input.answers.skill || input.answers.handicap))
+    return { status: "ENOUGH_TO_ADVISE" as const, reason: null };
+  return { status: "NEEDS_MORE_INFORMATION" as const, reason: null };
+}
+
+export function getNextProductAdviceQuestion(input: {
+  answers: Record<string, string | number | boolean | number[] | null>;
+  productFamily?: ProductFamily | string | null;
+}) {
+  if (input.answers.handedness !== "LEFT" && input.answers.handedness !== "RIGHT")
+    return { key: "handedness", meaning: "ASK_PLAYER_HANDEDNESS", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.handedness], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
+  const family = input.productFamily?.toUpperCase() ?? "";
+  const isSet = !input.productFamily || family === "SET";
+  const handicapKnown = typeof input.answers.handicapIndex === "number" || (input.answers.handicapStatus === "KNOWN" && typeof input.answers.handicap === "number");
+  if (isSet && !input.answers.setExperience && !input.answers.experience && !handicapKnown)
+    return { key: "setExperience", meaning: "ASK_SET_EXPERIENCE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [...FACT_VALUE_DOMAINS.setExperience], allowedStatuses: ["KNOWN", "UNKNOWN", "DECLINED"] as FactStatus[] };
+  if (input.answers.handicapIndex === undefined && input.answers.handicap === undefined && input.answers.handicapStatus === undefined)
+    return { key: "skill", meaning: "ASK_PLAYER_HANDICAP", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: ["0.0-54.0"], allowedStatuses: ["KNOWN", "NONE", "UNKNOWN", "DECLINED"] as FactStatus[] };
+  if (family === "WEDGE" && input.answers.currentWedgeLofts === undefined && input.answers.gapping === undefined)
+    return { key: "currentWedgeLofts", meaning: "ASK_WEDGE_LOFTS", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [], allowedStatuses: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] as FactStatus[] };
+  if (family === "DRIVER" && input.answers.driverObjective === undefined && input.answers.objective === undefined)
+    return { key: "driverObjective", meaning: "ASK_DRIVER_OBJECTIVE", importance: "MATERIAL" as const, targetEntity: "PLAYER" as const, expectedValues: [], allowedStatuses: ["KNOWN", "UNKNOWN", "NONE", "DECLINED"] as FactStatus[] };
+  return null;
+}
+
+export function questionPromptFor(spec: ReturnType<typeof getNextProductAdviceQuestion>, perspective: PlayerPerspective, category: string | null) {
+  if (!spec) return null;
+  const player = perspective.isSelf ? "tú" : perspective.subject;
+  if (spec.meaning === "ASK_PLAYER_HANDEDNESS") return perspective.isSelf ? "¿Juegas como diestro o zurdo?" : `¿${player} juega como diestro o zurdo?`;
+  if (spec.meaning === "ASK_SET_EXPERIENCE") return perspective.isSelf ? "¿Es tu primer set o ya juegas actualmente?" : `¿Es el primer set de ${player} o ya juega actualmente?`;
+  if (spec.meaning === "ASK_PLAYER_HANDICAP") return perspective.isSelf ? "¿Tienes handicap o Handicap Index? Si lo sabes, dime el número. Si no tienes uno, también está bien." : `¿${player} tiene handicap o Handicap Index? Si lo sabe, que me diga el número; si no tiene uno, también está bien.`;
+  if (spec.meaning === "ASK_WEDGE_LOFTS") return "¿Qué lofts de wedge llevas hoy? Por ejemplo 50°, 54° y 58°.";
+  if (spec.meaning === "ASK_DRIVER_OBJECTIVE") return "¿Qué quieres mejorar principalmente con este driver: distancia, precisión o reducir un miss?";
+  return `¿Qué te gustaría contarnos sobre ${category ?? "tu equipo"}?`;
+}
 
 export type ConversationResult = {
   state: ConversationState;
@@ -71,6 +489,32 @@ export function initialConversationState(): ConversationState {
     pendingQuestionKey: null,
     pendingQuestionCategory: null,
     pendingQuestionSlotType: null,
+    lastCatalogResults: [],
+    lastFocusedProduct: null,
+    lastInteractedProduct: null,
+    focusedProductSource: null,
+    referenceResolution: {
+      productId: null,
+      source: "CLARIFICATION_REQUIRED",
+    },
+    productAdvice: {
+      active: false,
+      product: null,
+      pendingQuestionKey: null,
+      collectedAnswers: {},
+    },
+    activeAdvice: null,
+    participants: {
+      buyer: { isLoggedInUser: true },
+      player: { relationToBuyer: "SELF", displayReference: "tú", facts: {} },
+    },
+    pendingAssistantOffer: null,
+    conversationLoop: { lastQuestionKey: null, consecutiveSameQuestionCount: 0, lastSemanticFingerprint: null },
+    searchScope: null,
+    catalogSearchOutcome: null,
+    compatibilityOutcome: null,
+    lastExecutedAction: null,
+    searchContinuation: null,
   };
 }
 
@@ -126,6 +570,7 @@ export function resolveContextualShortAnswer(input: {
       currentBag: "currentBag",
       skill: "skill",
       shotTendency: "shotTendency",
+      objective: "objective",
     };
     return {
       field: fieldByQuestion[input.pendingQuestionKey],
@@ -144,11 +589,12 @@ function categoryLabel(category: MatchCategory | string) {
     IRON: "hierros",
     WEDGE: "Wedge",
     PUTTER: "Putter",
+    SET: "set completo",
   };
   return labels[category] ?? category;
 }
 
-export function detectCategory(text: string): MatchCategory | null {
+export function detectCategory(text: string): ProductFamily | null {
   return detectGolfCategory(normalizeNaturalLanguage(text));
 }
 
@@ -206,7 +652,7 @@ export function parseCurrentEquipment(
     .split(/,|\s+y\s+/i)
     .map((part): CurrentEquipmentReference | null => {
       const interpretation = interpretGolfCategory(part);
-      if (!interpretation) return null;
+      if (!interpretation || interpretation.category === "SET") return null;
       const numberToken = part.match(/\b([1-9])\b/i)?.[1];
       const wordNumber = Object.entries(numberWords).find(([word]) =>
         new RegExp(`\\b${word}\\b`, "i").test(part),
@@ -235,11 +681,21 @@ export function parseCurrentEquipment(
 
 function parseAnswers(
   text: string,
-  current: Record<string, string | number | boolean | null>,
+  current: Record<string, string | number | boolean | number[] | null>,
   pendingQuestionKey: string | null,
   category: MatchCategory | null,
 ) {
   const answers = { ...current };
+  // A declined pending field is answered, not missing. The semantic
+  // interpreter supplies this status in normal production; this conservative
+  // fallback keeps the deterministic path from re-asking the slot.
+  if (
+    (pendingQuestionKey === "skill" || pendingQuestionKey === "handicapIndex" || pendingQuestionKey === "handicap") &&
+    /(?:prefiero|no quiero)\s+(?:no\s+)?decir|no\s+te\s+lo\s+quiero\s+decir/i.test(text)
+  ) {
+    answers.handicapStatus = "DECLINED";
+    answers.handicap = "DECLINED";
+  }
   if (/\bno\s+(s[eé]|la\s+conozco|tengo\s+ese\s+dato)\b/i.test(text)) {
     if (current.swingSpeed === undefined)
       answers.swingSpeed = "ANSWERED_UNKNOWN";
@@ -265,11 +721,48 @@ function parseAnswers(
     answers.shotTendency = "SLICE";
   if (/hook|gancho|se\s+cierra/i.test(text)) answers.shotTendency = "HOOK";
   if (/recto|straight/i.test(text)) answers.shotTendency = "STRAIGHT";
+  if (
+    pendingQuestionKey === "shotTendency" &&
+    /\b(normal|normalmente\s+recto|va\s+normal|vuelo\s+normal|sin\s+desviaci[oó]n|bastante\s+recto|m[aá]s\s+o\s+menos\s+recto)\b/i.test(
+      text,
+    )
+  )
+    answers.shotTendency = "STRAIGHT";
+  if (
+    pendingQuestionKey === "shotTendency" &&
+    /\b(ninguno|ninguna|no\s+tengo(?:\s+un)?\s+fallo(?:s)?(?:\s+com[uú]n)?|ning[uú]n\s+fallo|no\s+realmente|ninguno\s+en\s+particular)\b/i.test(
+      text,
+    )
+  )
+    answers.shotTendency = "NO_COMMON_MISS";
   if (/forgiveness|perd[oó]n|perdonador|f[aá]cil|consisten/i.test(text))
     answers.objective = "MORE_FORGIVENESS";
+  if (
+    pendingQuestionKey === "objective" &&
+    /\b(distancia|m[aá]s\s+(?:distancia|lejos|yardas|largo)|pegar\s+m[aá]s\s+lejos|ganar\s+yardas|llegar\s+m[aá]s\s+lejos)\b/i.test(
+      text,
+    )
+  )
+    answers.objective = "MORE_DISTANCE";
+  if (
+    pendingQuestionKey === "objective" &&
+    /\b(perd[oó]n|tolerancia|consistente|estabilidad|m[aá]s\s+recto|fallar\s+menos)\b/i.test(
+      text,
+    )
+  )
+    answers.objective = "MORE_FORGIVENESS";
+  if (
+    pendingQuestionKey === "objective" &&
+    /\b(slice|menos\s+slice|corregir\s+slice|cerrar\s+el\s+slice|derecha)\b/i.test(
+      text,
+    )
+  )
+    answers.objective = "REDUCE_SLICE";
   if (/slice|slide|slise|slaice/i.test(text) && category === "DRIVER")
     answers.objective ??= "REDUCE_SLICE";
-  const numericSlot = ["skill", "gapping", "swingSpeed", "length"].includes(
+  if (pendingQuestionKey === "objective" && /\b(nada|ninguna cosa|no quiere mejorar|sin cambiar|igual que ahora)\b/i.test(text))
+    answers.objective = "NONE";
+  const numericSlot = ["skill", "handicapIndex", "handicap", "gapping", "swingSpeed", "length"].includes(
     pendingQuestionKey ?? "",
   );
   if (!numericSlot && /\b(\d{1,3})(?:\s*)(?:pesos|mxn|mil)?\b/i.test(text)) {
@@ -281,13 +774,22 @@ function parseAnswers(
     /(?:handicap|hcp|soy|tengo|como)?\s*(\d+(?:\.\d+)?)/i,
   );
   if (
-    (pendingQuestionKey === "skill" || /handicap|hcp/i.test(text)) &&
+    (pendingQuestionKey === "skill" || pendingQuestionKey === "handicapIndex" || pendingQuestionKey === "handicap" || /handicap|hcp/i.test(text)) &&
     handicap &&
     Number(handicap[1]) >= 0 &&
     Number(handicap[1]) <= 54
   ) {
+    answers.handicapIndex = Number(handicap[1]);
     answers.handicap = Number(handicap[1]);
+    answers.handicapStatus = "KNOWN";
     answers.skill = "ANSWERED_VALUE";
+  }
+  if ((pendingQuestionKey === "skill" || pendingQuestionKey === "handicapIndex" || pendingQuestionKey === "handicap") && /\bno\s+tengo\s+(?:un\s+)?handicap\b/i.test(text)) {
+    answers.handicapIndex = null;
+    answers.handicap = null;
+    answers.handicapStatus = "NONE";
+    answers.skill = "BEGINNER";
+    answers.skillSource = "DERIVED_NO_HANDICAP";
   }
   if (pendingQuestionKey === "gapping") {
     const gap = text.match(
@@ -388,12 +890,15 @@ export function classifyConversationTurn(
   state: ConversationState,
   text: string,
   profile: MiGolfProfile | null = null,
+  playerPerspective: PlayerPerspective | null = null,
+  options: { allowDeterministicFallback?: boolean } = {},
 ): ConversationResult {
-  const contextual = resolveContextualShortAnswer({
+  const allowFallback = options.allowDeterministicFallback !== false;
+  const contextual = allowFallback ? resolveContextualShortAnswer({
     pendingQuestionKey: state.pendingQuestionKey,
     userMessage: text,
-  });
-  const detectedCategory = detectCategory(text);
+  }) : null;
+  const detectedCategory = allowFallback ? detectCategory(text) : null;
   const explicitCategoryChange =
     /\b(mejor|quiero|busco|necesito|cambiemos|veamos|prefiero)\b[\s\S]{0,24}\b(driver|drive|driber|draiver|fairway|wood|madera|hybrid|hibrido|rescue|iron|hierro|fierro|wedge|sand|gap|lob|putter|putt|put|pot|pater)\b/i.test(
       text,
@@ -406,12 +911,9 @@ export function classifyConversationTurn(
       : (detectedCategory ?? state.session.requestedCategory);
   const intent = detectIntent(text) ?? state.session.purchaseIntent;
   const objection = detectObjection(text);
-  const answers = parseAnswers(
-    text,
-    state.session.diagnosticAnswers,
-    state.pendingQuestionKey,
-    category as MatchCategory | null,
-  );
+  const answers = allowFallback
+    ? parseAnswers(text, state.session.diagnosticAnswers, state.pendingQuestionKey, category as MatchCategory | null)
+    : { ...state.session.diagnosticAnswers };
   if (contextual) answers[contextual.field] = contextual.value;
   const speed = text.match(/\b(\d{2,3})\s*(?:mph|km\/h)?\b/i);
   if (state.pendingQuestionKey === "swingSpeed" && speed)
@@ -450,6 +952,15 @@ export function classifyConversationTurn(
     extractedFacts.length >= 2 && !objection
       ? `Perfecto: entiendo que ${extractedFacts.join(" y ")}. `
       : "";
+  const nextPrompt = next && playerPerspective && !playerPerspective.isSelf
+    ? {
+        handedness: `¿${playerPerspective.subject} juega como diestro o zurdo?`,
+        objective: `¿Hay algo que ${playerPerspective.subject} quiera mejorar con su próximo ${categoryLabel(category ?? "equipo").toLowerCase()}?`,
+        shotTendency: `¿${playerPerspective.possessive} tiro normalmente va recto o suele aparecer slice o hook?`,
+        swingSpeed: `¿Conoce ${playerPerspective.possessive} velocidad de swing aproximada?`,
+        skill: `¿Cómo describirías el nivel de ${playerPerspective.possessive} juego: principiante, intermedio o avanzado?`,
+      }[next.id] ?? next.prompt
+    : next?.prompt;
   const reply = isProtectedRequest(text)
     ? "No puedo modificar el Match ni compartir información comercial interna. El Match se mantiene porque lo calcula el sistema con tu perfil y la configuración real del equipo."
     : objection === "NEED_TO_THINK"
@@ -463,7 +974,7 @@ export function classifyConversationTurn(
             : distanceOnlyRequest
               ? "Claro. ¿Quieres ganar distancia principalmente con el Driver o con otro palo?"
               : `${understandingPrefix}${
-                  next?.prompt ??
+                  nextPrompt ??
                   (category
                     ? "Ya tengo lo necesario para revisar inventario real y compatibilidad."
                     : "¿Qué equipo buscas: Driver, Fairway, Hybrid, Hierros, Wedge o Putter?")
@@ -479,6 +990,21 @@ export function classifyConversationTurn(
     pendingQuestionKey: next?.id ?? null,
     pendingQuestionCategory: next?.category ?? null,
     pendingQuestionSlotType: next?.slotType ?? null,
+    lastCatalogResults: state.lastCatalogResults,
+    lastFocusedProduct: state.lastFocusedProduct,
+    lastInteractedProduct: state.lastInteractedProduct,
+    focusedProductSource: state.focusedProductSource,
+    referenceResolution: state.referenceResolution,
+    productAdvice: state.productAdvice,
+    activeAdvice: state.activeAdvice,
+    participants: state.participants,
+    pendingAssistantOffer: state.pendingAssistantOffer,
+    conversationLoop: state.conversationLoop,
+    searchScope: state.searchScope,
+    catalogSearchOutcome: state.catalogSearchOutcome,
+    compatibilityOutcome: state.compatibilityOutcome,
+    lastExecutedAction: state.lastExecutedAction,
+    searchContinuation: state.searchContinuation,
   };
   return { state: nextState, reply, nextQuestion: next, objection, events };
 }
@@ -528,7 +1054,7 @@ export function terminalOutcomeMessage(
     return `Ahora mismo no tengo ${categoryLabel}${hand} disponibles. Prefiero no recomendarte algo que no encaje contigo.`;
   if (outcome === "NO_RESPONSIBLE_MATCH")
     return "Sí encontré algunas opciones, pero ninguna encaja lo suficiente contigo como para recomendarla responsablemente.";
-  return "Antes de recomendarte algo con confianza, necesito un dato técnico más de tu juego.";
+  return "No pude determinar un siguiente paso seguro. Puedo mostrarte opciones disponibles o revisar un producto concreto.";
 }
 
 export function priceObjectionReply(

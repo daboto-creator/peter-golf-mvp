@@ -9,10 +9,218 @@ import {
   priceObjectionReply,
   resolveContextualShortAnswer,
   terminalOutcomeMessage,
+  evaluateFocusedProductAgainstKnownFacts,
+  getNextProductAdviceQuestion,
+  normalizeStructuredFactValue,
+  validateCanonicalFactValue,
+  normalizeCanonicalFactStatus,
+  resolveSearchScope,
+  resolveProductReference,
+  resolvePendingAnswerFact,
+  deriveSkillFromHandicap,
+  questionPromptFor,
+  getPlayerPerspective,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
 describe("Best Round Pro conversation", () => {
+  it.each([[8, "ADVANCED"], [18.4, "INTERMEDIATE"], [31, "BEGINNER"]] as const)(
+    "derives internal skill from handicap %s",
+    (handicap, expected) => expect(deriveSkillFromHandicap(handicap)).toBe(expected),
+  );
+
+  it("asks for handicap instead of subjective skill labels", () => {
+    const spec = getNextProductAdviceQuestion({ answers: { handedness: "RIGHT", setExperience: "CURRENT_PLAYER" } });
+    expect(spec?.key).toBe("skill");
+    expect(questionPromptFor(spec, getPlayerPerspective(initialConversationState().participants), "WEDGE")).toMatch(/handicap/i);
+    expect(questionPromptFor(spec, getPlayerPerspective(initialConversationState().participants), "WEDGE")).not.toMatch(/principiante|intermedio|avanzado/i);
+  });
+
+  it("uses category-aware advice eligibility", () => {
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT" }, productFamily: "WEDGE" })?.key).toBe("skill");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT", handicapIndex: 8 }, productFamily: "WEDGE" })?.key).toBe("currentWedgeLofts");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT" }, productFamily: "SET" })?.key).toBe("setExperience");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT", handicapIndex: 8 }, productFamily: "SET" })).toBeNull();
+  });
+
+  it("consumes driver objectives and typed wedge lofts from pending context", () => {
+    expect(resolvePendingAnswerFact("driverObjective", "distancia")).toMatchObject({ field: "driverObjective", value: "DISTANCE" });
+    expect(resolvePendingAnswerFact("currentWedgeLofts", "50, 54 y 58")).toMatchObject({ field: "currentWedgeLofts", value: [50, 54, 58] });
+  });
+  const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT") => ({
+    id,
+    slug: id.toLowerCase(),
+    name: `Product ${id}`,
+    category: "Driver",
+    condition: "new",
+    price: 10000,
+    productHref: `/productos/${id.toLowerCase()}`,
+    imagePath: null,
+    handedness,
+    family: "club",
+  });
+
+  it("requires clarification when a stale focus is outside a new multi-result set", () => {
+    const resolution = resolveProductReference({
+      currentPageProduct: null,
+      lastInteractedProduct: null,
+      focusedProduct: product("X"),
+      recentResults: [product("A"), product("B"), product("C")],
+      explicitProduct: null,
+    });
+    expect(resolution).toMatchObject({ productId: null, source: "CLARIFICATION_REQUIRED" });
+  });
+
+  it("resolves a unique recent result without selecting from a multi-result list", () => {
+    expect(resolveProductReference({
+      currentPageProduct: null,
+      lastInteractedProduct: null,
+      focusedProduct: null,
+      recentResults: [product("A")],
+      explicitProduct: null,
+    })).toMatchObject({ productId: "A", source: "UNIQUE_RECENT_RESULT" });
+  });
+
+  it("prioritizes the current page over click and focused context", () => {
+    expect(resolveProductReference({
+      currentPageProduct: product("A"),
+      lastInteractedProduct: product("B"),
+      focusedProduct: product("C"),
+      recentResults: [product("A"), product("B"), product("C")],
+      explicitProduct: null,
+    })).toMatchObject({ productId: "A", source: "CURRENT_PAGE" });
+  });
+
+  it("prioritizes an explicit card click when no current page exists", () => {
+    expect(resolveProductReference({
+      currentPageProduct: null,
+      lastInteractedProduct: product("B"),
+      focusedProduct: product("C"),
+      recentResults: [product("A"), product("B"), product("C")],
+      explicitProduct: null,
+    })).toMatchObject({ productId: "B", source: "PRODUCT_CARD_CLICK" });
+  });
+
+  it("does not let an explicit name overwrite stronger current-page context without a subject change", () => {
+    expect(resolveProductReference({
+      currentPageProduct: product("A"),
+      lastInteractedProduct: null,
+      focusedProduct: null,
+      recentResults: [product("A"), product("B")],
+      explicitProduct: product("B"),
+    })).toMatchObject({ productId: "A", source: "CURRENT_PAGE" });
+    expect(resolveProductReference({
+      currentPageProduct: product("A"),
+      lastInteractedProduct: null,
+      focusedProduct: null,
+      recentResults: [product("A"), product("B")],
+      explicitProduct: product("B"),
+      explicitSubjectChange: true,
+    })).toMatchObject({ productId: "B", source: "EXPLICIT_NAME" });
+  });
+
+  it("retains card-click provenance after navigation to that same product", () => {
+    expect(resolveProductReference({
+      currentPageProduct: product("B"),
+      lastInteractedProduct: product("B"),
+      focusedProduct: product("B"),
+      recentResults: [product("A"), product("B"), product("C")],
+      explicitProduct: null,
+    })).toMatchObject({ productId: "B", source: "PRODUCT_CARD_CLICK" });
+  });
+
+  it.each(["LEFT", "RIGHT"] as const)("never selects handedness again when %s is known", (handedness) => {
+    expect(getNextProductAdviceQuestion({ answers: { handedness } })?.key).not.toBe("handedness");
+  });
+
+  it("surfaces opposite handedness before selecting another material question", () => {
+    const rightProduct = product("RIGHT-DRIVER", "RIGHT");
+    expect(evaluateFocusedProductAgainstKnownFacts({ product: rightProduct, answers: { handedness: "LEFT" } })).toMatchObject({
+      status: "HARD_INCOMPATIBLE",
+    });
+  });
+
+  it("replaces an inherited SET scope with an explicit multi-family scope", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["DRIVER", "WEDGE"], "MULTI_FAMILY", null, true);
+    expect(next?.families).toEqual(["DRIVER", "WEDGE"]);
+    expect(next?.mode).toBe("MULTI_FAMILY");
+    expect(next?.source).toBe("EXPLICIT_CURRENT_TURN");
+  });
+
+  it("broadens an inherited SET scope to ALL_CLUBS without dropping player facts", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, [], "ALL_CLUBS", null, true);
+    expect(next?.families).toEqual(["DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER"]);
+    expect(next?.families).not.toContain("SET");
+    expect(next?.mode).toBe("ALL_CLUBS");
+  });
+
+  it("inherits SET only when the new turn has no explicit catalog scope", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, [], null, null, true);
+    expect(next).toEqual(previous);
+  });
+
+  it("broadens an exhausted SET scope for a generic left-handed continuation", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["SET"], "EXACT", "SET", true, "NO_COMPATIBLE_INVENTORY", "BROADEN_SCOPE", "PREVIOUS_SCOPE_EXHAUSTED");
+    expect(next?.mode).toBe("ALL_EQUIPMENT");
+    expect(next?.families).toContain("SET");
+    expect(next?.families).toContain("DRIVER");
+    expect(next?.source).toBe("INHERITED_CONTEXT");
+  });
+
+  it("lets explicit driver/wedge availability replace an exhausted SET scope", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["DRIVER", "WEDGE"], "MULTI_FAMILY", null, true, "NO_COMPATIBLE_INVENTORY", "REPLACE_SCOPE", "EXPLICIT_CURRENT_TURN");
+    expect(next?.families).toEqual(["DRIVER", "WEDGE"]);
+    expect(next?.mode).toBe("MULTI_FAMILY");
+    expect(next?.families).not.toContain("SET");
+  });
+
+  it("uses explicit broad-inventory intent even when the previous family was SET", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["SET"], "EXACT", "SET", true, "NO_COMPATIBLE_INVENTORY", "KEEP_SCOPE", null, "ALL_HANDED_EQUIPMENT");
+    expect(next?.mode).toBe("ALL_EQUIPMENT");
+    expect(next?.families).toEqual(["SET", "DRIVER", "FAIRWAY_WOOD", "HYBRID", "IRON", "WEDGE", "PUTTER"]);
+  });
+
+  it("separates canonical fact values from semantic statuses", () => {
+    const question = getNextProductAdviceQuestion({ answers: {} });
+    expect(question?.expectedValues).toEqual(["RIGHT", "LEFT"]);
+    expect(question?.allowedStatuses).toContain("UNKNOWN");
+    expect(question?.allowedStatuses).not.toContain("RIGHT");
+    expect(normalizeStructuredFactValue("handedness", "LEFT_HANDED")).toBe("LEFT");
+    expect(validateCanonicalFactValue("handedness", "LEFT", "KNOWN")).toBe(true);
+    expect(validateCanonicalFactValue("handedness", "KNOWN", "KNOWN")).toBe(false);
+    expect(normalizeCanonicalFactStatus("handedness", "LEFT", "UNKNOWN")).toBe("KNOWN");
+    expect(normalizeCanonicalFactStatus("handedness", null, "UNKNOWN")).toBe("UNKNOWN");
+  });
+
+  it.each([
+    ["setExperience", "ya juego", "CURRENT_PLAYER"],
+    ["setExperience", "ya tengo equipo", "CURRENT_PLAYER"],
+    ["setExperience", "no es mi primer set", "CURRENT_PLAYER"],
+    ["skill", "principiante", "BEGINNER"],
+    ["skill", "intermedio", "INTERMEDIATE"],
+    ["skill", "avanzado", "ADVANCED"],
+    ["handedness", "zurdo", "LEFT"],
+    ["handedness", "diestro", "RIGHT"],
+  ])("consumes pending %s answer %s as %s", (key, message, expected) => {
+    expect(resolvePendingAnswerFact(key, message)).toMatchObject({
+      field: key,
+      value: expected,
+      source: "CURRENT_USER_PENDING_ANSWER",
+    });
+  });
+
+  it("re-evaluates focused product after canonical hand update", () => {
+    const product = { id: "strata", slug: "strata", name: "Strata Set", category: "Set", condition: "new", price: 9799, productHref: "/productos/strata", imagePath: null, handedness: "RIGHT", family: "set" };
+    expect(evaluateFocusedProductAgainstKnownFacts({ product, answers: { handedness: "LEFT" } }).status).toBe("HARD_INCOMPATIBLE");
+    expect(getNextProductAdviceQuestion({ answers: { handedness: "RIGHT" } })?.key).toBe("setExperience");
+    expect(evaluateFocusedProductAgainstKnownFacts({ product: { ...product, handedness: "right" }, answers: { handedness: "LEFT" } }).status).toBe("HARD_INCOMPATIBLE");
+  });
   it.each([
     "driver",
     "drive",
@@ -44,6 +252,24 @@ describe("Best Round Pro conversation", () => {
     expect(detectCategory(message)).toBe(category);
   });
 
+  it.each(["quiero un set", "busco palos completos", "juego de palos"])(
+    "treats complete sets as a first-class product family (%s)",
+    (message) => {
+      expect(detectCategory(message)).toBe("SET");
+      expect(interpretGolfCategory(message)?.category).toBe("SET");
+    },
+  );
+
+  it("uses semantic wedge distance wording without golf jargon", () => {
+    const question = nextQuestionFor("WEDGE", null, {
+      ...initialConversationState().session,
+      requestedCategory: "WEDGE",
+      diagnosticAnswers: { handedness: "RIGHT" },
+    });
+    expect(question?.prompt).toContain("Qué distancia quieres cubrir");
+    expect(question?.prompt.toLowerCase()).not.toContain("hueco");
+  });
+
   it("extracts category, handedness, and shot tendency from one turn", () => {
     const result = classifyConversationTurn(
       initialConversationState(),
@@ -54,6 +280,75 @@ describe("Best Round Pro conversation", () => {
     expect(result.state.session.diagnosticAnswers.shotTendency).toBe("SLICE");
     expect(result.reply).toContain("buscas un Driver");
     expect(result.reply).not.toContain("¿Qué equipo buscas");
+  });
+
+  it.each(["distancia", "más distancia", "pegar más lejos", "quiero más yardas", "más perdón", "menos slice"])(
+    "closes the pending driver objective slot for %s",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "DRIVER";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.pendingQuestionKey = "objective";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.objective).toBeTruthy();
+      expect(result.nextQuestion?.id).not.toBe("objective");
+    },
+  );
+
+  it("consumes a semantic NONE objective and never re-asks it", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "DRIVER";
+    state.session.diagnosticAnswers.handedness = "RIGHT";
+    state.pendingQuestionKey = "objective";
+    const result = classifyConversationTurn(state, "nada");
+    expect(result.state.session.diagnosticAnswers.objective).toBe("NONE");
+    expect(result.nextQuestion?.id).not.toBe("objective");
+    expect(result.state.pendingQuestionKey).not.toBe("objective");
+  });
+
+  it.each(["no sé", "no se", "ni idea"])(
+    "consumes unknown swing speed (%s) without looping",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "DRIVER";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.pendingQuestionKey = "swingSpeed";
+      const result = classifyConversationTurn(state, message);
+      expect(result.state.session.diagnosticAnswers.swingSpeed).toBe(
+        "ANSWERED_UNKNOWN",
+      );
+      expect(result.nextQuestion?.id).not.toBe("swingSpeed");
+    },
+  );
+
+  it("consumes a declined handicap answer without repeating the slot", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "DRIVER";
+    state.session.diagnosticAnswers.handedness = "RIGHT";
+    state.pendingQuestionKey = "skill";
+    const result = classifyConversationTurn(state, "prefiero no decirlo");
+    expect(result.state.session.diagnosticAnswers.handicap).toBe("DECLINED");
+    expect(result.nextQuestion?.id).not.toBe("skill");
+  });
+
+  it("routes policy from updated state rather than stale state", () => {
+    const stale = initialConversationState();
+    stale.session.requestedCategory = "DRIVER";
+    stale.session.diagnosticAnswers.handedness = "RIGHT";
+    stale.pendingQuestionKey = "objective";
+    const updated = {
+      ...stale,
+      session: {
+        ...stale.session,
+        diagnosticAnswers: { ...stale.session.diagnosticAnswers, objective: "NONE" },
+      },
+    };
+    const result = classifyConversationTurn(updated, "respuesta ya procesada");
+    expect(result.state.session.diagnosticAnswers.objective).toBe("NONE");
+    expect(result.nextQuestion?.id).not.toBe("objective");
+    expect(classifyConversationTurn(stale, "respuesta ya procesada").state.pendingQuestionKey).toBe(
+      "objective",
+    );
   });
 
   it.each(["30", "handicap 30", "hcp 30"])(
@@ -198,6 +493,19 @@ describe("Best Round Pro conversation", () => {
     });
   });
 
+  it.each(["ninguno", "no tengo fallos", "recto", "normal", "no sé"])(
+    "closes driver common-miss slot for %s",
+    (message) => {
+      const state = initialConversationState();
+      state.session.requestedCategory = "DRIVER";
+      state.session.diagnosticAnswers.handedness = "RIGHT";
+      state.session.diagnosticAnswers.objective = "MORE_DISTANCE";
+      state.pendingQuestionKey = "shotTendency";
+      const result = classifyConversationTurn(state, message);
+      expect(result.nextQuestion?.id).not.toBe("shotTendency");
+    },
+  );
+
   it("provides explicit customer-safe terminal outcome messages", () => {
     expect(terminalOutcomeMessage("NO_INVENTORY", "IRON", "RIGHT")).toMatch(
       /no tengo.*hierros.*diestro/i,
@@ -206,7 +514,7 @@ describe("Best Round Pro conversation", () => {
       terminalOutcomeMessage("NO_RESPONSIBLE_MATCH", "WEDGE", null),
     ).toMatch(/encaja.*responsablemente/i);
     expect(terminalOutcomeMessage("INSUFFICIENT_DATA", "PUTTER", null)).toMatch(
-      /necesito un dato/i,
+      /siguiente paso seguro/i,
     );
   });
 
