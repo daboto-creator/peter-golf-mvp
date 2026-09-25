@@ -218,6 +218,11 @@ export type ConversationInterpreterTelemetry = {
   policyTopic?: string | null;
   policyResolutionStatus?: string | null;
   productReadinessStatus?: string | null;
+  mixedIntent?: boolean;
+  executedFactualActions?: string[];
+  executedAdviceAction?: string | null;
+  sameTurnAdviceCompleted?: boolean;
+  sameTurnAdviceQuestionKey?: string | null;
   commercialResponseMode?: "FACTUAL" | "GUIDED" | "RECOMMENDATION" | null;
   commercialNextStep?: string | null;
   policySource?: string | null;
@@ -591,6 +596,10 @@ export async function processConversationTurn(input: {
             : null;
   const normalizedMessage = normalizeConversationText(input.message);
   const knowledgeIntent = classifyKnowledgeIntent(input.message);
+  const mixedAdviceIntent = Boolean(knowledgeIntent && isProductAdviceLanguage(input.message));
+  lastInterpreterTelemetry.primarySemanticIntent = knowledgeIntent;
+  lastInterpreterTelemetry.secondarySemanticIntent = mixedAdviceIntent ? "PRODUCT_ADVICE" : null;
+  lastInterpreterTelemetry.mixedIntent = mixedAdviceIntent;
   let knowledgeProductData = pageProductData;
   if (knowledgeIntent && preFocusedProduct && !knowledgeProductData) {
     const loadedKnowledgeProduct = await getPublicProductBySlug(preFocusedProduct.slug);
@@ -852,6 +861,43 @@ export async function processConversationTurn(input: {
     }
     return { state, reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent: "PRODUCT_DETAILS" as const };
   };
+  if (mixedAdviceIntent && focusedProduct && (knowledgeProductData || knowledgeIntent?.startsWith("STORE_"))) {
+    const dto = knowledgeProductData ? toProductKnowledge(knowledgeProductData) : null;
+    const factualReply = knowledgeIntent?.startsWith("STORE_")
+      ? answerStoreKnowledge(knowledgeIntent)
+      : dto ? answerProductKnowledge(knowledgeIntent, dto, input.message) : null;
+    const answers = updatedState.session.diagnosticAnswers;
+    const family = canonicalProductFamily(focusedProduct);
+    const nextAdviceQuestion = getNextProductAdviceQuestion({ answers, productFamily: family });
+    const hasHand = answers.handedness === "LEFT" || answers.handedness === "RIGHT";
+    const hasLevel = Boolean(answers.handicapIndex !== undefined || answers.handicap !== undefined || answers.handicapStatus || answers.skill);
+    const adviceComplete = hasHand && hasLevel && !nextAdviceQuestion;
+    const adviceReply = adviceComplete
+      ? `Sí, con lo que me has contado lo mantendría como candidato. ${dto?.specs.loftDegrees != null ? `Tiene ${dto.specs.loftDegrees}°` : "Su configuración registrada"}${dto?.specs.shaftFlex ? ` y shaft ${dto.specs.shaftFlex}` : ""}; esos datos son los que más pesan para valorar cómo puede encajar en tu juego. Si quieres seguir con este, estás en la ficha correcta.`
+      : `Para decirte si te lo recomiendo, ${questionPromptFor(nextAdviceQuestion, getPlayerPerspective(updatedState.participants), focusedProduct.category)}`;
+    const reply = [factualReply, adviceReply].filter(Boolean).join(" ");
+    const state: ConversationState = {
+      ...updatedState,
+      messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+      pendingQuestionKey: adviceComplete ? null : nextAdviceQuestion?.key ?? null,
+      pendingQuestionCategory: adviceComplete ? null : "PRODUCT_ADVICE",
+      pendingQuestionSlotType: adviceComplete ? null : "HANDEDNESS",
+      lastFocusedProduct: focusedProduct,
+      productAdvice: { active: !adviceComplete, product: focusedProduct, pendingQuestionKey: adviceComplete ? null : nextAdviceQuestion?.key ?? null, collectedAnswers: answers },
+      activeAdvice: { productId: focusedProduct.id, productFamily: family, status: adviceComplete ? "CONCLUDED" : "NEEDS_ONE_MORE_FACT", outcome: adviceComplete ? "RECOMMENDED" : null },
+      lastExecutedAction: "RETURN_MIXED_KNOWLEDGE_AND_ADVICE",
+    };
+    lastInterpreterTelemetry.executedFactualActions = [knowledgeIntent?.startsWith("STORE_") ? "RETURN_STORE_POLICY" : "RETURN_PRODUCT_FACTS"];
+    lastInterpreterTelemetry.executedAdviceAction = adviceComplete ? "RETURN_ADVICE_CONCLUSION" : "ASK_NEXT_MATERIAL_FACT";
+    lastInterpreterTelemetry.sameTurnAdviceCompleted = adviceComplete;
+    lastInterpreterTelemetry.sameTurnAdviceQuestionKey = adviceComplete ? null : nextAdviceQuestion?.key ?? null;
+    if (dto) {
+      lastInterpreterTelemetry.productSourceType = dto.sourceType;
+      lastInterpreterTelemetry.availabilityStatus = dto.availability;
+      lastInterpreterTelemetry.conditionStatus = dto.condition;
+    }
+    return { state, reply, nextQuestion: null, objection: null, events: ["MIXED_KNOWLEDGE_AND_ADVICE"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+  }
   if (knowledgeIntent && knowledgeIntent !== "PRODUCT_COMPARISON") {
     lastInterpreterTelemetry.commercialResponseMode = knowledgeIntent.startsWith("STORE_") ? "GUIDED" : "FACTUAL";
     lastInterpreterTelemetry.primarySemanticIntent = knowledgeIntent;
