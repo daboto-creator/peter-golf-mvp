@@ -1075,12 +1075,15 @@ export async function processConversationTurn(input: {
       const isAdvancedEntrySet = family === "SET" && answers.skill === "ADVANCED" && focusedProduct.targetPlayerLevel === "BEGINNER";
       const productLoft = family === "WEDGE" ? Number(focusedProduct.name.match(/(\d{2})\s*°/)?.[1] ?? NaN) : NaN;
       const currentLofts = Array.isArray(answers.currentWedgeLofts) ? answers.currentWedgeLofts : [];
+      const knowledgeDto = knowledgeProductData ? toProductKnowledge(knowledgeProductData) : null;
       const complementsSixty = family === "WEDGE" && productLoft === 56 && currentLofts.includes(60);
       const wedgeReason = complementsSixty
         ? "tu 60° cubre los golpes más altos y cortos; este 56° normalmente puede darte un escalón de más distancia y cerrar ese espacio"
         : "su papel en el juego corto y el espacio de loft que puede cubrir";
       const reason = family === "WEDGE" ? wedgeReason : family === "DRIVER"
-        ? "su función desde el tee y el objetivo de distancia que me indicaste"
+        ? knowledgeDto?.specs.loftDegrees != null || knowledgeDto?.specs.shaftFlex
+          ? `su configuración de ${knowledgeDto.specs.loftDegrees != null ? `${knowledgeDto.specs.loftDegrees}°` : "loft registrado"}${knowledgeDto.specs.shaftFlex ? ` y shaft ${String(knowledgeDto.specs.shaftFlex)}` : ""}, que puede ayudar a tu objetivo de distancia desde el tee`
+          : "su función desde el tee y el objetivo de distancia que me indicaste"
         : safeFamilyLanguage(focusedProduct);
       const caveat = complementsSixty && currentLofts.length < 2
         ? "Antes de decirte que es la combinación ideal, revisaría si llevas un 52°, 54° u otro loft intermedio."

@@ -64,7 +64,7 @@ export function classifyKnowledgeIntent(text: string): KnowledgeIntent {
   if (/qui[eé]n lo vende|lo vende best round|marketplace|best round/.test(value)) return "PRODUCT_SOURCE";
   if (/hacen env[ií]os|env[ií]an|env[ií]o|entrega/.test(value)) return "STORE_SHIPPING";
   if (/devoluci[oó]n|devolver|cambio de opini[oó]n/.test(value)) return "STORE_RETURNS";
-  if (/llega roto|da[nñ]ado|reclamo|reclamaci[oó]n/.test(value)) return "STORE_CLAIMS";
+  if (/llega roto|da[nñ]ado|reclamo|reclamaci[oó]n|diferente a lo publicado|especificaci[oó]n.*incorrecta|no funciona/.test(value)) return "STORE_CLAIMS";
   if (/trade.?in|toman mi palo|aceptan.*equipo/.test(value)) return "STORE_TRADE_IN";
   if (/qu[eé] flex|flex|loft|lie|shaft|varilla|bounce|grip|peso.*varilla|headcover/.test(value)) return "PRODUCT_SPEC";
   if (/compar|con qu[eé]|diferencia|parecido/.test(value)) return "PRODUCT_COMPARISON";
