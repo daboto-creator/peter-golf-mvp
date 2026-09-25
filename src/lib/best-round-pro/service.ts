@@ -822,7 +822,7 @@ export async function processConversationTurn(input: {
       !interpretation?.topicChanged && ["HELP_REQUEST", "CONFIRMATION", "OTHER", "GENERAL_QUESTION"].includes(interpretation?.dialogueAct ?? socialAct ?? ""),
   );
   const appendSocialReply = (reply: string, event: string) => ({
-    state: { ...updatedState, messages: [...updatedState.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
+    state: { ...updatedState, lastExecutedAction: event, messages: [...updatedState.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
     reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent,
   });
   const appendKnowledgeReply = (reply: string, event: string, productData?: NonNullable<typeof knowledgeProductData>) => {
