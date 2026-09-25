@@ -10,6 +10,7 @@ import {
   classifyKnowledgeIntent,
   productReadiness,
 } from "./product-knowledge";
+import type { ProductKnowledgeDTO } from "./product-knowledge";
 
 describe("Best Round product knowledge", () => {
   it.each([
@@ -25,7 +26,7 @@ describe("Best Round product knowledge", () => {
   });
 
   it("answers facts without inventing a missing spec", () => {
-    const answer = answerProductKnowledge("PRODUCT_SPEC", {
+    const product: ProductKnowledgeDTO = {
       id: "synthetic-driver",
       slug: "synthetic-driver",
       name: "Synthetic Driver Alpha",
@@ -46,9 +47,11 @@ describe("Best Round product knowledge", () => {
       readiness: "PARTIAL",
       missingRequiredFields: [],
       missingRecommendedFields: ["shaftFlex"],
-    });
-    expect(answer).toContain("loftDegrees");
-    expect(answer).not.toContain("Regular");
+    };
+    const answer = answerProductKnowledge("PRODUCT_SPEC", product, "¿cuánto pesa la varilla?");
+    expect(answer).toContain("No tengo registrado el peso");
+    const knownAnswer = answerProductKnowledge("PRODUCT_SPEC", { ...product, specs: { ...product.specs, shaftFlex: "regular" } }, "¿qué flex tiene?");
+    expect(knownAnswer).toContain("regular");
   });
 
   it("keeps store policy answers honest when policy is not configured", () => {

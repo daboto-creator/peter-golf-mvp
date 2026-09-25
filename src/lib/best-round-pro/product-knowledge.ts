@@ -165,7 +165,7 @@ export function answerStoreKnowledge(intent: KnowledgeIntent) {
   }
 }
 
-export function answerProductKnowledge(intent: KnowledgeIntent, product: ProductKnowledgeDTO) {
+export function answerProductKnowledge(intent: KnowledgeIntent, product: ProductKnowledgeDTO, question = "") {
   switch (intent) {
     case "PRODUCT_PRICE": return product.price === null ? "No tengo registrado el precio público actual de este producto." : `El precio público actual de ${product.name} es ${product.currency ?? ""} ${product.price}.`;
     case "PRODUCT_AVAILABILITY": return product.availability === "AVAILABLE" ? `${product.name} está disponible para compra.` : product.availability === "UNAVAILABLE" ? `${product.name} no está disponible ahora mismo.` : "No tengo confirmada la disponibilidad actual de este producto.";
@@ -174,6 +174,10 @@ export function answerProductKnowledge(intent: KnowledgeIntent, product: Product
     case "PRODUCT_SOURCE": return product.sourceType === "MARKETPLACE" ? "Este producto forma parte del Marketplace de Best Round. No puedo compartir la identidad del vendedor." : "Este producto pertenece al inventario de Best Round.";
     case "PRODUCT_CONTENTS": return product.includedItems?.length ? `Este producto incluye: ${product.includedItems.join(", ")}.` : "No tengo registrada una composición completa para este producto.";
     case "PRODUCT_SPEC": {
+      const normalizedQuestion = question.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      if (/peso.*varilla|pesa.*varilla|shaft.*weight|pesa.*shaft/.test(normalizedQuestion) && product.specs.shaftWeightGrams == null) return "No tengo registrado el peso de la varilla de este producto.";
+      if (/flex/.test(normalizedQuestion) && product.specs.shaftFlex == null) return "No tengo registrado el flex de la varilla de este producto.";
+      if (/loft/.test(normalizedQuestion) && product.specs.loftDegrees == null) return "No tengo registrado el loft de este producto.";
       const available = Object.entries(product.specs).filter(([, value]) => value !== null && value !== undefined);
       return available.length ? `Tengo registradas estas especificaciones: ${available.map(([key, value]) => `${key}: ${value}`).join(", ")}.` : "Esa especificación no está registrada para este producto.";
     }
