@@ -80,6 +80,7 @@ export function normalizeCustomerPunctuation(value: string) {
   return value
     .replace(/\s+([,.;!?])/g, "$1")
     .replace(/([.!?])(?:\s*[.!?])+/g, "$1")
+    .replace(/\s{2,}/g, " ")
     .trim();
 }
 

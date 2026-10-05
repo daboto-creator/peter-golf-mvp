@@ -163,6 +163,6 @@ describe("Best Round product knowledge", () => {
   });
 
   it("cleans duplicated terminal punctuation without changing decimals", () => {
-    expect(normalizeCustomerPunctuation("Tiene 10.5° y buen ritmo.. Sigue... .")).toBe("Tiene 10.5° y buen ritmo. Sigue.");
+    expect(normalizeCustomerPunctuation("Tiene 10.5° y buen ritmo..  Sigue... .")).toBe("Tiene 10.5° y buen ritmo. Sigue.");
   });
 });
