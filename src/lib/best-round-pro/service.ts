@@ -96,6 +96,14 @@ function familyLabel(family: string) {
   } as Record<string, string>)[family] ?? "producto de esta categoría";
 }
 
+function familyWithArticle(family: string, article: "THIS" | "OTHER") {
+  const labels = article === "THIS"
+    ? { FAIRWAY_WOOD: "esta madera de fairway", IRON: "este juego de hierros" }
+    : { FAIRWAY_WOOD: "otra madera de fairway", IRON: "otro juego de hierros" };
+  return (labels as Record<string, string>)[family]
+    ?? `${article === "THIS" ? "este" : "otro"} ${familyLabel(family)}`;
+}
+
 function targetLevelForSet(input: { setType?: string | null; name: string; category?: string | null }) {
   if (input.setType === "starter_set") return "BEGINNER" as const;
   // A product name is not authoritative player-positioning metadata.
@@ -1039,8 +1047,8 @@ export async function processConversationTurn(input: {
       const caveat = categoryInterpretation.caveat;
       const comparison = alternatives.products.length === 0
         ? hasPoorPlayerLevelFit
-          ? `Ahora mismo no tengo otro ${familyLabel(family)} comparable disponible.`
-          : `Con lo que sabemos, yo mantendría este ${familyLabel(family)} como candidato; ahora mismo no tengo otro ${familyLabel(family)} comparable disponible.`
+          ? `Ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible.`
+          : `Con lo que sabemos, yo mantendría ${familyWithArticle(family, "THIS")} como candidato; ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible.`
         : alternatives.products.length === 1
           ? `Si quieres contrastarlo, tengo una alternativa comparable de ${familyLabel(family)}: ${alternatives.products[0].name}.`
           : `Si quieres contrastarlo, tengo ${alternatives.products.length} alternativas comparables de ${familyLabel(family)}.`;
@@ -1175,8 +1183,8 @@ export async function processConversationTurn(input: {
       const caveat = categoryInterpretation.caveat;
       const comparison = alternatives.products.length === 0
         ? hasPoorPlayerLevelFit
-          ? `Ahora mismo no tengo otro ${familyLabel(family)} comparable disponible.`
-          : `Ahora mismo no tengo otro ${familyLabel(family)} comparable disponible; si quieres seguir con este, estás en la ficha correcta.`
+          ? `Ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible.`
+          : `Ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible; si quieres seguir con este, estás en la ficha correcta.`
         : alternatives.products.length === 1
           ? `También tengo una alternativa comparable de ${familyLabel(family)}: ${alternatives.products[0].name}.`
           : `También tengo ${alternatives.products.length} alternativas comparables de ${familyLabel(family)}.`;

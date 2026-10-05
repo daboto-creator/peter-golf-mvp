@@ -551,4 +551,23 @@ describe("Best Round Pro source-gap regressions", () => {
     expect(result.reply).toMatch(/no tengo registrado para qué nivel.*no asumiría/i);
     expect(getLastInterpreterTelemetry()).toMatchObject({ targetPlayerLevel: "UNKNOWN", playerLevelFit: "UNKNOWN" });
   });
+
+  it.each([
+    ["FAIRWAY_WOOD", "esta madera de fairway", /este madera/i],
+    ["IRON", "este juego de hierros", /este hierros/i],
+  ] as const)("uses correct article agreement for %s", async (family, expected, forbidden) => {
+    const state = initialConversationState();
+    state.session.diagnosticAnswers = {
+      handedness: "RIGHT", handicapIndex: 14, handicapStatus: "KNOWN",
+      skill: "INTERMEDIATE", skillSource: "DERIVED_FROM_HANDICAP",
+    };
+    state.lastFocusedProduct = {
+      ...product(`SYNTHETIC-${family}`, "RIGHT"), category: family, family,
+    };
+    state.focusedProductSource = "RECOMMENDATION";
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+    const result = await processConversationTurn({ state, message: "¿me recomiendas este producto?" });
+    expect(result.reply).toContain(expected);
+    expect(result.reply).not.toMatch(forbidden);
+  });
 });
