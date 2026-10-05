@@ -1048,7 +1048,7 @@ export async function processConversationTurn(input: {
       const comparison = alternatives.products.length === 0
         ? hasPoorPlayerLevelFit
           ? `Ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible.`
-          : `Con lo que sabemos, yo mantendría ${familyWithArticle(family, "THIS")} como candidato; ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible.`
+          : `Con lo que sabemos, ${familyWithArticle(family, "THIS")} sigue entre las opciones; ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible.`
         : alternatives.products.length === 1
           ? `Si quieres contrastarlo, tengo una alternativa comparable de ${familyLabel(family)}: ${alternatives.products[0].name}.`
           : `Si quieres contrastarlo, tengo ${alternatives.products.length} alternativas comparables de ${familyLabel(family)}.`;
