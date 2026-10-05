@@ -62,6 +62,40 @@ export type CategoryInterpretation = {
   interpretations: string[];
 };
 
+export type PlayerLevelFit = "MATCH" | "POOR_PLAYER_LEVEL_FIT" | "UNKNOWN";
+
+export function evaluatePlayerLevelFit(input: {
+  playerLevel?: string | null;
+  targetPlayerLevel?: string | null;
+}): PlayerLevelFit {
+  if (!input.targetPlayerLevel || input.targetPlayerLevel === "UNKNOWN") return "UNKNOWN";
+  if (
+    input.targetPlayerLevel === "BEGINNER" &&
+    (input.playerLevel === "INTERMEDIATE" || input.playerLevel === "ADVANCED")
+  ) return "POOR_PLAYER_LEVEL_FIT";
+  return "MATCH";
+}
+
+export function normalizeCustomerPunctuation(value: string) {
+  return value
+    .replace(/\s+([,.;!?])/g, "$1")
+    .replace(/([.!?])(?:\s*[.!?])+/g, "$1")
+    .trim();
+}
+
+function customerFlex(value: unknown) {
+  if (value == null) return null;
+  const normalized = String(value).trim().toLowerCase();
+  return ({ regular: "Regular", stiff: "Stiff", senior: "Senior", x_stiff: "X-Stiff", ladies: "Ladies" } as Record<string, string>)[normalized]
+    ?? String(value).trim();
+}
+
+function customerShaftMaterial(value: unknown) {
+  if (value == null) return null;
+  return ({ graphite: "grafito", steel: "acero" } as Record<string, string>)[String(value).trim().toLowerCase()]
+    ?? String(value).trim().toLowerCase();
+}
+
 export function interpretCategoryRecommendation(input: {
   family: string;
   product: ProductKnowledgeDTO | null;
@@ -75,33 +109,35 @@ export function interpretCategoryRecommendation(input: {
   let reason = "Con la información disponible, puede tener sentido como candidato.";
   let caveat: string | null = null;
   const loft = specs.loftDegrees;
-  const flex = specs.shaftFlex;
-  const material = specs.shaftMaterial;
+  const flex = customerFlex(specs.shaftFlex);
+  const material = customerShaftMaterial(specs.shaftMaterial);
   const currentLofts = Array.isArray(input.answers.currentWedgeLofts) ? input.answers.currentWedgeLofts.filter((value): value is number => typeof value === "number") : [];
   if (input.family === "DRIVER") {
     if (loft != null) factsUsed.push("loftDegrees");
     if (flex != null) factsUsed.push("shaftFlex");
     if (material != null) factsUsed.push("shaftMaterial");
-    const config = [loft != null ? `${loft}°` : null, flex ? `shaft ${String(flex)}` : null, material ? `de ${String(material)}` : null].filter(Boolean).join(" ");
-    reason = config ? `Lo veo como candidato por su configuración de ${config}: un loft así puede facilitar un lanzamiento más alto y un shaft ${String(flex ?? "").toLowerCase() || "registrado"} suele ser más fácil de cargar que uno más rígido. Eso encaja con tu objetivo de distancia, aunque el flex ideal depende de tu velocidad y tempo.` : reason;
+    const configuration = [loft != null ? `${loft}°` : null, flex && material ? `varilla ${flex} de ${material}` : flex ? `varilla ${flex}` : material ? `varilla de ${material}` : null].filter(Boolean).join(" y ");
+    reason = configuration
+      ? `Tiene ${configuration}. Esa configuración puede ayudar a sacar la bola un poco más alta y, si buscas distancia, vale la pena probar cómo carga la varilla con tu ritmo de swing; no garantiza un resultado por sí sola.`
+      : reason;
     if (!flex) caveat = "Me falta el flex de la varilla para afinar la recomendación.";
     interpretations.push("relación entre loft, carga de la varilla y objetivo de distancia");
   } else if (input.family === "FAIRWAY_WOOD") {
     if (loft != null) factsUsed.push("loftDegrees");
-    reason = loft != null ? `Con ${loft}° puede cubrir un escalón concreto entre tu driver y los palos más cortos, especialmente si buscas una madera para tee o fairway.` : "Puede tener sentido como madera de apoyo, pero necesito su loft para ubicarla en la bolsa.";
+    reason = loft != null ? `Con ${loft}° puede cubrir un espacio concreto entre tu driver y tus hierros, ya sea desde la salida o desde el fairway.` : "Puede tener sentido como madera de apoyo, pero necesito saber el loft para ver qué espacio cubriría en tu bolsa.";
     caveat = loft == null ? "Revisaría el loft antes de confirmar qué hueco cubre." : null;
-    interpretations.push("papel de la madera según loft y composición conocida");
+    interpretations.push("espacio de la madera según loft y composición conocida");
   } else if (input.family === "HYBRID") {
     if (loft != null) factsUsed.push("loftDegrees");
-    reason = loft != null ? `Por sus ${loft}° puede servir como puente entre una madera y un hierro largo, aunque conviene comprobar si se solapa con los lofts que ya llevas.` : "Un híbrido puede cubrir el espacio entre madera e hierro, pero necesito su loft para valorar el hueco real.";
-    caveat = loft == null ? "Falta el loft para descartar solapamientos." : null;
-    interpretations.push("posible puente o solapamiento entre madera e hierro");
+    reason = loft != null ? `Por sus ${loft}° puede cubrir el espacio entre tu madera y tus hierros largos, y hacer más cómodo ese golpe largo.` : "Un híbrido puede cubrir el espacio entre tu madera y tus hierros, pero necesito saber el loft para ubicarlo bien.";
+    caveat = loft == null ? "Me falta el loft para revisar que no quede demasiado cerca de otro palo." : null;
+    interpretations.push("espacio posible entre madera e hierros");
   } else if (input.family === "IRON") {
     if (flex != null) factsUsed.push("shaftFlex");
     if (input.targetPlayerLevel) factsUsed.push("targetPlayerLevel");
     reason = input.targetPlayerLevel === "BEGINNER" && Number(input.answers.handicapIndex) <= 9.9
       ? "Te puede servir, pero por tu Handicap Index no sería mi primera opción: el posicionamiento registrado lo orienta a jugadores que empiezan, y probablemente aprovecharías mejor un set de hierros más específico."
-      : `Lo valoraría por su composición y ${flex ? `shaft ${String(flex)}` : "configuración registrada"}; la elección final depende de cómo encaje con tus hierros actuales y tus distancias.`;
+      : `Lo valoraría como juego de hierros por su composición${flex ? ` y su varilla ${flex}` : ""}; la decisión final depende de cómo encaje con tus hierros actuales y tus distancias.`;
     interpretations.push("composición y posicionamiento del set de hierros");
   } else if (input.family === "WEDGE") {
     const candidateLoft = typeof loft === "number" ? loft : Number(product?.name.match(/(\d{2})\s*°/)?.[1] ?? NaN);
@@ -110,11 +146,11 @@ export function interpretCategoryRecommendation(input: {
     if (Number.isFinite(candidateLoft) && currentLofts.length) {
       const same = currentLofts.includes(candidateLoft);
       const higher = currentLofts.filter((value) => value > candidateLoft).sort((a, b) => a - b)[0];
-      reason = same ? `Veo posible redundancia: ya llevas un wedge de ${candidateLoft}°, así que antes de añadir otro revisaría qué hueco quieres cubrir.` : higher ? `Tu wedge de ${higher}° cubre golpes de más loft; este ${candidateLoft}° normalmente ocuparía un papel de menor loft y algo más de distancia, por lo que puede cerrar un hueco hacia tus hierros.` : `Este ${candidateLoft}° puede completar la progresión de lofts que ya llevas, aunque conviene revisar el espacio entre tus wedges.`;
-      caveat = currentLofts.length < 2 ? "Me falta conocer los demás lofts para confirmar que no haya otro solapamiento." : null;
+      reason = same ? `Ya traes un wedge de ${candidateLoft}°, así que este podría repetir el mismo espacio en tu juego corto.` : higher ? `Si ya traes un ${higher}°, este ${candidateLoft}° puede quedar como el siguiente escalón: normalmente dará un poco más de distancia y un vuelo menos alto.` : `Este ${candidateLoft}° puede completar el espacio entre tus wedges y tus hierros, aunque conviene revisar los lofts que ya llevas.`;
+      caveat = currentLofts.length < 2 ? "Me faltaría saber qué otros wedges traes para asegurarme de que no quede muy cerca de otro loft." : null;
     } else {
       reason = Number.isFinite(candidateLoft) ? `Este wedge de ${candidateLoft}° puede tener sentido, pero su papel depende de los lofts que ya llevas y del tipo de golpe que quieres cubrir.` : reason;
-      caveat = "Me faltan tus lofts actuales para afinar el gapping.";
+      caveat = "Me faltan los lofts de tus wedges actuales para revisar bien el espacio entre palos.";
     }
     interpretations.push("relación de loft y gapping del juego corto");
   } else if (input.family === "PUTTER") {
@@ -122,15 +158,24 @@ export function interpretCategoryRecommendation(input: {
     const currentLength = input.answers.currentPutterLength;
     if (candidateLength != null) factsUsed.push("putterLengthInches");
     if (currentLength != null) factsUsed.push("currentPutterLength");
-    reason = candidateLength != null && currentLength != null ? `Mide ${candidateLength}" frente a las ${currentLength}" que usas ahora; ese cambio puede alterar la postura y la sensación de control, así que lo probaría en tu posición habitual.` : "Puede ser una opción, pero en un putter la longitud y tu postura son determinantes para confirmar el encaje.";
-    caveat = candidateLength == null || currentLength == null ? "Necesitaría comparar la longitud con tu postura y configuración actual." : null;
-    interpretations.push("relación entre longitud, postura y configuración actual");
+    reason = candidateLength != null && currentLength != null ? `Mide ${candidateLength}" frente a las ${currentLength}" que usas ahora; habría que ver cómo te acomodas de postura y qué sensación de control te da.` : candidateLength != null ? `Con ${candidateLength} pulgadas, habría que ver cómo te acomodas de postura y qué sensación de control te da.` : "Puede ser una opción, pero en un putter habría que revisar la longitud y cómo te acomodas de postura.";
+    caveat = candidateLength == null || currentLength == null ? "Para afinarlo, compararía esa longitud con la que usas hoy." : null;
+    interpretations.push("relación entre longitud, postura y putter actual");
   } else if (input.family === "SET") {
     if (input.targetPlayerLevel) factsUsed.push("targetPlayerLevel");
     if (input.answers.handicapIndex != null) factsUsed.push("handicapIndex");
-    reason = input.targetPlayerLevel === "BEGINNER" && Number(input.answers.handicapIndex) <= 9.9
-      ? "Te puede servir técnicamente, pero no sería mi primera recomendación para un Handicap Index 8: está posicionado para quien empieza o busca un paquete completo sencillo."
-      : "Lo valoraría por la composición registrada y por cómo cubre las categorías que necesitas en una sola bolsa.";
+    const playerLevelFit = evaluatePlayerLevelFit({
+      playerLevel: typeof input.answers.skill === "string" ? input.answers.skill : null,
+      targetPlayerLevel: input.targetPlayerLevel,
+    });
+    reason = playerLevelFit === "POOR_PLAYER_LEVEL_FIT"
+      ? "Te puede servir técnicamente, pero es un set para alguien que está empezando y no sería mi recomendación para tu nivel."
+      : input.targetPlayerLevel === "BEGINNER"
+        ? "Es un set completo pensado para empezar; puede encajar si buscas una primera bolsa sencilla y el resto de las especificaciones te quedan bien."
+        : "Lo valoraría como set completo por los palos que incluye y por cómo cubre lo que necesitas en una sola bolsa.";
+    caveat = playerLevelFit === "UNKNOWN"
+      ? "No tengo registrado para qué nivel de jugador está pensado, así que no asumiría ese dato."
+      : null;
     interpretations.push("composición del set y posicionamiento de jugador");
   }
   return { reason, caveat, factsUsed, interpretations };
