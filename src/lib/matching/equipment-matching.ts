@@ -17,13 +17,17 @@ import {
 type PlayerLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
 type ReasonSeverity = EquipmentMatchReason["severity"];
 
-const SOURCE_QUALITY: Readonly<Record<MemorySource, number>> = {
+const SOURCE_QUALITY: Readonly<Partial<Record<MemorySource, number>>> = {
   MEASURED: 3,
   USER_DECLARED: 3,
   EXTERNAL_SOURCE: 2,
   PURCHASE_HISTORY: 1,
   SYSTEM_INFERRED: 1,
   FUTURE_VIDEO: 1,
+  USER_MANUAL_EDIT: 3,
+  DERIVED: 1,
+  AI_INFERENCE: 0,
+  EXTERNAL_IMPORT: 2,
 };
 const CONFIDENCE_QUALITY: Readonly<Record<MemoryConfidence, number>> = {
   HIGH: 3,
@@ -663,7 +667,7 @@ function missingData(
 }
 
 function evidenceQuality(source: MemorySource, confidence: MemoryConfidence) {
-  return SOURCE_QUALITY[source] + CONFIDENCE_QUALITY[confidence];
+  return (SOURCE_QUALITY[source] ?? 0) + CONFIDENCE_QUALITY[confidence];
 }
 
 function matchConfidence(

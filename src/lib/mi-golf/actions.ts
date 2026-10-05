@@ -5,9 +5,11 @@ import { z } from "zod";
 
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
+import { deriveSkillFromHandicap } from "@/lib/best-round-pro/conversation";
 
 const profileSchema = z.object({
   handicap: z.coerce.number().min(0).max(54).nullable(),
+  handicapStatus: z.enum(["KNOWN", "NONE", "UNKNOWN", "DECLINED"]),
   handedness: z.enum(["", "RIGHT", "LEFT", "UNKNOWN"]),
   skillLevel: z.string().trim().max(40),
   playFrequency: z.string().trim().max(40),
@@ -21,6 +23,7 @@ const equipmentSchema = z.object({
   brand: z.string().trim().max(120),
   model: z.string().trim().max(160),
   notes: z.string().trim().max(1000),
+  loft: z.coerce.number().min(40).max(64).optional(),
 });
 const objectiveSchema = z.object({
   objectiveType: z.string().trim().min(1).max(100),
@@ -37,6 +40,7 @@ export async function saveMiGolfProfileAction(form: FormData) {
   const handicapText = text(form, "handicap");
   const parsed = profileSchema.safeParse({
     handicap: handicapText ? Number(handicapText) : null,
+    handicapStatus: handicapText ? "KNOWN" : text(form, "handicapStatus") || "UNKNOWN",
     handedness: rawHand,
     skillLevel: text(form, "skillLevel"),
     playFrequency: text(form, "playFrequency"),
@@ -45,14 +49,19 @@ export async function saveMiGolfProfileAction(form: FormData) {
   if (!parsed.success)
     return { ok: false, message: "Revisa los datos de tu perfil." };
   const supabase = await createClient();
+  const handicap = parsed.data.handicapStatus === "KNOWN" ? parsed.data.handicap : null;
   const { error } = await supabase.from("mi_golf_profiles" as never).upsert({
     user_id: user.id,
-    handicap: parsed.data.handicap,
+    handicap,
+    handicap_status: parsed.data.handicapStatus,
     handedness: parsed.data.handedness || null,
-    skill_level: parsed.data.skillLevel || null,
+    skill_level: handicap !== null ? deriveSkillFromHandicap(handicap) : parsed.data.skillLevel || null,
+    skill_level_source: handicap !== null ? "DERIVED_FROM_HANDICAP" : "USER_MANUAL_EDIT",
     play_frequency: parsed.data.playFrequency || null,
     shot_tendency: parsed.data.shotTendency || null,
-    memory_source: "USER_DECLARED",
+    memory_source: "USER_MANUAL_EDIT",
+    handicap_source: parsed.data.handicapStatus === "KNOWN" ? "USER_MANUAL_EDIT" : "USER_MANUAL_EDIT",
+    handedness_source: "USER_MANUAL_EDIT",
     memory_confidence: "HIGH",
   } as never);
   if (error) return { ok: false, message: "No pudimos guardar tu perfil." };
@@ -70,6 +79,7 @@ export async function addMiGolfEquipmentAction(form: FormData) {
     brand: text(form, "brand"),
     model: text(form, "model"),
     notes: text(form, "notes"),
+    loft: text(form, "loft") ? Number(text(form, "loft")) : undefined,
   });
   if (!parsed.success)
     return { ok: false, message: "Indica al menos la categoría del equipo." };
@@ -82,7 +92,8 @@ export async function addMiGolfEquipmentAction(form: FormData) {
     brand: parsed.data.brand || null,
     model: parsed.data.model || null,
     notes: parsed.data.notes || null,
-    source: "USER_DECLARED",
+    specifications: parsed.data.loft ? { loft: parsed.data.loft } : {},
+    source: "USER_MANUAL_EDIT",
     confidence: "HIGH",
     canonical_brand_id: parsed.data.canonicalBrandId ?? null,
     canonical_model_id: parsed.data.canonicalModelId ?? null,
@@ -117,6 +128,7 @@ export async function updateMiGolfEquipmentAction(form: FormData) {
     brand: text(form, "brand"),
     model: text(form, "model"),
     notes: text(form, "notes"),
+    loft: text(form, "loft") ? Number(text(form, "loft")) : undefined,
   });
   if (!id.success || !parsed.success)
     return { ok: false, message: "Revisa los datos del equipo." };
@@ -128,7 +140,8 @@ export async function updateMiGolfEquipmentAction(form: FormData) {
       brand: parsed.data.brand || null,
       model: parsed.data.model || null,
       notes: parsed.data.notes || null,
-      source: "USER_DECLARED",
+      specifications: parsed.data.loft ? { loft: parsed.data.loft } : {},
+      source: "USER_MANUAL_EDIT",
       confidence: "HIGH",
     } as never)
     .eq("id", id.data)
@@ -149,7 +162,7 @@ export async function addMiGolfObjectiveAction(form: FormData) {
     user_id: user.id,
     objective_type: parsed.data.objectiveType,
     details: parsed.data.details || null,
-    source: "USER_DECLARED",
+    source: "USER_MANUAL_EDIT",
     confidence: "HIGH",
   } as never);
   if (error) return { ok: false, message: "No pudimos guardar ese objetivo." };

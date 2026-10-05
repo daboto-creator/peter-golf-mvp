@@ -1,24 +1,90 @@
 export const MEMORY_SOURCES = [
+  "USER_MANUAL_EDIT",
   "USER_DECLARED",
   "PURCHASE_HISTORY",
+  "DERIVED",
+  "AI_INFERENCE",
   "SYSTEM_INFERRED",
   "MEASURED",
   "EXTERNAL_SOURCE",
+  "EXTERNAL_IMPORT",
   "FUTURE_VIDEO",
 ] as const;
 export type MemorySource = (typeof MEMORY_SOURCES)[number];
 export type MemoryConfidence = "HIGH" | "MEDIUM" | "LOW";
+export type RecipientContext = "SELF" | "THIRD_PARTY" | "UNKNOWN";
+
+export function resolveRecipientContext(message: string, current: RecipientContext = "UNKNOWN"): RecipientContext {
+  const value = message.toLocaleLowerCase("es-MX");
+  if (/(?:\bpara\s+m[ií](?!\s+(?:esposa|esposo|hija|hijo))|\bpara\s+nosotros|\bvolvamos\s+a\s+buscar\s+para\s+m[ií])/.test(value)) return "SELF";
+  if (/\b(?:mi\s+esposa|mi\s+esposo|mi\s+hija|mi\s+hijo|mi\s+amiga?|para\s+(?:ella|él|el)|es\s+un\s+regalo)\b/.test(value)) return "THIRD_PARTY";
+  return current;
+}
+
+export function canOverwriteDurableFact(input: {
+  existingSource?: string | null;
+  incomingSource: string;
+  explicitCorrection?: boolean;
+}) {
+  if (input.explicitCorrection) return true;
+  if (!input.existingSource) return true;
+  const rank: Record<string, number> = {
+    USER_MANUAL_EDIT: 6,
+    USER_DECLARED: 5,
+    MEASURED: 4,
+    PURCHASE_HISTORY: 3,
+    DERIVED: 2,
+    DERIVED_FROM_HANDICAP: 2,
+    AI_INFERENCE: 1,
+  };
+  return (rank[input.incomingSource] ?? 0) >= (rank[input.existingSource] ?? 0);
+}
 
 export type MiGolfProfile = {
   userId: string;
   handicap: number | null;
+  handicapStatus?: "KNOWN" | "NONE" | "UNKNOWN" | "DECLINED";
+  handicapSource?: MemorySource;
   handedness: "RIGHT" | "LEFT" | "UNKNOWN" | null;
+  handednessSource?: MemorySource;
   skillLevel: string | null;
+  skillLevelSource?: MemorySource | "DERIVED_FROM_HANDICAP";
   playFrequency: string | null;
   shotTendency: string | null;
   preferences: Record<string, unknown>;
   source: MemorySource;
   confidence: MemoryConfidence;
+};
+
+export type MiGolfRecommendationSnapshot = {
+  id: string;
+  userId: string;
+  productId: string | null;
+  productName: string;
+  productFamily: string | null;
+  technicalCompatibility: string | null;
+  playerLevelFit: string | null;
+  recommendationOutcome: string;
+  recommendationStrength: string | null;
+  keyReasons: string[];
+  caveats: string[];
+  ruleVersion: string;
+  profileSnapshot: Record<string, unknown>;
+  createdAt: string;
+};
+
+export const customerMemorySourceLabel: Record<string, string> = {
+  USER_MANUAL_EDIT: "Indicado por ti",
+  USER_DECLARED: "Indicado por ti",
+  DERIVED: "Calculado",
+  DERIVED_FROM_HANDICAP: "Calculado desde tu handicap",
+  PURCHASE_HISTORY: "Compra en Best Round",
+  MEASURED: "Medido",
+  AI_INFERENCE: "Sugerido por Best Round Pro",
+  EXTERNAL_IMPORT: "Importado",
+  EXTERNAL_SOURCE: "Fuente externa",
+  SYSTEM_INFERRED: "Calculado",
+  FUTURE_VIDEO: "Medido en video",
 };
 
 export type MiGolfEquipment = {

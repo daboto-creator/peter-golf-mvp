@@ -76,6 +76,20 @@ export function ProfileForm({ profile }: { profile: Record<string, unknown> }) {
         </select>
       </div>
       <div>
+        <Label htmlFor="handicapStatus">Estado del handicap</Label>
+        <select
+          id="handicapStatus"
+          name="handicapStatus"
+          defaultValue={String(profile.handicap_status ?? (profile.handicap ? "KNOWN" : "UNKNOWN"))}
+          className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+        >
+          <option value="KNOWN">Tengo handicap</option>
+          <option value="NONE">No tengo handicap</option>
+          <option value="UNKNOWN">No lo sé</option>
+          <option value="DECLINED">Prefiero no decirlo</option>
+        </select>
+      </div>
+      <div>
         <Label htmlFor="skillLevel">Nivel</Label>
         <select
           id="skillLevel"
@@ -204,6 +218,7 @@ export function EquipmentForm({
         list="mi-golf-models"
         placeholder="Modelo (o escribe uno nuevo)"
       />
+      <Input name="loft" type="number" min="40" max="64" step="0.1" placeholder="Loft (opcional, ej. 60)" />
       <datalist id="mi-golf-models">
         {models.map((item) => (
           <option key={item.id} value={item.name} />
@@ -238,6 +253,7 @@ export function EquipmentEditForm({ item }: { item: Record<string, unknown> }) {
       <Input name="category" defaultValue={String(item.category)} required />
       <Input name="brand" defaultValue={String(item.brand ?? "")} />
       <Input name="model" defaultValue={String(item.model ?? "")} />
+      <Input name="loft" type="number" min="40" max="64" step="0.1" defaultValue={String((item.specifications as Record<string, unknown> | undefined)?.loft ?? "")} />
       <Input name="notes" defaultValue={String(item.notes ?? "")} />
       <div className="flex items-center gap-2">
         <Button type="submit" variant="ghost" size="sm" disabled={pending}>

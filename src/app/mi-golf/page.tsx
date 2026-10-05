@@ -28,6 +28,7 @@ import {
   ObjectiveStatusForm,
   ProfileForm,
 } from "./forms";
+import { customerMemorySourceLabel } from "@/lib/mi-golf/domain";
 
 export const metadata: Metadata = { title: "Mi Golf | Best Round Pro Shop" };
 
@@ -41,15 +42,16 @@ export default async function MiGolfPage() {
     { data: categories },
     { data: brands },
     { data: models },
+    { data: recommendations },
   ] = await Promise.all([
     supabase
       .from("mi_golf_profiles" as never)
-      .select("handicap,handedness,skill_level,play_frequency,shot_tendency")
+      .select("handicap,handicap_status,handicap_source,handedness,handedness_source,skill_level,skill_level_source,play_frequency,shot_tendency")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
       .from("mi_golf_equipment" as never)
-      .select("id,category,brand,model,notes")
+      .select("id,category,brand,model,specifications,source,notes")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .order("updated_at", { ascending: false }),
@@ -77,10 +79,17 @@ export default async function MiGolfPage() {
       .eq("status", "active")
       .order("model_name")
       .limit(500),
+    supabase
+      .from("mi_golf_recommendation_snapshots" as never)
+      .select("id,product_name,product_family,recommendation_outcome,recommendation_strength,key_reasons,caveats,created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(30),
   ]);
   const p = (profile ?? {}) as Record<string, unknown>;
   const items = (equipment ?? []) as unknown as Array<Record<string, unknown>>;
   const goals = (objectives ?? []) as unknown as Array<Record<string, unknown>>;
+  const recommendationRows = (recommendations ?? []) as unknown as Array<Record<string, unknown>>;
   const categoryRows = (categories ?? []) as unknown as Array<
     Record<string, unknown>
   >;
@@ -152,20 +161,35 @@ export default async function MiGolfPage() {
             </CardHeader>
             <CardContent>
               <ProfileForm profile={p} />
+              <div className="text-muted-foreground mt-4 grid gap-1 text-xs">
+                {p.handicap ? <span>Handicap: {customerMemorySourceLabel[String(p.handicap_source ?? "USER_DECLARED")]}</span> : null}
+                {p.skill_level ? <span>Nivel: {String(p.skill_level)} · {customerMemorySourceLabel[String(p.skill_level_source ?? "DERIVED_FROM_HANDICAP")]}</span> : null}
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>Recomendaciones</CardTitle>
               <CardDescription>
-                La memoria está lista para tu próxima conversación.
+                Historial personal, separado de tus datos editables.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-sm">
-                Cuando uses Best Round Pro, aquí podrás consultar tus
-                recomendaciones.
-              </p>
+              {recommendationRows.length ? (
+                <div className="space-y-3">
+                  {recommendationRows.map((item) => (
+                    <div key={String(item.id)} className="rounded-lg border p-3">
+                      <p className="font-medium">{String(item.product_name)}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {String(item.recommendation_outcome)} · {new Date(String(item.created_at)).toLocaleDateString("es-MX")}
+                      </p>
+                      {Array.isArray(item.key_reasons) && item.key_reasons.length ? (
+                        <p className="text-muted-foreground mt-1 text-xs">{item.key_reasons.join(", ")}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-muted-foreground text-sm">Aún no tienes recomendaciones guardadas.</p>}
               <BestRoundProOpenButton>Pedir recomendación a Best Round Pro</BestRoundProOpenButton>
             </CardContent>
           </Card>
