@@ -53,8 +53,18 @@ const publicProduct = (reference: CatalogProductReference) => ({
   ...reference,
   categoryName: reference.category,
   productFamily: reference.family,
+  fulfillmentType: "in_stock",
+  currency: "MXN",
+  brandName: "Synthetic",
+  source: "FIRST_PARTY",
   images: [],
   setSpecs: null,
+  clubSpecs: null,
+  components: [],
+  accessoriesIncluded: [],
+  loftDegrees: null,
+  shaftFlex: null,
+  shaftMaterial: null,
 });
 
 function interpretation(
@@ -93,6 +103,29 @@ function knownLeftState(): ConversationState {
 }
 
 describe("Best Round Pro source-gap regressions", () => {
+  it("answers direct product price without starting fitting", async () => {
+    mocks.currentPageProduct = {
+      ...publicProduct(product("SYNTHETIC", "RIGHT")),
+      price: 12345,
+      currency: "MXN",
+      fulfillmentType: "in_stock",
+      brandName: "Synthetic",
+      clubType: "driver",
+      clubSpecs: null,
+      components: [],
+      accessoriesIncluded: [],
+    };
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+    const result = await processConversationTurn({
+      state: initialConversationState(),
+      message: "¿cuánto cuesta?",
+      currentPageProduct: { id: "SYNTHETIC", slug: "synthetic", name: "Synthetic Driver Alpha", productFamily: "DRIVER" },
+    });
+    expect(result.reply).toContain("$123.45 MXN");
+    expect(result.state.pendingQuestionKey).toBeNull();
+    expect(result.state.lastExecutedAction).toBe("RETURN_PRODUCT_PRICE");
+  });
+
   it.each([
     ["SET", "set"], ["DRIVER", "driver"], ["FAIRWAY_WOOD", "madera"],
     ["HYBRID", "híbrido"], ["IRON", "hierros"], ["WEDGE", "wedge"], ["PUTTER", "putter"],
@@ -399,7 +432,10 @@ describe("Best Round Pro source-gap regressions", () => {
       skillSource: "DERIVED_FROM_HANDICAP",
       driverObjective: "DISTANCE",
     };
-    mocks.currentPageProduct = { ...publicProduct(product("STEALTH", "RIGHT")), clubType: "driver", productFamily: "club" };
+    mocks.currentPageProduct = {
+      ...publicProduct(product("STEALTH", "RIGHT")), clubType: "driver", productFamily: "club",
+      loftDegrees: 10.5, shaftFlex: "regular", shaftMaterial: "graphite",
+    };
     mocks.catalogProducts = [
       { ...publicProduct(product("STEALTH", "RIGHT")), clubType: "driver", productFamily: "club" },
       { ...publicProduct(product("OTHER", "RIGHT")), clubType: "driver", productFamily: "club" },
@@ -415,6 +451,7 @@ describe("Best Round Pro source-gap regressions", () => {
 
     expect(result.reply).toContain("OTHER");
     expect(result.reply).not.toContain("WEDGE");
+    expect(result.reply).toMatch(/10\.5°.*varilla Regular de grafito/i);
     expect(result.reply).not.toMatch(/puedo comparar una alternativa/i);
     expect(getLastInterpreterTelemetry()).toMatchObject({
       comparableAlternativeIds: ["OTHER"],
@@ -447,5 +484,90 @@ describe("Best Round Pro source-gap regressions", () => {
     expect(result.reply).toMatch(/no tengo otro driver comparable/i);
     expect(getLastInterpreterTelemetry().comparableAlternativeCount).toBe(0);
     expect(getLastInterpreterTelemetry().comparisonOffered).toBe(false);
+  });
+
+  it.each([
+    [14, "INTERMEDIATE"],
+    [8, "ADVANCED"],
+  ] as const)("does not recommend a beginner set to an HCP %s %s player", async (handicapIndex, skill) => {
+    const state = initialConversationState();
+    state.session.diagnosticAnswers = {
+      handedness: "RIGHT", handicapIndex, handicapStatus: "KNOWN", skill,
+      skillSource: "DERIVED_FROM_HANDICAP", setExperience: "CURRENT_PLAYER",
+    };
+    const set = { ...product("SYNTHETIC-SET", "RIGHT"), name: "Synthetic Complete Set", category: "Golf Club Sets", family: "set" };
+    mocks.currentPageProduct = { ...publicProduct(set), setType: "starter_set", productFamily: "set" };
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+    const result = await processConversationTurn({
+      state, message: "¿me recomiendas este set?",
+      currentPageProduct: { id: set.id, slug: set.slug, name: set.name, productFamily: "SET" },
+    });
+    expect(result.state.compatibilityOutcome).toBe("MATCH");
+    expect(result.state.activeAdvice?.outcome).toBe("NOT_RECOMMENDED");
+    expect(result.reply).toMatch(/no me iría por este set.*jugador que está empezando/i);
+    expect(result.reply).not.toMatch(/sí.*recomendar|mantendría.*candidato/i);
+    expect(getLastInterpreterTelemetry()).toMatchObject({
+      technicalCompatibility: "MATCH", targetPlayerLevel: "BEGINNER",
+      playerLevelFit: "POOR_PLAYER_LEVEL_FIT", recommendationStrength: "NEGATIVE",
+      recommendationOutcome: "NOT_RECOMMENDED", customerLanguageLocale: "es-MX",
+      customerTermsNormalized: true,
+    });
+  });
+
+  it("can recommend a beginner set to a beginner when the other facts fit", async () => {
+    const state = initialConversationState();
+    state.session.diagnosticAnswers = {
+      handedness: "RIGHT", handicapIndex: 30, handicapStatus: "KNOWN", skill: "BEGINNER",
+      skillSource: "DERIVED_FROM_HANDICAP", setExperience: "FIRST_SET",
+    };
+    const set = { ...product("SYNTHETIC-SET", "RIGHT"), name: "Synthetic Complete Set", category: "Golf Club Sets", family: "set" };
+    mocks.currentPageProduct = { ...publicProduct(set), setType: "starter_set", productFamily: "set" };
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+    const result = await processConversationTurn({
+      state, message: "¿me recomiendas este set?",
+      currentPageProduct: { id: set.id, slug: set.slug, name: set.name, productFamily: "SET" },
+    });
+    expect(result.state.activeAdvice?.outcome).toBe("RECOMMENDED");
+    expect(result.reply).toMatch(/sí.*encajar/i);
+    expect(getLastInterpreterTelemetry()).toMatchObject({
+      targetPlayerLevel: "BEGINNER", playerLevelFit: "MATCH", recommendationOutcome: "RECOMMENDED",
+    });
+  });
+
+  it("does not infer beginner positioning from a product name", async () => {
+    const state = initialConversationState();
+    state.session.diagnosticAnswers = {
+      handedness: "RIGHT", handicapIndex: 14, handicapStatus: "KNOWN", skill: "INTERMEDIATE",
+      skillSource: "DERIVED_FROM_HANDICAP", setExperience: "CURRENT_PLAYER",
+    };
+    const set = { ...product("SYNTHETIC-SET", "RIGHT"), name: "Synthetic Starter Beginner Set", category: "Golf Club Sets", family: "set" };
+    mocks.currentPageProduct = { ...publicProduct(set), setType: "complete_set", productFamily: "set" };
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+    const result = await processConversationTurn({
+      state, message: "¿me recomiendas este set?",
+      currentPageProduct: { id: set.id, slug: set.slug, name: set.name, productFamily: "SET" },
+    });
+    expect(result.state.activeAdvice?.outcome).toBe("RECOMMENDED_WITH_CAVEAT");
+    expect(result.reply).toMatch(/no tengo registrado para qué nivel.*no asumiría/i);
+    expect(getLastInterpreterTelemetry()).toMatchObject({ targetPlayerLevel: "UNKNOWN", playerLevelFit: "UNKNOWN" });
+  });
+
+  it.each([
+    ["FAIRWAY_WOOD", "esta madera de fairway", /este madera/i],
+    ["IRON", "este juego de hierros", /este hierros/i],
+  ] as const)("uses correct article agreement for %s", async (family, expected, forbidden) => {
+    const state = initialConversationState();
+    state.session.diagnosticAnswers = {
+      handedness: "RIGHT", handicapIndex: 14, handicapStatus: "KNOWN",
+      skill: "INTERMEDIATE", skillSource: "DERIVED_FROM_HANDICAP",
+    };
+    state.lastFocusedProduct = {
+      ...product(`SYNTHETIC-${family}`, "RIGHT"), category: family, family,
+    };
+    state.focusedProductSource = "RECOMMENDATION";
+    mocks.interpretation.mockResolvedValueOnce(interpretation("ASK_PRODUCT_FIT"));
+    const result = await processConversationTurn({ state, message: "¿me recomiendas este producto?" });
+    expect(result.reply).toContain(expected);
+    expect(result.reply).not.toMatch(forbidden);
   });
 });

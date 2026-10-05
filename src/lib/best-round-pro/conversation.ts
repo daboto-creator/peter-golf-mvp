@@ -23,7 +23,7 @@ export type ConversationObjection =
   | "WANT_OTHER_OPTION";
 
 export type AdviceStatus = "COLLECTING_FACTS" | "READY_TO_EVALUATE" | "NEEDS_ONE_MORE_FACT" | "CONCLUDED";
-export type AdviceOutcome = "RECOMMENDED" | "RECOMMENDED_WITH_CAVEAT" | "NEED_MORE_INFORMATION" | "HARD_INCOMPATIBLE" | "NO_COMPATIBLE_INVENTORY";
+export type AdviceOutcome = "RECOMMENDED" | "RECOMMENDED_WITH_CAVEAT" | "NOT_RECOMMENDED" | "NEED_MORE_INFORMATION" | "HARD_INCOMPATIBLE" | "NO_COMPATIBLE_INVENTORY";
 
 function isProtectedRequest(text: string) {
   return (

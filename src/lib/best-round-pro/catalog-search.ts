@@ -35,7 +35,9 @@ export async function searchCommercialCatalog(text: string): Promise<CommercialC
     return { products, error: false, message: `Ahora mismo no encontré ${category?.label ?? "productos"} disponibles. Si quieres, puedo buscar otra opción.` };
   }
   const category = setRequest(normalized) ? "sets completos" : categoryRequest(normalized)?.label ?? "estas opciones";
-  return { products, error: false, message: `Claro. Encontré ${products.length === 1 ? "una opción" : `${products.length} opciones`} de ${category} disponibles. Puedes revisar cada una y, si quieres, después te ayudo a elegir la que más te convenga.` };
+  return { products, error: false, message: products.length === 1
+    ? `Tengo 1 ${category.replace(/s$/, "")} disponible. Puedo ayudarte a confirmar si encaja contigo y, si te convence, seguir con esta opción.`
+    : `Tengo ${products.length} ${category} disponibles. Para elegir bien, dime primero si juegas como diestro o zurdo; con ese dato puedo orientarte entre estas opciones.` };
 }
 
 export async function searchCompleteSetAlternatives(handedness: "LEFT" | "RIGHT") {

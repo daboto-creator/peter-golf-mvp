@@ -53,6 +53,16 @@ import {
 } from "@/lib/best-round-pro/intent-router";
 import { searchCommercialCatalog, searchCatalogScope } from "@/lib/best-round-pro/catalog-search";
 import type { CatalogProductReference } from "@/lib/best-round-pro/conversation";
+import {
+  answerProductKnowledge,
+  answerStoreKnowledge,
+  classifyKnowledgeIntent,
+  evaluatePlayerLevelFit,
+  interpretCategoryRecommendation,
+  normalizeCustomerPunctuation,
+  toProductKnowledge,
+  type KnowledgeIntent,
+} from "@/lib/best-round-pro/product-knowledge";
 
 export function canonicalProductFamily(product: CatalogProductReference): string {
   if (product.family && product.family !== "club") return product.family.toUpperCase();
@@ -63,11 +73,11 @@ export function canonicalProductFamily(product: CatalogProductReference): string
 
 export function safeFamilyLanguage(product: CatalogProductReference) {
   switch (canonicalProductFamily(product)) {
-    case "WEDGE": return "este wedge y su papel en el juego corto, loft y gapping";
-    case "DRIVER": return "este driver, su loft, shaft y comportamiento desde el tee";
+    case "WEDGE": return "este wedge, su loft y el espacio que puede cubrir en tu juego corto";
+    case "DRIVER": return "este driver, su loft, varilla y comportamiento desde la salida";
     case "FAIRWAY_WOOD": return "esta madera, su loft y uso desde fairway o tee";
     case "HYBRID": return "este híbrido y el espacio que puede cubrir entre maderas e hierros";
-    case "IRON": return "estos hierros, su composición, distancia y gapping";
+    case "IRON": return "este juego de hierros, su composición, distancia y espacio entre palos";
     case "PUTTER": return "este putter y su comportamiento en el green";
     case "SET": return "este set, su composición y los palos incluidos";
     default: return "este equipo y sus especificaciones disponibles";
@@ -78,7 +88,7 @@ function familyLabel(family: string) {
   return ({
     SET: "set",
     DRIVER: "driver",
-    FAIRWAY_WOOD: "madera de calle",
+    FAIRWAY_WOOD: "madera de fairway",
     HYBRID: "híbrido",
     IRON: "hierros",
     WEDGE: "wedge",
@@ -86,15 +96,18 @@ function familyLabel(family: string) {
   } as Record<string, string>)[family] ?? "producto de esta categoría";
 }
 
+function familyWithArticle(family: string, article: "THIS" | "OTHER") {
+  const labels = article === "THIS"
+    ? { FAIRWAY_WOOD: "esta madera de fairway", IRON: "este juego de hierros" }
+    : { FAIRWAY_WOOD: "otra madera de fairway", IRON: "otro juego de hierros" };
+  return (labels as Record<string, string>)[family]
+    ?? `${article === "THIS" ? "este" : "otro"} ${familyLabel(family)}`;
+}
+
 function targetLevelForSet(input: { setType?: string | null; name: string; category?: string | null }) {
   if (input.setType === "starter_set") return "BEGINNER" as const;
-  // Catalog positioning is authoritative when the product record uses the
-  // known beginner-oriented naming/category vocabulary; otherwise remain
-  // UNKNOWN instead of inventing a player level.
-  if (input.setType === "complete_set" && /\bstrata\b|\bstarter\b|\bbeginner\b|\bentry[- ]level\b/i.test(`${input.name} ${input.category ?? ""}`)) {
-    return "BEGINNER" as const;
-  }
-  return input.setType === "complete_set" ? "ALL_LEVELS" as const : null;
+  // A product name is not authoritative player-positioning metadata.
+  return input.setType ? "UNKNOWN" as const : null;
 }
 
 function productReferenceFromSummary(product: Awaited<ReturnType<typeof searchCatalogScope>>["products"][number]): CatalogProductReference {
@@ -201,6 +214,40 @@ export type ConversationInterpreterTelemetry = {
   playerLevelFit?: string | null;
   targetPlayerLevel?: string | null;
   recommendationStrength?: string | null;
+  recommendationOutcome?: string | null;
+  customerLanguageLocale?: "es-MX" | null;
+  customerTermsNormalized?: boolean;
+  knowledgeIntent?: KnowledgeIntent;
+  factsRequested?: string[];
+  factsResolved?: string[];
+  factsUnavailable?: string[];
+  productSourceType?: string | null;
+  availabilityStatus?: string | null;
+  conditionStatus?: string | null;
+  policyTopic?: string | null;
+  policyResolutionStatus?: string | null;
+  productReadinessStatus?: string | null;
+  mixedIntent?: boolean;
+  executedFactualActions?: string[];
+  executedAdviceAction?: string | null;
+  sameTurnAdviceCompleted?: boolean;
+  sameTurnAdviceQuestionKey?: string | null;
+  priceAmountCents?: number | null;
+  priceCurrency?: string | null;
+  priceFormatted?: string | null;
+  shippingPolicySource?: string | null;
+  recommendationFactsUsed?: string[];
+  currentEquipmentFactsUsed?: string[];
+  categoryInterpretations?: string[];
+  categoryCaveats?: string[];
+  nextMaterialFact?: string | null;
+  commercialResponseMode?: "FACTUAL" | "GUIDED" | "RECOMMENDATION" | null;
+  commercialNextStep?: string | null;
+  policySource?: string | null;
+  sellerSourceIntent?: boolean;
+  primarySemanticIntent?: string | null;
+  secondarySemanticIntent?: string | null;
+  humanLabelMappingApplied?: boolean;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -251,6 +298,19 @@ let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
   playerLevelFit: null,
   targetPlayerLevel: null,
   recommendationStrength: null,
+  recommendationOutcome: null,
+  customerLanguageLocale: "es-MX",
+  customerTermsNormalized: false,
+  knowledgeIntent: null,
+  factsRequested: [],
+  factsResolved: [],
+  factsUnavailable: [],
+  productSourceType: null,
+  availabilityStatus: null,
+  conditionStatus: null,
+  policyTopic: null,
+  policyResolutionStatus: null,
+  productReadinessStatus: null,
 };
 
 export function getLastInterpreterTelemetry() {
@@ -346,17 +406,21 @@ export async function processConversationTurn(input: {
 }) {
   const withFinalReply = <T extends { state: ConversationState; reply: string }>(
     result: T,
-  ): T => ({
-    ...result,
-    state: {
-      ...result.state,
-      messages: result.state.messages.map((message, index, messages) =>
-        index === messages.length - 1 && message.role === "assistant"
-          ? { ...message, content: result.reply }
-          : message,
-      ),
-    },
-  });
+  ): T => {
+    const reply = normalizeCustomerPunctuation(result.reply);
+    return {
+      ...result,
+      reply,
+      state: {
+        ...result.state,
+        messages: result.state.messages.map((message, index, messages) =>
+          index === messages.length - 1 && message.role === "assistant"
+            ? { ...message, content: reply }
+            : message,
+        ),
+      },
+    };
+  };
   let context: Awaited<ReturnType<typeof loadMiGolfContext>>;
   try {
     lastInterpreterTelemetry.stage = "LOAD_CONTEXT";
@@ -374,9 +438,11 @@ export async function processConversationTurn(input: {
   }
   const fallbackIntent = routeConversationIntent(input.message);
   let pageProductReference: CatalogProductReference | null = null;
+  let pageProductData: Awaited<ReturnType<typeof getPublicProductBySlug>>["data"] = null;
   if (input.currentPageProduct) {
     const loaded = await getPublicProductBySlug(input.currentPageProduct.slug);
     if (loaded.data) {
+      pageProductData = loaded.data;
       pageProductReference = {
         id: loaded.data.id,
         slug: loaded.data.slug,
@@ -554,6 +620,17 @@ export async function processConversationTurn(input: {
             ? input.state.focusedProductSource ?? "RECOMMENDATION"
             : null;
   const normalizedMessage = normalizeConversationText(input.message);
+  const knowledgeIntent = classifyKnowledgeIntent(input.message);
+  let mixedAdviceIntent = Boolean(knowledgeIntent && isProductAdviceLanguage(input.message));
+  lastInterpreterTelemetry.primarySemanticIntent = knowledgeIntent;
+  lastInterpreterTelemetry.secondarySemanticIntent = mixedAdviceIntent ? "PRODUCT_ADVICE" : null;
+  lastInterpreterTelemetry.mixedIntent = mixedAdviceIntent;
+  let knowledgeProductData = pageProductData;
+  if (knowledgeIntent && preFocusedProduct && !knowledgeProductData) {
+    const loadedKnowledgeProduct = await getPublicProductBySlug(preFocusedProduct.slug);
+    knowledgeProductData = loadedKnowledgeProduct.data;
+  }
+  lastInterpreterTelemetry.knowledgeIntent = knowledgeIntent;
   const participants = {
     ...input.state.participants,
     player: {
@@ -725,6 +802,9 @@ export async function processConversationTurn(input: {
     catalogSearchOutcome: input.state.catalogSearchOutcome,
     compatibilityOutcome: productChangedThisTurn ? null : input.state.compatibilityOutcome,
   };
+  mixedAdviceIntent = Boolean(knowledgeIntent && (mixedAdviceIntent || answeredPending && (updatedState.activeAdvice || updatedState.productAdvice?.active)));
+  lastInterpreterTelemetry.secondarySemanticIntent = mixedAdviceIntent ? "PRODUCT_ADVICE" : null;
+  lastInterpreterTelemetry.mixedIntent = mixedAdviceIntent;
   lastInterpreterTelemetry.playerFactsChanged = canonicalFacts.length > 0;
   lastInterpreterTelemetry.pendingQuestionChanged = (pendingKey ?? null) !== (answeredPending ? null : pendingKey ?? null);
   lastInterpreterTelemetry.semanticStateChanged = canonicalFacts.length > 0 || Boolean(answeredPending);
@@ -786,9 +866,90 @@ export async function processConversationTurn(input: {
       !interpretation?.topicChanged && ["HELP_REQUEST", "CONFIRMATION", "OTHER", "GENERAL_QUESTION"].includes(interpretation?.dialogueAct ?? socialAct ?? ""),
   );
   const appendSocialReply = (reply: string, event: string) => ({
-    state: { ...updatedState, messages: [...updatedState.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
+    state: { ...updatedState, lastExecutedAction: event, messages: [...updatedState.messages, { role: "user" as const, content: input.message }, { role: "assistant" as const, content: reply }] },
     reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent,
   });
+  const appendKnowledgeReply = (reply: string, event: string, productData?: NonNullable<typeof knowledgeProductData>) => {
+    const product = focusedProduct ?? null;
+    const state: ConversationState = {
+      ...updatedState,
+      messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+      lastFocusedProduct: product ?? updatedState.lastFocusedProduct,
+      focusedProductSource: product ? preFocusedProductSource : updatedState.focusedProductSource,
+      lastExecutedAction: event,
+    };
+    if (productData) {
+      const dto = toProductKnowledge(productData);
+      lastInterpreterTelemetry.priceAmountCents = dto.price;
+      lastInterpreterTelemetry.priceCurrency = dto.currency;
+      lastInterpreterTelemetry.priceFormatted = dto.formattedPrice;
+      lastInterpreterTelemetry.productSourceType = dto.sourceType;
+      lastInterpreterTelemetry.availabilityStatus = dto.availability;
+      lastInterpreterTelemetry.conditionStatus = dto.condition;
+      lastInterpreterTelemetry.productReadinessStatus = dto.readiness;
+      lastInterpreterTelemetry.factsResolved = Object.entries(dto.specs).filter(([, value]) => value !== null).map(([key]) => key);
+      lastInterpreterTelemetry.factsUnavailable = Object.entries(dto.specs).filter(([, value]) => value === null).map(([key]) => key);
+    }
+    return { state, reply, nextQuestion: null, objection: null, events: [event], recommendation: null, outcome: null, intent: "PRODUCT_DETAILS" as const };
+  };
+  if (mixedAdviceIntent && focusedProduct && (knowledgeProductData || knowledgeIntent?.startsWith("STORE_"))) {
+    const dto = knowledgeProductData ? toProductKnowledge(knowledgeProductData) : null;
+    const factualReply = knowledgeIntent?.startsWith("STORE_")
+      ? answerStoreKnowledge(knowledgeIntent)
+      : dto ? answerProductKnowledge(knowledgeIntent, dto, input.message) : null;
+    const answers = updatedState.session.diagnosticAnswers;
+    const family = canonicalProductFamily(focusedProduct);
+    const nextAdviceQuestion = getNextProductAdviceQuestion({ answers, productFamily: family });
+    const hasHand = answers.handedness === "LEFT" || answers.handedness === "RIGHT";
+    const hasLevel = Boolean(answers.handicapIndex !== undefined || answers.handicap !== undefined || answers.handicapStatus || answers.skill);
+    const adviceComplete = hasHand && hasLevel && !nextAdviceQuestion;
+    const adviceReply = adviceComplete
+      ? `Sí, con lo que me has contado lo mantendría como candidato. ${dto?.specs.loftDegrees != null ? `Tiene ${dto.specs.loftDegrees}°` : "Su configuración registrada"}${dto?.specs.shaftFlex ? ` y shaft ${dto.specs.shaftFlex}` : ""}; esos datos son los que más pesan para valorar cómo puede encajar en tu juego. Si quieres seguir con este, estás en la ficha correcta.`
+      : `Para decirte si te lo recomiendo, ${questionPromptFor(nextAdviceQuestion, getPlayerPerspective(updatedState.participants), focusedProduct.category)}`;
+    const reply = [factualReply, adviceReply].filter(Boolean).join(" ");
+    const state: ConversationState = {
+      ...updatedState,
+      messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+      pendingQuestionKey: adviceComplete ? null : nextAdviceQuestion?.key ?? null,
+      pendingQuestionCategory: adviceComplete ? null : "PRODUCT_ADVICE",
+      pendingQuestionSlotType: adviceComplete ? null : "HANDEDNESS",
+      lastFocusedProduct: focusedProduct,
+      productAdvice: { active: !adviceComplete, product: focusedProduct, pendingQuestionKey: adviceComplete ? null : nextAdviceQuestion?.key ?? null, collectedAnswers: answers },
+      activeAdvice: { productId: focusedProduct.id, productFamily: family, status: adviceComplete ? "CONCLUDED" : "NEEDS_ONE_MORE_FACT", outcome: adviceComplete ? "RECOMMENDED" : null },
+      lastExecutedAction: "RETURN_MIXED_KNOWLEDGE_AND_ADVICE",
+    };
+    lastInterpreterTelemetry.executedFactualActions = [knowledgeIntent?.startsWith("STORE_") ? "RETURN_STORE_POLICY" : "RETURN_PRODUCT_FACTS"];
+    lastInterpreterTelemetry.executedAdviceAction = adviceComplete ? "RETURN_ADVICE_CONCLUSION" : "ASK_NEXT_MATERIAL_FACT";
+    lastInterpreterTelemetry.sameTurnAdviceCompleted = adviceComplete;
+    lastInterpreterTelemetry.sameTurnAdviceQuestionKey = adviceComplete ? null : nextAdviceQuestion?.key ?? null;
+    if (dto) {
+      lastInterpreterTelemetry.priceAmountCents = dto.price;
+      lastInterpreterTelemetry.priceCurrency = dto.currency;
+      lastInterpreterTelemetry.priceFormatted = dto.formattedPrice;
+      lastInterpreterTelemetry.productSourceType = dto.sourceType;
+      lastInterpreterTelemetry.availabilityStatus = dto.availability;
+      lastInterpreterTelemetry.conditionStatus = dto.condition;
+      lastInterpreterTelemetry.shippingPolicySource = knowledgeIntent?.startsWith("STORE_") ? "BEST_ROUND_POLICY" : null;
+    }
+    return { state, reply, nextQuestion: null, objection: null, events: ["MIXED_KNOWLEDGE_AND_ADVICE"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
+  }
+  if (knowledgeIntent && knowledgeIntent !== "PRODUCT_COMPARISON") {
+    lastInterpreterTelemetry.commercialResponseMode = knowledgeIntent.startsWith("STORE_") ? "GUIDED" : "FACTUAL";
+    lastInterpreterTelemetry.primarySemanticIntent = knowledgeIntent;
+    lastInterpreterTelemetry.humanLabelMappingApplied = knowledgeIntent === "PRODUCT_CONTENTS" || knowledgeIntent === "PRODUCT_SPEC";
+    lastInterpreterTelemetry.policyTopic = knowledgeIntent.startsWith("STORE_") ? knowledgeIntent : null;
+    lastInterpreterTelemetry.policySource = knowledgeIntent.startsWith("STORE_") ? "BEST_ROUND_POLICY" : null;
+    lastInterpreterTelemetry.policyResolutionStatus = knowledgeIntent.startsWith("STORE_") ? "NOT_IMPLEMENTED_OR_PARTIAL" : null;
+    const policyReply = answerStoreKnowledge(knowledgeIntent);
+    if (policyReply) return appendSocialReply(policyReply, "RETURN_STORE_POLICY");
+    if (knowledgeProductData && focusedProduct) {
+      const dto = toProductKnowledge(knowledgeProductData);
+      const reply = answerProductKnowledge(knowledgeIntent, dto, input.message);
+      if (reply) return appendKnowledgeReply(reply, knowledgeIntent === "PRODUCT_PRICE" ? "RETURN_PRODUCT_PRICE" : knowledgeIntent === "PRODUCT_AVAILABILITY" || knowledgeIntent === "PURCHASE_READINESS" ? "RETURN_PRODUCT_AVAILABILITY" : "RETURN_PRODUCT_FACTS", knowledgeProductData);
+    }
+    if (!focusedProduct) return appendKnowledgeReply("Dime qué producto quieres consultar o abre su ficha para revisar el dato exacto.", "RETURN_KNOWLEDGE_GAP");
+    return appendKnowledgeReply("Esa información no está registrada para este producto.", "RETURN_KNOWLEDGE_GAP", knowledgeProductData ?? undefined);
+  }
   if (!updatedState.productAdvice?.active && !activeAdviceContinuation && intent === "OTHER" && socialAct) {
     const replies: Record<string, string> = {
       GREETING: "¡Hola! Soy Best Round Pro. Puedo ayudarte a encontrar equipo, comparar productos, revisar disponibilidad o asesorarte según tu juego. ¿Qué estás buscando?",
@@ -870,22 +1031,30 @@ export async function processConversationTurn(input: {
         family,
         handedness: playerHand === "LEFT" || playerHand === "RIGHT" ? playerHand : undefined,
       });
-      const isAdvancedEntrySet = family === "SET" && answers.skill === "ADVANCED" && focusedProduct.targetPlayerLevel === "BEGINNER";
-      const valueReason = family === "WEDGE"
-        ? "su papel en el juego corto y el espacio de loft que puede cubrir"
-        : family === "DRIVER"
-          ? "su función desde el tee y el objetivo de distancia que me indicaste"
-          : family === "SET" && isAdvancedEntrySet
-            ? "es un set completo y sencillo, aunque está posicionado para quien empieza"
-            : safeFamilyLanguage(focusedProduct);
+      const playerLevelFit = evaluatePlayerLevelFit({
+        playerLevel: typeof answers.skill === "string" ? answers.skill : null,
+        targetPlayerLevel: focusedProduct.targetPlayerLevel,
+      });
+      const hasPoorPlayerLevelFit = family === "SET" && playerLevelFit === "POOR_PLAYER_LEVEL_FIT";
+      const knowledgeDto = knowledgeProductData ? toProductKnowledge(knowledgeProductData) : null;
+      const categoryInterpretation = interpretCategoryRecommendation({
+        family,
+        product: knowledgeDto,
+        answers,
+        targetPlayerLevel: focusedProduct.targetPlayerLevel,
+      });
+      const reason = categoryInterpretation.reason;
+      const caveat = categoryInterpretation.caveat;
       const comparison = alternatives.products.length === 0
-        ? `Con lo que sabemos, yo mantendría este ${familyLabel(family)} como candidato; ahora mismo no tengo otro ${familyLabel(family)} comparable disponible.`
+        ? hasPoorPlayerLevelFit
+          ? `Ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible.`
+          : `Con lo que sabemos, ${familyWithArticle(family, "THIS")} sigue entre las opciones; ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible.`
         : alternatives.products.length === 1
           ? `Si quieres contrastarlo, tengo una alternativa comparable de ${familyLabel(family)}: ${alternatives.products[0].name}.`
           : `Si quieres contrastarlo, tengo ${alternatives.products.length} alternativas comparables de ${familyLabel(family)}.`;
-      const reply = isAdvancedEntrySet
-        ? `Te puede servir técnicamente, pero no sería mi primera recomendación para tu perfil. ${focusedProduct.name} está orientado a un jugador que empieza o busca un paquete completo sencillo; con Handicap Index ${answers.handicapIndex}, probablemente aprovecharías mejor un equipo más específico. ${comparison}`
-        : `Sí, te lo recomendaría con la información que me diste: ${valueReason}. ${comparison}`;
+      const reply = normalizeCustomerPunctuation(hasPoorPlayerLevelFit
+        ? `Para tu nivel, yo no me iría por este set. ${focusedProduct.name} está pensado para un jugador que está empezando;${typeof answers.handicapIndex === "number" ? ` con HCP ${answers.handicapIndex},` : ""} probablemente te convenga una configuración más específica para tu juego. ${comparison}`
+        : `Este sí puede encajar: ${reason} ${caveat ?? ""} ${comparison}`);
       const state: ConversationState = {
         ...updatedState,
         messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
@@ -894,7 +1063,7 @@ export async function processConversationTurn(input: {
         compatibilityOutcome: "MATCH",
         pendingAssistantOffer: null,
         productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
-        activeAdvice: { productId: focusedProduct.id, productFamily: family, status: "CONCLUDED", outcome: isAdvancedEntrySet ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED" },
+        activeAdvice: { productId: focusedProduct.id, productFamily: family, status: "CONCLUDED", outcome: hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED" },
         lastExecutedAction: "EXPLAIN_PERSONAL_FIT",
       };
       lastInterpreterTelemetry.currentProductId = focusedProduct.id;
@@ -903,10 +1072,16 @@ export async function processConversationTurn(input: {
       lastInterpreterTelemetry.comparisonEligible = true;
       lastInterpreterTelemetry.comparisonOffered = alternatives.products.length > 0;
       lastInterpreterTelemetry.technicalCompatibility = "MATCH";
-      lastInterpreterTelemetry.playerLevelFit = isAdvancedEntrySet ? "CAVEAT" : "MATCH";
+      lastInterpreterTelemetry.playerLevelFit = playerLevelFit;
       lastInterpreterTelemetry.targetPlayerLevel = focusedProduct.targetPlayerLevel ?? "UNKNOWN";
-      lastInterpreterTelemetry.recommendationStrength = isAdvancedEntrySet ? "CONDITIONAL" : "STRONG";
-      recordAdviceTelemetry(state, isAdvancedEntrySet ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED", true);
+      lastInterpreterTelemetry.recommendationStrength = hasPoorPlayerLevelFit ? "NEGATIVE" : caveat ? "CONDITIONAL" : "STRONG";
+      lastInterpreterTelemetry.recommendationOutcome = hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED";
+      lastInterpreterTelemetry.customerLanguageLocale = "es-MX";
+      lastInterpreterTelemetry.customerTermsNormalized = true;
+      lastInterpreterTelemetry.recommendationFactsUsed = categoryInterpretation.factsUsed;
+      lastInterpreterTelemetry.categoryInterpretations = categoryInterpretation.interpretations;
+      lastInterpreterTelemetry.categoryCaveats = caveat ? [caveat] : [];
+      recordAdviceTelemetry(state, hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED", true);
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_FIT_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
   }
@@ -992,27 +1167,30 @@ export async function processConversationTurn(input: {
         family,
         handedness: answers.handedness === "LEFT" || answers.handedness === "RIGHT" ? answers.handedness : undefined,
       });
-      const isAdvancedEntrySet = family === "SET" && answers.skill === "ADVANCED" && focusedProduct.targetPlayerLevel === "BEGINNER";
-      const productLoft = family === "WEDGE" ? Number(focusedProduct.name.match(/(\d{2})\s*°/)?.[1] ?? NaN) : NaN;
-      const currentLofts = Array.isArray(answers.currentWedgeLofts) ? answers.currentWedgeLofts : [];
-      const complementsSixty = family === "WEDGE" && productLoft === 56 && currentLofts.includes(60);
-      const wedgeReason = complementsSixty
-        ? "tu 60° cubre los golpes más altos y cortos; este 56° normalmente puede darte un escalón de más distancia y cerrar ese espacio"
-        : "su papel en el juego corto y el espacio de loft que puede cubrir";
-      const reason = family === "WEDGE" ? wedgeReason : family === "DRIVER"
-        ? "su función desde el tee y el objetivo de distancia que me indicaste"
-        : safeFamilyLanguage(focusedProduct);
-      const caveat = complementsSixty && currentLofts.length < 2
-        ? "Antes de decirte que es la combinación ideal, revisaría si llevas un 52°, 54° u otro loft intermedio."
-        : null;
+      const playerLevelFit = evaluatePlayerLevelFit({
+        playerLevel: typeof answers.skill === "string" ? answers.skill : null,
+        targetPlayerLevel: focusedProduct.targetPlayerLevel,
+      });
+      const hasPoorPlayerLevelFit = family === "SET" && playerLevelFit === "POOR_PLAYER_LEVEL_FIT";
+      const knowledgeDto = knowledgeProductData ? toProductKnowledge(knowledgeProductData) : null;
+      const categoryInterpretation = interpretCategoryRecommendation({
+        family,
+        product: knowledgeDto,
+        answers,
+        targetPlayerLevel: focusedProduct.targetPlayerLevel,
+      });
+      const reason = categoryInterpretation.reason;
+      const caveat = categoryInterpretation.caveat;
       const comparison = alternatives.products.length === 0
-        ? `Ahora mismo no tengo otro ${familyLabel(family)} comparable disponible; si quieres seguir con este, estás en la ficha correcta.`
+        ? hasPoorPlayerLevelFit
+          ? `Ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible.`
+          : `Ahora mismo no tengo ${familyWithArticle(family, "OTHER")} comparable disponible; si quieres seguir con este, estás en la ficha correcta.`
         : alternatives.products.length === 1
           ? `También tengo una alternativa comparable de ${familyLabel(family)}: ${alternatives.products[0].name}.`
           : `También tengo ${alternatives.products.length} alternativas comparables de ${familyLabel(family)}.`;
-      const reply = isAdvancedEntrySet
-        ? `Te puede servir técnicamente, pero no sería mi primera recomendación para tu perfil. ${focusedProduct.name} está orientado a quien empieza o busca un paquete completo sencillo; con Handicap Index ${answers.handicapIndex}, probablemente aprovecharías mejor un equipo más específico. ${comparison}`
-        : `Sí, te lo recomendaría con la información que me diste: ${reason}.${caveat ? ` ${caveat}` : ""} ${comparison}`;
+      const reply = normalizeCustomerPunctuation(hasPoorPlayerLevelFit
+        ? `Para tu nivel, yo no me iría por este set. ${focusedProduct.name} está pensado para un jugador que está empezando;${typeof answers.handicapIndex === "number" ? ` con HCP ${answers.handicapIndex},` : ""} probablemente te convenga una configuración más específica para tu juego. ${comparison}`
+        : `Este sí puede encajar: ${reason} ${caveat ?? ""} ${comparison}`);
       const state: ConversationState = {
         ...updatedState,
         session: { ...updatedState.session, diagnosticAnswers: answers },
@@ -1022,7 +1200,7 @@ export async function processConversationTurn(input: {
         pendingQuestionSlotType: null,
         lastFocusedProduct: focusedProduct,
         productAdvice: { active: false, product: focusedProduct, pendingQuestionKey: null, collectedAnswers: answers },
-        activeAdvice: { productId: focusedProduct.id, productFamily: family, status: "CONCLUDED", outcome: isAdvancedEntrySet || caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED" },
+        activeAdvice: { productId: focusedProduct.id, productFamily: family, status: "CONCLUDED", outcome: hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED" },
         compatibilityOutcome: "MATCH",
         lastExecutedAction: "RETURN_ADVICE_WITH_CAVEAT",
       };
@@ -1032,10 +1210,16 @@ export async function processConversationTurn(input: {
       lastInterpreterTelemetry.comparisonEligible = true;
       lastInterpreterTelemetry.comparisonOffered = alternatives.products.length > 0;
       lastInterpreterTelemetry.technicalCompatibility = "MATCH";
-      lastInterpreterTelemetry.playerLevelFit = isAdvancedEntrySet ? "CAVEAT" : "MATCH";
+      lastInterpreterTelemetry.playerLevelFit = playerLevelFit;
       lastInterpreterTelemetry.targetPlayerLevel = focusedProduct.targetPlayerLevel ?? "UNKNOWN";
-      lastInterpreterTelemetry.recommendationStrength = isAdvancedEntrySet || caveat ? "CONDITIONAL" : "STRONG";
-      recordAdviceTelemetry(state, isAdvancedEntrySet || caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED", true);
+      lastInterpreterTelemetry.recommendationStrength = hasPoorPlayerLevelFit ? "NEGATIVE" : caveat ? "CONDITIONAL" : "STRONG";
+      lastInterpreterTelemetry.recommendationOutcome = hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED";
+      lastInterpreterTelemetry.customerLanguageLocale = "es-MX";
+      lastInterpreterTelemetry.customerTermsNormalized = true;
+      lastInterpreterTelemetry.recommendationFactsUsed = categoryInterpretation.factsUsed;
+      lastInterpreterTelemetry.categoryInterpretations = categoryInterpretation.interpretations;
+      lastInterpreterTelemetry.categoryCaveats = caveat ? [caveat] : [];
+      recordAdviceTelemetry(state, hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED", true);
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_ADVICE_COMPLETED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     const nextAdviceQuestion = materialQuestion;
@@ -1120,12 +1304,16 @@ export async function processConversationTurn(input: {
             products: result.products,
             error: result.error,
             message: result.products.length
-              ? `Encontré ${availabilityLabel}${handLabel}.`
+              ? result.products.length === 1
+                ? `Tengo ${availabilityLabel}${handLabel}. Puedo ayudarte a confirmar si encaja contigo y avanzar con esta opción.`
+                : `Tengo ${availabilityLabel}${handLabel}. Para orientarte entre ellas, dime qué mano de juego tienes o qué quieres mejorar.`
               : `Ahora mismo no tengo ${scopeLabel}${handLabel} disponibles.`,
           };
         })
       : await searchCommercialCatalog(input.message);
     const reply = catalog.message;
+    lastInterpreterTelemetry.commercialResponseMode = catalog.products.length ? "GUIDED" : "FACTUAL";
+    lastInterpreterTelemetry.commercialNextStep = catalog.products.length > 1 ? "CONFIRM_HANDEDNESS_OR_OBJECTIVE" : catalog.products.length === 1 ? "CONTINUE_PRODUCT_ADVICE" : null;
     const references: CatalogProductReference[] = catalog.products.map((product) => ({
       id: product.id,
       slug: product.slug,
