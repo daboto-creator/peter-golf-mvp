@@ -451,15 +451,19 @@ async function persistSelfFacts(input: {
   answers: Record<string, string | number | boolean | number[] | null>;
   facts: CanonicalCurrentTurnFact[];
 }) {
-  if (!input.context.user || input.participants.player.relationToBuyer !== "SELF") return { saved: [], rejected: ["recipientContext"] };
+  if (!input.context.user || input.participants.player.relationToBuyer !== "SELF") return { saved: [], rejected: ["recipientContext"], authorityApplied: false };
   const explicit = input.facts.filter((fact) => fact.durable && fact.source !== "CONTEXT_INFERRED");
-  if (!explicit.length) return { saved: [], rejected: [] };
+  if (!explicit.length) return { saved: [], rejected: [], authorityApplied: false };
   const current = input.context.profile;
   const patch: Record<string, unknown> = { user_id: input.context.user.id, memory_source: "USER_DECLARED", memory_confidence: "HIGH" };
   const saved: string[] = [];
+  let authorityApplied = false;
   for (const fact of explicit) {
     if (fact.field === "handedness" && (fact.value === "RIGHT" || fact.value === "LEFT")) {
-      if (current?.handedness && current.handedness !== "UNKNOWN" && current.handedness !== fact.value && !canOverwriteDurableFact({ existingSource: current.handednessSource, incomingSource: "USER_DECLARED", explicitCorrection: false })) continue;
+      if (current?.handedness && current.handedness !== "UNKNOWN" && current.handedness !== fact.value && !canOverwriteDurableFact({ existingSource: current.handednessSource, incomingSource: "USER_DECLARED", explicitCorrection: false })) {
+        authorityApplied = true;
+        continue;
+      }
       patch.handedness = fact.value;
       patch.handedness_source = "USER_DECLARED";
       saved.push("handedness");
@@ -485,10 +489,10 @@ async function persistSelfFacts(input: {
       saved.push("shotTendency");
     }
   }
-  if (!saved.length) return { saved, rejected: ["higher_priority_fact"] };
+  if (!saved.length) return { saved, rejected: ["higher_priority_fact"], authorityApplied };
   const supabase = await createClient();
   const { error } = await supabase.from("mi_golf_profiles" as never).upsert(patch as never);
-  return error ? { saved: [], rejected: ["profile_write_failed"] } : { saved: [...new Set(saved)], rejected: [] };
+  return error ? { saved: [], rejected: ["profile_write_failed"], authorityApplied } : { saved: [...new Set(saved)], rejected: [], authorityApplied };
 }
 
 async function saveRecommendationSnapshot(input: {
@@ -534,6 +538,7 @@ export async function processConversationTurn(input: {
       lastInterpreterTelemetry.durableFactsRejected = persisted.rejected;
       lastInterpreterTelemetry.factSource = persisted.saved.length ? "USER_DECLARED" : null;
       lastInterpreterTelemetry.factConflictDetected = persisted.rejected.includes("higher_priority_fact");
+      lastInterpreterTelemetry.manualEditAuthorityApplied = persisted.authorityApplied;
     } else if (canonicalFacts.length) {
       lastInterpreterTelemetry.durableFactsRejected = ["recipientContext"];
     }
@@ -574,7 +579,10 @@ export async function processConversationTurn(input: {
     };
     context = { user: null, profile: null, equipment: [], objectives: [] };
   }
-  const initialRecipientContext = input.state.participants.player.relationToBuyer;
+  const initialRecipientContext = resolveRecipientContext(
+    input.message,
+    input.state.participants.player.relationToBuyer === "SELF" ? "SELF" : "THIRD_PARTY",
+  );
   const durableProfileAnswers = initialRecipientContext === "SELF" ? profileAnswers(context.profile) : {};
   const durableEquipmentAnswers = initialRecipientContext === "SELF" ? equipmentAnswers(context.equipment) : {};
   const activeGoal = initialRecipientContext === "SELF"
