@@ -18,6 +18,7 @@ import type {
   GolfBrandSuggestion,
   GolfModelSuggestion,
 } from "@/lib/catalog/golf-equipment-reference";
+import { normalizeGolfReference } from "@/lib/catalog/golf-equipment-reference";
 
 function Feedback({
   state,
@@ -165,7 +166,7 @@ export function EquipmentForm({
   );
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
-  const selectedBrand = brands.find((item) => item.name.toLowerCase() === brand.trim().toLowerCase());
+  const selectedBrand = brands.find((item) => normalizeGolfReference(item.name) === normalizeGolfReference(brand.trim()) || normalizeGolfReference(item.slug) === normalizeGolfReference(brand.trim()));
   const selectedBrandId = selectedBrand?.id ?? (brand.trim() ? "__manual_brand__" : "");
   const filteredModels = useMemo(
     () => models.filter((item) =>
@@ -191,12 +192,13 @@ export function EquipmentForm({
         const category = categories.find((item) => item.id === categoryId);
         const brand = brands.find(
           (item) =>
-            item.name.toLowerCase() === String(data.get("brand")).toLowerCase(),
+            normalizeGolfReference(item.name) === normalizeGolfReference(String(data.get("brand"))) ||
+            normalizeGolfReference(item.slug) === normalizeGolfReference(String(data.get("brand"))),
         );
         const model = models.find(
           (item) =>
-            item.name.toLowerCase() ===
-              String(data.get("model")).toLowerCase() &&
+            normalizeGolfReference(item.name) ===
+              normalizeGolfReference(String(data.get("model"))) &&
             (!brand || item.brandId === brand.id) &&
             (!category || item.categoryId === category.id),
         );
