@@ -213,8 +213,24 @@ export default async function MiGolfPage() {
                   items.map((item) => (
                     <div
                       key={String(item.id)}
-                      className="rounded-lg border p-3"
+                      className="rounded-xl border bg-white p-4 shadow-sm"
                     >
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="bg-pg-navy text-pg-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+                            {String(item.brand ?? item.model ?? "G").slice(0, 2).toUpperCase()}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{String(item.category ?? "Equipo")}</p>
+                            <p className="truncate font-semibold">{[item.brand, item.model].filter(Boolean).join(" ") || "Equipo sin marca"}</p>
+                            {(() => {
+                              const specs = item.specifications as Record<string, unknown> | undefined;
+                              return specs?.loft ? <p className="text-muted-foreground text-xs">Loft {String(specs.loft)}° · Equipo actual</p> : <p className="text-muted-foreground text-xs">Equipo actual</p>;
+                            })()}
+                          </div>
+                        </div>
+                        <span className="text-muted-foreground shrink-0 text-xs">{customerMemorySourceLabel[String(item.source ?? "USER_MANUAL_EDIT")] ?? "Indicado por ti"}</span>
+                      </div>
                       <EquipmentEditForm item={item} />
                       <DeactivateEquipmentForm id={String(item.id)} />
                     </div>

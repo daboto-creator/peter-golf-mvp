@@ -74,4 +74,15 @@ describe("shared golf equipment identity", () => {
     expect(report.counts.NOT_FOUND).toBe(1);
     expect(report.unresolved).toHaveLength(1);
   });
+
+  it("scopes model suggestions by both brand and category", () => {
+    const scoped = resolveGolfModel(
+      [...models, { id: "vokey", brandId: "titleist", categoryId: "wedge", name: "SM10", normalizedName: "sm10" }],
+      "SM10",
+      "titleist",
+      "wedge",
+    );
+    expect(scoped.canonical?.id).toBe("vokey");
+    expect(resolveGolfModel(models, "GT3", "titleist", "wedge").status).toBe("NOT_FOUND");
+  });
 });

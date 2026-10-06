@@ -28,6 +28,7 @@ import {
 import type { DialogueAct, FactMutationIntent } from "@/lib/best-round-pro/contract";
 import { getPublicProductBySlug } from "@/lib/catalog/public-products";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
+import { interpretGolfCategory } from "@/lib/best-round-pro/category-normalization";
 import type {
   MiGolfEquipment,
   MiGolfObjective,
@@ -414,7 +415,21 @@ export async function loadMiGolfContext() {
   return {
     user,
     profile: profileFrom((profile ?? null) as ProfileRow | null, user.id),
-    equipment: (equipment ?? []) as unknown as MiGolfEquipment[],
+    equipment: (equipment ?? []).map((row) => {
+      const item = row as Record<string, unknown>;
+      return {
+        id: String(item.id),
+        userId: user.id,
+        category: String(item.category ?? item.category_input ?? ""),
+        brand: typeof item.brand === "string" ? item.brand : null,
+        model: typeof item.model === "string" ? item.model : null,
+        specifications: (item.specifications && typeof item.specifications === "object" ? item.specifications : {}) as Record<string, unknown>,
+        source: String(item.source ?? "USER_DECLARED") as MiGolfEquipment["source"],
+        confidence: String(item.confidence ?? "HIGH") as MiGolfEquipment["confidence"],
+        notes: typeof item.notes === "string" ? item.notes : null,
+        isActive: item.is_active !== false,
+      } satisfies MiGolfEquipment;
+    }),
     objectives: (objectives ?? []) as unknown as MiGolfObjective[],
   };
 }
@@ -435,14 +450,21 @@ function profileAnswers(profile: MiGolfProfile | null) {
 }
 
 function equipmentAnswers(equipment: MiGolfEquipment[]): Record<string, string | number | number[] | null> {
-  const wedges = equipment
-    .filter((item) => item.isActive && /wedge/i.test(item.category))
+  const active = equipment.filter((item) => item.isActive);
+  const wedges = active
+    .filter((item) => interpretGolfCategory(item.category)?.category === "WEDGE" || /wedge/i.test(item.category))
     .flatMap((item) => {
       const loft = item.specifications.loft ?? item.specifications.loft_degrees;
       const value = typeof loft === "number" ? loft : Number(loft);
       return Number.isFinite(value) ? [value] : [];
     });
-  return wedges.length ? { currentWedgeLofts: [...new Set(wedges)] } : {};
+  const answers: Record<string, string | number | number[] | null> = {};
+  if (wedges.length) answers.currentWedgeLofts = [...new Set(wedges)];
+  for (const [family, key] of [["DRIVER", "currentDriver"], ["FAIRWAY_WOOD", "currentFairwayWoods"], ["HYBRID", "currentHybrids"], ["IRON", "currentIronSet"], ["PUTTER", "currentPutter"]] as const) {
+    const current = active.filter((item) => interpretGolfCategory(item.category)?.category === family);
+    if (current.length) answers[key] = current.map((item) => [item.brand, item.model].filter(Boolean).join(" ")).filter(Boolean).join(", ");
+  }
+  return answers;
 }
 
 async function persistSelfFacts(input: {
@@ -922,11 +944,14 @@ export async function processConversationTurn(input: {
       .filter((fact) => fact.semanticStatus === "KNOWN")
       .map((fact) => fact.field),
   );
+  const explicitCategoryFromMessage = effectiveDialogueAct === "CATALOG_SEARCH"
+    ? interpretGolfCategory(input.message)?.category ?? null
+    : null;
   const resolvedSearchScope = resolveSearchScope(
     input.state.searchScope,
-    interpretation?.requestedProductFamilies ?? [],
+    explicitCategoryFromMessage ? [explicitCategoryFromMessage] : interpretation?.requestedProductFamilies ?? [],
     interpretation?.searchScopeMode,
-    interpretation?.category,
+    explicitCategoryFromMessage ?? interpretation?.category,
     effectiveDialogueAct === "CATALOG_SEARCH",
     input.state.catalogSearchOutcome,
     interpretation?.searchContinuationRelation,
@@ -952,7 +977,9 @@ export async function processConversationTurn(input: {
     ...input.state,
     session: {
       ...input.state.session,
-      requestedCategory: interpretation?.category ?? input.state.session.requestedCategory,
+      requestedCategory: resolvedSearchScope?.families.length === 1
+        ? resolvedSearchScope.families[0]
+        : interpretation?.category ?? input.state.session.requestedCategory,
       diagnosticAnswers: reducedDiagnosticAnswers,
     },
     participants,

@@ -148,6 +148,14 @@ describe("Best Round Pro conversation", () => {
     expect(next?.source).toBe("EXPLICIT_CURRENT_TURN");
   });
 
+  it("replaces a stale SET or DRIVER scope with an explicit WEDGE request", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["WEDGE"], "EXACT", "WEDGE", true, "RESULTS_FOUND", "REPLACE_SCOPE", "EXPLICIT_CURRENT_TURN");
+    expect(next?.families).toEqual(["WEDGE"]);
+    expect(next?.mode).toBe("EXACT");
+    expect(next?.source).toBe("EXPLICIT_CURRENT_TURN");
+  });
+
   it("broadens an inherited SET scope to ALL_CLUBS without dropping player facts", () => {
     const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
     const next = resolveSearchScope(previous, [], "ALL_CLUBS", null, true);

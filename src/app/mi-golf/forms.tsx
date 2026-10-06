@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,8 @@ export function ProfileForm({ profile }: { profile: Record<string, unknown> }) {
       onSubmit={(event) => {
         event.preventDefault();
         setState(null);
-        const data = new FormData(event.currentTarget);
+        const form = event.currentTarget;
+        const data = new FormData(form);
         start(async () => setState(await saveMiGolfProfileAction(data)));
       }}
       className="grid gap-4 sm:grid-cols-2"
@@ -156,19 +157,30 @@ export function EquipmentForm({
   brands: GolfBrandSuggestion[];
   models: GolfModelSuggestion[];
 }) {
+  const [categoryId, setCategoryId] = useState("");
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
   const [state, setState] = useState<{ ok: boolean; message?: string } | null>(
     null,
   );
   const [pending, start] = useTransition();
+  const selectedBrand = brands.find((item) => item.name.toLowerCase() === brand.trim().toLowerCase());
+  const selectedBrandId = selectedBrand?.id ?? (brand.trim() ? "__manual_brand__" : "");
+  const filteredModels = useMemo(
+    () => models.filter((item) =>
+      (!categoryId || item.categoryId === categoryId) &&
+      (!selectedBrandId || item.brandId === selectedBrandId),
+    ),
+    [categoryId, models, selectedBrandId],
+  );
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
         setState(null);
         const data = new FormData(event.currentTarget);
-        const category = categories.find(
-          (item) => item.label === String(data.get("category")),
-        );
+        const form = event.currentTarget;
+        const category = categories.find((item) => item.id === categoryId);
         const brand = brands.find(
           (item) =>
             item.name.toLowerCase() === String(data.get("brand")).toLowerCase(),
@@ -180,13 +192,21 @@ export function EquipmentForm({
             (!brand || item.brandId === brand.id) &&
             (!category || item.categoryId === category.id),
         );
-        if (category) data.set("categoryId", category.id);
+        if (category) {
+          data.set("categoryId", category.id);
+          data.set("category", category.label);
+        }
         if (brand) data.set("canonicalBrandId", brand.id);
         if (model) data.set("canonicalModelId", model.id);
         start(async () => {
           const result = await addMiGolfEquipmentAction(data);
           setState(result);
-          if (result.ok) event.currentTarget.reset();
+          if (result.ok) {
+            form.reset();
+            setCategoryId("");
+            setBrand("");
+            setModel("");
+          }
         });
       }}
       className="grid gap-3"
@@ -194,19 +214,34 @@ export function EquipmentForm({
       <select
         name="category"
         required
+        value={categoryId}
+        onChange={(event) => {
+          const nextCategoryId = event.target.value;
+          setCategoryId(nextCategoryId);
+          setModel("");
+          if (selectedBrand && !models.some((item) => item.categoryId === nextCategoryId && item.brandId === selectedBrand.id)) {
+            setBrand("");
+          }
+        }}
         className="border-input bg-background h-10 rounded-md border px-3 text-sm"
       >
         <option value="">Categoría</option>
         {categories.map((item) => (
-          <option key={item.id} value={item.label}>
+          <option key={item.id} value={item.id}>
             {item.label}
           </option>
         ))}
       </select>
+      <input type="hidden" name="categoryId" value={categoryId} />
       <Input
         name="brand"
         list="mi-golf-brands"
         placeholder="Marca (o escribe una nueva)"
+        value={brand}
+        onChange={(event) => {
+          setBrand(event.target.value);
+          setModel("");
+        }}
       />
       <datalist id="mi-golf-brands">
         {brands.map((item) => (
@@ -217,10 +252,12 @@ export function EquipmentForm({
         name="model"
         list="mi-golf-models"
         placeholder="Modelo (o escribe uno nuevo)"
+        value={model}
+        onChange={(event) => setModel(event.target.value)}
       />
       <Input name="loft" type="number" min="40" max="64" step="0.1" placeholder="Loft (opcional, ej. 60)" />
       <datalist id="mi-golf-models">
-        {models.map((item) => (
+        {filteredModels.map((item) => (
           <option key={item.id} value={item.name} />
         ))}
       </datalist>
