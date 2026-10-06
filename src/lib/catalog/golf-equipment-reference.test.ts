@@ -85,4 +85,11 @@ describe("shared golf equipment identity", () => {
     expect(scoped.canonical?.id).toBe("vokey");
     expect(resolveGolfModel(models, "GT3", "titleist", "wedge").status).toBe("NOT_FOUND");
   });
+
+  it("keeps TaylorMade putter resolution tied to the canonical family", () => {
+    const taylormadePutter = { id: "spider-tour", brandId: "tm", categoryId: "putter", name: "Spider Tour", normalizedName: "spider-tour" };
+    expect(resolveGolfBrand(brands, "Taylor Made").canonical?.id).toBe("tm");
+    expect(resolveGolfModel([taylormadePutter], "Spider Tour", "tm", "putter").canonical?.id).toBe("spider-tour");
+    expect(resolveGolfModel([taylormadePutter], "Spider Tour", "tm", "driver").status).toBe("NOT_FOUND");
+  });
 });
