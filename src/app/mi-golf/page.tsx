@@ -30,9 +30,27 @@ import {
   ProfileForm,
 } from "./forms";
 import { customerMemorySourceLabel } from "@/lib/mi-golf/domain";
-import { brandLogoPath } from "@/lib/mi-golf/brand-assets";
+import { resolveBrandAsset } from "@/lib/mi-golf/brand-assets";
 
 export const metadata: Metadata = { title: "Mi Golf | Best Round Pro Shop" };
+
+function equipmentSpecs(category: string, value: unknown): string | null {
+  const specs = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const text = (key: string) => typeof specs[key] === "string" || typeof specs[key] === "number" ? String(specs[key]) : null;
+  const loft = text("loft") ?? text("loft_degrees");
+  const flex = text("shaftFlex") ?? text("shaft_flex");
+  const material = text("shaftMaterial") ?? text("shaft_material");
+  const bounce = text("bounce") ?? text("bounce_degrees");
+  const length = text("length") ?? text("length_inches");
+  const normalized = category.toLowerCase();
+  const parts: string[] = [];
+  if (loft) parts.push(`${loft}°`);
+  if (bounce && normalized.includes("wedge")) parts.push(`${bounce}° bounce`);
+  if (length && normalized.includes("putter")) parts.push(`${length}\"`);
+  if (flex) parts.push(flex);
+  if (material) parts.push(material.toLowerCase() === "graphite" ? "Grafito" : material.toLowerCase() === "steel" ? "Acero" : material);
+  return parts.length ? parts.join(" · ") : null;
+}
 
 export default async function MiGolfPage() {
   const user = await requireAuthenticatedUser("/mi-golf");
@@ -210,37 +228,46 @@ export default async function MiGolfPage() {
                 brands={brandOptions}
                 models={modelOptions}
               />
-              <div className="space-y-3">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {items.length ? (
-                  items.map((item) => (
+                  items.map((item) => {
+                    const brand = resolveBrandAsset({ brandName: typeof item.brand === "string" ? item.brand : null });
+                    const category = String(item.category ?? "");
+                    const specs = equipmentSpecs(category, item.specifications);
+                    return (
                     <div
                       key={String(item.id)}
-                      className="rounded-xl border bg-white p-4 shadow-sm"
+                      className="flex min-h-[220px] flex-col rounded-2xl border border-black/5 bg-white p-5 shadow-[0_8px_24px_rgba(19,35,56,0.06)]"
                     >
-                      <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="mb-5 flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
-                          {brandLogoPath(item.brand) ? (
-                            <Image src={brandLogoPath(item.brand) ?? ""} alt={`${String(item.brand ?? "Marca")} logo`} width={64} height={40} className="h-10 w-16 shrink-0 object-contain" />
+                          {brand.logoSrc ? (
+                            <div className="flex h-12 w-24 shrink-0 items-center justify-start rounded-lg bg-[#faf9f6] px-2">
+                              <Image src={brand.logoSrc} alt={brand.alt} width={88} height={42} className="max-h-9 w-auto max-w-[88px] object-contain" />
+                            </div>
                           ) : (
-                            <span aria-label={`${String(item.brand ?? "Marca")} iniciales`} className="bg-pg-navy text-pg-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+                            <span aria-label={brand.alt} className="bg-pg-navy text-pg-gold flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-sm font-bold">
                               {String(item.brand ?? item.model ?? "G").slice(0, 2).toUpperCase()}
                             </span>
                           )}
                           <div className="min-w-0">
-                            <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{displayGolfCategory(String(item.category ?? ""), null, "Equipo")}</p>
-                            <p className="truncate font-semibold">{[item.brand, item.model].filter(Boolean).join(" ") || "Equipo sin marca"}</p>
-                            {(() => {
-                              const specs = item.specifications as Record<string, unknown> | undefined;
-                              return specs?.loft ? <p className="text-muted-foreground text-xs">Loft {String(specs.loft)}° · Equipo actual</p> : <p className="text-muted-foreground text-xs">Equipo actual</p>;
-                            })()}
+                            <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">{displayGolfCategory(category, null, "Equipo")}</p>
+                            <p className="truncate text-base font-semibold text-[#132338]">{[item.brand, item.model].filter(Boolean).join(" ") || "Equipo sin marca"}</p>
                           </div>
                         </div>
-                        <span className="text-muted-foreground shrink-0 text-xs">{customerMemorySourceLabel[String(item.source ?? "USER_MANUAL_EDIT")] ?? "Indicado por ti"}</span>
+                        <span className="shrink-0 rounded-full bg-[#f4f1e8] px-2 py-1 text-[10px] font-medium text-[#6f634e]">Actual</span>
+                      </div>
+                      <div className="mb-5 flex-1 rounded-xl bg-[#faf9f6] px-3 py-2.5">
+                        <p className="text-xs font-medium text-[#132338]">{specs ?? "Especificaciones por completar"}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">Equipo actual · {customerMemorySourceLabel[String(item.source ?? "USER_MANUAL_EDIT")] ?? "Indicado por ti"}</p>
                       </div>
                       <EquipmentEditForm item={item} />
-                      <DeactivateEquipmentForm id={String(item.id)} />
+                      <div className="mt-3">
+                        <DeactivateEquipmentForm id={String(item.id)} />
+                      </div>
                     </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-muted-foreground text-sm">
                     Aún no has agregado equipo.
