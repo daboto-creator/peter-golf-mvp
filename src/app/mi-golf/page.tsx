@@ -227,7 +227,7 @@ export default async function MiGolfPage() {
                             </span>
                           )}
                           <div className="min-w-0">
-                            <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{String(item.category ?? "Equipo")}</p>
+                            <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{displayGolfCategory(String(item.category ?? ""), null, "Equipo")}</p>
                             <p className="truncate font-semibold">{[item.brand, item.model].filter(Boolean).join(" ") || "Equipo sin marca"}</p>
                             {(() => {
                               const specs = item.specifications as Record<string, unknown> | undefined;
