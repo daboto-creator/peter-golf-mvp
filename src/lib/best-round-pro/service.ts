@@ -944,9 +944,12 @@ export async function processConversationTurn(input: {
       .filter((fact) => fact.semanticStatus === "KNOWN")
       .map((fact) => fact.field),
   );
-  const explicitCategoryFromMessage = effectiveDialogueAct === "CATALOG_SEARCH"
+  const explicitCategoryRequest = /\b(?:quiero|busco|mu[eé]strame|muestrame|necesito|dame|ens[eé]ñame|ensename|ver)\b/i.test(input.message);
+  const explicitCategoryFromMessage = explicitCategoryRequest
     ? interpretGolfCategory(input.message)?.category ?? null
-    : null;
+    : effectiveDialogueAct === "CATALOG_SEARCH"
+      ? interpretGolfCategory(input.message)?.category ?? null
+      : null;
   const resolvedSearchScope = resolveSearchScope(
     input.state.searchScope,
     explicitCategoryFromMessage ? [explicitCategoryFromMessage] : interpretation?.requestedProductFamilies ?? [],
