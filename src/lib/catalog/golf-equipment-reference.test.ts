@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   dryRunGolfIdentityBackfill,
   normalizeGolfReference,
+  findGolfModelSuggestions,
   normalizeGolfEquipmentIdentity,
   resolveGolfBrand,
   resolveGolfModel,
@@ -91,5 +92,14 @@ describe("shared golf equipment identity", () => {
     expect(resolveGolfBrand(brands, "Taylor Made").canonical?.id).toBe("tm");
     expect(resolveGolfModel([taylormadePutter], "Spider Tour", "tm", "putter").canonical?.id).toBe("spider-tour");
     expect(resolveGolfModel([taylormadePutter], "Spider Tour", "tm", "driver").status).toBe("NOT_FOUND");
+  });
+
+  it.each([
+    ["tm", "putter"], ["tm", "iron"], ["titleist", "putter"], ["titleist", "iron"],
+    ["callaway", "putter"], ["callaway", "iron"], ["ping", "putter"], ["ping", "iron"],
+  ])("keeps model options scoped to canonical brand/category IDs (%s + %s)", (brandId, categoryId) => {
+    const canonical = { id: `${brandId}-${categoryId}`, brandId, categoryId, name: "Canonical model", normalizedName: "canonical-model" };
+    expect(findGolfModelSuggestions([canonical], "", brandId, categoryId)).toEqual([canonical]);
+    expect(findGolfModelSuggestions([canonical], "", brandId, categoryId === "putter" ? "iron" : "putter")).toEqual([]);
   });
 });
