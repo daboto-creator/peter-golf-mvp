@@ -1288,6 +1288,7 @@ export async function processConversationTurn(input: {
       lastInterpreterTelemetry.customerLanguageLocale = "es-MX";
       lastInterpreterTelemetry.customerTermsNormalized = true;
       lastInterpreterTelemetry.recommendationFactsUsed = categoryInterpretation.factsUsed;
+      lastInterpreterTelemetry.currentEquipmentFactsUsed = categoryInterpretation.factsUsed.filter((fact) => fact.startsWith("current"));
       lastInterpreterTelemetry.categoryInterpretations = categoryInterpretation.interpretations;
       lastInterpreterTelemetry.categoryCaveats = caveat ? [caveat] : [];
       recordAdviceTelemetry(state, hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED", true);
@@ -1426,6 +1427,7 @@ export async function processConversationTurn(input: {
       lastInterpreterTelemetry.customerLanguageLocale = "es-MX";
       lastInterpreterTelemetry.customerTermsNormalized = true;
       lastInterpreterTelemetry.recommendationFactsUsed = categoryInterpretation.factsUsed;
+      lastInterpreterTelemetry.currentEquipmentFactsUsed = categoryInterpretation.factsUsed.filter((fact) => fact.startsWith("current"));
       lastInterpreterTelemetry.categoryInterpretations = categoryInterpretation.interpretations;
       lastInterpreterTelemetry.categoryCaveats = caveat ? [caveat] : [];
       recordAdviceTelemetry(state, hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED", true);
