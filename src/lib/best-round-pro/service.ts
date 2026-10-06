@@ -950,13 +950,13 @@ export async function processConversationTurn(input: {
   const resolvedSearchScope = resolveSearchScope(
     input.state.searchScope,
     explicitCategoryFromMessage ? [explicitCategoryFromMessage] : interpretation?.requestedProductFamilies ?? [],
-    interpretation?.searchScopeMode,
+    explicitCategoryFromMessage ? "EXACT" : interpretation?.searchScopeMode,
     explicitCategoryFromMessage ?? interpretation?.category,
     effectiveDialogueAct === "CATALOG_SEARCH",
     input.state.catalogSearchOutcome,
     interpretation?.searchContinuationRelation,
     interpretation?.searchContinuationReason,
-    interpretation?.catalogScopeIntent,
+    explicitCategoryFromMessage ? "EXPLICIT_FAMILIES" : interpretation?.catalogScopeIntent,
   );
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
