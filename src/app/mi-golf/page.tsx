@@ -16,10 +16,10 @@ import {
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import {
   displayGolfCategory,
-  type GolfBrandSuggestion,
   type GolfEquipmentCategory,
   type GolfModelSuggestion,
 } from "@/lib/catalog/golf-equipment-reference";
+import { listActiveCatalogReferences } from "@/lib/catalog/operational-products";
 import { createClient } from "@/lib/supabase/server";
 import {
   DeactivateEquipmentForm,
@@ -80,9 +80,7 @@ export default async function MiGolfPage() {
     { data: profile },
     { data: equipment },
     { data: objectives },
-    { data: categories },
-    { data: brands },
-    { data: models },
+    catalogReferences,
     { data: recommendations },
   ] = await Promise.all([
     supabase
@@ -101,25 +99,7 @@ export default async function MiGolfPage() {
       .select("id,objective_type,status,details")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false }),
-    supabase
-      .from("categories" as never)
-      .select(
-        "id,slug,name,category_spec_profiles(family,club_type,bag_type,set_type)",
-      )
-      .eq("status", "active")
-      .order("sort_order"),
-    supabase
-      .from("brands" as never)
-      .select("id,name,slug")
-      .eq("status", "active")
-      .order("name")
-      .limit(200),
-    supabase
-      .from("catalog_product_models" as never)
-      .select("id,brand_id,category_id,model_name,normalized_model_name")
-      .eq("status", "active")
-      .order("model_name")
-      .limit(500),
+    listActiveCatalogReferences(),
     supabase
       .from("mi_golf_recommendation_snapshots" as never)
       .select("id,product_name,product_family,recommendation_outcome,recommendation_strength,key_reasons,caveats,created_at")
@@ -131,46 +111,18 @@ export default async function MiGolfPage() {
   const items = (equipment ?? []) as unknown as Array<Record<string, unknown>>;
   const goals = (objectives ?? []) as unknown as Array<Record<string, unknown>>;
   const recommendationRows = (recommendations ?? []) as unknown as Array<Record<string, unknown>>;
-  const categoryRows = (categories ?? []) as unknown as Array<
-    Record<string, unknown>
-  >;
-  const categoryOptions: GolfEquipmentCategory[] = categoryRows
-    .map((row) => {
-      const spec = Array.isArray(row.category_spec_profiles)
-        ? row.category_spec_profiles[0]
-        : row.category_spec_profiles;
-      const s = (spec ?? {}) as Record<string, unknown>;
-      const kind = s.club_type
-        ? String(s.club_type)
-        : s.bag_type
-          ? String(s.bag_type)
-          : s.set_type
-            ? String(s.set_type)
-            : null;
-      return {
-        id: String(row.id),
-        slug: String(row.slug),
-        label: displayGolfCategory(
-          String(s.family ?? ""),
-          kind,
-          String(row.name),
-        ),
-        family: String(s.family ?? ""),
-        kind,
-      };
-    })
-    .filter((category) => ["club", "set", "bag"].includes(category.family));
-  const brandOptions = (brands ?? []) as unknown as GolfBrandSuggestion[];
-  const modelOptions: GolfModelSuggestion[] = (models ?? []).map((row) => {
-    const r = row as Record<string, unknown>;
-    return {
-      id: String(r.id),
-      brandId: String(r.brand_id),
-      categoryId: String(r.category_id),
-      name: String(r.model_name),
-      normalizedName: String(r.normalized_model_name),
-    };
-  });
+  const canonicalReferences = catalogReferences.data;
+  const categoryOptions: GolfEquipmentCategory[] = (canonicalReferences?.categories ?? [])
+    .filter((category) => ["club", "set", "bag"].includes(category.family ?? ""))
+    .map((category) => ({
+      id: category.id,
+      slug: category.slug ?? category.id,
+      label: displayGolfCategory(category.family ?? "", category.clubType ?? category.bagType ?? category.setType ?? null, category.name),
+      family: category.family ?? "",
+      kind: category.clubType ?? category.bagType ?? category.setType ?? null,
+    }));
+  const brandOptions = (canonicalReferences?.brands ?? []).map((brand) => ({ id: brand.id, name: brand.name, slug: brand.slug ?? brand.id }));
+  const modelOptions: GolfModelSuggestion[] = canonicalReferences?.models ?? [];
   const equipmentGroups = [
     { key: "driver", label: "Driver" },
     { key: "fairway", label: "Maderas" },

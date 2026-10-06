@@ -128,6 +128,7 @@ export function validateCanonicalFactValue(field: string, value: string | number
   if (status !== "KNOWN") return value == null || typeof value === "string" || typeof value === "number";
   if (field === "handicapIndex") return typeof value === "number" && value >= 0 && value <= 54;
   if (field === "currentWedgeLofts") return Array.isArray(value) && value.length > 0 && value.every((loft) => typeof loft === "number" && loft >= 40 && loft <= 64);
+  if (field === "targetWedgeDistanceYards") return typeof value === "number" && value > 0 && value <= 300;
   const domain = FACT_VALUE_DOMAINS[field as CanonicalFactField];
   return !domain || (typeof value === "string" && (domain as readonly string[]).includes(value));
 }
@@ -197,7 +198,11 @@ export function resolvePendingAnswerFact(
     if (/\b(precisi[oó]n|m[aá]s\s+recto|m[aá]s\s+control)\b/.test(normalizedMessage)) return known("driverObjective", "ACCURACY");
     if (/\b(reducir|corregir|menos)\s+(?:mi\s+)?(?:slice|miss|hook)\b/.test(normalizedMessage)) return known("driverObjective", "REDUCE_MISS");
   }
-  if (pendingFactKey === "currentWedgeLofts" || pendingFactKey === "gapping") {
+  if (pendingFactKey === "currentWedgeLofts" || pendingFactKey === "gapping" || pendingFactKey === "targetWedgeDistanceYards") {
+    if (pendingFactKey === "gapping" || pendingFactKey === "targetWedgeDistanceYards") {
+      const distance = normalizedMessage.match(/\b(\d{1,3})(?:\s*(?:yds?|yardas?|yards?))?\b/i);
+      if (distance) return { field: "targetWedgeDistanceYards", value: Number(distance[1]), durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
+    }
     const values = [...normalizedMessage.matchAll(/\b(4[0-9]|5[0-9]|6[0-4])\b/g)].map((match) => Number(match[1]));
     const unique = [...new Set(values)];
     if (unique.length) return { field: "currentWedgeLofts", value: unique, durable: true, semanticStatus: "KNOWN", source: "CURRENT_USER_PENDING_ANSWER" };
@@ -223,11 +228,19 @@ export type PlayerPerspective = {
 
 export function getPlayerPerspective(participants: ConversationParticipants): PlayerPerspective {
   const isSelf = participants.player.relationToBuyer === "SELF";
-  const displayReference = isSelf ? "tú" : participants.player.displayReference;
+  const displayReference = isSelf
+    ? "tú"
+    : participants.player.relationToBuyer === "SPOUSE"
+      ? "tu esposa"
+      : participants.player.relationToBuyer === "CHILD"
+        ? "tu hijo/a"
+        : participants.player.displayReference === "tú"
+          ? "esa persona"
+          : participants.player.displayReference;
   return {
     relationToBuyer: participants.player.relationToBuyer,
     displayReference,
-    subject: displayReference,
+    subject: isSelf ? "tú" : participants.player.relationToBuyer === "SPOUSE" ? "ella" : participants.player.relationToBuyer === "CHILD" ? "él/ella" : displayReference,
     possessive: isSelf ? "tu" : "su",
     isSelf,
   };
@@ -538,6 +551,14 @@ export function resolveContextualShortAnswer(input: {
 }) {
   const value = normalizeShortAnswer(input.userMessage);
   if (!input.pendingQuestionKey) return null;
+  if (input.pendingQuestionKey === "gapping" || input.pendingQuestionKey === "targetWedgeDistanceYards") {
+    const distance = value.match(/\b(\d{1,3})(?:\s*(?:yds?|yardas?|yards?))?\b/i);
+    if (distance) return {
+      field: "targetWedgeDistanceYards",
+      value: Number(distance[1]),
+      answerState: "ANSWERED_VALUE" as const,
+    };
+  }
   if (
     input.pendingQuestionKey === "swingSpeed" &&
     /^(no|no se|ni idea|no tengo idea|no recuerdo|no la conozco|nunca la he medido)$/.test(
@@ -703,7 +724,7 @@ function parseAnswers(
       answers.shotTendency = "ANSWERED_UNKNOWN";
     if (current.currentBag === undefined)
       answers.currentBag = "ANSWERED_UNKNOWN";
-    if (current.gapping === undefined) answers.gapping = "ANSWERED_UNKNOWN";
+    if (current.gapping === undefined && current.targetWedgeDistanceYards === undefined) answers.targetWedgeDistanceYards = "ANSWERED_UNKNOWN";
     if (current.turfInteraction === undefined)
       answers.turfInteraction = "ANSWERED_UNKNOWN";
     if (current.length === undefined) answers.length = "ANSWERED_UNKNOWN";
@@ -762,7 +783,7 @@ function parseAnswers(
     answers.objective ??= "REDUCE_SLICE";
   if (pendingQuestionKey === "objective" && /\b(nada|ninguna cosa|no quiere mejorar|sin cambiar|igual que ahora)\b/i.test(text))
     answers.objective = "NONE";
-  const numericSlot = ["skill", "handicapIndex", "handicap", "gapping", "swingSpeed", "length"].includes(
+  const numericSlot = ["skill", "handicapIndex", "handicap", "gapping", "targetWedgeDistanceYards", "swingSpeed", "length"].includes(
     pendingQuestionKey ?? "",
   );
   if (!numericSlot && /\b(\d{1,3})(?:\s*)(?:pesos|mxn|mil)?\b/i.test(text)) {
@@ -791,13 +812,14 @@ function parseAnswers(
     answers.skill = "BEGINNER";
     answers.skillSource = "DERIVED_NO_HANDICAP";
   }
-  if (pendingQuestionKey === "gapping") {
+  if (pendingQuestionKey === "gapping" || pendingQuestionKey === "targetWedgeDistanceYards") {
     const gap = text.match(
       /(?:entre\s+)?(\d{1,3})(?:\s*(?:a|y|-)\s*(\d{1,3}))?/i,
     );
     if (gap) {
+      answers.targetWedgeDistanceYards = Number(gap[1]);
       answers.gapping = Number(gap[1]);
-      answers.gappingUnit = /(?:yd|yarda|yardas)/i.test(text)
+      answers.targetWedgeDistanceUnit = /(?:yd|yarda|yardas)/i.test(text)
         ? "YARDS"
         : /(?:m|metro|metros)/i.test(text)
           ? "METERS"
@@ -870,7 +892,7 @@ export function knownFacts(
     currentBag: answers.currentBag,
     skill: profile?.skillLevel ?? answers.skill ?? answers.handicap,
     handicap: answers.handicap,
-    gapping: answers.gapping,
+    gapping: answers.targetWedgeDistanceYards ?? answers.gapping,
     turfInteraction: answers.turfInteraction,
     length: answers.length,
     strokeType: answers.strokeType,

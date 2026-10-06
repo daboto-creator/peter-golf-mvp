@@ -424,8 +424,7 @@ export async function listActiveCatalogReferences(current?: {
         .select(
           "id, brand_id, category_id, model_name, normalized_model_name, status",
         )
-        .order("model_name")
-        .limit(500),
+        .order("model_name"),
       client
         .from("pricing_rules")
         .select("code, target_return_bps")

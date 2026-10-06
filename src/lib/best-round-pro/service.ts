@@ -107,6 +107,13 @@ function familyWithArticle(family: string, article: "THIS" | "OTHER") {
     ?? `${article === "THIS" ? "este" : "otro"} ${familyLabel(family)}`;
 }
 
+function fitPhrase(perspective: ReturnType<typeof getPlayerPerspective>) {
+  if (perspective.isSelf) return "te puede funcionar";
+  if (perspective.relationToBuyer === "SPOUSE") return "le puede funcionar a tu esposa";
+  if (perspective.relationToBuyer === "CHILD") return "le puede funcionar a tu hijo/a";
+  return `le puede funcionar a ${perspective.displayReference}`;
+}
+
 function targetLevelForSet(input: { setType?: string | null; name: string; category?: string | null }) {
   if (input.setType === "starter_set") return "BEGINNER" as const;
   // A product name is not authoritative player-positioning metadata.
@@ -968,6 +975,7 @@ export async function processConversationTurn(input: {
     return validateCanonicalFactValue(fact.field, value, normalizeCanonicalFactStatus(fact.field, value, fact.semanticStatus));
   }).map((fact) => ({
     ...fact,
+    durable: fact.field === "targetWedgeDistanceYards" ? false : fact.durable,
     value: isCanonicalFactValue(fact.value)
       ? normalizeStructuredFactValue(fact.field, fact.value)
       : fact.value,
@@ -1019,7 +1027,7 @@ export async function processConversationTurn(input: {
     pendingKey && (fact.field === pendingKey ||
       (pendingKey === "skill" && ["handicapIndex", "handicapStatus"].includes(fact.field)) ||
       (pendingKey === "objective" && fact.field === "driverObjective") ||
-      (pendingKey === "gapping" && fact.field === "currentWedgeLofts")),
+      (pendingKey === "gapping" && fact.field === "targetWedgeDistanceYards")),
   );
   const answeredPending = Boolean(pendingKey && canonicalFacts.some(pendingFactMatches));
   const rawDialogueAct = interpretation?.rawDialogueAct ?? interpretation?.dialogueAct ?? null;
@@ -1311,7 +1319,9 @@ export async function processConversationTurn(input: {
       if ((playerHand === "LEFT" || playerHand === "RIGHT") && (productHand === "LEFT" || productHand === "RIGHT") && playerHand !== productHand) {
         const playerLabel = playerHand === "LEFT" ? "zurdo" : "diestro";
         const productLabel = productHand === "LEFT" ? "zurdo" : "diestro";
-        const reply = `No. Este ${focusedProduct.name} es para ${productLabel}, así que no te sirve si juegas ${playerLabel}.`;
+        const reply = playerPerspective.isSelf
+          ? `No. Este ${focusedProduct.name} es para ${productLabel}, así que no te sirve si juegas ${playerLabel}.`
+          : `No. Este ${focusedProduct.name} es para ${productLabel}, así que no le puede funcionar a ${playerPerspective.relationToBuyer === "SPOUSE" ? "tu esposa" : playerPerspective.displayReference} si juega como ${playerLabel}.`;
         const state: ConversationState = {
           ...updatedState,
           messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
@@ -1332,7 +1342,7 @@ export async function processConversationTurn(input: {
           "¿Qué otro dato de tu juego puedes compartir?";
         const reply = asksWhatData
           ? `Para evaluar ${focusedProduct.name}, el siguiente dato material que necesito es: ${question}`
-          : `Para revisar si ${focusedProduct.name} encaja ${playerPerspective.isSelf ? "contigo" : `con el juego de ${playerPerspective.subject}`}, ${question}`;
+          : `Para revisar si ${focusedProduct.name} ${fitPhrase(playerPerspective)}, ${question}`;
         const state: ConversationState = {
           ...updatedState,
           messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
@@ -1411,9 +1421,11 @@ export async function processConversationTurn(input: {
     }
   }
   if (asksProductReason && focusedProduct && !updatedState.productAdvice?.active) {
-    const targetPhrase = playerPerspective.isSelf ? "encaja contigo" : `encaja con el juego de ${playerPerspective.displayReference}`;
+    const targetPhrase = fitPhrase(playerPerspective);
     const familyLanguage = safeFamilyLanguage(focusedProduct);
-    const reply = `Te mostré ${focusedProduct.name} porque es una opción disponible del catálogo (${familyLanguage}). Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`;
+    const reply = playerPerspective.isSelf
+      ? `Te mostré ${focusedProduct.name} porque es una opción disponible del catálogo (${familyLanguage}). Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`
+      : `Te mostré ${focusedProduct.name} porque es una opción disponible del catálogo (${familyLanguage}). Eso todavía no significa que sea la mejor para ${playerPerspective.relationToBuyer === "SPOUSE" ? "tu esposa" : playerPerspective.displayReference}. Si quieres, revisamos si ${targetPhrase}.`;
     const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct, pendingAssistantOffer: { action: "START_PRODUCT_ADVICE", targetProductIds: [focusedProduct.id], createdAtTurn: updatedState.messages.length + 1 }, lastExecutedAction: "EXPLAIN_CATALOG_REASON" };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
@@ -1423,7 +1435,7 @@ export async function processConversationTurn(input: {
       ...(recipientContext === "SELF" ? durableEquipmentAnswers : {}),
     };
     for (const fact of canonicalFacts) {
-      if (["handedness", "handicap", "handicapIndex", "handicapStatus", "setExperience", "skill", "skillSource", "objective", "driverObjective", "currentWedgeLofts"].includes(fact.field))
+      if (["handedness", "handicap", "handicapIndex", "handicapStatus", "setExperience", "skill", "skillSource", "objective", "driverObjective", "currentWedgeLofts", "targetWedgeDistanceYards"].includes(fact.field))
         answers[fact.field] = fact.semanticStatus === "NONE" ? "NONE" : fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" : fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value;
       if (fact.field === "skill" && fact.semanticStatus === "KNOWN") answers.skillSource = "USER_DECLARED";
       if (fact.field === "handicapIndex" && fact.semanticStatus === "KNOWN") answers.handicapSource = "USER_DECLARED";
@@ -1634,7 +1646,7 @@ export async function processConversationTurn(input: {
             error: result.error,
             message: result.products.length
               ? result.products.length === 1
-                ? `Tengo ${availabilityLabel}${handLabel}. Puedo ayudarte a confirmar si ${playerPerspective.isSelf ? "encaja contigo" : `encaja con ${playerPerspective.subject}`} y avanzar con esta opción.`
+                ? `Tengo ${availabilityLabel}${handLabel}. Puedo ayudarte a confirmar si ${fitPhrase(playerPerspective)} y avanzar con esta opción.`
                 : `Tengo ${availabilityLabel}${handLabel}. Para orientarte entre ellas, ${playerPerspective.isSelf ? "dime qué mano de juego tienes o qué quieres mejorar" : `dime qué mano de juego tiene ${playerPerspective.subject} o qué quiere mejorar`}.`
               : `Ahora mismo no tengo ${scopeLabel}${handLabel} disponibles.`,
           };

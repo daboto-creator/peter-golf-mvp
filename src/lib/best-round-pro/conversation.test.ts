@@ -47,6 +47,27 @@ describe("Best Round Pro conversation", () => {
     expect(resolvePendingAnswerFact("driverObjective", "distancia")).toMatchObject({ field: "driverObjective", value: "DISTANCE" });
     expect(resolvePendingAnswerFact("currentWedgeLofts", "50, 54 y 58")).toMatchObject({ field: "currentWedgeLofts", value: [50, 54, 58] });
   });
+
+  it("keeps wedge target distance separate from current wedge lofts", () => {
+    expect(resolvePendingAnswerFact("gapping", "80 yds")).toMatchObject({
+      field: "targetWedgeDistanceYards",
+      value: 80,
+      durable: false,
+    });
+    expect(resolvePendingAnswerFact("gapping", "80 yds")).not.toMatchObject({ field: "currentWedgeLofts" });
+    expect(validateCanonicalFactValue("currentWedgeLofts", [80], "KNOWN")).toBe(false);
+    expect(validateCanonicalFactValue("targetWedgeDistanceYards", 80, "KNOWN")).toBe(true);
+  });
+
+  it("normalizes third-party perspective without tú grammar", () => {
+    const perspective = getPlayerPerspective({
+      buyer: { isLoggedInUser: true },
+      player: { relationToBuyer: "SPOUSE", displayReference: "tú", facts: {} },
+    });
+    expect(perspective.subject).toBe("ella");
+    expect(perspective.displayReference).toBe("tu esposa");
+    expect(perspective.possessive).toBe("su");
+  });
   const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT") => ({
     id,
     slug: id.toLowerCase(),
