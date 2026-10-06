@@ -160,6 +160,22 @@ describe("Best Round product knowledge", () => {
     expect(`${result.reason} ${result.caveat}`).not.toMatch(/solapamiento|papel de menor loft|golpes de más loft/i);
   });
 
+  it("distinguishes one known wedge from having no wedge context", () => {
+    const result = interpretCategoryRecommendation({
+      family: "WEDGE",
+      product: {
+        id: "wedge", slug: "wedge", name: "Synthetic 56°", canonicalProductFamily: "WEDGE",
+        price: 100, currency: "MXN", formattedPrice: "$1.00 MXN", availability: "AVAILABLE", sellable: true,
+        condition: "NEW", handedness: "right", brand: "Synthetic", model: "Wedge", specs: { loftDegrees: 56 }, includedItems: null,
+        headcoverStatus: "UNKNOWN", sourceType: "FIRST_PARTY", sellerIdentityExposed: false, readiness: "READY", missingRequiredFields: [], missingRecommendedFields: [],
+      },
+      answers: { currentWedgeLofts: [52], currentWedges: "Callaway Opus" },
+    });
+    expect(result.factsUsed).toContain("currentWedgeLofts");
+    expect(result.reason).toMatch(/52|Callaway Opus/i);
+    expect(result.caveat).toMatch(/otros wedges/i);
+  });
+
   it.each([
     ["INTERMEDIATE", "BEGINNER", "POOR_PLAYER_LEVEL_FIT"],
     ["ADVANCED", "BEGINNER", "POOR_PLAYER_LEVEL_FIT"],

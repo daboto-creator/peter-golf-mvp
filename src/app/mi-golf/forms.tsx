@@ -18,7 +18,7 @@ import type {
   GolfBrandSuggestion,
   GolfModelSuggestion,
 } from "@/lib/catalog/golf-equipment-reference";
-import { normalizeGolfReference } from "@/lib/catalog/golf-equipment-reference";
+import { findGolfModelSuggestions, normalizeGolfReference } from "@/lib/catalog/golf-equipment-reference";
 
 function Feedback({
   state,
@@ -169,10 +169,7 @@ export function EquipmentForm({
   const selectedBrand = brands.find((item) => normalizeGolfReference(item.name) === normalizeGolfReference(brand.trim()) || normalizeGolfReference(item.slug) === normalizeGolfReference(brand.trim()));
   const selectedBrandId = selectedBrand?.id ?? (brand.trim() ? "__manual_brand__" : "");
   const filteredModels = useMemo(
-    () => models.filter((item) =>
-      (!categoryId || item.categoryId === categoryId) &&
-      (!selectedBrandId || item.brandId === selectedBrandId),
-    ),
+    () => findGolfModelSuggestions(models, "", selectedBrandId || undefined, categoryId || undefined),
     [categoryId, models, selectedBrandId],
   );
   if (!open) {
@@ -230,7 +227,7 @@ export function EquipmentForm({
           const nextCategoryId = event.target.value;
           setCategoryId(nextCategoryId);
           setModel("");
-          if (selectedBrand && !models.some((item) => item.categoryId === nextCategoryId && item.brandId === selectedBrand.id)) {
+          if (selectedBrand && !findGolfModelSuggestions(models, "", selectedBrand.id, nextCategoryId).length) {
             setBrand("");
           }
         }}

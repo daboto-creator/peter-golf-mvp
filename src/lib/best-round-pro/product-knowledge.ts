@@ -114,6 +114,7 @@ export function interpretCategoryRecommendation(input: {
   const flex = customerFlex(specs.shaftFlex);
   const material = customerShaftMaterial(specs.shaftMaterial);
   const currentLofts = Array.isArray(input.answers.currentWedgeLofts) ? input.answers.currentWedgeLofts.filter((value): value is number => typeof value === "number") : [];
+  const currentWedges = typeof input.answers.currentWedges === "string" ? input.answers.currentWedges : null;
   if (input.family === "DRIVER") {
     if (loft != null) factsUsed.push("loftDegrees");
     if (flex != null) factsUsed.push("shaftFlex");
@@ -148,7 +149,7 @@ export function interpretCategoryRecommendation(input: {
     if (Number.isFinite(candidateLoft) && currentLofts.length) {
       const same = currentLofts.includes(candidateLoft);
       const higher = currentLofts.filter((value) => value > candidateLoft).sort((a, b) => a - b)[0];
-      reason = same ? `Ya traes un wedge de ${candidateLoft}°, así que este podría repetir el mismo espacio en tu juego corto.` : higher ? `Si ya traes un ${higher}°, este ${candidateLoft}° puede quedar como el siguiente escalón: normalmente dará un poco más de distancia y un vuelo menos alto.` : `Este ${candidateLoft}° puede completar el espacio entre tus wedges y tus hierros, aunque conviene revisar los lofts que ya llevas.`;
+      reason = same ? `Ya traes ${currentWedges || `un wedge de ${candidateLoft}°`}, así que este podría repetir el mismo espacio en tu juego corto.` : higher ? `Si ya traes un ${higher}°, este ${candidateLoft}° puede quedar como el siguiente escalón: normalmente dará un poco más de distancia y un vuelo menos alto.` : currentLofts.length === 1 ? `Ya sé que llevas ${currentWedges || `un wedge de ${currentLofts[0]}°`}. Este ${candidateLoft}° puede cubrir un loft más alto, aunque conviene revisar los demás wedges que llevas.` : `Este ${candidateLoft}° puede completar el espacio entre tus wedges y tus hierros, aunque conviene revisar los lofts que ya llevas.`;
       caveat = currentLofts.length < 2 ? "Me faltaría saber qué otros wedges traes para asegurarme de que no quede muy cerca de otro loft." : null;
     } else {
       reason = Number.isFinite(candidateLoft) ? `Este wedge de ${candidateLoft}° puede tener sentido, pero su papel depende de los lofts que ya llevas y del tipo de golpe que quieres cubrir.` : reason;
