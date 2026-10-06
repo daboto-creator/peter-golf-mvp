@@ -59,6 +59,17 @@ describe("Best Round Pro conversation", () => {
     expect(validateCanonicalFactValue("targetWedgeDistanceYards", 80, "KNOWN")).toBe(true);
   });
 
+  it("does not overwrite durable wedge lofts when distance is answered", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "WEDGE";
+    state.session.diagnosticAnswers = { handedness: "RIGHT", currentWedgeLofts: [52] };
+    state.pendingQuestionKey = "gapping";
+    const result = classifyConversationTurn(state, "80 yds");
+    expect(result.state.session.diagnosticAnswers.currentWedgeLofts).toEqual([52]);
+    expect(result.state.session.diagnosticAnswers.targetWedgeDistanceYards).toBe(80);
+    expect(result.state.pendingQuestionKey).not.toBe("gapping");
+  });
+
   it("normalizes third-party perspective without tú grammar", () => {
     const perspective = getPlayerPerspective({
       buyer: { isLoggedInUser: true },
