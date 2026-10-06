@@ -30,6 +30,13 @@ describe("Best Round product knowledge", () => {
     expect(classifyKnowledgeIntent(message)).toBe(expected);
   });
 
+  it.each(["¿qué wedge tengo?", "¿qué palos tengo guardados en Mi Golf?"]) (
+    "routes %s to Mi Golf instead of catalog search",
+    (message) => {
+      expect(classifyKnowledgeIntent(message)).toBe("MI_GOLF_EQUIPMENT");
+    },
+  );
+
   it("answers facts without inventing a missing spec", () => {
     const product: ProductKnowledgeDTO = {
       id: "synthetic-driver",

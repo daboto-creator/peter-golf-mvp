@@ -98,6 +98,11 @@ export type MiGolfEquipment = {
   confidence: MemoryConfidence;
   notes: string | null;
   isActive: boolean;
+  family?: string | null;
+  loft?: number | null;
+  handedness?: string | null;
+  shaftFlex?: string | null;
+  shaftMaterial?: string | null;
 };
 
 export type MiGolfObjective = {

@@ -417,17 +417,24 @@ export async function loadMiGolfContext() {
     profile: profileFrom((profile ?? null) as ProfileRow | null, user.id),
     equipment: (equipment ?? []).map((row) => {
       const item = row as Record<string, unknown>;
+      const specifications = (item.specifications && typeof item.specifications === "object" ? item.specifications : {}) as Record<string, unknown>;
+      const parsedLoft = Number(specifications.loft ?? specifications.loft_degrees);
       return {
         id: String(item.id),
         userId: user.id,
         category: String(item.category ?? item.category_input ?? ""),
         brand: typeof item.brand === "string" ? item.brand : null,
         model: typeof item.model === "string" ? item.model : null,
-        specifications: (item.specifications && typeof item.specifications === "object" ? item.specifications : {}) as Record<string, unknown>,
+        specifications,
         source: String(item.source ?? "USER_DECLARED") as MiGolfEquipment["source"],
         confidence: String(item.confidence ?? "HIGH") as MiGolfEquipment["confidence"],
         notes: typeof item.notes === "string" ? item.notes : null,
         isActive: item.is_active !== false,
+        family: interpretGolfCategory(String(item.category ?? item.category_input ?? ""))?.category ?? null,
+        loft: Number.isFinite(parsedLoft) ? parsedLoft : null,
+        handedness: typeof specifications.handedness === "string" ? specifications.handedness : null,
+        shaftFlex: typeof specifications.shaftFlex === "string" ? specifications.shaftFlex : typeof specifications.shaft_flex === "string" ? specifications.shaft_flex : null,
+        shaftMaterial: typeof specifications.shaftMaterial === "string" ? specifications.shaftMaterial : typeof specifications.shaft_material === "string" ? specifications.shaft_material : null,
       } satisfies MiGolfEquipment;
     }),
     objectives: (objectives ?? []) as unknown as MiGolfObjective[],
@@ -454,7 +461,7 @@ function equipmentAnswers(equipment: MiGolfEquipment[]): Record<string, string |
   const wedges = active
     .filter((item) => interpretGolfCategory(item.category)?.category === "WEDGE" || /wedge/i.test(item.category))
     .flatMap((item) => {
-      const loft = item.specifications.loft ?? item.specifications.loft_degrees;
+      const loft = item.loft ?? item.specifications.loft ?? item.specifications.loft_degrees;
       const value = typeof loft === "number" ? loft : Number(loft);
       return Number.isFinite(value) ? [value] : [];
     });
@@ -465,6 +472,25 @@ function equipmentAnswers(equipment: MiGolfEquipment[]): Record<string, string |
     if (current.length) answers[key] = current.map((item) => [item.brand, item.model].filter(Boolean).join(" ")).filter(Boolean).join(", ");
   }
   return answers;
+}
+
+function currentEquipmentReply(message: string, equipment: MiGolfEquipment[]) {
+  const requested = interpretGolfCategory(message)?.category ?? null;
+  const current = equipment.filter((item) => item.isActive).filter((item) => {
+    if (!requested) return true;
+    return interpretGolfCategory(item.category)?.category === requested || (requested === "WEDGE" && /wedge/i.test(item.category));
+  });
+  if (!current.length) {
+    const missingLabel = requested === "WEDGE" ? "wedge" : requested === "DRIVER" ? "driver" : requested === "FAIRWAY_WOOD" ? "madera de fairway" : requested === "HYBRID" ? "híbrido" : requested === "IRON" ? "juego de hierros" : requested === "PUTTER" ? "putter" : "equipo";
+    return requested ? `No tienes registrado un ${missingLabel} actual en Mi Golf.` : "Todavía no tienes equipo actual guardado en Mi Golf.";
+  }
+  const labels = current.map((item) => {
+    const loft = item.loft ?? item.specifications.loft ?? item.specifications.loft_degrees;
+    const loftLabel = loft !== null && loft !== undefined && Number.isFinite(Number(loft)) ? ` de ${Number(loft)}°` : "";
+    return `${[item.brand, item.model].filter(Boolean).join(" ") || "Equipo sin marca"}${loftLabel}`;
+  });
+  const categoryLabel = requested === "WEDGE" ? "wedge" : requested === "DRIVER" ? "driver" : requested === "FAIRWAY_WOOD" ? "madera de fairway" : requested === "HYBRID" ? "híbrido" : requested === "IRON" ? "juego de hierros" : requested === "PUTTER" ? "putter" : "equipo";
+  return `Sí. En Mi Golf tienes ${categoryLabel}: ${labels.join(", ")}.`;
 }
 
 async function persistSelfFacts(input: {
@@ -769,6 +795,45 @@ export async function processConversationTurn(input: {
       interpretation = null;
     }
   }
+  const deterministicCategory = /\b(?:quiero|busco|necesito|mu[eé]strame|muestrame|dame|ens[eé]ñame|ensename)\b/i.test(input.message)
+    ? interpretGolfCategory(input.message)?.category ?? null
+    : null;
+  if (deterministicCategory) {
+    interpretation = {
+      ...(interpretation ?? {
+        dialogueAct: "CATALOG_SEARCH",
+        intent: "EXPLORING",
+        category: deterministicCategory,
+        requestedProductFamilies: [deterministicCategory],
+        searchScopeMode: "EXACT",
+        catalogScopeIntent: "EXPLICIT_FAMILIES",
+        searchContinuationRelation: "REPLACE_SCOPE",
+        searchContinuationReason: "EXPLICIT_CURRENT_TURN",
+        productReference: null,
+        reasonMode: null,
+        declaredFacts: [],
+        factMutationIntent: "NONE",
+        temporaryPreferences: [],
+        objection: null,
+        wantsRecommendation: false,
+        wantsHandoff: false,
+        answersPendingQuestion: false,
+        asksForExplanation: false,
+        asksWhatInformationNeeded: false,
+        topicChanged: true,
+        confidence: 1,
+        entities: { purchaseTarget: "SELF", relationship: "UNKNOWN", playerReference: null },
+      }),
+      dialogueAct: "CATALOG_SEARCH",
+      category: deterministicCategory,
+      requestedProductFamilies: [deterministicCategory],
+      searchScopeMode: "EXACT",
+      catalogScopeIntent: "EXPLICIT_FAMILIES",
+      searchContinuationRelation: "REPLACE_SCOPE",
+      searchContinuationReason: "EXPLICIT_CURRENT_TURN",
+      topicChanged: true,
+    };
+  }
   let explicitProduct: CatalogProductReference | null = null;
   if (interpretation?.productReference) {
     const reference = interpretation.productReference.trim().toLowerCase();
@@ -847,6 +912,15 @@ export async function processConversationTurn(input: {
     : participants.player.relationToBuyer === "UNKNOWN"
       ? "UNKNOWN" as const
       : "THIRD_PARTY" as const;
+  const previousRecipientContext = input.state.participants.player.relationToBuyer === "SELF"
+    ? "SELF"
+    : input.state.participants.player.relationToBuyer === "UNKNOWN" ? "UNKNOWN" : "THIRD_PARTY";
+  const recipientChanged = previousRecipientContext !== recipientContext;
+  const categoryFromTurn = interpretation?.category ?? null;
+  const previousCategory = input.state.searchScope?.families.length === 1
+    ? input.state.searchScope.families[0]
+    : input.state.session.requestedCategory;
+  const categoryChanged = Boolean(categoryFromTurn && previousCategory && previousCategory !== categoryFromTurn);
   lastInterpreterTelemetry.recipientContext = context.user ? recipientContext : "UNKNOWN";
   const memoryAnswersForTurn = recipientContext === "SELF" ? durableAnswers : {};
   if (recipientContext === "SELF") {
@@ -854,6 +928,20 @@ export async function processConversationTurn(input: {
       if (value === null || value === undefined) continue;
       participants.player.facts[field] ??= { status: "KNOWN", value, confidence: 1, source: "USER" };
     }
+  }
+  if (knowledgeIntent === "MI_GOLF_EQUIPMENT") {
+    const reply = recipientContext === "SELF" && context.user
+      ? currentEquipmentReply(input.message, context.equipment)
+      : recipientContext === "THIRD_PARTY"
+        ? "Puedo revisar el equipo de esa persona durante esta conversación, pero no voy a usar ni mostrar tu Mi Golf como si fuera suyo."
+        : "Antes de revisar equipo guardado, necesito saber si la búsqueda es para ti o para alguien más.";
+    const state: ConversationState = {
+      ...input.state,
+      messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+      lastExecutedAction: "RETURN_MI_GOLF_EQUIPMENT",
+    };
+    lastInterpreterTelemetry.executedFactualActions = ["RETURN_MI_GOLF_EQUIPMENT"];
+    return { state, reply, nextQuestion: null, objection: null, events: ["MI_GOLF_EQUIPMENT_READ"], recommendation: null, outcome: null, intent: "OTHER" as const };
   }
   const pendingKey = input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey;
   const pendingAnswerCandidate = resolvePendingAnswerFact(pendingKey, normalizedMessage);
@@ -964,7 +1052,7 @@ export async function processConversationTurn(input: {
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
   const reducedDiagnosticAnswers = {
-    ...input.state.session.diagnosticAnswers,
+    ...(recipientChanged ? {} : input.state.session.diagnosticAnswers),
     ...memoryAnswersForTurn,
     ...interpretedAnswers,
   } as Record<string, string | number | boolean | number[] | null>;
@@ -986,21 +1074,22 @@ export async function processConversationTurn(input: {
       diagnosticAnswers: reducedDiagnosticAnswers,
     },
     participants,
-    pendingQuestionKey: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionKey,
-    pendingQuestionCategory: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionCategory,
-    pendingQuestionSlotType: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionSlotType,
-    productAdvice: productChangedThisTurn
-      ? { active: false, product: pageProductReference, pendingQuestionKey: null, collectedAnswers: input.state.session.diagnosticAnswers }
+    pendingQuestionKey: productChangedThisTurn || answeredPending || recipientChanged || categoryChanged ? null : input.state.pendingQuestionKey,
+    pendingQuestionCategory: productChangedThisTurn || answeredPending || recipientChanged || categoryChanged ? null : input.state.pendingQuestionCategory,
+    pendingQuestionSlotType: productChangedThisTurn || answeredPending || recipientChanged || categoryChanged ? null : input.state.pendingQuestionSlotType,
+    productAdvice: productChangedThisTurn || recipientChanged || categoryChanged
+      ? { active: false, product: pageProductReference, pendingQuestionKey: null, collectedAnswers: reducedDiagnosticAnswers }
       : answeredPending && input.state.productAdvice
         ? { ...input.state.productAdvice, pendingQuestionKey: null }
         : input.state.productAdvice,
-    activeAdvice: productChangedThisTurn ? null : input.state.activeAdvice,
-    lastInteractedProduct: input.state.lastInteractedProduct,
+    activeAdvice: productChangedThisTurn || recipientChanged || categoryChanged ? null : input.state.activeAdvice,
+    lastInteractedProduct: recipientChanged || categoryChanged ? null : input.state.lastInteractedProduct,
+    lastCatalogResults: recipientChanged || categoryChanged ? [] : input.state.lastCatalogResults,
+    lastFocusedProduct: recipientChanged || categoryChanged ? null : input.state.lastFocusedProduct,
     focusedProductSource: preFocusedProductSource,
-    referenceResolution: {
-      productId: referenceResolution.productId,
-      source: referenceResolution.source,
-    },
+    referenceResolution: recipientChanged || categoryChanged
+      ? { productId: null, source: "CLARIFICATION_REQUIRED" }
+      : { productId: referenceResolution.productId, source: referenceResolution.source },
     searchScope: resolvedSearchScope,
     searchContinuation: interpretation?.searchContinuationRelation
       ? {

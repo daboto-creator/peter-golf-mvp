@@ -164,6 +164,7 @@ export function EquipmentForm({
     null,
   );
   const [pending, start] = useTransition();
+  const [open, setOpen] = useState(false);
   const selectedBrand = brands.find((item) => item.name.toLowerCase() === brand.trim().toLowerCase());
   const selectedBrandId = selectedBrand?.id ?? (brand.trim() ? "__manual_brand__" : "");
   const filteredModels = useMemo(
@@ -173,6 +174,13 @@ export function EquipmentForm({
     ),
     [categoryId, models, selectedBrandId],
   );
+  if (!open) {
+    return (
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+        + Agregar equipo
+      </Button>
+    );
+  }
   return (
     <form
       onSubmit={(event) => {
@@ -206,6 +214,7 @@ export function EquipmentForm({
             setCategoryId("");
             setBrand("");
             setModel("");
+            setOpen(false);
           }
         });
       }}
@@ -273,16 +282,28 @@ export function EquipmentForm({
 }
 
 export function EquipmentEditForm({ item }: { item: Record<string, unknown> }) {
+  const [editing, setEditing] = useState(false);
   const [state, setState] = useState<{ ok: boolean; message?: string } | null>(
     null,
   );
   const [pending, start] = useTransition();
+  if (!editing) {
+    return (
+      <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}>
+        Editar
+      </Button>
+    );
+  }
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
-        start(async () => setState(await updateMiGolfEquipmentAction(data)));
+        start(async () => {
+          const result = await updateMiGolfEquipmentAction(data);
+          setState(result);
+          if (result.ok) setEditing(false);
+        });
       }}
       className="grid gap-2"
     >

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 
 import { PublicFooter } from "@/components/catalog/public-footer";
 import { PublicHeader } from "@/components/catalog/public-header";
@@ -29,6 +30,7 @@ import {
   ProfileForm,
 } from "./forms";
 import { customerMemorySourceLabel } from "@/lib/mi-golf/domain";
+import { brandLogoPath } from "@/lib/mi-golf/brand-assets";
 
 export const metadata: Metadata = { title: "Mi Golf | Best Round Pro Shop" };
 
@@ -217,9 +219,13 @@ export default async function MiGolfPage() {
                     >
                       <div className="mb-3 flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
-                          <span className="bg-pg-navy text-pg-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
-                            {String(item.brand ?? item.model ?? "G").slice(0, 2).toUpperCase()}
-                          </span>
+                          {brandLogoPath(item.brand) ? (
+                            <Image src={brandLogoPath(item.brand) ?? ""} alt={`${String(item.brand ?? "Marca")} logo`} width={64} height={40} className="h-10 w-16 shrink-0 object-contain" />
+                          ) : (
+                            <span aria-label={`${String(item.brand ?? "Marca")} iniciales`} className="bg-pg-navy text-pg-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+                              {String(item.brand ?? item.model ?? "G").slice(0, 2).toUpperCase()}
+                            </span>
+                          )}
                           <div className="min-w-0">
                             <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{String(item.category ?? "Equipo")}</p>
                             <p className="truncate font-semibold">{[item.brand, item.model].filter(Boolean).join(" ") || "Equipo sin marca"}</p>

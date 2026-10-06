@@ -3,6 +3,7 @@ import "server-only";
 import type { PublicProduct } from "@/lib/catalog/public-products";
 
 export type KnowledgeIntent =
+  | "MI_GOLF_EQUIPMENT"
   | "PRODUCT_PRICE"
   | "PRODUCT_AVAILABILITY"
   | "PRODUCT_CONDITION"
@@ -184,6 +185,7 @@ export function interpretCategoryRecommendation(input: {
 
 export function classifyKnowledgeIntent(text: string): KnowledgeIntent {
   const value = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/(?:sabes|recuerdas|que|cual).*(?:wedge|driver|madera|hibrido|hierro|putter|palo|equipo).*(?:tengo|guardo|mi golf|actual)/.test(value) || /que\s+(?:palos|equipo)\s+tengo\s+(?:guardados|en\s+mi\s+golf)/.test(value)) return "MI_GOLF_EQUIPMENT";
   if (/cu[aá]nto cuesta|qu[eé] precio|en cu[aá]nto est[aá]|precio/.test(value)) return "PRODUCT_PRICE";
   if (/est[aá] disponible|hay stock|tiene stock/.test(value)) return "PRODUCT_AVAILABILITY";
   if (/puedo comprarlo hoy|comprar hoy/.test(value)) return "PURCHASE_READINESS";
