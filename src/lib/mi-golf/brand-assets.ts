@@ -4,12 +4,46 @@
  * A missing mark intentionally falls back to the accessible initials badge.
  */
 const LOCAL_BRAND_ASSETS: Record<string, string> = {
+  "adams-golf": "/brands/adams-golf.png",
+  "ben-hogan-golf": "/brands/ben-hogan-golf.png",
+  "bridgestone-golf": "/brands/bridgestone-golf.png",
   callaway: "/brands/callaway.svg",
   "cleveland-golf": "/brands/cleveland-golf.svg",
+  cobra: "/brands/cobra.svg",
+  honma: "/brands/honma.png",
+  mizuno: "/brands/mizuno.svg",
+  odyssey: "/brands/odyssey.svg",
   ping: "/brands/ping.svg",
+  pxg: "/brands/pxg.svg",
+  "scotty-cameron": "/brands/scotty-cameron.png",
+  srixon: "/brands/srixon.svg",
+  "sub-70": "/brands/sub-70.png",
   taylormade: "/brands/taylormade.svg",
   titleist: "/brands/titleist.svg",
+  "tour-edge": "/brands/tour-edge.png",
+  "wilson-staff": "/brands/wilson-staff.png",
 };
+
+export const CURATED_BRAND_SLUGS = [
+  "adams-golf",
+  "ben-hogan-golf",
+  "bridgestone-golf",
+  "callaway",
+  "cleveland-golf",
+  "cobra",
+  "honma",
+  "mizuno",
+  "odyssey",
+  "ping",
+  "pxg",
+  "scotty-cameron",
+  "srixon",
+  "sub-70",
+  "taylormade",
+  "titleist",
+  "tour-edge",
+  "wilson-staff",
+] as const;
 
 export type BrandAssetRequest = {
   brandId?: string | null;
