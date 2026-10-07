@@ -324,14 +324,9 @@ function rawNextBestQuestion(
       reason: "Ayuda a validar el perfil técnico y la tolerancia del set",
       critical: false,
     };
-  if (value.includes("wedge") && !known.gapping)
-    return {
-      id: "gapping",
-      prompt: "¿Qué distancia quieres cubrir con el wedge?",
-      category: "WEDGE",
-      reason: "El loft y el uso dependen de la distancia objetivo",
-      critical: true,
-    };
+  // Target distance is useful context, but it is optional. Advice should first
+  // explain a candidate using known active wedges and lofts rather than block
+  // on a distance question.
   if (value.includes("wedge") && !known.turfInteraction)
     return {
       id: "turfInteraction",

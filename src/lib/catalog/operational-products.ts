@@ -171,6 +171,93 @@ export type OperationalProductImage = {
 export type OperationalCatalogResult<T> =
   { data: T; error: null } | { data: null; error: "unavailable" };
 
+export type ActiveGolfCatalogReferences = {
+  brands: CatalogReference[];
+  categories: CatalogReference[];
+  models: GolfModelSuggestion[];
+};
+
+/**
+ * Pure catalog-reference read path shared by Operations and Mi Golf.
+ * It intentionally has no pricing, payment, inventory, or Stripe dependency.
+ */
+export async function listActiveGolfCatalogReferences(current?: {
+  brandId?: string;
+  categoryId?: string;
+  canonicalModelId?: string | null;
+}): Promise<OperationalCatalogResult<ActiveGolfCatalogReferences>> {
+  try {
+    const client = await createClient();
+    const [brandsResult, categoriesResult, modelsResult] = await Promise.all([
+      client.from("brands").select("id, name, slug, status").order("name"),
+      client
+        .from("categories")
+        .select(
+          `
+          id,
+          parent_id,
+          sort_order,
+          slug,
+          name,
+          status,
+          profile:category_spec_profiles(family, club_type, bag_type, set_type)
+        `,
+        )
+        .order("sort_order")
+        .order("name"),
+      client
+        .from("catalog_product_models")
+        .select("id, brand_id, category_id, model_name, normalized_model_name, status")
+        .order("model_name"),
+    ]);
+    if (brandsResult.error || categoriesResult.error || modelsResult.error) {
+      console.error("[catalog] active reference load failed", {
+        brands: brandsResult.error?.message,
+        categories: categoriesResult.error?.message,
+        models: modelsResult.error?.message,
+      });
+      return { data: null, error: "unavailable" };
+    }
+    const categoryIdsWithChildren = new Set(
+      categoriesResult.data.flatMap((category) => category.parent_id ? [category.parent_id] : []),
+    );
+    return {
+      data: {
+        brands: selectAssignableTaxonomies(brandsResult.data, current?.brandId),
+        categories: selectAssignableTaxonomies(
+          categoriesResult.data.map((category) => ({
+            id: category.id,
+            name: category.name,
+            slug: category.slug,
+            parentId: category.parent_id,
+            sortOrder: category.sort_order,
+            hasChildren: categoryIdsWithChildren.has(category.id),
+            status: category.status,
+            family: category.profile?.family ?? null,
+            clubType: category.profile?.club_type ?? null,
+            bagType: category.profile?.bag_type ?? null,
+            setType: category.profile?.set_type ?? null,
+          })),
+          current?.categoryId,
+        ),
+        models: modelsResult.data
+          .filter((model) => model.status === "active" || model.id === current?.canonicalModelId)
+          .map((model) => ({
+            id: model.id,
+            brandId: model.brand_id,
+            categoryId: model.category_id,
+            name: model.model_name,
+            normalizedName: model.normalized_model_name,
+          })),
+      },
+      error: null,
+    };
+  } catch (error) {
+    console.error("[catalog] active reference load threw", error);
+    return { data: null, error: "unavailable" };
+  }
+}
+
 const operationalProductListColumns = `
   id,
   slug,
@@ -395,109 +482,24 @@ export async function listActiveCatalogReferences(current?: {
 > {
   try {
     const client = await createClient();
-    const [
-      brandsResult,
-      categoriesResult,
-      modelsResult,
-      rulesResult,
-      feeResult,
-    ] = await Promise.all([
-      client.from("brands").select("id, name, status").order("name"),
-      client
-        .from("categories")
-        .select(
-          `
-          id,
-          parent_id,
-          sort_order,
-          slug,
-          name,
-          status,
-          profile:category_spec_profiles(family, club_type, bag_type, set_type),
-          pricing_profile:category_pricing_profiles(new_rule_code, used_rule_code)
-        `,
-        )
-        .order("sort_order")
-        .order("name"),
-      client
-        .from("catalog_product_models")
-        .select(
-          "id, brand_id, category_id, model_name, normalized_model_name, status",
-        )
-        .order("model_name"),
-      client
-        .from("pricing_rules")
-        .select("code, target_return_bps")
-        .eq("active", true),
-      client
-        .from("payment_fee_configs")
-        .select("code, percentage_bps, fixed_fee")
-        .eq("code", "stripe_domestic_mx")
-        .eq("active", true)
-        .maybeSingle(),
-    ]);
-
-    if (
-      brandsResult.error ||
-      categoriesResult.error ||
-      modelsResult.error ||
-      rulesResult.error ||
-      feeResult.error ||
-      !feeResult.data
-    ) {
+    const references = await listActiveGolfCatalogReferences(current);
+    if (references.error || !references.data) {
       return { data: null, error: "unavailable" };
     }
+    const [rulesResult, feeResult] = await Promise.all([
+      client.from("pricing_rules").select("code, target_return_bps").eq("active", true),
+      client.from("payment_fee_configs").select("code, percentage_bps, fixed_fee").eq("code", "stripe_domestic_mx").eq("active", true).maybeSingle(),
+    ]);
+    if (rulesResult.error || feeResult.error || !feeResult.data) return { data: null, error: "unavailable" };
     const targetEntries = rulesResult.data.filter((rule) =>
       pricingRuleCodes.includes(rule.code as PricingRuleCode),
     );
     if (targetEntries.length !== pricingRuleCodes.length) {
       return { data: null, error: "unavailable" };
     }
-
-    const categoryIdsWithChildren = new Set(
-      categoriesResult.data.flatMap((category) =>
-        category.parent_id ? [category.parent_id] : [],
-      ),
-    );
-
     return {
       data: {
-        brands: selectAssignableTaxonomies(brandsResult.data, current?.brandId),
-        categories: selectAssignableTaxonomies(
-          categoriesResult.data.map((category) => ({
-            id: category.id,
-            name: category.name,
-            slug: category.slug,
-            parentId: category.parent_id,
-            sortOrder: category.sort_order,
-            hasChildren: categoryIdsWithChildren.has(category.id),
-            status: category.status,
-            family: category.profile?.family ?? null,
-            clubType: category.profile?.club_type ?? null,
-            bagType: category.profile?.bag_type ?? null,
-            setType: category.profile?.set_type ?? null,
-            newPricingRule:
-              (category.pricing_profile
-                ?.new_rule_code as PricingRuleCode | null) ?? null,
-            usedPricingRule:
-              (category.pricing_profile
-                ?.used_rule_code as PricingRuleCode | null) ?? null,
-          })),
-          current?.categoryId,
-        ),
-        models: modelsResult.data
-          .filter(
-            (model) =>
-              model.status === "active" ||
-              model.id === current?.canonicalModelId,
-          )
-          .map((model) => ({
-            id: model.id,
-            brandId: model.brand_id,
-            categoryId: model.category_id,
-            name: model.model_name,
-            normalizedName: model.normalized_model_name,
-          })),
+        ...references.data,
         pricingConfiguration: {
           targetReturnBps: Object.fromEntries(
             targetEntries.map((rule) => [rule.code, rule.target_return_bps]),

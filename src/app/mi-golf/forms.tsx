@@ -153,10 +153,12 @@ export function EquipmentForm({
   categories,
   brands,
   models,
+  referenceLoadError = false,
 }: {
   categories: GolfEquipmentCategory[];
   brands: GolfBrandSuggestion[];
   models: GolfModelSuggestion[];
+  referenceLoadError?: boolean;
 }) {
   const [categoryId, setCategoryId] = useState("");
   const [brand, setBrand] = useState("");
@@ -173,7 +175,9 @@ export function EquipmentForm({
     [categoryId, models, selectedBrandId],
   );
   if (!open) {
-    return (
+    return referenceLoadError ? (
+      <p role="alert" className="text-sm text-red-700">No pudimos cargar las categorías de equipo. Intenta de nuevo.</p>
+    ) : (
       <Button type="button" variant="outline" onClick={() => setOpen(true)}>
         + Agregar equipo
       </Button>

@@ -210,6 +210,7 @@ export default async function MiGolfPage() {
                 categories={categoryOptions}
                 brands={brandOptions}
                 models={modelOptions}
+                referenceLoadError={catalogReferences.error !== null}
               />
               {equipmentGroups.length ? equipmentGroups.map((group) => (
                 <section key={group.key} className="space-y-3">

@@ -912,6 +912,12 @@ export async function processConversationTurn(input: {
     participants.player.relationToBuyer = "SELF";
     participants.player.displayReference = "tú";
   }
+  const explicitThirdPartyPlayerMention = /\b(?:ella|él|mi\s+espos[oa]|mi\s+hij[oa])\b/i.test(normalizedMessage) &&
+    /\b(?:zurdo|zurda|izquierdo|izquierda|diestro|diestra|derecho|derecha|left|right)\b/i.test(normalizedMessage);
+  if (explicitThirdPartyPlayerMention && participants.player.relationToBuyer === "SELF") {
+    participants.player.relationToBuyer = /\b(?:espos[oa]|ella)\b/i.test(normalizedMessage) ? "SPOUSE" : "OTHER";
+    participants.player.displayReference = participants.player.relationToBuyer === "SPOUSE" ? "tu esposa" : "esa persona";
+  }
   // Conservative fallback when the semantic provider is unavailable: resolve
   // the participant from grammatical subject, never from a product keyword.
   if (!interpretation) {
@@ -989,10 +995,10 @@ export async function processConversationTurn(input: {
   const deterministicRecipientFacts: CanonicalCurrentTurnFact[] = [];
   const recipientHand = /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/i.test(normalizedMessage)
     ? "LEFT" : /\b(?:diestro|diestra|derecho|derecha|right)\b/i.test(normalizedMessage) ? "RIGHT" : null;
-  if (recipientContext === "THIRD_PARTY" && recipientHand && !normalizedProviderFacts.some((fact) => fact.field === "handedness") && pendingAnswerFact?.field !== "handedness") {
+  if (recipientContext === "THIRD_PARTY" && recipientHand && pendingAnswerFact?.field !== "handedness") {
     deterministicRecipientFacts.push({ field: "handedness", value: recipientHand, durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
   }
-  if (recipientContext === "THIRD_PARTY" && /\b(?:est[aá]\s+empezando|primer\s+set|principiante)\b/i.test(normalizedMessage) && !normalizedProviderFacts.some((fact) => fact.field === "setExperience") && pendingAnswerFact?.field !== "setExperience") {
+  if (recipientContext === "THIRD_PARTY" && /\b(?:est[aá]\s+empezando|primer\s+set|principiante)\b/i.test(normalizedMessage) && pendingAnswerFact?.field !== "setExperience") {
     deterministicRecipientFacts.push({ field: "setExperience", value: "FIRST_SET", durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
     deterministicRecipientFacts.push({ field: "skill", value: "BEGINNER", durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
   }
@@ -1002,6 +1008,7 @@ export async function processConversationTurn(input: {
   const rejectedContextEchoFacts: Array<{ key: string; reason: string }> = [];
   const existingAnswers = { ...input.state.session.diagnosticAnswers, ...memoryAnswersForTurn };
   for (const fact of normalizedProviderFacts) {
+    if (deterministicRecipientFacts.some((deterministic) => deterministic.field === fact.field)) continue;
     if (pendingAnswerFact?.field === fact.field) continue;
     const existing = existingAnswers[fact.field];
     const hasExisting = existing !== undefined && existing !== null && existing !== "";
@@ -1226,7 +1233,10 @@ export async function processConversationTurn(input: {
     const factualReply = knowledgeIntent?.startsWith("STORE_")
       ? answerStoreKnowledge(knowledgeIntent)
       : dto ? answerProductKnowledge(knowledgeIntent, dto, input.message) : null;
-    const answers = updatedState.session.diagnosticAnswers;
+    const answers = {
+      ...updatedState.session.diagnosticAnswers,
+      ...(recipientContext === "SELF" ? durableEquipmentAnswers : {}),
+    };
     const family = canonicalProductFamily(focusedProduct);
     const nextAdviceQuestion = getNextProductAdviceQuestion({ answers, productFamily: family });
     const hasHand = answers.handedness === "LEFT" || answers.handedness === "RIGHT";

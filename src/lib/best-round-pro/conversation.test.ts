@@ -300,14 +300,14 @@ describe("Best Round Pro conversation", () => {
     },
   );
 
-  it("uses semantic wedge distance wording without golf jargon", () => {
+  it("keeps wedge target distance optional", () => {
     const question = nextQuestionFor("WEDGE", null, {
       ...initialConversationState().session,
       requestedCategory: "WEDGE",
       diagnosticAnswers: { handedness: "RIGHT" },
     });
-    expect(question?.prompt).toContain("Qué distancia quieres cubrir");
-    expect(question?.prompt.toLowerCase()).not.toContain("hueco");
+    expect(question?.prompt).not.toContain("Qué distancia quieres cubrir");
+    expect(question?.id).toBe("turfInteraction");
   });
 
   it("extracts category, handedness, and shot tendency from one turn", () => {
