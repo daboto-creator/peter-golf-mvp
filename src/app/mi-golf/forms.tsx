@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import type {
   GolfBrandSuggestion,
   GolfModelSuggestion,
 } from "@/lib/catalog/golf-equipment-reference";
+import { findGolfModelSuggestions } from "@/lib/catalog/golf-equipment-reference";
 
 function Feedback({
   state,
@@ -44,7 +45,8 @@ export function ProfileForm({ profile }: { profile: Record<string, unknown> }) {
       onSubmit={(event) => {
         event.preventDefault();
         setState(null);
-        const data = new FormData(event.currentTarget);
+        const form = event.currentTarget;
+        const data = new FormData(form);
         start(async () => setState(await saveMiGolfProfileAction(data)));
       }}
       className="grid gap-4 sm:grid-cols-2"
@@ -73,6 +75,20 @@ export function ProfileForm({ profile }: { profile: Record<string, unknown> }) {
           <option value="RIGHT">Diestro</option>
           <option value="LEFT">Zurdo</option>
           <option value="UNKNOWN">No estoy seguro</option>
+        </select>
+      </div>
+      <div>
+        <Label htmlFor="handicapStatus">Estado del handicap</Label>
+        <select
+          id="handicapStatus"
+          name="handicapStatus"
+          defaultValue={String(profile.handicap_status ?? (profile.handicap ? "KNOWN" : "UNKNOWN"))}
+          className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+        >
+          <option value="KNOWN">Tengo handicap</option>
+          <option value="NONE">No tengo handicap</option>
+          <option value="UNKNOWN">No lo sé</option>
+          <option value="DECLINED">Prefiero no decirlo</option>
         </select>
       </div>
       <div>
@@ -137,42 +153,85 @@ export function EquipmentForm({
   categories,
   brands,
   models,
+  referenceLoadError = false,
 }: {
   categories: GolfEquipmentCategory[];
   brands: GolfBrandSuggestion[];
   models: GolfModelSuggestion[];
+  referenceLoadError?: boolean;
 }) {
+  const [categoryId, setCategoryId] = useState("");
+  const [brandId, setBrandId] = useState("");
+  const [manualBrand, setManualBrand] = useState("");
+  const [modelId, setModelId] = useState("");
+  const [manualModel, setManualModel] = useState("");
+  const [modelYear, setModelYear] = useState("");
   const [state, setState] = useState<{ ok: boolean; message?: string } | null>(
     null,
   );
   const [pending, start] = useTransition();
+  const [open, setOpen] = useState(false);
+  const selectedBrand = brands.find((item) => item.id === brandId);
+  const categoryBrands = useMemo(
+    () => categoryId ? brands : [],
+    [brands, categoryId],
+  );
+  const filteredModels = useMemo(
+    () => findGolfModelSuggestions(models, "", selectedBrand?.id, categoryId || undefined),
+    [categoryId, models, selectedBrand],
+  );
+  if (!open) {
+    return referenceLoadError ? (
+      <p role="alert" className="text-sm text-red-700">No pudimos cargar las categorías de equipo. Intenta de nuevo.</p>
+    ) : (
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+        + Agregar equipo
+      </Button>
+    );
+  }
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
         setState(null);
         const data = new FormData(event.currentTarget);
-        const category = categories.find(
-          (item) => item.label === String(data.get("category")),
-        );
-        const brand = brands.find(
-          (item) =>
-            item.name.toLowerCase() === String(data.get("brand")).toLowerCase(),
-        );
-        const model = models.find(
-          (item) =>
-            item.name.toLowerCase() ===
-              String(data.get("model")).toLowerCase() &&
-            (!brand || item.brandId === brand.id) &&
-            (!category || item.categoryId === category.id),
-        );
-        if (category) data.set("categoryId", category.id);
-        if (brand) data.set("canonicalBrandId", brand.id);
-        if (model) data.set("canonicalModelId", model.id);
+        const form = event.currentTarget;
+        const category = categories.find((item) => item.id === categoryId);
+        if (category) {
+          data.set("categoryId", category.id);
+          data.set("category", category.label);
+        }
+        if (selectedBrand) {
+          data.set("brand", selectedBrand.name);
+          data.set("canonicalBrandId", selectedBrand.id);
+        } else {
+          data.set("brand", manualBrand.trim());
+          data.delete("canonicalBrandId");
+        }
+        const selectedModel = filteredModels.find((item) => item.id === modelId);
+        if (selectedModel) {
+          data.set("model", selectedModel.name);
+          data.set("canonicalModelId", selectedModel.id);
+        } else {
+          data.set("model", manualModel.trim());
+          data.delete("canonicalModelId");
+        }
+        if (selectedModel && !String(data.get("modelYear") ?? "").trim() && "modelYear" in selectedModel && selectedModel.modelYear) {
+          data.set("modelYear", String(selectedModel.modelYear));
+        }
         start(async () => {
           const result = await addMiGolfEquipmentAction(data);
           setState(result);
-          if (result.ok) event.currentTarget.reset();
+          if (result.ok) {
+            form.reset();
+            setCategoryId("");
+            setBrandId("");
+            setManualBrand("");
+            setModelId("");
+            setManualModel("");
+            setModelYear("");
+            setOpen(false);
+          }
         });
       }}
       className="grid gap-3"
@@ -180,35 +239,80 @@ export function EquipmentForm({
       <select
         name="category"
         required
+        value={categoryId}
+        onChange={(event) => {
+          const nextCategoryId = event.target.value;
+          setCategoryId(nextCategoryId);
+          setModelId("");
+          setManualModel("");
+          setModelYear("");
+          if (selectedBrand && !models.some((item) => item.brandId === selectedBrand.id && item.categoryId === nextCategoryId)) {
+            setBrandId("");
+            setManualBrand("");
+          }
+        }}
         className="border-input bg-background h-10 rounded-md border px-3 text-sm"
       >
         <option value="">Categoría</option>
         {categories.map((item) => (
-          <option key={item.id} value={item.label}>
+          <option key={item.id} value={item.id}>
             {item.label}
           </option>
         ))}
       </select>
-      <Input
-        name="brand"
-        list="mi-golf-brands"
-        placeholder="Marca (o escribe una nueva)"
-      />
-      <datalist id="mi-golf-brands">
-        {brands.map((item) => (
-          <option key={item.id} value={item.name} />
-        ))}
-      </datalist>
-      <Input
-        name="model"
-        list="mi-golf-models"
-        placeholder="Modelo (o escribe uno nuevo)"
-      />
-      <datalist id="mi-golf-models">
-        {models.map((item) => (
-          <option key={item.id} value={item.name} />
-        ))}
-      </datalist>
+      <input type="hidden" name="categoryId" value={categoryId} />
+      <div className="grid gap-1.5">
+        <Label htmlFor="mi-golf-brand">Marca</Label>
+        <select
+          id="mi-golf-brand"
+          name="brandChoice"
+          value={brandId}
+          disabled={!categoryId}
+          onChange={(event) => {
+            setBrandId(event.target.value);
+            setModelId("");
+            setManualModel("");
+            setManualBrand("");
+          }}
+          className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+        >
+          <option value="">{categoryId ? "Selecciona marca" : "Selecciona primero categoría"}</option>
+          {categoryBrands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          <option value="__manual_brand__">Mi marca no aparece</option>
+        </select>
+        {brandId === "__manual_brand__" ? (
+          <Input name="manualBrand" placeholder="Escribe la marca" value={manualBrand} onChange={(event) => setManualBrand(event.target.value)} required />
+        ) : null}
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="mi-golf-model">Modelo</Label>
+        <select
+          id="mi-golf-model"
+          name="modelChoice"
+          value={modelId}
+          disabled={!categoryId || !selectedBrand}
+          onChange={(event) => {
+            const nextModelId = event.target.value;
+            setModelId(nextModelId);
+            setManualModel("");
+            const nextModel = filteredModels.find((item) => item.id === nextModelId);
+            setModelYear(nextModel?.modelYear ? String(nextModel.modelYear) : "");
+          }}
+          className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+        >
+          <option value="">{!categoryId || !selectedBrand ? "Selecciona primero categoría y marca" : filteredModels.length ? "Selecciona modelo" : "No hay modelos precargados"}</option>
+          {filteredModels.map((item) => <option key={item.id} value={item.id}>{item.name}{"modelYear" in item && item.modelYear ? ` — ${item.modelYear}` : ""}</option>)}
+          {categoryId && selectedBrand ? <option value="__manual_model__">Mi modelo no aparece</option> : null}
+        </select>
+        {categoryId && selectedBrand && !filteredModels.length ? (
+          <p className="text-xs text-muted-foreground">No tenemos modelos precargados para esta combinación.</p>
+        ) : null}
+        {modelId === "__manual_model__" || (categoryId && brandId === "__manual_brand__") ? (
+          <Input name="manualModel" placeholder="Escribe el modelo" value={manualModel} onChange={(event) => setManualModel(event.target.value)} required />
+        ) : null}
+      </div>
+      <Input name="modelYear" type="number" min="1900" max="2200" step="1" placeholder="Año del modelo (opcional)" value={modelYear} onChange={(event) => setModelYear(event.target.value)} />
+      <Input name="loft" type="number" min="40" max="64" step="0.1" placeholder="Loft (opcional, ej. 60)" />
       <Input name="notes" placeholder="Notas (opcional)" />
       <div className="flex items-center gap-3">
         <Button type="submit" variant="outline" disabled={pending}>
@@ -221,16 +325,28 @@ export function EquipmentForm({
 }
 
 export function EquipmentEditForm({ item }: { item: Record<string, unknown> }) {
+  const [editing, setEditing] = useState(false);
   const [state, setState] = useState<{ ok: boolean; message?: string } | null>(
     null,
   );
   const [pending, start] = useTransition();
+  if (!editing) {
+    return (
+      <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}>
+        Editar
+      </Button>
+    );
+  }
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
-        start(async () => setState(await updateMiGolfEquipmentAction(data)));
+        start(async () => {
+          const result = await updateMiGolfEquipmentAction(data);
+          setState(result);
+          if (result.ok) setEditing(false);
+        });
       }}
       className="grid gap-2"
     >
@@ -238,6 +354,8 @@ export function EquipmentEditForm({ item }: { item: Record<string, unknown> }) {
       <Input name="category" defaultValue={String(item.category)} required />
       <Input name="brand" defaultValue={String(item.brand ?? "")} />
       <Input name="model" defaultValue={String(item.model ?? "")} />
+      <Input name="modelYear" type="number" min="1900" max="2200" step="1" defaultValue={String(item.model_year ?? "")} />
+      <Input name="loft" type="number" min="40" max="64" step="0.1" defaultValue={String((item.specifications as Record<string, unknown> | undefined)?.loft ?? "")} />
       <Input name="notes" defaultValue={String(item.notes ?? "")} />
       <div className="flex items-center gap-2">
         <Button type="submit" variant="ghost" size="sm" disabled={pending}>

@@ -47,6 +47,38 @@ describe("Best Round Pro conversation", () => {
     expect(resolvePendingAnswerFact("driverObjective", "distancia")).toMatchObject({ field: "driverObjective", value: "DISTANCE" });
     expect(resolvePendingAnswerFact("currentWedgeLofts", "50, 54 y 58")).toMatchObject({ field: "currentWedgeLofts", value: [50, 54, 58] });
   });
+
+  it("keeps wedge target distance separate from current wedge lofts", () => {
+    expect(resolvePendingAnswerFact("gapping", "80 yds")).toMatchObject({
+      field: "targetWedgeDistanceYards",
+      value: 80,
+      durable: false,
+    });
+    expect(resolvePendingAnswerFact("gapping", "80 yds")).not.toMatchObject({ field: "currentWedgeLofts" });
+    expect(validateCanonicalFactValue("currentWedgeLofts", [80], "KNOWN")).toBe(false);
+    expect(validateCanonicalFactValue("targetWedgeDistanceYards", 80, "KNOWN")).toBe(true);
+  });
+
+  it("does not overwrite durable wedge lofts when distance is answered", () => {
+    const state = initialConversationState();
+    state.session.requestedCategory = "WEDGE";
+    state.session.diagnosticAnswers = { handedness: "RIGHT", currentWedgeLofts: [52] };
+    state.pendingQuestionKey = "gapping";
+    const result = classifyConversationTurn(state, "80 yds");
+    expect(result.state.session.diagnosticAnswers.currentWedgeLofts).toEqual([52]);
+    expect(result.state.session.diagnosticAnswers.targetWedgeDistanceYards).toBe(80);
+    expect(result.state.pendingQuestionKey).not.toBe("gapping");
+  });
+
+  it("normalizes third-party perspective without tú grammar", () => {
+    const perspective = getPlayerPerspective({
+      buyer: { isLoggedInUser: true },
+      player: { relationToBuyer: "SPOUSE", displayReference: "tú", facts: {} },
+    });
+    expect(perspective.subject).toBe("ella");
+    expect(perspective.displayReference).toBe("tu esposa");
+    expect(perspective.possessive).toBe("su");
+  });
   const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT") => ({
     id,
     slug: id.toLowerCase(),
@@ -145,6 +177,14 @@ describe("Best Round Pro conversation", () => {
     const next = resolveSearchScope(previous, ["DRIVER", "WEDGE"], "MULTI_FAMILY", null, true);
     expect(next?.families).toEqual(["DRIVER", "WEDGE"]);
     expect(next?.mode).toBe("MULTI_FAMILY");
+    expect(next?.source).toBe("EXPLICIT_CURRENT_TURN");
+  });
+
+  it("replaces a stale SET or DRIVER scope with an explicit WEDGE request", () => {
+    const previous = resolveSearchScope(null, ["SET"], "EXACT", "SET", true);
+    const next = resolveSearchScope(previous, ["WEDGE"], "EXACT", "WEDGE", true, "RESULTS_FOUND", "REPLACE_SCOPE", "EXPLICIT_CURRENT_TURN");
+    expect(next?.families).toEqual(["WEDGE"]);
+    expect(next?.mode).toBe("EXACT");
     expect(next?.source).toBe("EXPLICIT_CURRENT_TURN");
   });
 
@@ -260,14 +300,14 @@ describe("Best Round Pro conversation", () => {
     },
   );
 
-  it("uses semantic wedge distance wording without golf jargon", () => {
+  it("keeps wedge target distance optional", () => {
     const question = nextQuestionFor("WEDGE", null, {
       ...initialConversationState().session,
       requestedCategory: "WEDGE",
       diagnosticAnswers: { handedness: "RIGHT" },
     });
-    expect(question?.prompt).toContain("Qué distancia quieres cubrir");
-    expect(question?.prompt.toLowerCase()).not.toContain("hueco");
+    expect(question?.prompt).not.toContain("Qué distancia quieres cubrir");
+    expect(question?.id).toBe("turfInteraction");
   });
 
   it("extracts category, handedness, and shot tendency from one turn", () => {

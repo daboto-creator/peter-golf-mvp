@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   MEMORY_POLICY,
   nextBestQuestion,
+  resolveRecipientContext,
+  canOverwriteDurableFact,
   validateHandicap,
   type BestRoundRecommendationRequest,
 } from "@/lib/mi-golf/domain";
@@ -50,5 +52,18 @@ describe("Mi Golf foundation contracts", () => {
       candidateInventory: [],
     };
     expect(request.candidateInventory).toEqual([]);
+  });
+
+  it("isolates third-party recipient language and supports returning to self", () => {
+    expect(resolveRecipientContext("Estoy buscando un driver para mi esposa", "SELF")).toBe("THIRD_PARTY");
+    expect(resolveRecipientContext("ella es zurda y está empezando", "THIRD_PARTY")).toBe("THIRD_PARTY");
+    expect(resolveRecipientContext("ahora volvamos a buscar para mí", "THIRD_PARTY")).toBe("SELF");
+  });
+
+  it("keeps manual edits authoritative while allowing explicit corrections", () => {
+    expect(canOverwriteDurableFact({ existingSource: "USER_MANUAL_EDIT", incomingSource: "AI_INFERENCE" })).toBe(false);
+    expect(canOverwriteDurableFact({ existingSource: "USER_MANUAL_EDIT", incomingSource: "USER_DECLARED" })).toBe(false);
+    expect(canOverwriteDurableFact({ existingSource: "USER_MANUAL_EDIT", incomingSource: "USER_DECLARED", explicitCorrection: true })).toBe(true);
+    expect(canOverwriteDurableFact({ existingSource: "DERIVED", incomingSource: "USER_DECLARED" })).toBe(true);
   });
 });

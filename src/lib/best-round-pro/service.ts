@@ -9,6 +9,7 @@ import {
   type ConversationOutcome,
   type ConversationOutcomeResult,
   type ConversationState,
+  type ConversationParticipants,
   evaluateFocusedProductAgainstKnownFacts,
   getNextProductAdviceQuestion,
   getPlayerPerspective,
@@ -27,11 +28,13 @@ import {
 import type { DialogueAct, FactMutationIntent } from "@/lib/best-round-pro/contract";
 import { getPublicProductBySlug } from "@/lib/catalog/public-products";
 import { normalizeMatchCategory } from "@/lib/matching/equipment-matching";
+import { interpretGolfCategory } from "@/lib/best-round-pro/category-normalization";
 import type {
   MiGolfEquipment,
   MiGolfObjective,
   MiGolfProfile,
 } from "@/lib/mi-golf/domain";
+import { canOverwriteDurableFact, resolveRecipientContext } from "@/lib/mi-golf/domain";
 import {
   rankInventoryCandidates,
   matchInventoryCandidates,
@@ -102,6 +105,46 @@ function familyWithArticle(family: string, article: "THIS" | "OTHER") {
     : { FAIRWAY_WOOD: "otra madera de fairway", IRON: "otro juego de hierros" };
   return (labels as Record<string, string>)[family]
     ?? `${article === "THIS" ? "este" : "otro"} ${familyLabel(family)}`;
+}
+
+function fitPhrase(perspective: ReturnType<typeof getPlayerPerspective>) {
+  if (perspective.isSelf) return "te puede funcionar";
+  if (perspective.relationToBuyer === "SPOUSE") return "le puede funcionar a tu esposa";
+  if (perspective.relationToBuyer === "CHILD") return "le puede funcionar a tu hijo/a";
+  return `le puede funcionar a ${perspective.displayReference}`;
+}
+
+function handLabel(hand: string, perspective: ReturnType<typeof getPlayerPerspective>) {
+  if (hand === "LEFT") return perspective.relationToBuyer === "SPOUSE" ? "zurda" : "zurdo";
+  return perspective.relationToBuyer === "SPOUSE" ? "diestra" : "diestro";
+}
+
+export function resolveEffectiveRecipientContext(input: {
+  message: string;
+  prior: "SELF" | "THIRD_PARTY" | "UNKNOWN";
+  authenticated: boolean;
+}) {
+  const explicit = resolveRecipientContext(input.message, "UNKNOWN");
+  if (explicit !== "UNKNOWN") return explicit;
+  if (input.prior === "THIRD_PARTY") return "THIRD_PARTY" as const;
+  if (input.authenticated) return "SELF" as const;
+  return "UNKNOWN" as const;
+}
+
+export function extractDeterministicRecipientFacts(message: string, recipientContext: "SELF" | "THIRD_PARTY" | "UNKNOWN"): CanonicalCurrentTurnFact[] {
+  if (recipientContext !== "THIRD_PARTY") return [];
+  const facts: CanonicalCurrentTurnFact[] = [];
+  const hand = /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/i.test(message)
+    ? "LEFT"
+    : /\b(?:diestro|diestra|derecho|derecha|right)\b/i.test(message)
+      ? "RIGHT"
+      : null;
+  if (hand) facts.push({ field: "handedness", value: hand, durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
+  if (/\b(?:est[aá]\s+empezando|primer\s+set|principiante)\b/i.test(message)) {
+    facts.push({ field: "setExperience", value: "FIRST_SET", durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
+    facts.push({ field: "skill", value: "BEGINNER", durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
+  }
+  return facts;
 }
 
 function targetLevelForSet(input: { setType?: string | null; name: string; category?: string | null }) {
@@ -248,6 +291,19 @@ export type ConversationInterpreterTelemetry = {
   primarySemanticIntent?: string | null;
   secondarySemanticIntent?: string | null;
   humanLabelMappingApplied?: boolean;
+  recipientContext?: "SELF" | "THIRD_PARTY" | "UNKNOWN";
+  miGolfLoaded?: boolean;
+  durableFactsLoaded?: string[];
+  durableFactsSaved?: string[];
+  durableFactsRejected?: string[];
+  factSource?: string | null;
+  factConflictDetected?: boolean;
+  manualEditAuthorityApplied?: boolean;
+  equipmentFactsLoaded?: string[];
+  currentWedgeLoftsLoaded?: number[];
+  currentWedgesLoaded?: string | null;
+  goalFactsLoaded?: string[];
+  recommendationSnapshotSaved?: boolean;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -325,6 +381,13 @@ function recordAdviceTelemetry(state: ConversationState, outcome: string | null,
   lastInterpreterTelemetry.adviceEvidenceSufficient = sufficient;
   lastInterpreterTelemetry.materialMissingFactKeys = missing;
   lastInterpreterTelemetry.nextQuestionKey = state.pendingQuestionKey;
+  const wedgeLofts = state.session.diagnosticAnswers.currentWedgeLofts;
+  lastInterpreterTelemetry.currentWedgeLoftsLoaded = Array.isArray(wedgeLofts)
+    ? wedgeLofts.filter((value): value is number => typeof value === "number")
+    : [];
+  lastInterpreterTelemetry.currentWedgesLoaded = typeof state.session.diagnosticAnswers.currentWedges === "string"
+    ? state.session.diagnosticAnswers.currentWedges
+    : null;
 }
 
 function telemetryPlayerFacts(answers: Record<string, string | number | boolean | number[] | null>) {
@@ -347,11 +410,18 @@ function profileFrom(
   return {
     userId,
     handicap: typeof row.handicap === "number" ? row.handicap : null,
+    handicapStatus:
+      row.handicap_status === "KNOWN" || row.handicap_status === "NONE" || row.handicap_status === "DECLINED"
+        ? row.handicap_status
+        : "UNKNOWN",
+    handicapSource: typeof row.handicap_source === "string" ? row.handicap_source as MiGolfProfile["handicapSource"] : "USER_DECLARED",
     handedness:
       row.handedness === "RIGHT" || row.handedness === "LEFT"
         ? row.handedness
         : "UNKNOWN",
+    handednessSource: typeof row.handedness_source === "string" ? row.handedness_source as MiGolfProfile["handednessSource"] : "USER_DECLARED",
     skillLevel: typeof row.skill_level === "string" ? row.skill_level : null,
+    skillLevelSource: typeof row.skill_level_source === "string" ? row.skill_level_source as MiGolfProfile["skillLevelSource"] : "DERIVED_FROM_HANDICAP",
     playFrequency:
       typeof row.play_frequency === "string" ? row.play_frequency : null,
     shotTendency:
@@ -376,13 +446,13 @@ export async function loadMiGolfContext() {
     await Promise.all([
       supabase
         .from("mi_golf_profiles" as never)
-        .select("handicap,handedness,skill_level,play_frequency,shot_tendency")
+        .select("handicap,handicap_status,handicap_source,handedness,handedness_source,skill_level,skill_level_source,play_frequency,shot_tendency")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
         .from("mi_golf_equipment" as never)
         .select(
-          "id,category,brand,model,specifications,source,confidence,notes,is_active",
+          "id,category,category_id,brand,canonical_brand_id,model,canonical_model_id,model_year,specifications,source,confidence,notes,is_active",
         )
         .eq("user_id", user.id)
         .eq("is_active", true),
@@ -394,9 +464,185 @@ export async function loadMiGolfContext() {
   return {
     user,
     profile: profileFrom((profile ?? null) as ProfileRow | null, user.id),
-    equipment: (equipment ?? []) as unknown as MiGolfEquipment[],
+    equipment: (equipment ?? []).map((row) => {
+      const item = row as Record<string, unknown>;
+      const specifications = (item.specifications && typeof item.specifications === "object" ? item.specifications : {}) as Record<string, unknown>;
+      const parsedLoft = Number(specifications.loft ?? specifications.loft_degrees);
+      return {
+        id: String(item.id),
+        userId: user.id,
+        category: String(item.category ?? item.category_input ?? ""),
+        categoryId: typeof item.category_id === "string" ? item.category_id : null,
+        kind: interpretGolfCategory(String(item.category ?? item.category_input ?? ""))?.category?.toLowerCase() ?? null,
+        brandId: typeof item.canonical_brand_id === "string" ? item.canonical_brand_id : null,
+        brand: typeof item.brand === "string" ? item.brand : null,
+        modelId: typeof item.canonical_model_id === "string" ? item.canonical_model_id : null,
+        modelYear: typeof item.model_year === "number" ? item.model_year : null,
+        model: typeof item.model === "string" ? item.model : null,
+        specifications,
+        source: String(item.source ?? "USER_DECLARED") as MiGolfEquipment["source"],
+        confidence: String(item.confidence ?? "HIGH") as MiGolfEquipment["confidence"],
+        notes: typeof item.notes === "string" ? item.notes : null,
+        isActive: item.is_active !== false,
+        family: interpretGolfCategory(String(item.category ?? item.category_input ?? ""))?.category ?? null,
+        loft: Number.isFinite(parsedLoft) ? parsedLoft : null,
+        handedness: typeof specifications.handedness === "string" ? specifications.handedness : null,
+        shaftFlex: typeof specifications.shaftFlex === "string" ? specifications.shaftFlex : typeof specifications.shaft_flex === "string" ? specifications.shaft_flex : null,
+        shaftMaterial: typeof specifications.shaftMaterial === "string" ? specifications.shaftMaterial : typeof specifications.shaft_material === "string" ? specifications.shaft_material : null,
+      } satisfies MiGolfEquipment;
+    }),
     objectives: (objectives ?? []) as unknown as MiGolfObjective[],
   };
+}
+
+function profileAnswers(profile: MiGolfProfile | null) {
+  if (!profile) return {};
+  const answers: Record<string, string | number | null> = {};
+  if (profile.handedness && profile.handedness !== "UNKNOWN") answers.handedness = profile.handedness;
+  if (profile.handicapStatus === "KNOWN" && profile.handicap !== null) {
+    answers.handicapIndex = profile.handicap;
+    answers.handicapStatus = "KNOWN";
+    answers.skill = profile.skillLevel?.toUpperCase() === "ADVANCED" || profile.skillLevel?.toUpperCase() === "INTERMEDIATE" || profile.skillLevel?.toUpperCase() === "BEGINNER"
+      ? profile.skillLevel.toUpperCase()
+      : deriveSkillFromHandicap(profile.handicap);
+  } else if (profile.handicapStatus && profile.handicapStatus !== "UNKNOWN") answers.handicapStatus = profile.handicapStatus;
+  if (profile.shotTendency) answers.shotTendency = profile.shotTendency;
+  return answers;
+}
+
+function equipmentAnswers(equipment: MiGolfEquipment[]): Record<string, string | number | number[] | null> {
+  const active = equipment.filter((item) => item.isActive);
+  const wedges = active
+    .filter((item) => interpretGolfCategory(item.category)?.category === "WEDGE" || /wedge/i.test(item.category))
+    .flatMap((item) => {
+      const loft = item.loft ?? item.specifications.loft ?? item.specifications.loft_degrees;
+      const value = typeof loft === "number" ? loft : Number(loft);
+      return Number.isFinite(value) ? [value] : [];
+    });
+  const answers: Record<string, string | number | number[] | null> = {};
+  if (wedges.length) {
+    answers.currentWedgeLofts = [...new Set(wedges)];
+    answers.currentWedges = active
+      .filter((item) => interpretGolfCategory(item.category)?.category === "WEDGE" || /wedge/i.test(item.category))
+      .map((item) => {
+        const identity = [item.brand, item.model].filter(Boolean).join(" ");
+        const loft = item.loft ?? item.specifications.loft ?? item.specifications.loft_degrees;
+        const numericLoft = typeof loft === "number" ? loft : Number(loft);
+        return identity ? `${identity}${Number.isFinite(numericLoft) ? ` de ${numericLoft}°` : ""}` : null;
+      })
+      .filter(Boolean)
+      .join(", ");
+  }
+  for (const [family, key] of [["DRIVER", "currentDriver"], ["FAIRWAY_WOOD", "currentFairwayWoods"], ["HYBRID", "currentHybrids"], ["IRON", "currentIronSet"], ["PUTTER", "currentPutter"]] as const) {
+    const current = active.filter((item) => interpretGolfCategory(item.category)?.category === family);
+    if (current.length) answers[key] = current.map((item) => [item.brand, item.model].filter(Boolean).join(" ")).filter(Boolean).join(", ");
+  }
+  return answers;
+}
+
+export function mergeCurrentEquipmentAdviceAnswers(
+  sessionAnswers: Record<string, string | number | boolean | number[] | null | undefined>,
+  equipment: MiGolfEquipment[],
+  recipientContext: "SELF" | "THIRD_PARTY" | "UNKNOWN",
+): Record<string, string | number | boolean | number[] | null> {
+  const definedSessionAnswers = Object.fromEntries(
+    Object.entries(sessionAnswers).filter(([, value]) => value !== undefined),
+  ) as Record<string, string | number | boolean | number[] | null>;
+  if (recipientContext !== "SELF") return definedSessionAnswers;
+  return { ...definedSessionAnswers, ...equipmentAnswers(equipment) };
+}
+
+function currentEquipmentReply(message: string, equipment: MiGolfEquipment[]) {
+  const requested = interpretGolfCategory(message)?.category ?? null;
+  const current = equipment.filter((item) => item.isActive).filter((item) => {
+    if (!requested) return true;
+    return interpretGolfCategory(item.category)?.category === requested || (requested === "WEDGE" && /wedge/i.test(item.category));
+  });
+  if (!current.length) {
+    const missingLabel = requested === "WEDGE" ? "wedge" : requested === "DRIVER" ? "driver" : requested === "FAIRWAY_WOOD" ? "madera de fairway" : requested === "HYBRID" ? "híbrido" : requested === "IRON" ? "juego de hierros" : requested === "PUTTER" ? "putter" : "equipo";
+    return requested ? `No tienes registrado un ${missingLabel} actual en Mi Golf.` : "Todavía no tienes equipo actual guardado en Mi Golf.";
+  }
+  const labels = current.map((item) => {
+    const loft = item.loft ?? item.specifications.loft ?? item.specifications.loft_degrees;
+    const loftLabel = loft !== null && loft !== undefined && Number.isFinite(Number(loft)) ? ` de ${Number(loft)}°` : "";
+    return `${[item.brand, item.model].filter(Boolean).join(" ") || "Equipo sin marca"}${loftLabel}`;
+  });
+  const categoryLabel = requested === "WEDGE" ? "wedge" : requested === "DRIVER" ? "driver" : requested === "FAIRWAY_WOOD" ? "madera de fairway" : requested === "HYBRID" ? "híbrido" : requested === "IRON" ? "juego de hierros" : requested === "PUTTER" ? "putter" : "equipo";
+  return `Sí. En Mi Golf tienes ${categoryLabel}: ${labels.join(", ")}.`;
+}
+
+async function persistSelfFacts(input: {
+  context: Awaited<ReturnType<typeof loadMiGolfContext>>;
+  participants: ConversationParticipants;
+  answers: Record<string, string | number | boolean | number[] | null>;
+  facts: CanonicalCurrentTurnFact[];
+}) {
+  if (!input.context.user || input.participants.player.relationToBuyer !== "SELF") return { saved: [], rejected: ["recipientContext"], authorityApplied: false };
+  const explicit = input.facts.filter((fact) => fact.durable && fact.source !== "CONTEXT_INFERRED");
+  if (!explicit.length) return { saved: [], rejected: [], authorityApplied: false };
+  const current = input.context.profile;
+  const patch: Record<string, unknown> = { user_id: input.context.user.id, memory_source: "USER_DECLARED", memory_confidence: "HIGH" };
+  const saved: string[] = [];
+  let authorityApplied = false;
+  for (const fact of explicit) {
+    if (fact.field === "handedness" && (fact.value === "RIGHT" || fact.value === "LEFT")) {
+      if (current?.handedness && current.handedness !== "UNKNOWN" && current.handedness !== fact.value && !canOverwriteDurableFact({ existingSource: current.handednessSource, incomingSource: "USER_DECLARED", explicitCorrection: false })) {
+        authorityApplied = true;
+        continue;
+      }
+      patch.handedness = fact.value;
+      patch.handedness_source = "USER_DECLARED";
+      saved.push("handedness");
+    }
+    if (fact.field === "handicapIndex" && typeof fact.value === "number" && fact.value >= 0 && fact.value <= 54) {
+      patch.handicap = fact.value;
+      patch.handicap_status = "KNOWN";
+      patch.handicap_source = "USER_DECLARED";
+      patch.skill_level = deriveSkillFromHandicap(fact.value);
+      patch.skill_level_source = "DERIVED_FROM_HANDICAP";
+      saved.push("handicapIndex", "skill");
+    }
+    if (fact.field === "handicapStatus" && typeof fact.value === "string" && ["NONE", "UNKNOWN", "DECLINED"].includes(fact.value)) {
+      patch.handicap = null;
+      patch.handicap_status = fact.value;
+      patch.handicap_source = "USER_DECLARED";
+      patch.skill_level = null;
+      patch.skill_level_source = "DERIVED_FROM_HANDICAP";
+      saved.push("handicapStatus", "skill");
+    }
+    if (fact.field === "shotTendency" && typeof fact.value === "string") {
+      patch.shot_tendency = fact.value;
+      saved.push("shotTendency");
+    }
+  }
+  if (!saved.length) return { saved, rejected: ["higher_priority_fact"], authorityApplied };
+  const supabase = await createClient();
+  const { error } = await supabase.from("mi_golf_profiles" as never).upsert(patch as never);
+  return error ? { saved: [], rejected: ["profile_write_failed"], authorityApplied } : { saved: [...new Set(saved)], rejected: [], authorityApplied };
+}
+
+async function saveRecommendationSnapshot(input: {
+  context: Awaited<ReturnType<typeof loadMiGolfContext>>;
+  state: ConversationState;
+  product: CatalogProductReference | null;
+}) {
+  if (!input.context.user || input.state.participants.player.relationToBuyer !== "SELF" || !input.state.activeAdvice?.outcome || !input.product) return false;
+  const supabase = await createClient();
+  const { error } = await supabase.from("mi_golf_recommendation_snapshots" as never).insert({
+    user_id: input.context.user.id,
+    product_id: input.product.id,
+    product_name: input.product.name,
+    product_family: input.state.activeAdvice.productFamily,
+    technical_compatibility: lastInterpreterTelemetry.technicalCompatibility ?? null,
+    player_level_fit: lastInterpreterTelemetry.playerLevelFit ?? null,
+    recommendation_outcome: input.state.activeAdvice.outcome,
+    recommendation_strength: lastInterpreterTelemetry.recommendationStrength ?? null,
+    key_reasons: lastInterpreterTelemetry.recommendationFactsUsed ?? [],
+    caveats: lastInterpreterTelemetry.categoryCaveats ?? [],
+    profile_snapshot: telemetryPlayerFacts(input.state.session.diagnosticAnswers),
+    recipient_context: "SELF",
+  } as never);
+  return !error;
 }
 
 export async function processConversationTurn(input: {
@@ -404,9 +650,32 @@ export async function processConversationTurn(input: {
   message: string;
   currentPageProduct?: ConversationProductContext | null;
 }) {
-  const withFinalReply = <T extends { state: ConversationState; reply: string }>(
+  const withFinalReply = async <T extends { state: ConversationState; reply: string }>(
     result: T,
-  ): T => {
+  ): Promise<T> => {
+    if (canonicalFacts.length && result.state.participants.player.relationToBuyer === "SELF") {
+      const persisted = await persistSelfFacts({
+        context,
+        participants: result.state.participants,
+        answers: result.state.session.diagnosticAnswers,
+        facts: canonicalFacts,
+      });
+      lastInterpreterTelemetry.durableFactsSaved = persisted.saved;
+      lastInterpreterTelemetry.durableFactsRejected = persisted.rejected;
+      lastInterpreterTelemetry.factSource = persisted.saved.length ? "USER_DECLARED" : null;
+      lastInterpreterTelemetry.factConflictDetected = persisted.rejected.includes("higher_priority_fact");
+      lastInterpreterTelemetry.manualEditAuthorityApplied = persisted.authorityApplied;
+    } else if (canonicalFacts.length) {
+      lastInterpreterTelemetry.durableFactsRejected = ["recipientContext"];
+    }
+    if (result.state.activeAdvice?.status === "CONCLUDED") {
+      const snapshotSaved = await saveRecommendationSnapshot({
+        context,
+        state: result.state,
+        product: result.state.productAdvice.product ?? result.state.lastFocusedProduct,
+      });
+      lastInterpreterTelemetry.recommendationSnapshotSaved = snapshotSaved;
+    }
     const reply = normalizeCustomerPunctuation(result.reply);
     return {
       ...result,
@@ -436,6 +705,32 @@ export async function processConversationTurn(input: {
     };
     context = { user: null, profile: null, equipment: [], objectives: [] };
   }
+  const priorRecipientContext = input.state.participants.player.relationToBuyer === "SELF"
+    ? "SELF" as const
+    : input.state.participants.player.relationToBuyer === "SPOUSE" || input.state.participants.player.relationToBuyer === "CHILD" || input.state.participants.player.relationToBuyer === "FRIEND" || input.state.participants.player.relationToBuyer === "OTHER"
+      ? "THIRD_PARTY" as const
+      : "UNKNOWN" as const;
+  const explicitRecipientContext = resolveRecipientContext(input.message, "UNKNOWN");
+  const currentRecipientContext = resolveEffectiveRecipientContext({
+    message: input.message,
+    prior: priorRecipientContext,
+    authenticated: Boolean(context.user),
+  });
+  const initialRecipientContext = currentRecipientContext;
+  let durableProfileAnswers = initialRecipientContext === "SELF" ? profileAnswers(context.profile) : {};
+  let durableEquipmentAnswers = initialRecipientContext === "SELF" ? equipmentAnswers(context.equipment) : {};
+  let activeGoal = initialRecipientContext === "SELF"
+    ? context.objectives.find((goal) => goal.status === "ACTIVE")
+    : null;
+  let durableGoalAnswers: Record<string, string | number | number[] | null> = activeGoal ? { goal: activeGoal.objectiveType } : {};
+  let durableAnswers: Record<string, string | number | number[] | null> = { ...durableProfileAnswers, ...durableEquipmentAnswers, ...durableGoalAnswers };
+  lastInterpreterTelemetry.miGolfLoaded = Boolean(context.user && initialRecipientContext === "SELF");
+  lastInterpreterTelemetry.recipientContext = context.user
+    ? initialRecipientContext === "SELF" ? "SELF" : initialRecipientContext === "UNKNOWN" ? "UNKNOWN" : "THIRD_PARTY"
+    : "UNKNOWN";
+  lastInterpreterTelemetry.durableFactsLoaded = Object.keys(durableAnswers);
+  lastInterpreterTelemetry.equipmentFactsLoaded = Object.keys(durableEquipmentAnswers);
+  lastInterpreterTelemetry.goalFactsLoaded = activeGoal ? [activeGoal.objectiveType] : [];
   const fallbackIntent = routeConversationIntent(input.message);
   let pageProductReference: CatalogProductReference | null = null;
   let pageProductData: Awaited<ReturnType<typeof getPublicProductBySlug>>["data"] = null;
@@ -498,7 +793,7 @@ export async function processConversationTurn(input: {
           targetCategory: input.state.session.requestedCategory,
           intent: input.state.session.purchaseIntent,
           budgetKnown: input.state.session.budgetMxnMinor !== null,
-          knownFacts: Object.keys(input.state.session.diagnosticAnswers),
+          knownFacts: Object.keys({ ...durableAnswers, ...input.state.session.diagnosticAnswers }),
         },
         userTurn: input.message,
         nextQuestionKey: input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey,
@@ -586,6 +881,45 @@ export async function processConversationTurn(input: {
       interpretation = null;
     }
   }
+  const deterministicCategory = /\b(?:quiero|busco|necesito|mu[eé]strame|muestrame|dame|ens[eé]ñame|ensename)\b/i.test(input.message)
+    ? interpretGolfCategory(input.message)?.category ?? null
+    : null;
+  if (deterministicCategory) {
+    interpretation = {
+      ...(interpretation ?? {
+        dialogueAct: "CATALOG_SEARCH",
+        intent: "EXPLORING",
+        category: deterministicCategory,
+        requestedProductFamilies: [deterministicCategory],
+        searchScopeMode: "EXACT",
+        catalogScopeIntent: "EXPLICIT_FAMILIES",
+        searchContinuationRelation: "REPLACE_SCOPE",
+        searchContinuationReason: "EXPLICIT_CURRENT_TURN",
+        productReference: null,
+        reasonMode: null,
+        declaredFacts: [],
+        factMutationIntent: "NONE",
+        temporaryPreferences: [],
+        objection: null,
+        wantsRecommendation: false,
+        wantsHandoff: false,
+        answersPendingQuestion: false,
+        asksForExplanation: false,
+        asksWhatInformationNeeded: false,
+        topicChanged: true,
+        confidence: 1,
+        entities: { purchaseTarget: "SELF", relationship: "UNKNOWN", playerReference: null },
+      }),
+      dialogueAct: "CATALOG_SEARCH",
+      category: deterministicCategory,
+      requestedProductFamilies: [deterministicCategory],
+      searchScopeMode: "EXACT",
+      catalogScopeIntent: "EXPLICIT_FAMILIES",
+      searchContinuationRelation: "REPLACE_SCOPE",
+      searchContinuationReason: "EXPLICIT_CURRENT_TURN",
+      topicChanged: true,
+    };
+  }
   let explicitProduct: CatalogProductReference | null = null;
   if (interpretation?.productReference) {
     const reference = interpretation.productReference.trim().toLowerCase();
@@ -626,7 +960,7 @@ export async function processConversationTurn(input: {
   lastInterpreterTelemetry.secondarySemanticIntent = mixedAdviceIntent ? "PRODUCT_ADVICE" : null;
   lastInterpreterTelemetry.mixedIntent = mixedAdviceIntent;
   let knowledgeProductData = pageProductData;
-  if (knowledgeIntent && preFocusedProduct && !knowledgeProductData) {
+  if (preFocusedProduct && !knowledgeProductData) {
     const loadedKnowledgeProduct = await getPublicProductBySlug(preFocusedProduct.slug);
     knowledgeProductData = loadedKnowledgeProduct.data;
   }
@@ -642,6 +976,20 @@ export async function processConversationTurn(input: {
       facts: { ...input.state.participants.player.facts },
     },
   };
+  if (resolveRecipientContext(normalizedMessage, participants.player.relationToBuyer === "SELF" ? "SELF" : "THIRD_PARTY") === "SELF") {
+    participants.player.relationToBuyer = "SELF";
+    participants.player.displayReference = "tú";
+  }
+  if (currentRecipientContext === "SELF" && (explicitRecipientContext === "SELF" || ["UNKNOWN", "SELF"].includes(participants.player.relationToBuyer))) {
+    participants.player.relationToBuyer = "SELF";
+    participants.player.displayReference = "tú";
+  }
+  const explicitThirdPartyPlayerMention = /\b(?:ella|él|mi\s+espos[oa]|mi\s+hij[oa])\b/i.test(normalizedMessage) &&
+    /\b(?:zurdo|zurda|izquierdo|izquierda|diestro|diestra|derecho|derecha|left|right)\b/i.test(normalizedMessage);
+  if (explicitThirdPartyPlayerMention && participants.player.relationToBuyer === "SELF") {
+    participants.player.relationToBuyer = /\b(?:espos[oa]|ella)\b/i.test(normalizedMessage) ? "SPOUSE" : "OTHER";
+    participants.player.displayReference = participants.player.relationToBuyer === "SPOUSE" ? "tu esposa" : "esa persona";
+  }
   // Conservative fallback when the semantic provider is unavailable: resolve
   // the participant from grammatical subject, never from a product keyword.
   if (!interpretation) {
@@ -654,6 +1002,54 @@ export async function processConversationTurn(input: {
       participants.player.relationToBuyer = relation;
       participants.player.displayReference = relation === "SPOUSE" ? "tu esposo" : relation === "CHILD" ? "tu hijo" : relation === "FRIEND" ? "tu amigo" : "la persona para quien lo buscas";
     }
+  }
+  const recipientContext = participants.player.relationToBuyer === "SELF"
+    ? "SELF" as const
+    : participants.player.relationToBuyer === "UNKNOWN"
+      ? "UNKNOWN" as const
+      : "THIRD_PARTY" as const;
+  // A follow-up such as "¿por qué me recomiendas ese?" carries forward the
+  // conversation's SELF recipient even though it contains no new recipient
+  // phrase. Refresh the authoritative Mi Golf facts at this boundary so a
+  // stale/unknown session participant cannot drop current equipment from the
+  // advice context.
+  if (recipientContext === "SELF" && initialRecipientContext !== "SELF") {
+    durableProfileAnswers = profileAnswers(context.profile);
+    durableEquipmentAnswers = equipmentAnswers(context.equipment);
+    activeGoal = context.objectives.find((goal) => goal.status === "ACTIVE") ?? null;
+    durableGoalAnswers = activeGoal ? { goal: activeGoal.objectiveType } : {};
+    durableAnswers = { ...durableProfileAnswers, ...durableEquipmentAnswers, ...durableGoalAnswers };
+  }
+  const previousRecipientContext = input.state.participants.player.relationToBuyer === "SELF"
+    ? "SELF"
+    : input.state.participants.player.relationToBuyer === "UNKNOWN" ? "UNKNOWN" : "THIRD_PARTY";
+  const recipientChanged = previousRecipientContext !== recipientContext;
+  const categoryFromTurn = interpretation?.category ?? null;
+  const previousCategory = input.state.searchScope?.families.length === 1
+    ? input.state.searchScope.families[0]
+    : input.state.session.requestedCategory;
+  const categoryChanged = Boolean(categoryFromTurn && previousCategory && previousCategory !== categoryFromTurn);
+  lastInterpreterTelemetry.recipientContext = context.user ? recipientContext : "UNKNOWN";
+  const memoryAnswersForTurn = recipientContext === "SELF" ? durableAnswers : {};
+  if (recipientContext === "SELF") {
+    for (const [field, value] of Object.entries(memoryAnswersForTurn)) {
+      if (value === null || value === undefined) continue;
+      participants.player.facts[field] ??= { status: "KNOWN", value, confidence: 1, source: "USER" };
+    }
+  }
+  if (knowledgeIntent === "MI_GOLF_EQUIPMENT") {
+    const reply = recipientContext === "SELF" && context.user
+      ? currentEquipmentReply(input.message, context.equipment)
+      : recipientContext === "THIRD_PARTY"
+        ? "Puedo revisar el equipo de esa persona durante esta conversación, pero no voy a usar ni mostrar tu Mi Golf como si fuera suyo."
+        : "Antes de revisar equipo guardado, necesito saber si la búsqueda es para ti o para alguien más.";
+    const state: ConversationState = {
+      ...input.state,
+      messages: [...input.state.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
+      lastExecutedAction: "RETURN_MI_GOLF_EQUIPMENT",
+    };
+    lastInterpreterTelemetry.executedFactualActions = ["RETURN_MI_GOLF_EQUIPMENT"];
+    return { state, reply, nextQuestion: null, objection: null, events: ["MI_GOLF_EQUIPMENT_READ"], recommendation: null, outcome: null, intent: "OTHER" as const };
   }
   const pendingKey = input.state.productAdvice?.pendingQuestionKey ?? input.state.pendingQuestionKey;
   const pendingAnswerCandidate = resolvePendingAnswerFact(pendingKey, normalizedMessage);
@@ -669,6 +1065,7 @@ export async function processConversationTurn(input: {
     return validateCanonicalFactValue(fact.field, value, normalizeCanonicalFactStatus(fact.field, value, fact.semanticStatus));
   }).map((fact) => ({
     ...fact,
+    durable: fact.field === "targetWedgeDistanceYards" ? false : fact.durable,
     value: isCanonicalFactValue(fact.value)
       ? normalizeStructuredFactValue(fact.field, fact.value)
       : fact.value,
@@ -679,10 +1076,15 @@ export async function processConversationTurn(input: {
     ),
     source: fact.source,
   }));
-  const canonicalFacts: CanonicalCurrentTurnFact[] = pendingAnswerFact ? [pendingAnswerFact] : [];
+  const deterministicRecipientFacts = extractDeterministicRecipientFacts(normalizedMessage, recipientContext)
+    .filter((fact) => fact.field !== pendingAnswerFact?.field);
+  const canonicalFacts: CanonicalCurrentTurnFact[] = pendingAnswerFact
+    ? [pendingAnswerFact, ...deterministicRecipientFacts]
+    : deterministicRecipientFacts;
   const rejectedContextEchoFacts: Array<{ key: string; reason: string }> = [];
-  const existingAnswers = input.state.session.diagnosticAnswers;
+  const existingAnswers = { ...input.state.session.diagnosticAnswers, ...memoryAnswersForTurn };
   for (const fact of normalizedProviderFacts) {
+    if (deterministicRecipientFacts.some((deterministic) => deterministic.field === fact.field)) continue;
     if (pendingAnswerFact?.field === fact.field) continue;
     const existing = existingAnswers[fact.field];
     const hasExisting = existing !== undefined && existing !== null && existing !== "";
@@ -708,7 +1110,7 @@ export async function processConversationTurn(input: {
     pendingKey && (fact.field === pendingKey ||
       (pendingKey === "skill" && ["handicapIndex", "handicapStatus"].includes(fact.field)) ||
       (pendingKey === "objective" && fact.field === "driverObjective") ||
-      (pendingKey === "gapping" && fact.field === "currentWedgeLofts")),
+      (pendingKey === "gapping" && fact.field === "targetWedgeDistanceYards")),
   );
   const answeredPending = Boolean(pendingKey && canonicalFacts.some(pendingFactMatches));
   const rawDialogueAct = interpretation?.rawDialogueAct ?? interpretation?.dialogueAct ?? null;
@@ -744,21 +1146,28 @@ export async function processConversationTurn(input: {
       .filter((fact) => fact.semanticStatus === "KNOWN")
       .map((fact) => fact.field),
   );
+  const explicitCategoryRequest = /\b(?:quiero|busco|mu[eé]strame|muestrame|necesito|dame|ens[eé]ñame|ensename|ver)\b/i.test(input.message);
+  const explicitCategoryFromMessage = explicitCategoryRequest
+    ? interpretGolfCategory(input.message)?.category ?? null
+    : effectiveDialogueAct === "CATALOG_SEARCH"
+      ? interpretGolfCategory(input.message)?.category ?? null
+      : null;
   const resolvedSearchScope = resolveSearchScope(
     input.state.searchScope,
-    interpretation?.requestedProductFamilies ?? [],
-    interpretation?.searchScopeMode,
-    interpretation?.category,
+    explicitCategoryFromMessage ? [explicitCategoryFromMessage] : interpretation?.requestedProductFamilies ?? [],
+    explicitCategoryFromMessage ? "EXACT" : interpretation?.searchScopeMode,
+    explicitCategoryFromMessage ?? interpretation?.category,
     effectiveDialogueAct === "CATALOG_SEARCH",
     input.state.catalogSearchOutcome,
     interpretation?.searchContinuationRelation,
     interpretation?.searchContinuationReason,
-    interpretation?.catalogScopeIntent,
+    explicitCategoryFromMessage ? "EXPLICIT_FAMILIES" : interpretation?.catalogScopeIntent,
   );
   // Single semantic reduction point. Every policy/domain branch below reads
   // this updated state, never the stale input snapshot.
   const reducedDiagnosticAnswers = {
-    ...input.state.session.diagnosticAnswers,
+    ...(recipientChanged ? {} : input.state.session.diagnosticAnswers),
+    ...memoryAnswersForTurn,
     ...interpretedAnswers,
   } as Record<string, string | number | boolean | number[] | null>;
   if (typeof reducedDiagnosticAnswers.handicapIndex === "number" && reducedDiagnosticAnswers.handicapIndex >= 0 && reducedDiagnosticAnswers.handicapIndex <= 54) {
@@ -773,25 +1182,28 @@ export async function processConversationTurn(input: {
     ...input.state,
     session: {
       ...input.state.session,
-      requestedCategory: interpretation?.category ?? input.state.session.requestedCategory,
+      requestedCategory: resolvedSearchScope?.families.length === 1
+        ? resolvedSearchScope.families[0]
+        : interpretation?.category ?? input.state.session.requestedCategory,
       diagnosticAnswers: reducedDiagnosticAnswers,
     },
     participants,
-    pendingQuestionKey: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionKey,
-    pendingQuestionCategory: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionCategory,
-    pendingQuestionSlotType: productChangedThisTurn || answeredPending ? null : input.state.pendingQuestionSlotType,
-    productAdvice: productChangedThisTurn
-      ? { active: false, product: pageProductReference, pendingQuestionKey: null, collectedAnswers: input.state.session.diagnosticAnswers }
+    pendingQuestionKey: productChangedThisTurn || answeredPending || recipientChanged || categoryChanged ? null : input.state.pendingQuestionKey,
+    pendingQuestionCategory: productChangedThisTurn || answeredPending || recipientChanged || categoryChanged ? null : input.state.pendingQuestionCategory,
+    pendingQuestionSlotType: productChangedThisTurn || answeredPending || recipientChanged || categoryChanged ? null : input.state.pendingQuestionSlotType,
+    productAdvice: productChangedThisTurn || recipientChanged || categoryChanged
+      ? { active: false, product: pageProductReference, pendingQuestionKey: null, collectedAnswers: reducedDiagnosticAnswers }
       : answeredPending && input.state.productAdvice
         ? { ...input.state.productAdvice, pendingQuestionKey: null }
         : input.state.productAdvice,
-    activeAdvice: productChangedThisTurn ? null : input.state.activeAdvice,
-    lastInteractedProduct: input.state.lastInteractedProduct,
+    activeAdvice: productChangedThisTurn || recipientChanged || categoryChanged ? null : input.state.activeAdvice,
+    lastInteractedProduct: recipientChanged || categoryChanged ? null : input.state.lastInteractedProduct,
+    lastCatalogResults: recipientChanged || categoryChanged ? [] : input.state.lastCatalogResults,
+    lastFocusedProduct: recipientChanged || categoryChanged ? null : input.state.lastFocusedProduct,
     focusedProductSource: preFocusedProductSource,
-    referenceResolution: {
-      productId: referenceResolution.productId,
-      source: referenceResolution.source,
-    },
+    referenceResolution: recipientChanged || categoryChanged
+      ? { productId: null, source: "CLARIFICATION_REQUIRED" }
+      : { productId: referenceResolution.productId, source: referenceResolution.source },
     searchScope: resolvedSearchScope,
     searchContinuation: interpretation?.searchContinuationRelation
       ? {
@@ -897,14 +1309,28 @@ export async function processConversationTurn(input: {
     const factualReply = knowledgeIntent?.startsWith("STORE_")
       ? answerStoreKnowledge(knowledgeIntent)
       : dto ? answerProductKnowledge(knowledgeIntent, dto, input.message) : null;
-    const answers = updatedState.session.diagnosticAnswers;
+    const answers = mergeCurrentEquipmentAdviceAnswers(
+      updatedState.session.diagnosticAnswers,
+      context.equipment,
+      recipientContext,
+    );
     const family = canonicalProductFamily(focusedProduct);
     const nextAdviceQuestion = getNextProductAdviceQuestion({ answers, productFamily: family });
     const hasHand = answers.handedness === "LEFT" || answers.handedness === "RIGHT";
     const hasLevel = Boolean(answers.handicapIndex !== undefined || answers.handicap !== undefined || answers.handicapStatus || answers.skill);
     const adviceComplete = hasHand && hasLevel && !nextAdviceQuestion;
+    const categoryInterpretation = dto
+      ? interpretCategoryRecommendation({
+          family,
+          product: dto,
+          answers,
+          targetPlayerLevel: focusedProduct.targetPlayerLevel,
+        })
+      : null;
     const adviceReply = adviceComplete
-      ? `Sí, con lo que me has contado lo mantendría como candidato. ${dto?.specs.loftDegrees != null ? `Tiene ${dto.specs.loftDegrees}°` : "Su configuración registrada"}${dto?.specs.shaftFlex ? ` y shaft ${dto.specs.shaftFlex}` : ""}; esos datos son los que más pesan para valorar cómo puede encajar en tu juego. Si quieres seguir con este, estás en la ficha correcta.`
+      ? categoryInterpretation
+        ? `${categoryInterpretation.reason} ${categoryInterpretation.caveat ?? ""}`
+        : `Sí, con lo que me has contado lo mantendría como candidato. ${dto?.specs.loftDegrees != null ? `Tiene ${dto.specs.loftDegrees}°` : "Su configuración registrada"}${dto?.specs.shaftFlex ? ` y shaft ${dto.specs.shaftFlex}` : ""}; esos datos son los que más pesan para valorar cómo puede encajar en tu juego. Si quieres seguir con este, estás en la ficha correcta.`
       : `Para decirte si te lo recomiendo, ${questionPromptFor(nextAdviceQuestion, getPlayerPerspective(updatedState.participants), focusedProduct.category)}`;
     const reply = [factualReply, adviceReply].filter(Boolean).join(" ");
     const state: ConversationState = {
@@ -922,6 +1348,12 @@ export async function processConversationTurn(input: {
     lastInterpreterTelemetry.executedAdviceAction = adviceComplete ? "RETURN_ADVICE_CONCLUSION" : "ASK_NEXT_MATERIAL_FACT";
     lastInterpreterTelemetry.sameTurnAdviceCompleted = adviceComplete;
     lastInterpreterTelemetry.sameTurnAdviceQuestionKey = adviceComplete ? null : nextAdviceQuestion?.key ?? null;
+    if (categoryInterpretation) {
+      lastInterpreterTelemetry.recommendationFactsUsed = categoryInterpretation.factsUsed;
+      lastInterpreterTelemetry.currentEquipmentFactsUsed = categoryInterpretation.factsUsed.filter((fact) => fact.startsWith("current"));
+      lastInterpreterTelemetry.categoryInterpretations = categoryInterpretation.interpretations;
+      lastInterpreterTelemetry.categoryCaveats = categoryInterpretation.caveat ? [categoryInterpretation.caveat] : [];
+    }
     if (dto) {
       lastInterpreterTelemetry.priceAmountCents = dto.price;
       lastInterpreterTelemetry.priceCurrency = dto.currency;
@@ -967,7 +1399,7 @@ export async function processConversationTurn(input: {
   const confirmsProductAdvice = interpretation?.dialogueAct === "CONFIRMATION" &&
     updatedState.pendingAssistantOffer?.action === "START_PRODUCT_ADVICE";
   const startsProductEvaluation = asksProductFit || confirmsProductAdvice ||
-    (asksProductReason && personalFitReason) || asksProductAdvice || activeAdviceContinuation || intent === "PRODUCT_COMPARISON" ||
+    (asksProductReason && (personalFitReason || Boolean(focusedProduct))) || asksProductAdvice || activeAdviceContinuation || intent === "PRODUCT_COMPARISON" ||
     (!answeredPending && asksWhatData && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE");
   if (startsProductEvaluation) {
     if (!focusedProduct && updatedState.lastCatalogResults.length > 1) {
@@ -981,13 +1413,19 @@ export async function processConversationTurn(input: {
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REFERENCE_CLARIFICATION"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     if (focusedProduct) {
-      const answers = updatedState.session.diagnosticAnswers;
+      const answers = mergeCurrentEquipmentAdviceAnswers(
+        updatedState.session.diagnosticAnswers,
+        context.equipment,
+        recipientContext,
+      );
       const playerHand = answers.handedness;
       const productHand = typeof focusedProduct.handedness === "string" ? focusedProduct.handedness.toUpperCase() : null;
       if ((playerHand === "LEFT" || playerHand === "RIGHT") && (productHand === "LEFT" || productHand === "RIGHT") && playerHand !== productHand) {
         const playerLabel = playerHand === "LEFT" ? "zurdo" : "diestro";
         const productLabel = productHand === "LEFT" ? "zurdo" : "diestro";
-        const reply = `No. Este ${focusedProduct.name} es para ${productLabel}, así que no te sirve si juegas ${playerLabel}.`;
+        const reply = playerPerspective.isSelf
+          ? `No. Este ${focusedProduct.name} es para ${productLabel}, así que no te sirve si juegas ${playerLabel}.`
+          : `No. Este ${focusedProduct.name} es para ${productLabel}, así que no le puede funcionar a ${playerPerspective.relationToBuyer === "SPOUSE" ? "tu esposa" : playerPerspective.displayReference} si juega como ${handLabel(playerHand, playerPerspective)}.`;
         const state: ConversationState = {
           ...updatedState,
           messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
@@ -1008,7 +1446,7 @@ export async function processConversationTurn(input: {
           "¿Qué otro dato de tu juego puedes compartir?";
         const reply = asksWhatData
           ? `Para evaluar ${focusedProduct.name}, el siguiente dato material que necesito es: ${question}`
-          : `Para revisar si ${focusedProduct.name} encaja ${playerPerspective.isSelf ? "contigo" : `con el juego de ${playerPerspective.subject}`}, ${question}`;
+          : `Para revisar si ${focusedProduct.name} ${fitPhrase(playerPerspective)}, ${question}`;
         const state: ConversationState = {
           ...updatedState,
           messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
@@ -1079,6 +1517,7 @@ export async function processConversationTurn(input: {
       lastInterpreterTelemetry.customerLanguageLocale = "es-MX";
       lastInterpreterTelemetry.customerTermsNormalized = true;
       lastInterpreterTelemetry.recommendationFactsUsed = categoryInterpretation.factsUsed;
+      lastInterpreterTelemetry.currentEquipmentFactsUsed = categoryInterpretation.factsUsed.filter((fact) => fact.startsWith("current"));
       lastInterpreterTelemetry.categoryInterpretations = categoryInterpretation.interpretations;
       lastInterpreterTelemetry.categoryCaveats = caveat ? [caveat] : [];
       recordAdviceTelemetry(state, hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED", true);
@@ -1086,16 +1525,22 @@ export async function processConversationTurn(input: {
     }
   }
   if (asksProductReason && focusedProduct && !updatedState.productAdvice?.active) {
-    const targetPhrase = playerPerspective.isSelf ? "encaja contigo" : `encaja con el juego de ${playerPerspective.displayReference}`;
+    const targetPhrase = fitPhrase(playerPerspective);
     const familyLanguage = safeFamilyLanguage(focusedProduct);
-    const reply = `Te mostré ${focusedProduct.name} porque es una opción disponible del catálogo (${familyLanguage}). Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`;
+    const reply = playerPerspective.isSelf
+      ? `Te mostré ${focusedProduct.name} porque es una opción disponible del catálogo (${familyLanguage}). Eso todavía no significa que sea la mejor para ti. Si quieres, revisamos si ${targetPhrase}.`
+      : `Te mostré ${focusedProduct.name} porque es una opción disponible del catálogo (${familyLanguage}). Eso todavía no significa que sea la mejor para ${playerPerspective.relationToBuyer === "SPOUSE" ? "tu esposa" : playerPerspective.displayReference}. Si quieres, revisamos si ${targetPhrase}.`;
     const state: ConversationState = { ...updatedState, messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }], lastFocusedProduct: focusedProduct, pendingAssistantOffer: { action: "START_PRODUCT_ADVICE", targetProductIds: [focusedProduct.id], createdAtTurn: updatedState.messages.length + 1 }, lastExecutedAction: "EXPLAIN_CATALOG_REASON" };
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
   if (focusedProduct && (updatedState.productAdvice?.active || updatedState.pendingQuestionCategory === "PRODUCT_ADVICE")) {
-    const answers = { ...updatedState.session.diagnosticAnswers };
+    const answers = mergeCurrentEquipmentAdviceAnswers(
+      updatedState.session.diagnosticAnswers,
+      context.equipment,
+      recipientContext,
+    );
     for (const fact of canonicalFacts) {
-      if (["handedness", "handicap", "handicapIndex", "handicapStatus", "setExperience", "skill", "skillSource", "objective", "driverObjective", "currentWedgeLofts"].includes(fact.field))
+      if (["handedness", "handicap", "handicapIndex", "handicapStatus", "setExperience", "skill", "skillSource", "objective", "driverObjective", "currentWedgeLofts", "targetWedgeDistanceYards"].includes(fact.field))
         answers[fact.field] = fact.semanticStatus === "NONE" ? "NONE" : fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" : fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value;
       if (fact.field === "skill" && fact.semanticStatus === "KNOWN") answers.skillSource = "USER_DECLARED";
       if (fact.field === "handicapIndex" && fact.semanticStatus === "KNOWN") answers.handicapSource = "USER_DECLARED";
@@ -1136,7 +1581,9 @@ export async function processConversationTurn(input: {
         : { products: [], error: false };
       const expected = productHand === "RIGHT" ? "diestro" : "zurdo";
       const familyLabel = familyFromScope === "SET" || familyFromProduct === "SET" ? "set completo" : familyFromScope === "DRIVER" || familyFromProduct === "DRIVER" ? "driver" : "producto de esta categoría";
-      const reply = `Este ${focusedProduct.name} disponible es para ${expected}, así que no te serviría si juegas ${playerHand === "LEFT" ? "zurdo" : "diestro"}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} de ${familyLabel}.` : `Revisé el inventario y ahora mismo no tengo otro ${familyLabel} para ${playerHand === "LEFT" ? "zurdo" : "diestro"} disponible.`}`;
+      const reply = playerPerspective.isSelf
+        ? `Este ${focusedProduct.name} disponible es para ${expected}, así que no te serviría si juegas ${handLabel(playerHand, playerPerspective)}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} de ${familyLabel}.` : `Revisé el inventario y ahora mismo no tengo otro ${familyLabel} para ${handLabel(playerHand, playerPerspective)} disponible.`}`
+        : `Este ${focusedProduct.name} disponible es para ${expected}, así que no le puede funcionar a ${playerPerspective.relationToBuyer === "SPOUSE" ? "tu esposa" : playerPerspective.displayReference} si juega ${handLabel(playerHand, playerPerspective)}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} de ${familyLabel}.` : `Revisé el inventario y ahora mismo no tengo otro ${familyLabel} para ${handLabel(playerHand, playerPerspective)} disponible.`}`;
       const state: ConversationState = {
         ...updatedState,
         session: { ...updatedState.session, diagnosticAnswers: answers },
@@ -1217,6 +1664,7 @@ export async function processConversationTurn(input: {
       lastInterpreterTelemetry.customerLanguageLocale = "es-MX";
       lastInterpreterTelemetry.customerTermsNormalized = true;
       lastInterpreterTelemetry.recommendationFactsUsed = categoryInterpretation.factsUsed;
+      lastInterpreterTelemetry.currentEquipmentFactsUsed = categoryInterpretation.factsUsed.filter((fact) => fact.startsWith("current"));
       lastInterpreterTelemetry.categoryInterpretations = categoryInterpretation.interpretations;
       lastInterpreterTelemetry.categoryCaveats = caveat ? [caveat] : [];
       recordAdviceTelemetry(state, hasPoorPlayerLevelFit ? "NOT_RECOMMENDED" : caveat ? "RECOMMENDED_WITH_CAVEAT" : "RECOMMENDED", true);
@@ -1305,8 +1753,8 @@ export async function processConversationTurn(input: {
             error: result.error,
             message: result.products.length
               ? result.products.length === 1
-                ? `Tengo ${availabilityLabel}${handLabel}. Puedo ayudarte a confirmar si encaja contigo y avanzar con esta opción.`
-                : `Tengo ${availabilityLabel}${handLabel}. Para orientarte entre ellas, dime qué mano de juego tienes o qué quieres mejorar.`
+                ? `Tengo ${availabilityLabel}${handLabel}. Puedo ayudarte a confirmar si ${fitPhrase(playerPerspective)} y avanzar con esta opción.`
+                : `Tengo ${availabilityLabel}${handLabel}. Para orientarte entre ellas, ${playerPerspective.isSelf ? "dime qué mano de juego tienes o qué quieres mejorar" : `dime qué mano de juego tiene ${playerPerspective.subject} o qué quiere mejorar`}.`
               : `Ahora mismo no tengo ${scopeLabel}${handLabel} disponibles.`,
           };
         })
@@ -1542,7 +1990,7 @@ export async function processConversationTurn(input: {
       type: outcomeType,
       message: reply,
     };
-    return withFinalReply({
+    return await withFinalReply({
       ...policyTurn,
       reply,
       recommendation: safeRecommendation,
@@ -1561,7 +2009,7 @@ export async function processConversationTurn(input: {
       } satisfies ConversationOutcomeResult;
   const outcome = policyTurn.nextQuestion ? null : terminalOutcome;
   const reply = policyTurn.nextQuestion ? policyTurn.reply : terminalOutcome.message;
-  return withFinalReply({
+  return await withFinalReply({
     ...policyTurn,
     reply,
     recommendation: null,

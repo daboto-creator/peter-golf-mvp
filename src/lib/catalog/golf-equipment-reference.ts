@@ -13,6 +13,7 @@ export type GolfModelSuggestion = {
   categoryId: string;
   name: string;
   normalizedName: string;
+  modelYear?: number | null;
 };
 
 export type GolfIdentityResolutionStatus =

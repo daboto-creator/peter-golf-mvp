@@ -30,6 +30,13 @@ describe("Best Round product knowledge", () => {
     expect(classifyKnowledgeIntent(message)).toBe(expected);
   });
 
+  it.each(["¿qué wedge tengo?", "¿qué palos tengo guardados en Mi Golf?"]) (
+    "routes %s to Mi Golf instead of catalog search",
+    (message) => {
+      expect(classifyKnowledgeIntent(message)).toBe("MI_GOLF_EQUIPMENT");
+    },
+  );
+
   it("answers facts without inventing a missing spec", () => {
     const product: ProductKnowledgeDTO = {
       id: "synthetic-driver",
@@ -151,6 +158,22 @@ describe("Best Round product knowledge", () => {
     expect(result.reason).toMatch(/60°.*56°.*distancia.*vuelo menos alto/i);
     expect(result.caveat).toMatch(/otros wedges.*otro loft/i);
     expect(`${result.reason} ${result.caveat}`).not.toMatch(/solapamiento|papel de menor loft|golpes de más loft/i);
+  });
+
+  it("distinguishes one known wedge from having no wedge context", () => {
+    const result = interpretCategoryRecommendation({
+      family: "WEDGE",
+      product: {
+        id: "wedge", slug: "wedge", name: "Synthetic 56°", canonicalProductFamily: "WEDGE",
+        price: 100, currency: "MXN", formattedPrice: "$1.00 MXN", availability: "AVAILABLE", sellable: true,
+        condition: "NEW", handedness: "right", brand: "Synthetic", model: "Wedge", specs: { loftDegrees: 56 }, includedItems: null,
+        headcoverStatus: "UNKNOWN", sourceType: "FIRST_PARTY", sellerIdentityExposed: false, readiness: "READY", missingRequiredFields: [], missingRecommendedFields: [],
+      },
+      answers: { currentWedgeLofts: [52], currentWedges: "Callaway Opus" },
+    });
+    expect(result.factsUsed).toContain("currentWedgeLofts");
+    expect(result.reason).toMatch(/52|Callaway Opus/i);
+    expect(result.caveat).toMatch(/otros wedges/i);
   });
 
   it.each([

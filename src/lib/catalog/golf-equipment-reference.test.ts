@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   dryRunGolfIdentityBackfill,
   normalizeGolfReference,
+  findGolfModelSuggestions,
   normalizeGolfEquipmentIdentity,
   resolveGolfBrand,
   resolveGolfModel,
@@ -73,5 +74,32 @@ describe("shared golf equipment identity", () => {
     expect(report.counts.EXACT_MATCH).toBe(1);
     expect(report.counts.NOT_FOUND).toBe(1);
     expect(report.unresolved).toHaveLength(1);
+  });
+
+  it("scopes model suggestions by both brand and category", () => {
+    const scoped = resolveGolfModel(
+      [...models, { id: "vokey", brandId: "titleist", categoryId: "wedge", name: "SM10", normalizedName: "sm10" }],
+      "SM10",
+      "titleist",
+      "wedge",
+    );
+    expect(scoped.canonical?.id).toBe("vokey");
+    expect(resolveGolfModel(models, "GT3", "titleist", "wedge").status).toBe("NOT_FOUND");
+  });
+
+  it("keeps TaylorMade putter resolution tied to the canonical family", () => {
+    const taylormadePutter = { id: "spider-tour", brandId: "tm", categoryId: "putter", name: "Spider Tour", normalizedName: "spider-tour" };
+    expect(resolveGolfBrand(brands, "Taylor Made").canonical?.id).toBe("tm");
+    expect(resolveGolfModel([taylormadePutter], "Spider Tour", "tm", "putter").canonical?.id).toBe("spider-tour");
+    expect(resolveGolfModel([taylormadePutter], "Spider Tour", "tm", "driver").status).toBe("NOT_FOUND");
+  });
+
+  it.each([
+    ["tm", "putter"], ["tm", "iron"], ["titleist", "putter"], ["titleist", "iron"],
+    ["callaway", "putter"], ["callaway", "iron"], ["ping", "putter"], ["ping", "iron"],
+  ])("keeps model options scoped to canonical brand/category IDs (%s + %s)", (brandId, categoryId) => {
+    const canonical = { id: `${brandId}-${categoryId}`, brandId, categoryId, name: "Canonical model", normalizedName: "canonical-model" };
+    expect(findGolfModelSuggestions([canonical], "", brandId, categoryId)).toEqual([canonical]);
+    expect(findGolfModelSuggestions([canonical], "", brandId, categoryId === "putter" ? "iron" : "putter")).toEqual([]);
   });
 });
