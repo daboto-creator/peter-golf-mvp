@@ -4,12 +4,14 @@ vi.mock("server-only", () => ({}));
 
 const mocks = vi.hoisted(() => ({
   interpretation: vi.fn(),
+  authenticatedUser: vi.fn(async () => null),
+  supabaseClient: vi.fn(),
   currentPageProduct: null as Record<string, unknown> | null,
   catalogProducts: [] as Array<Record<string, unknown>>,
 }));
 
-vi.mock("@/lib/auth/user", () => ({ getAuthenticatedUser: vi.fn(async () => null) }));
-vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/auth/user", () => ({ getAuthenticatedUser: mocks.authenticatedUser }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.supabaseClient }));
 vi.mock("@/lib/best-round-pro/provider", () => ({
   getConversationProvider: () => ({
     interpretTurn: mocks.interpretation,
@@ -139,6 +141,46 @@ describe("Best Round Pro source-gap regressions", () => {
     expect(mergeCurrentEquipmentAdviceAnswers({}, equipment as never, "THIRD_PARTY")).toEqual({});
   });
 
+  it("uses authenticated Mi Golf wedges in a fresh two-turn product explanation", async () => {
+    mocks.authenticatedUser.mockResolvedValue({ id: "user-1" } as never);
+    const rows: Record<string, unknown> = {
+      mi_golf_profiles: { data: { handedness: "RIGHT", handicap: 14, handicap_status: "KNOWN", skill_level: "INTERMEDIATE" } },
+      mi_golf_equipment: { data: [{ id: "wedge-52", category: "WEDGE", brand: "Callaway", model: "Opus", specifications: { loft: 52 }, source: "USER_DECLARED", confidence: "HIGH", is_active: true }] },
+      mi_golf_objectives: { data: [] },
+    };
+    mocks.supabaseClient.mockReturnValue({
+      from(table: string) {
+        const result = rows[table];
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          maybeSingle: async () => result,
+          then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) => Promise.resolve(result).then(resolve, reject),
+        };
+        return chain;
+      },
+    });
+
+    const candidate = { ...product("VOKIE-56", "RIGHT"), name: "Titleist Vokey SM10 Wedge 56°", category: "Wedge", family: "club" };
+    mocks.catalogProducts = [publicProduct(candidate)];
+    mocks.currentPageProduct = publicProduct(candidate);
+    const catalogTurn = interpretation("CATALOG_SEARCH", { catalog: true }) as unknown as { category: string | null; requestedProductFamilies: string[] };
+    catalogTurn.category = "WEDGE";
+    catalogTurn.requestedProductFamilies = ["WEDGE"];
+    mocks.interpretation.mockResolvedValueOnce(catalogTurn);
+    const first = await processConversationTurn({ state: initialConversationState(), message: "quiero un wedge" });
+
+    const adviceTurn = interpretation("ASK_PRODUCT_FIT", { reasonMode: "PERSONAL_FIT_REASON" }) as unknown as { category: string | null };
+    adviceTurn.category = "WEDGE";
+    mocks.interpretation.mockResolvedValueOnce(adviceTurn);
+    const second = await processConversationTurn({ state: first.state, message: "por que me recomiendas este" });
+
+    expect(second.reply).toMatch(/52|Callaway Opus/i);
+    expect(second.reply).not.toMatch(/me faltan los lofts de tus wedges actuales/i);
+    expect(getLastInterpreterTelemetry()).toMatchObject({ recipientContext: "SELF", currentWedgeLoftsLoaded: [52] });
+    expect(getLastInterpreterTelemetry().currentWedgesLoaded).toMatch(/Callaway Opus/);
+  });
+
   it("extracts a spouse handedness fact from a compound same-turn message", () => {
     expect(extractDeterministicRecipientFacts("ella es zurda me lo recomiendas", "THIRD_PARTY")).toEqual([
       expect.objectContaining({ field: "handedness", value: "LEFT", durable: false }),
@@ -181,6 +223,8 @@ describe("Best Round Pro source-gap regressions", () => {
     mocks.currentPageProduct = null;
     mocks.catalogProducts = [];
     mocks.interpretation.mockReset();
+    mocks.authenticatedUser.mockReset().mockResolvedValue(null);
+    mocks.supabaseClient.mockReset();
   });
 
   it("invalidates stale focus after a new multi-result catalog search", async () => {

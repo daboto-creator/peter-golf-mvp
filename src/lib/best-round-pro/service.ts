@@ -523,7 +523,12 @@ function equipmentAnswers(equipment: MiGolfEquipment[]): Record<string, string |
     answers.currentWedgeLofts = [...new Set(wedges)];
     answers.currentWedges = active
       .filter((item) => interpretGolfCategory(item.category)?.category === "WEDGE" || /wedge/i.test(item.category))
-      .map((item) => [item.brand, item.model].filter(Boolean).join(" "))
+      .map((item) => {
+        const identity = [item.brand, item.model].filter(Boolean).join(" ");
+        const loft = item.loft ?? item.specifications.loft ?? item.specifications.loft_degrees;
+        const numericLoft = typeof loft === "number" ? loft : Number(loft);
+        return identity ? `${identity}${Number.isFinite(numericLoft) ? ` de ${numericLoft}°` : ""}` : null;
+      })
       .filter(Boolean)
       .join(", ");
   }
@@ -954,7 +959,7 @@ export async function processConversationTurn(input: {
   lastInterpreterTelemetry.secondarySemanticIntent = mixedAdviceIntent ? "PRODUCT_ADVICE" : null;
   lastInterpreterTelemetry.mixedIntent = mixedAdviceIntent;
   let knowledgeProductData = pageProductData;
-  if (knowledgeIntent && preFocusedProduct && !knowledgeProductData) {
+  if (preFocusedProduct && !knowledgeProductData) {
     const loadedKnowledgeProduct = await getPublicProductBySlug(preFocusedProduct.slug);
     knowledgeProductData = loadedKnowledgeProduct.data;
   }
@@ -1393,7 +1398,7 @@ export async function processConversationTurn(input: {
   const confirmsProductAdvice = interpretation?.dialogueAct === "CONFIRMATION" &&
     updatedState.pendingAssistantOffer?.action === "START_PRODUCT_ADVICE";
   const startsProductEvaluation = asksProductFit || confirmsProductAdvice ||
-    (asksProductReason && personalFitReason) || asksProductAdvice || activeAdviceContinuation || intent === "PRODUCT_COMPARISON" ||
+    (asksProductReason && (personalFitReason || Boolean(focusedProduct))) || asksProductAdvice || activeAdviceContinuation || intent === "PRODUCT_COMPARISON" ||
     (!answeredPending && asksWhatData && updatedState.pendingQuestionCategory !== "PRODUCT_ADVICE");
   if (startsProductEvaluation) {
     if (!focusedProduct && updatedState.lastCatalogResults.length > 1) {
