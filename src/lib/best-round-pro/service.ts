@@ -114,6 +114,22 @@ function fitPhrase(perspective: ReturnType<typeof getPlayerPerspective>) {
   return `le puede funcionar a ${perspective.displayReference}`;
 }
 
+export function extractDeterministicRecipientFacts(message: string, recipientContext: "SELF" | "THIRD_PARTY" | "UNKNOWN"): CanonicalCurrentTurnFact[] {
+  if (recipientContext !== "THIRD_PARTY") return [];
+  const facts: CanonicalCurrentTurnFact[] = [];
+  const hand = /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/i.test(message)
+    ? "LEFT"
+    : /\b(?:diestro|diestra|derecho|derecha|right)\b/i.test(message)
+      ? "RIGHT"
+      : null;
+  if (hand) facts.push({ field: "handedness", value: hand, durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
+  if (/\b(?:est[aá]\s+empezando|primer\s+set|principiante)\b/i.test(message)) {
+    facts.push({ field: "setExperience", value: "FIRST_SET", durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
+    facts.push({ field: "skill", value: "BEGINNER", durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
+  }
+  return facts;
+}
+
 function targetLevelForSet(input: { setType?: string | null; name: string; category?: string | null }) {
   if (input.setType === "starter_set") return "BEGINNER" as const;
   // A product name is not authoritative player-positioning metadata.
@@ -992,16 +1008,8 @@ export async function processConversationTurn(input: {
     ),
     source: fact.source,
   }));
-  const deterministicRecipientFacts: CanonicalCurrentTurnFact[] = [];
-  const recipientHand = /\b(?:zurdo|zurda|izquierdo|izquierda|left)\b/i.test(normalizedMessage)
-    ? "LEFT" : /\b(?:diestro|diestra|derecho|derecha|right)\b/i.test(normalizedMessage) ? "RIGHT" : null;
-  if (recipientContext === "THIRD_PARTY" && recipientHand && pendingAnswerFact?.field !== "handedness") {
-    deterministicRecipientFacts.push({ field: "handedness", value: recipientHand, durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
-  }
-  if (recipientContext === "THIRD_PARTY" && /\b(?:est[aá]\s+empezando|primer\s+set|principiante)\b/i.test(normalizedMessage) && pendingAnswerFact?.field !== "setExperience") {
-    deterministicRecipientFacts.push({ field: "setExperience", value: "FIRST_SET", durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
-    deterministicRecipientFacts.push({ field: "skill", value: "BEGINNER", durable: false, semanticStatus: "KNOWN", source: "CURRENT_USER_EXPLICIT" });
-  }
+  const deterministicRecipientFacts = extractDeterministicRecipientFacts(normalizedMessage, recipientContext)
+    .filter((fact) => fact.field !== pendingAnswerFact?.field);
   const canonicalFacts: CanonicalCurrentTurnFact[] = pendingAnswerFact
     ? [pendingAnswerFact, ...deterministicRecipientFacts]
     : deterministicRecipientFacts;

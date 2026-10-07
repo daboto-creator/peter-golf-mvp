@@ -34,7 +34,7 @@ import {
   type CatalogProductReference,
   type ConversationState,
 } from "./conversation";
-import { canonicalProductFamily, getLastInterpreterTelemetry, processConversationTurn, safeFamilyLanguage } from "./service";
+import { canonicalProductFamily, extractDeterministicRecipientFacts, getLastInterpreterTelemetry, processConversationTurn, safeFamilyLanguage } from "./service";
 
 const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT"): CatalogProductReference => ({
   id,
@@ -103,6 +103,12 @@ function knownLeftState(): ConversationState {
 }
 
 describe("Best Round Pro source-gap regressions", () => {
+  it("extracts a spouse handedness fact from a compound same-turn message", () => {
+    expect(extractDeterministicRecipientFacts("ella es zurda me lo recomiendas", "THIRD_PARTY")).toEqual([
+      expect.objectContaining({ field: "handedness", value: "LEFT", durable: false }),
+    ]);
+  });
+
   it("answers direct product price without starting fitting", async () => {
     mocks.currentPageProduct = {
       ...publicProduct(product("SYNTHETIC", "RIGHT")),
