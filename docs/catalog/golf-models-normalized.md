@@ -1,0 +1,577 @@
+# Modelos normalizados
+
+571 modelos aceptados; 322 entradas rechazadas.
+
+| Marca | Categoría | Modelo | Año | Estado |
+|---|---|---|---:|---|
+| Adams Golf | DRIVER | Idea | 2023 | NORMALIZED_SOURCE |
+| Adams Golf | DRIVER | Tight Lies | 2020 | NORMALIZED_SOURCE |
+| Adams Golf | FAIRWAY_WOOD | Idea | 2023 | NORMALIZED_SOURCE |
+| Adams Golf | FAIRWAY_WOOD | Tight Lies | 2020 | NORMALIZED_SOURCE |
+| Adams Golf | FAIRWAY_WOOD | Tight Lies Pro | 2021 | NORMALIZED_SOURCE |
+| Adams Golf | HYBRID | Idea | 2023 | NORMALIZED_SOURCE |
+| Adams Golf | HYBRID | Tight Lies | 2020 | NORMALIZED_SOURCE |
+| Adams Golf | HYBRID | Tight Lies Hybrid velocidad slot | 2021 | NORMALIZED_SOURCE |
+| Adams Golf | IRON | Idea | 2023 | NORMALIZED_SOURCE |
+| Adams Golf | IRON | Idea Tech | 2021 | NORMALIZED_SOURCE |
+| Adams Golf | IRON | Tight Lies | 2020 | NORMALIZED_SOURCE |
+| Adams Golf | PUTTER | C-Groove | 2024 | NORMALIZED_SOURCE |
+| Adams Golf | PUTTER | C-Groove Mission | 2023 | NORMALIZED_SOURCE |
+| Adams Golf | PUTTER | C-Groove Prospect | 2023 | NORMALIZED_SOURCE |
+| Adams Golf | WEDGE | Idea | 2024 | NORMALIZED_SOURCE |
+| Adams Golf | WEDGE | Idea Wedges | 2023 | NORMALIZED_SOURCE |
+| Ben Hogan Golf | DRIVER | PTx LST | 2025 | NORMALIZED_SOURCE |
+| Ben Hogan Golf | DRIVER | PTx Max | 2025 | NORMALIZED_SOURCE |
+| Ben Hogan Golf | FAIRWAY_WOOD | PTx Max | 2025 | NORMALIZED_SOURCE |
+| Ben Hogan Golf | HYBRID | PTx Max | 2025 | NORMALIZED_SOURCE |
+| Ben Hogan Golf | IRON | Ft. Worth CB | 2025 | NORMALIZED_SOURCE |
+| Ben Hogan Golf | IRON | Ft. Worth MB | 2025 | NORMALIZED_SOURCE |
+| Ben Hogan Golf | IRON | Legend | 2025 | NORMALIZED_SOURCE |
+| Ben Hogan Golf | IRON | M50-01 | 2025 | NORMALIZED_SOURCE |
+| Bridgestone Golf | IRON | 220 MB | 2025 | NORMALIZED_SOURCE |
+| Bridgestone Golf | IRON | 221 CB | 2025 | NORMALIZED_SOURCE |
+| Bridgestone Golf | IRON | 222 CB+ | 2025 | NORMALIZED_SOURCE |
+| Bridgestone Golf | WEDGE | BRM2 | 2025 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Elyte Triple Diamond | 2025 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Elyte X | 2025 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Epic Max | 2021 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Epic Speed | 2021 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Mavrik | 2020 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Mavrik Max | 2020 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Mavrik Sub Zero | 2020 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Paradym Ai Smoke Max | 2024 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Paradym Ai Smoke Max D | 2024 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Paradym Ai Smoke Max HL | 2024 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Paradym Ai Smoke Triple Diamond | 2024 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Paradym Max | 2023 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Paradym Triple Diamond | 2023 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Paradym TripleDiamond Max | 2023 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Quantum Max | 2026 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Quantum Max D | 2026 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Quantum Mini | 2026 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Quantum Triple Diamond | 2026 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Rogue ST LS | 2022 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Rogue ST Max | 2022 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Rogue ST Max D | 2022 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Rogue ST Max Lite | 2022 | NORMALIZED_SOURCE |
+| Callaway | DRIVER | Rogue ST Triple Diamond | 2022 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Elyte Triple Diamond | 2025 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Epic Max | 2021 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Epic Speed | 2021 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Mavrik | 2020 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Paradym | 2023 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Paradym Ai Smoke | 2024 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Quantum Max | 2026 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Quantum Max D | 2026 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Quantum Triple Diamond | 2026 | NORMALIZED_SOURCE |
+| Callaway | FAIRWAY_WOOD | Rogue ST | 2022 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Elyte Mini Driver | 2025 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Elyte X Hybrid | 2025 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Epic Max Rescue | 2021 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Mavrik | 2020 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Paradym Ai Smoke | 2024 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Paradym Hybrid | 2023 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Quantum Max | 2026 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Quantum Max Fast | 2026 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Quantum Max OS | 2026 | NORMALIZED_SOURCE |
+| Callaway | HYBRID | Rogue ST Rescue | 2022 | NORMALIZED_SOURCE |
+| Callaway | IRON | Apex Ai150 | 2024 | NORMALIZED_SOURCE |
+| Callaway | IRON | Apex Ai200 | 2020 | NORMALIZED_SOURCE |
+| Callaway | IRON | Apex Ai300 | 2020 | NORMALIZED_SOURCE |
+| Callaway | IRON | Apex CB | 2020 | NORMALIZED_SOURCE |
+| Callaway | IRON | Apex MB | 2022 | NORMALIZED_SOURCE |
+| Callaway | IRON | Apex TCB | 2022 | NORMALIZED_SOURCE |
+| Callaway | IRON | Elyte | 2025 | NORMALIZED_SOURCE |
+| Callaway | IRON | Paradym Ai200 | 2023 | NORMALIZED_SOURCE |
+| Callaway | IRON | Paradym Ai300 | 2023 | NORMALIZED_SOURCE |
+| Callaway | IRON | Quantum Max | 2026 | NORMALIZED_SOURCE |
+| Callaway | IRON | Quantum Max OS | 2026 | NORMALIZED_SOURCE |
+| Callaway | WEDGE | Apex | 2020 | NORMALIZED_SOURCE |
+| Callaway | WEDGE | Opus | 2020 | NORMALIZED_SOURCE |
+| Callaway | WEDGE | Opus Platinum | 2021 | NORMALIZED_SOURCE |
+| Callaway | WEDGE | Opus SP | 2021 | NORMALIZED_SOURCE |
+| Cleveland Golf | PUTTER | TFI 2135 Satin Cero | 2026 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | 54° | 2025 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | 56° | 2025 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | 60°) | 2025 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | RTX 4 | 2020 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | RTX 4 Forged | 2021 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | RTX 5 | 2021 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | RTX 6 Tour Satin | 2023 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | RTX 6 ZipCore | 2022 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | RTX ZipCore | 2026 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | RTX ZipCore (50° | 2025 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | RTZ 2 | 2024 | NORMALIZED_SOURCE |
+| Cleveland Golf | WEDGE | RTZ Tour Rack | 2024 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | DARKSPEED | 2023 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | DARKSPEED (LS | 2024 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | DS-ADAPT | 2025 | VERIFIED |
+| Cobra | DRIVER | DS-ADAPT LS | 2025 | VERIFIED |
+| Cobra | DRIVER | DS-ADAPT Max-D | 2025 | VERIFIED |
+| Cobra | DRIVER | DS-ADAPT Max-K | 2025 | VERIFIED |
+| Cobra | DRIVER | DS-ADAPT X | 2025 | VERIFIED |
+| Cobra | DRIVER | Forged | 2022 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | King Forged | 2023 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | King Forged (TEC | 2022 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | King Speedzone | 2022 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | King TEC | 2023 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | King Tec-MD | 2026 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | King Tec-MD mini driver | 2025 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | Max-D) | 2025 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | Max-K | 2025 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | Max) | 2024 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | Optm (LS | 2025 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | Pro) | 2022 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | Speedzone | 2021 | NORMALIZED_SOURCE |
+| Cobra | DRIVER | X | 2024 | NORMALIZED_SOURCE |
+| Cobra | FAIRWAY_WOOD | DARKSPEED Fairway | 2023 | NORMALIZED_SOURCE |
+| Cobra | FAIRWAY_WOOD | DS-ADAPT | 2020 | NORMALIZED_SOURCE |
+| Cobra | FAIRWAY_WOOD | DS-ADAPT X | 2021 | NORMALIZED_SOURCE |
+| Cobra | FAIRWAY_WOOD | King Speedzone | 2022 | NORMALIZED_SOURCE |
+| Cobra | FAIRWAY_WOOD | Optm LS | 2025 | NORMALIZED_SOURCE |
+| Cobra | FAIRWAY_WOOD | Optm Max | 2025 | NORMALIZED_SOURCE |
+| Cobra | FAIRWAY_WOOD | Optm X | 2025 | NORMALIZED_SOURCE |
+| Cobra | HYBRID | DARKSPEED Hybrid | 2023 | NORMALIZED_SOURCE |
+| Cobra | HYBRID | DS-ADAPT | 2022 | NORMALIZED_SOURCE |
+| Cobra | HYBRID | DS-ADAPT Hybrid | 2020 | NORMALIZED_SOURCE |
+| Cobra | HYBRID | DS-ADAPT X Hybrid | 2021 | NORMALIZED_SOURCE |
+| Cobra | HYBRID | Optm Hybrid | 2025 | NORMALIZED_SOURCE |
+| Cobra | IRON | 3DP X | 2025 | NORMALIZED_SOURCE |
+| Cobra | IRON | DARKSPEED Irons | 2024 | NORMALIZED_SOURCE |
+| Cobra | IRON | King | 2020 | NORMALIZED_SOURCE |
+| Cobra | IRON | King CB | 2020 | NORMALIZED_SOURCE |
+| Cobra | IRON | King Forged Pro | 2024 | NORMALIZED_SOURCE |
+| Cobra | IRON | King Forged TEC | 2024 | NORMALIZED_SOURCE |
+| Cobra | IRON | King Max | 2025 | NORMALIZED_SOURCE |
+| Cobra | PUTTER | 3DP | 2024 | NORMALIZED_SOURCE |
+| Cobra | PUTTER | 3DP Tour | 2025 | NORMALIZED_SOURCE |
+| Cobra | PUTTER | MIM | 2024 | NORMALIZED_SOURCE |
+| Honma | DRIVER | Beres 06 | 2022 | NORMALIZED_SOURCE |
+| Honma | DRIVER | Beres 06 S-06 | 2021 | NORMALIZED_SOURCE |
+| Honma | DRIVER | BeZeal 535 | 2022 | NORMALIZED_SOURCE |
+| Honma | DRIVER | TW737 | 2020 | NORMALIZED_SOURCE |
+| Honma | DRIVER | TW747 | 2021 | NORMALIZED_SOURCE |
+| Honma | DRIVER | TW757 | 2022 | VERIFIED |
+| Honma | DRIVER | TW767 | 2024 | VERIFIED |
+| Honma | FAIRWAY_WOOD | Beres 06 | 2021 | NORMALIZED_SOURCE |
+| Honma | FAIRWAY_WOOD | BeZeal 535 | 2022 | NORMALIZED_SOURCE |
+| Honma | FAIRWAY_WOOD | TW757 | 2020 | NORMALIZED_SOURCE |
+| Honma | FAIRWAY_WOOD | TW767 | 2023 | NORMALIZED_SOURCE |
+| Honma | HYBRID | Beres 06 | 2021 | NORMALIZED_SOURCE |
+| Honma | HYBRID | BeZeal 535 | 2022 | NORMALIZED_SOURCE |
+| Honma | HYBRID | TW757 | 2021 | NORMALIZED_SOURCE |
+| Honma | HYBRID | TW757 Hybrid | 2020 | NORMALIZED_SOURCE |
+| Honma | HYBRID | TW767 | 2023 | NORMALIZED_SOURCE |
+| Honma | IRON | Beres IS-06 | 2021 | NORMALIZED_SOURCE |
+| Honma | IRON | Beres Nx | 2025 | NORMALIZED_SOURCE |
+| Honma | IRON | BeZeal 535 | 2021 | NORMALIZED_SOURCE |
+| Honma | IRON | TW757 | 2021 | NORMALIZED_SOURCE |
+| Honma | IRON | TW757 irons | 2020 | NORMALIZED_SOURCE |
+| Honma | IRON | TW767 | 2023 | NORMALIZED_SOURCE |
+| Honma | PUTTER | Beres P303 | 2022 | NORMALIZED_SOURCE |
+| Honma | PUTTER | Beres PP500 PP501 | 2025 | NORMALIZED_SOURCE |
+| Honma | PUTTER | Beres PP500 PP502 | 2025 | NORMALIZED_SOURCE |
+| Honma | PUTTER | Beres PP500 PP503 | 2025 | NORMALIZED_SOURCE |
+| Honma | PUTTER | Beres PP500 PP505 | 2025 | NORMALIZED_SOURCE |
+| Honma | PUTTER | P308 | 2022 | NORMALIZED_SOURCE |
+| Mizuno | DRIVER | ST-MAX 230 | 2024 | VERIFIED |
+| Mizuno | DRIVER | ST-X | 2021 | VERIFIED |
+| Mizuno | DRIVER | ST-X 220 | 2022 | VERIFIED |
+| Mizuno | DRIVER | ST-X 230 | 2023 | VERIFIED |
+| Mizuno | DRIVER | ST-Z | 2021 | VERIFIED |
+| Mizuno | DRIVER | ST-Z 220 | 2022 | VERIFIED |
+| Mizuno | DRIVER | ST-Z 230 | 2023 | VERIFIED |
+| Mizuno | DRIVER | ST200 | 2020 | VERIFIED |
+| Mizuno | IRON | JPX 919 Hot Metal | 2020 | NORMALIZED_SOURCE |
+| Mizuno | IRON | JPX 921 | 2020 | NORMALIZED_SOURCE |
+| Mizuno | IRON | JPX 921 Forged | 2021 | NORMALIZED_SOURCE |
+| Mizuno | IRON | JPX 921 Hot Metal | 2021 | NORMALIZED_SOURCE |
+| Mizuno | IRON | JPX 923 Forged | 2022 | NORMALIZED_SOURCE |
+| Mizuno | IRON | JPX 923 Hot Metal | 2022 | NORMALIZED_SOURCE |
+| Mizuno | IRON | JPX 925 Forged | 2023 | NORMALIZED_SOURCE |
+| Mizuno | IRON | JPX 925 Hot Metal | 2023 | NORMALIZED_SOURCE |
+| Mizuno | IRON | JPX925 Forged | 2024 | NORMALIZED_SOURCE |
+| Mizuno | IRON | JPX925 Hot Metal | 2024 | NORMALIZED_SOURCE |
+| Mizuno | IRON | Pro Fli-Hi | 2026 | NORMALIZED_SOURCE |
+| Mizuno | IRON | Pro Fli-Hi utility | 2025 | NORMALIZED_SOURCE |
+| Mizuno | IRON | Pro M-13 | 2025 | NORMALIZED_SOURCE |
+| Mizuno | IRON | Pro M-15 | 2025 | NORMALIZED_SOURCE |
+| Mizuno | IRON | Pro MP-20 | 2022 | NORMALIZED_SOURCE |
+| Mizuno | IRON | Pro MP-21 | 2022 | NORMALIZED_SOURCE |
+| Mizuno | IRON | Pro MP-22 | 2023 | NORMALIZED_SOURCE |
+| Mizuno | IRON | Pro MP-23 | 2023 | NORMALIZED_SOURCE |
+| Mizuno | IRON | Pro MP-24 | 2024 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft Nagoya | 2025 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X B2 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X B3 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X P2 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X P3 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X S2 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X S3 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X Z2 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X Z3 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X Z4 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X Z5 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | M-Craft X Z6 | 2026 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | MP-4 | 2020 | NORMALIZED_SOURCE |
+| Mizuno | PUTTER | MP-5 | 2020 | NORMALIZED_SOURCE |
+| Odyssey | PUTTER | 7 | 2024 | NORMALIZED_SOURCE |
+| Odyssey | PUTTER | Ai-Dual (alignment aid innovation) | 2026 | NORMALIZED_SOURCE |
+| Odyssey | PUTTER | Ai-One | 2025 | NORMALIZED_SOURCE |
+| Odyssey | PUTTER | Jailbird Mini ½ Ball | 2025 | NORMALIZED_SOURCE |
+| Odyssey | PUTTER | Mallet linea | 2022 | NORMALIZED_SOURCE |
+| Odyssey | PUTTER | S2S Tri-Hot | 2025 | NORMALIZED_SOURCE |
+| Odyssey | PUTTER | Stroke Lab putters | 2020 | NORMALIZED_SOURCE |
+| Odyssey | PUTTER | White Hot Pro | 2022 | NORMALIZED_SOURCE |
+| Odyssey | PUTTER | White Hot RX | 2020 | NORMALIZED_SOURCE |
+| PING | DRIVER | G425 LST | 2020 | NORMALIZED_SOURCE |
+| PING | DRIVER | G425 Max | 2020 | NORMALIZED_SOURCE |
+| PING | DRIVER | G430 LST | 2022 | NORMALIZED_SOURCE |
+| PING | DRIVER | G430 Max | 2022 | NORMALIZED_SOURCE |
+| PING | DRIVER | G430 Max 10K | 2022 | NORMALIZED_SOURCE |
+| PING | DRIVER | G440 K | 2026 | NORMALIZED_SOURCE |
+| PING | DRIVER | G440 K W/PWR-Bridge | 2025 | NORMALIZED_SOURCE |
+| PING | FAIRWAY_WOOD | G425 | 2020 | NORMALIZED_SOURCE |
+| PING | FAIRWAY_WOOD | G425 Max | 2020 | NORMALIZED_SOURCE |
+| PING | FAIRWAY_WOOD | G430 | 2022 | NORMALIZED_SOURCE |
+| PING | FAIRWAY_WOOD | G430 Max | 2022 | NORMALIZED_SOURCE |
+| PING | FAIRWAY_WOOD | G440 Max | 2026 | NORMALIZED_SOURCE |
+| PING | FAIRWAY_WOOD | G440 Max Fairway | 2025 | NORMALIZED_SOURCE |
+| PING | HYBRID | G425 Max Hybrid | 2020 | NORMALIZED_SOURCE |
+| PING | HYBRID | G430 Max Hybrid | 2022 | NORMALIZED_SOURCE |
+| PING | HYBRID | G440 Max | 2026 | NORMALIZED_SOURCE |
+| PING | HYBRID | G440 Max Hybrid | 2025 | NORMALIZED_SOURCE |
+| PING | IRON | G425 | 2020 | NORMALIZED_SOURCE |
+| PING | IRON | G430 | 2022 | NORMALIZED_SOURCE |
+| PING | IRON | G440 | 2025 | NORMALIZED_SOURCE |
+| PING | IRON | G740 | 2026 | NORMALIZED_SOURCE |
+| PING | IRON | G740 irons | 2025 | NORMALIZED_SOURCE |
+| PING | IRON | i210 | 2020 | NORMALIZED_SOURCE |
+| PING | IRON | i220 | 2020 | NORMALIZED_SOURCE |
+| PING | IRON | i230 | 2022 | NORMALIZED_SOURCE |
+| PING | IRON | i540 players distance | 2026 | NORMALIZED_SOURCE |
+| PING | PUTTER | Sigma | 2022 | NORMALIZED_SOURCE |
+| PING | PUTTER | Sigma 2 | 2020 | NORMALIZED_SOURCE |
+| PING | PUTTER | Vault | 2020 | NORMALIZED_SOURCE |
+| PING | WEDGE | S259 25 combinaciones loft/grind | 2026 | NORMALIZED_SOURCE |
+| PXG | DRIVER | 0311 GEN2 | 2020 | NORMALIZED_SOURCE |
+| PXG | DRIVER | 0311 GEN3 | 2021 | NORMALIZED_SOURCE |
+| PXG | DRIVER | 0311 GEN4 | 2022 | NORMALIZED_SOURCE |
+| PXG | DRIVER | 0311 V2 | 2020 | NORMALIZED_SOURCE |
+| PXG | DRIVER | Lightning Max Lite | 2025 | NORMALIZED_SOURCE |
+| PXG | DRIVER | Lightning Max-10k+ | 2025 | NORMALIZED_SOURCE |
+| PXG | DRIVER | Lightning Tour | 2024 | NORMALIZED_SOURCE |
+| PXG | DRIVER | Lightning Tour Mid | 2025 | NORMALIZED_SOURCE |
+| PXG | DRIVER | Lightning Tour Mid mini driver | 2024 | NORMALIZED_SOURCE |
+| PXG | FAIRWAY_WOOD | 0311 GEN2 | 2020 | NORMALIZED_SOURCE |
+| PXG | FAIRWAY_WOOD | 0311 GEN3 | 2021 | NORMALIZED_SOURCE |
+| PXG | FAIRWAY_WOOD | 0311 GEN4 | 2022 | NORMALIZED_SOURCE |
+| PXG | FAIRWAY_WOOD | 0311 V2 | 2020 | NORMALIZED_SOURCE |
+| PXG | FAIRWAY_WOOD | Lightning | 2024 | NORMALIZED_SOURCE |
+| PXG | FAIRWAY_WOOD | Lightning Tour | 2024 | NORMALIZED_SOURCE |
+| PXG | HYBRID | 0311 GEN2 | 2020 | NORMALIZED_SOURCE |
+| PXG | HYBRID | 0311 GEN3 | 2021 | NORMALIZED_SOURCE |
+| PXG | HYBRID | 0311 GEN4 | 2022 | NORMALIZED_SOURCE |
+| PXG | HYBRID | 0311 V2 | 2020 | NORMALIZED_SOURCE |
+| PXG | HYBRID | Lightning 7 lofts | 2024 | NORMALIZED_SOURCE |
+| PXG | IRON | 0311 GEN5 | 2020 | NORMALIZED_SOURCE |
+| PXG | IRON | 0311 GEN6 | 2020 | NORMALIZED_SOURCE |
+| PXG | IRON | 0311 GEN7 | 2021 | NORMALIZED_SOURCE |
+| PXG | IRON | 0311 GEN8 | 2021 | NORMALIZED_SOURCE |
+| PXG | IRON | 0311 GEN8 T | 2022 | NORMALIZED_SOURCE |
+| PXG | IRON | 0317 ST | 2022 | NORMALIZED_SOURCE |
+| PXG | IRON | P | 2025 | NORMALIZED_SOURCE |
+| PXG | IRON | P; 0317 ST tour | 2024 | NORMALIZED_SOURCE |
+| PXG | IRON | XP | 2024 | NORMALIZED_SOURCE |
+| PXG | WEDGE | 0311 wedges | 2020 | NORMALIZED_SOURCE |
+| PXG | WEDGE | Stick'em Forged | 2025 | NORMALIZED_SOURCE |
+| PXG | WEDGE | Stick'em Forged 8620 steel | 2024 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 11 | 2023 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 11.5 modelos 2024 | 2023 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 11.5; Studio Style Newport 2 | 2024 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 11.5) | 2022 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 11R | 2026 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 11R; Studio Style; Circle T Proto zero-torque | 2025 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 5.2 | 2025 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 5S | 2024 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 7 | 2023 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 7.2 | 2024 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 7.5 | 2024 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 9 | 2023 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 9.2R | 2025 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 9.5R | 2026 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | 9R | 2024 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | Catalina | 2024 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | Newport 2 | 2020 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | Newport 2 Plus | 2022 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | Phantom 5 | 2023 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | Phantom models | 2021 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | Phantom X | 2020 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | Phantom X (11 | 2022 | NORMALIZED_SOURCE |
+| Scotty Cameron | PUTTER | Studio Design | 2020 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | Z 945 | 2020 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | Z-TX | 2020 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | ZX5 | 2021 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | ZX5 LS | 2021 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | ZX5 LS Mk II | 2022 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | ZX5 Mk II | 2022 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | ZX7 | 2021 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | ZX7 Mk II | 2022 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | ZXi | 2025 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | ZXi LS | 2025 | NORMALIZED_SOURCE |
+| Srixon | DRIVER | ZXi Max | 2025 | NORMALIZED_SOURCE |
+| Srixon | FAIRWAY_WOOD | Z-TX Fairway | 2020 | NORMALIZED_SOURCE |
+| Srixon | FAIRWAY_WOOD | ZX5 | 2021 | NORMALIZED_SOURCE |
+| Srixon | FAIRWAY_WOOD | ZX5 Mk II | 2022 | NORMALIZED_SOURCE |
+| Srixon | FAIRWAY_WOOD | ZX7 | 2021 | NORMALIZED_SOURCE |
+| Srixon | FAIRWAY_WOOD | ZX7 Mk II | 2022 | NORMALIZED_SOURCE |
+| Srixon | FAIRWAY_WOOD | ZXi fairway | 2025 | NORMALIZED_SOURCE |
+| Srixon | FAIRWAY_WOOD | ZXi Max | 2025 | NORMALIZED_SOURCE |
+| Srixon | HYBRID | Z-TX Hybrid | 2020 | NORMALIZED_SOURCE |
+| Srixon | HYBRID | ZX Hybrid | 2021 | NORMALIZED_SOURCE |
+| Srixon | HYBRID | ZX Mk II | 2022 | NORMALIZED_SOURCE |
+| Srixon | HYBRID | ZX Utility | 2021 | NORMALIZED_SOURCE |
+| Srixon | HYBRID | ZXiU | 2024 | NORMALIZED_SOURCE |
+| Srixon | HYBRID | ZXiU utility | 2025 | NORMALIZED_SOURCE |
+| Srixon | IRON | Z 945 irons | 2020 | NORMALIZED_SOURCE |
+| Srixon | IRON | Z-Forged II | 2025 | NORMALIZED_SOURCE |
+| Srixon | IRON | Z-TX | 2020 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZX4 irons | 2021 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZX4 Mk II | 2022 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZX5 | 2021 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZX5 Mk II | 2022 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZX7 | 2021 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZX7 Mk II | 2022 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZXi4 | 2025 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZXi5 | 2024 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZXi7 | 2025 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZXi7 launching | 2024 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZXiR | 2024 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZXiR HL | 2024 | NORMALIZED_SOURCE |
+| Srixon | IRON | ZXiU | 2026 | NORMALIZED_SOURCE |
+| Srixon | WEDGE | RTX | 2022 | NORMALIZED_SOURCE |
+| Srixon | WEDGE | RTX 6 ZipCore | 2025 | NORMALIZED_SOURCE |
+| Srixon | WEDGE | RTX ZipCore | 2024 | NORMALIZED_SOURCE |
+| Srixon | WEDGE | RTX ZipCore formatos | 2026 | NORMALIZED_SOURCE |
+| Srixon | WEDGE | Z-Forged | 2021 | NORMALIZED_SOURCE |
+| Srixon | WEDGE | Z-Forged II | 2022 | NORMALIZED_SOURCE |
+| Srixon | WEDGE | Z-TX Wedges | 2020 | NORMALIZED_SOURCE |
+| Sub 70 | DRIVER | 859 | 2024 | NORMALIZED_SOURCE |
+| Sub 70 | DRIVER | 859 JD | 2025 | NORMALIZED_SOURCE |
+| Sub 70 | DRIVER | 859 JD con ART tech | 2024 | NORMALIZED_SOURCE |
+| Sub 70 | DRIVER | 859 Pro | 2024 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 639 CB | 2021 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 639 MB | 2021 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 649 MB | 2020 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 659 CB | 2021 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 659 MB | 2020 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 659 models | 2025 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 659 TC | 2020 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 669 MB | 2025 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 669 TC | 2025 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 699 all models | 2026 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 699 Pro V2 | 2022 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 699 Pro V3 | 2025 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 699 V2 | 2020 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 699 V3 | 2025 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 749 | 2024 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | 799 | 2024 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | TAIII | 2024 | NORMALIZED_SOURCE |
+| Sub 70 | IRON | TAIII Forged | 2022 | NORMALIZED_SOURCE |
+| Sub 70 | PUTTER | 010 series putters | 2023 | NORMALIZED_SOURCE |
+| Sub 70 | PUTTER | 011-SQ | 2024 | NORMALIZED_SOURCE |
+| Sub 70 | PUTTER | 011-SQ zero-torque | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | DRIVER | Qi10 | 2024 | VERIFIED |
+| TaylorMade | DRIVER | Qi10 LS | 2024 | VERIFIED |
+| TaylorMade | DRIVER | Qi10 Max | 2024 | VERIFIED |
+| TaylorMade | DRIVER | Qi35 | 2025 | VERIFIED |
+| TaylorMade | DRIVER | Qi35 LS | 2025 | VERIFIED |
+| TaylorMade | DRIVER | Qi35 Max | 2025 | VERIFIED |
+| TaylorMade | DRIVER | Qi4D | 2026 | VERIFIED |
+| TaylorMade | DRIVER | Qi4D LS | 2026 | VERIFIED |
+| TaylorMade | DRIVER | Qi4D Max | 2026 | VERIFIED |
+| TaylorMade | DRIVER | Qi4D Max Lite | 2026 | VERIFIED |
+| TaylorMade | DRIVER | Qi4D Tour | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | DRIVER | SIM | 2020 | VERIFIED |
+| TaylorMade | DRIVER | SIM Max | 2020 | VERIFIED |
+| TaylorMade | DRIVER | SIM Max-D | 2020 | VERIFIED |
+| TaylorMade | DRIVER | SIM2 | 2021 | VERIFIED |
+| TaylorMade | DRIVER | SIM2 Max | 2021 | VERIFIED |
+| TaylorMade | DRIVER | SIM2 Max-D | 2021 | VERIFIED |
+| TaylorMade | DRIVER | Stealth | 2022 | VERIFIED |
+| TaylorMade | DRIVER | Stealth 2 | 2023 | VERIFIED |
+| TaylorMade | DRIVER | Stealth 2 HD | 2023 | VERIFIED |
+| TaylorMade | DRIVER | Stealth 2 Plus | 2023 | VERIFIED |
+| TaylorMade | DRIVER | Stealth HD | 2022 | VERIFIED |
+| TaylorMade | DRIVER | Stealth Plus | 2022 | VERIFIED |
+| TaylorMade | FAIRWAY_WOOD | Qi35 Fairway | 2024 | NORMALIZED_SOURCE |
+| TaylorMade | FAIRWAY_WOOD | Qi4D Fairways | 2026 | NORMALIZED_SOURCE |
+| TaylorMade | FAIRWAY_WOOD | Qi4D Fairways Max | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | FAIRWAY_WOOD | Qi4D Fairways Tour | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | FAIRWAY_WOOD | SIM Max | 2020 | NORMALIZED_SOURCE |
+| TaylorMade | FAIRWAY_WOOD | Stealth 2 Fairway | 2023 | NORMALIZED_SOURCE |
+| TaylorMade | FAIRWAY_WOOD | Stealth Fairway | 2022 | NORMALIZED_SOURCE |
+| TaylorMade | HYBRID | Qi35 Rescue | 2024 | NORMALIZED_SOURCE |
+| TaylorMade | HYBRID | Qi4D Rescue | 2026 | NORMALIZED_SOURCE |
+| TaylorMade | HYBRID | Qi4D Rescue Max | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | HYBRID | Qi4D Rescue Max Lite | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | HYBRID | SIM Max Rescue | 2020 | NORMALIZED_SOURCE |
+| TaylorMade | HYBRID | Stealth 2 Rescue | 2023 | NORMALIZED_SOURCE |
+| TaylorMade | HYBRID | Stealth Rescue | 2022 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | P750 | 2023 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | P770 | 2022 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | P790 | 2022 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | P7CB | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | Qi Max | 2024 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | Qi Max HL | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | Qi Max HL game improvement | 2024 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | SIM Max | 2020 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | SIM Max OS irons | 2020 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | Stealth 2 Irons | 2023 | NORMALIZED_SOURCE |
+| TaylorMade | IRON | Stealth Irons | 2022 | NORMALIZED_SOURCE |
+| TaylorMade | PUTTER | MySpider ZT | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | PUTTER | Spider GT | 2022 | NORMALIZED_SOURCE |
+| TaylorMade | PUTTER | Spider S | 2020 | NORMALIZED_SOURCE |
+| TaylorMade | PUTTER | Spider ZT | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | PUTTER | TRUSS | 2020 | NORMALIZED_SOURCE |
+| TaylorMade | WEDGE | Hi-Toe 3 | 2023 | NORMALIZED_SOURCE |
+| TaylorMade | WEDGE | Hi-Toe 5 | 2025 | NORMALIZED_SOURCE |
+| TaylorMade | WEDGE | Hi-Toe Raw | 2022 | NORMALIZED_SOURCE |
+| TaylorMade | WEDGE | Milled Grind 3 | 2021 | NORMALIZED_SOURCE |
+| TaylorMade | WEDGE | Milled Grind 4 | 2020 | NORMALIZED_SOURCE |
+| Titleist | DRIVER | GT2 | 2024 | VERIFIED |
+| Titleist | DRIVER | GT280 | 2025 | VERIFIED |
+| Titleist | DRIVER | GT3 | 2024 | VERIFIED |
+| Titleist | DRIVER | GT4 | 2024 | VERIFIED |
+| Titleist | DRIVER | TSi2 | 2020 | VERIFIED |
+| Titleist | DRIVER | TSi3 | 2020 | VERIFIED |
+| Titleist | DRIVER | TSR1 | 2023 | VERIFIED |
+| Titleist | DRIVER | TSR2 | 2022 | VERIFIED |
+| Titleist | DRIVER | TSR3 | 2022 | VERIFIED |
+| Titleist | DRIVER | TSR4 | 2022 | VERIFIED |
+| Titleist | FAIRWAY_WOOD | 915F | 2020 | NORMALIZED_SOURCE |
+| Titleist | FAIRWAY_WOOD | 916F | 2020 | NORMALIZED_SOURCE |
+| Titleist | FAIRWAY_WOOD | GT Fairway | 2023 | NORMALIZED_SOURCE |
+| Titleist | FAIRWAY_WOOD | TSR | 2023 | NORMALIZED_SOURCE |
+| Titleist | FAIRWAY_WOOD | TSR1 | 2021 | NORMALIZED_SOURCE |
+| Titleist | FAIRWAY_WOOD | TSR2 | 2021 | NORMALIZED_SOURCE |
+| Titleist | FAIRWAY_WOOD | TSR3 | 2021 | NORMALIZED_SOURCE |
+| Titleist | HYBRID | 915H | 2020 | NORMALIZED_SOURCE |
+| Titleist | HYBRID | 916H | 2020 | NORMALIZED_SOURCE |
+| Titleist | HYBRID | GT Hybrid | 2023 | NORMALIZED_SOURCE |
+| Titleist | HYBRID | GT Utility | 2024 | NORMALIZED_SOURCE |
+| Titleist | HYBRID | TSR-H | 2021 | NORMALIZED_SOURCE |
+| Titleist | HYBRID | U505 | 2025 | NORMALIZED_SOURCE |
+| Titleist | IRON | 620 CB | 2023 | NORMALIZED_SOURCE |
+| Titleist | IRON | 620 MB | 2023 | NORMALIZED_SOURCE |
+| Titleist | IRON | T100 | 2020 | NORMALIZED_SOURCE |
+| Titleist | IRON | T150 | 2023 | NORMALIZED_SOURCE |
+| Titleist | IRON | T200 | 2020 | NORMALIZED_SOURCE |
+| Titleist | IRON | T250 | 2025 | NORMALIZED_SOURCE |
+| Titleist | IRON | T300 | 2020 | NORMALIZED_SOURCE |
+| Titleist | IRON | T350 | 2022 | NORMALIZED_SOURCE |
+| Titleist | IRON | T400 | 2020 | NORMALIZED_SOURCE |
+| Titleist | IRON | U505 | 2024 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | 11 | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | 11.5 | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | 5.2 | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | 5S | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | 7 | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | 7.2 | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | 7.5 | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | 9 | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | 9R | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | Phantom 5 | 2026 | NORMALIZED_SOURCE |
+| Titleist | PUTTER | Select models | 2020 | NORMALIZED_SOURCE |
+| Titleist | WEDGE | Vokey SM10 | 2024 | VERIFIED |
+| Titleist | WEDGE | Vokey SM11 | 2025 | NORMALIZED_SOURCE |
+| Titleist | WEDGE | Vokey SM11 con Flight Lines | 2026 | NORMALIZED_SOURCE |
+| Titleist | WEDGE | Vokey SM8 | 2020 | VERIFIED |
+| Titleist | WEDGE | Vokey SM9 | 2022 | VERIFIED |
+| Tour Edge | DRIVER | Exotics (LS | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Exotics (modelos variados) | 2026 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Exotics Max | 2024 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Hot Launch 3.5 | 2021 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Hot Launch 4 (HL4) | 2021 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Hot Launch 521 | 2020 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Hot Launch 522 | 2022 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Hot Launch 523 | 2023 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Hot Launch 523 LS | 2023 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Hot Launch 524 | 2024 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Hot Launch E525 | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Max-D) | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Max-K | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | Ti-Utility | 2024 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | X | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | DRIVER | X525 | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | Exotics | 2024 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | Exotics (LS | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | HL3.5 | 2021 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | Hot Launch | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | Hot Launch 4 | 2021 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | Hot Launch 521 | 2020 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | Hot Launch 522 | 2022 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | Hot Launch 523 | 2023 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | Hot Launch 524 | 2024 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | Max | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | FAIRWAY_WOOD | X) | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | HYBRID | E525 | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | HYBRID | Exotics Max | 2024 | NORMALIZED_SOURCE |
+| Tour Edge | HYBRID | Hot Launch 4 Hybrid | 2021 | NORMALIZED_SOURCE |
+| Tour Edge | HYBRID | Hot Launch 521 | 2020 | NORMALIZED_SOURCE |
+| Tour Edge | HYBRID | Hot Launch 522 | 2022 | NORMALIZED_SOURCE |
+| Tour Edge | HYBRID | Hot Launch 523 | 2023 | NORMALIZED_SOURCE |
+| Tour Edge | HYBRID | Hot Launch 524 | 2024 | NORMALIZED_SOURCE |
+| Tour Edge | HYBRID | Hot Launch X525 | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | C722 | 2022 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | CB Forged | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | E722 | 2022 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | E725 | 2023 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | Exotics MB Forged | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | Exotics Ti-Utility | 2024 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | Hot Launch 4 Irons | 2021 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | Hot Launch 521 | 2020 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | Hot Launch 522 | 2022 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | Hot Launch 523 | 2023 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | Hot Launch 524 | 2024 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | Max; Hot Launch E525 | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | Max; Hot Launch irons | 2026 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | X525 | 2025 | NORMALIZED_SOURCE |
+| Tour Edge | IRON | X725 | 2023 | NORMALIZED_SOURCE |
+| Tour Edge | PUTTER | Wingman 700 | 2023 | NORMALIZED_SOURCE |
+| Tour Edge | PUTTER | Wingman putters | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | DRIVER | C300 | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | DRIVER | D200 | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | DRIVER | D300 | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | DRIVER | D7 | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | DRIVER | D8 | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | DRIVER | D9 | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | DRIVER | Dynapower Forged | 2024 | NORMALIZED_SOURCE |
+| Wilson Staff | DRIVER | Dynapower Max | 2023 | NORMALIZED_SOURCE |
+| Wilson Staff | DRIVER | Dynapower Tour | 2023 | NORMALIZED_SOURCE |
+| Wilson Staff | FAIRWAY_WOOD | C300 | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | FAIRWAY_WOOD | D200 fairway | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | FAIRWAY_WOOD | D7 | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | FAIRWAY_WOOD | D8 fairway | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | FAIRWAY_WOOD | Dynapower fairway | 2024 | NORMALIZED_SOURCE |
+| Wilson Staff | FAIRWAY_WOOD | Dynapower Max | 2023 | NORMALIZED_SOURCE |
+| Wilson Staff | FAIRWAY_WOOD | Tour | 2023 | NORMALIZED_SOURCE |
+| Wilson Staff | HYBRID | D200 Hybrid | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | HYBRID | D7 Hybrid | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | HYBRID | Dynapower | 2024 | NORMALIZED_SOURCE |
+| Wilson Staff | HYBRID | Dynapower hybrid | 2025 | NORMALIZED_SOURCE |
+| Wilson Staff | HYBRID | Dynapower Max Hybrid | 2023 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | C.Wedges | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | CI11 | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | D100 | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | D200 | 2020 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | D7 | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | D8 | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | D9 irons | 2022 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | Dynapower Forged | 2023 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | Dynapower Max | 2023 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | Staff Model Blade | 2026 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | Staff Model CB | 2026 | NORMALIZED_SOURCE |
+| Wilson Staff | IRON | Staff Model XB forged 8620 steel | 2026 | NORMALIZED_SOURCE |
+| Wilson Staff | PUTTER | Staff Model putters | 2026 | NORMALIZED_SOURCE |
+| Wilson Staff | WEDGE | TFI Wedges | 2020 | NORMALIZED_SOURCE |

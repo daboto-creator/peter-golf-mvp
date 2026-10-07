@@ -24,6 +24,7 @@ const equipmentSchema = z.object({
   model: z.string().trim().max(160),
   notes: z.string().trim().max(1000),
   loft: z.coerce.number().min(40).max(64).optional(),
+  modelYear: z.coerce.number().int().min(1900).max(2200).optional(),
 });
 const objectiveSchema = z.object({
   objectiveType: z.string().trim().min(1).max(100),
@@ -80,6 +81,7 @@ export async function addMiGolfEquipmentAction(form: FormData) {
     model: text(form, "model"),
     notes: text(form, "notes"),
     loft: text(form, "loft") ? Number(text(form, "loft")) : undefined,
+    modelYear: text(form, "modelYear") ? Number(text(form, "modelYear")) : undefined,
   });
   if (!parsed.success)
     return { ok: false, message: "Indica al menos la categoría del equipo." };
@@ -97,6 +99,7 @@ export async function addMiGolfEquipmentAction(form: FormData) {
     confidence: "HIGH",
     canonical_brand_id: parsed.data.canonicalBrandId ?? null,
     canonical_model_id: parsed.data.canonicalModelId ?? null,
+    model_year: parsed.data.modelYear ?? null,
     reference_status: parsed.data.canonicalModelId
       ? "RESOLVED"
       : "USER_ENTERED",
@@ -129,6 +132,7 @@ export async function updateMiGolfEquipmentAction(form: FormData) {
     model: text(form, "model"),
     notes: text(form, "notes"),
     loft: text(form, "loft") ? Number(text(form, "loft")) : undefined,
+    modelYear: text(form, "modelYear") ? Number(text(form, "modelYear")) : undefined,
   });
   if (!id.success || !parsed.success)
     return { ok: false, message: "Revisa los datos del equipo." };
@@ -141,6 +145,7 @@ export async function updateMiGolfEquipmentAction(form: FormData) {
       model: parsed.data.model || null,
       notes: parsed.data.notes || null,
       specifications: parsed.data.loft ? { loft: parsed.data.loft } : {},
+      model_year: parsed.data.modelYear ?? null,
       source: "USER_MANUAL_EDIT",
       confidence: "HIGH",
     } as never)

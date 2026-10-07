@@ -96,6 +96,7 @@ export type MiGolfEquipment = {
   brandId?: string | null;
   brand: string | null;
   modelId?: string | null;
+  modelYear?: number | null;
   model: string | null;
   specifications: Record<string, unknown>;
   source: MemorySource;

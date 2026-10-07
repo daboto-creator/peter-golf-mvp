@@ -1,0 +1,3999 @@
+[
+  {
+    "brand": "Adams Golf",
+    "category": "DRIVER",
+    "model": "Idea",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "DRIVER",
+    "model": "Tight Lies",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "FAIRWAY_WOOD",
+    "model": "Idea",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "FAIRWAY_WOOD",
+    "model": "Tight Lies",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "FAIRWAY_WOOD",
+    "model": "Tight Lies Pro",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "HYBRID",
+    "model": "Idea",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "HYBRID",
+    "model": "Tight Lies",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "HYBRID",
+    "model": "Tight Lies Hybrid velocidad slot",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "IRON",
+    "model": "Idea",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "IRON",
+    "model": "Idea Tech",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "IRON",
+    "model": "Tight Lies",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "PUTTER",
+    "model": "C-Groove",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "PUTTER",
+    "model": "C-Groove Mission",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "PUTTER",
+    "model": "C-Groove Prospect",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "WEDGE",
+    "model": "Idea",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "WEDGE",
+    "model": "Idea Wedges",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "DRIVER",
+    "model": "PTx LST",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "DRIVER",
+    "model": "PTx Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "FAIRWAY_WOOD",
+    "model": "PTx Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "HYBRID",
+    "model": "PTx Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "IRON",
+    "model": "Ft. Worth CB",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "IRON",
+    "model": "Ft. Worth MB",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "IRON",
+    "model": "Legend",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "IRON",
+    "model": "M50-01",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "IRON",
+    "model": "220 MB",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "IRON",
+    "model": "221 CB",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "IRON",
+    "model": "222 CB+",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "WEDGE",
+    "model": "BRM2",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Elyte Triple Diamond",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Elyte X",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Epic Max",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Epic Speed",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Mavrik",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Mavrik Max",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Mavrik Sub Zero",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Paradym Ai Smoke Max",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Paradym Ai Smoke Max D",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Paradym Ai Smoke Max HL",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Paradym Ai Smoke Triple Diamond",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Paradym Max",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Paradym Triple Diamond",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Paradym TripleDiamond Max",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Quantum Max",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Quantum Max D",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Quantum Mini",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Quantum Triple Diamond",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Rogue ST LS",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Rogue ST Max",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Rogue ST Max D",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Rogue ST Max Lite",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "DRIVER",
+    "model": "Rogue ST Triple Diamond",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Elyte Triple Diamond",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Epic Max",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Epic Speed",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Mavrik",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Paradym",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Paradym Ai Smoke",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Quantum Max",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Quantum Max D",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Quantum Triple Diamond",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "FAIRWAY_WOOD",
+    "model": "Rogue ST",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Elyte Mini Driver",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Elyte X Hybrid",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Epic Max Rescue",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Mavrik",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Paradym Ai Smoke",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Paradym Hybrid",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Quantum Max",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Quantum Max Fast",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Quantum Max OS",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "HYBRID",
+    "model": "Rogue ST Rescue",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Apex Ai150",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Apex Ai200",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Apex Ai300",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Apex CB",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Apex MB",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Apex TCB",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Elyte",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Paradym Ai200",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Paradym Ai300",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Quantum Max",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "IRON",
+    "model": "Quantum Max OS",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "WEDGE",
+    "model": "Apex",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "WEDGE",
+    "model": "Opus",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "WEDGE",
+    "model": "Opus Platinum",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Callaway",
+    "category": "WEDGE",
+    "model": "Opus SP",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "PUTTER",
+    "model": "TFI 2135 Satin Cero",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "54°",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "56°",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "60°)",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "RTX 4",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "RTX 4 Forged",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "RTX 5",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "RTX 6 Tour Satin",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "RTX 6 ZipCore",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "RTX ZipCore",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "RTX ZipCore (50°",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "RTZ 2",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "WEDGE",
+    "model": "RTZ Tour Rack",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "DARKSPEED",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "DARKSPEED (LS",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "DS-ADAPT",
+    "modelYear": 2025,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "DS-ADAPT LS",
+    "modelYear": 2025,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "DS-ADAPT Max-D",
+    "modelYear": 2025,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "DS-ADAPT Max-K",
+    "modelYear": 2025,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "DS-ADAPT X",
+    "modelYear": 2025,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "Forged",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "King Forged",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "King Forged (TEC",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "King Speedzone",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "King TEC",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "King Tec-MD",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "King Tec-MD mini driver",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "Max-D)",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "Max-K",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "Max)",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "Optm (LS",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "Pro)",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "Speedzone",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "DRIVER",
+    "model": "X",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "FAIRWAY_WOOD",
+    "model": "DARKSPEED Fairway",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "FAIRWAY_WOOD",
+    "model": "DS-ADAPT",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "FAIRWAY_WOOD",
+    "model": "DS-ADAPT X",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "FAIRWAY_WOOD",
+    "model": "King Speedzone",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "FAIRWAY_WOOD",
+    "model": "Optm LS",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "FAIRWAY_WOOD",
+    "model": "Optm Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "FAIRWAY_WOOD",
+    "model": "Optm X",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "HYBRID",
+    "model": "DARKSPEED Hybrid",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "HYBRID",
+    "model": "DS-ADAPT",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "HYBRID",
+    "model": "DS-ADAPT Hybrid",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "HYBRID",
+    "model": "DS-ADAPT X Hybrid",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "HYBRID",
+    "model": "Optm Hybrid",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "IRON",
+    "model": "3DP X",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "IRON",
+    "model": "DARKSPEED Irons",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "IRON",
+    "model": "King",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "IRON",
+    "model": "King CB",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "IRON",
+    "model": "King Forged Pro",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "IRON",
+    "model": "King Forged TEC",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "IRON",
+    "model": "King Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "PUTTER",
+    "model": "3DP",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "PUTTER",
+    "model": "3DP Tour",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Cobra",
+    "category": "PUTTER",
+    "model": "MIM",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "DRIVER",
+    "model": "Beres 06",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "DRIVER",
+    "model": "Beres 06 S-06",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "DRIVER",
+    "model": "BeZeal 535",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "DRIVER",
+    "model": "TW737",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "DRIVER",
+    "model": "TW747",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "DRIVER",
+    "model": "TW757",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Honma",
+    "category": "DRIVER",
+    "model": "TW767",
+    "modelYear": 2024,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Honma",
+    "category": "FAIRWAY_WOOD",
+    "model": "Beres 06",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "FAIRWAY_WOOD",
+    "model": "BeZeal 535",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "FAIRWAY_WOOD",
+    "model": "TW757",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "FAIRWAY_WOOD",
+    "model": "TW767",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "HYBRID",
+    "model": "Beres 06",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "HYBRID",
+    "model": "BeZeal 535",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "HYBRID",
+    "model": "TW757",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "HYBRID",
+    "model": "TW757 Hybrid",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "HYBRID",
+    "model": "TW767",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "IRON",
+    "model": "Beres IS-06",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "IRON",
+    "model": "Beres Nx",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "IRON",
+    "model": "BeZeal 535",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "IRON",
+    "model": "TW757",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "IRON",
+    "model": "TW757 irons",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "IRON",
+    "model": "TW767",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "PUTTER",
+    "model": "Beres P303",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "PUTTER",
+    "model": "Beres PP500 PP501",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "PUTTER",
+    "model": "Beres PP500 PP502",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "PUTTER",
+    "model": "Beres PP500 PP503",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "PUTTER",
+    "model": "Beres PP500 PP505",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Honma",
+    "category": "PUTTER",
+    "model": "P308",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "DRIVER",
+    "model": "ST-MAX 230",
+    "modelYear": 2024,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "DRIVER",
+    "model": "ST-X",
+    "modelYear": 2021,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "DRIVER",
+    "model": "ST-X 220",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "DRIVER",
+    "model": "ST-X 230",
+    "modelYear": 2023,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "DRIVER",
+    "model": "ST-Z",
+    "modelYear": 2021,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "DRIVER",
+    "model": "ST-Z 220",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "DRIVER",
+    "model": "ST-Z 230",
+    "modelYear": 2023,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "DRIVER",
+    "model": "ST200",
+    "modelYear": 2020,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX 919 Hot Metal",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX 921",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX 921 Forged",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX 921 Hot Metal",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX 923 Forged",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX 923 Hot Metal",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX 925 Forged",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX 925 Hot Metal",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX925 Forged",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "JPX925 Hot Metal",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "Pro Fli-Hi",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "Pro Fli-Hi utility",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "Pro M-13",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "Pro M-15",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "Pro MP-20",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "Pro MP-21",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "Pro MP-22",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "Pro MP-23",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "IRON",
+    "model": "Pro MP-24",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft Nagoya",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X B2",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X B3",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X P2",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X P3",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X S2",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X S3",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X Z2",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X Z3",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X Z4",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X Z5",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "M-Craft X Z6",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "MP-4",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "PUTTER",
+    "model": "MP-5",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "PUTTER",
+    "model": "7",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "PUTTER",
+    "model": "Ai-Dual (alignment aid innovation)",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "PUTTER",
+    "model": "Ai-One",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "PUTTER",
+    "model": "Jailbird Mini ½ Ball",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "PUTTER",
+    "model": "Mallet linea",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "PUTTER",
+    "model": "S2S Tri-Hot",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "PUTTER",
+    "model": "Stroke Lab putters",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "PUTTER",
+    "model": "White Hot Pro",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "PUTTER",
+    "model": "White Hot RX",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "DRIVER",
+    "model": "G425 LST",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "DRIVER",
+    "model": "G425 Max",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "DRIVER",
+    "model": "G430 LST",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "DRIVER",
+    "model": "G430 Max",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "DRIVER",
+    "model": "G430 Max 10K",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "DRIVER",
+    "model": "G440 K",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "DRIVER",
+    "model": "G440 K W/PWR-Bridge",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "FAIRWAY_WOOD",
+    "model": "G425",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "FAIRWAY_WOOD",
+    "model": "G425 Max",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "FAIRWAY_WOOD",
+    "model": "G430",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "FAIRWAY_WOOD",
+    "model": "G430 Max",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "FAIRWAY_WOOD",
+    "model": "G440 Max",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "FAIRWAY_WOOD",
+    "model": "G440 Max Fairway",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "HYBRID",
+    "model": "G425 Max Hybrid",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "HYBRID",
+    "model": "G430 Max Hybrid",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "HYBRID",
+    "model": "G440 Max",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "HYBRID",
+    "model": "G440 Max Hybrid",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "IRON",
+    "model": "G425",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "IRON",
+    "model": "G430",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "IRON",
+    "model": "G440",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "IRON",
+    "model": "G740",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "IRON",
+    "model": "G740 irons",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "IRON",
+    "model": "i210",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "IRON",
+    "model": "i220",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "IRON",
+    "model": "i230",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "IRON",
+    "model": "i540 players distance",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "PUTTER",
+    "model": "Sigma",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "PUTTER",
+    "model": "Sigma 2",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "PUTTER",
+    "model": "Vault",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PING",
+    "category": "WEDGE",
+    "model": "S259 25 combinaciones loft/grind",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "DRIVER",
+    "model": "0311 GEN2",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "DRIVER",
+    "model": "0311 GEN3",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "DRIVER",
+    "model": "0311 GEN4",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "DRIVER",
+    "model": "0311 V2",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "DRIVER",
+    "model": "Lightning Max Lite",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "DRIVER",
+    "model": "Lightning Max-10k+",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "DRIVER",
+    "model": "Lightning Tour",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "DRIVER",
+    "model": "Lightning Tour Mid",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "DRIVER",
+    "model": "Lightning Tour Mid mini driver",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "FAIRWAY_WOOD",
+    "model": "0311 GEN2",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "FAIRWAY_WOOD",
+    "model": "0311 GEN3",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "FAIRWAY_WOOD",
+    "model": "0311 GEN4",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "FAIRWAY_WOOD",
+    "model": "0311 V2",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "FAIRWAY_WOOD",
+    "model": "Lightning",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "FAIRWAY_WOOD",
+    "model": "Lightning Tour",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "HYBRID",
+    "model": "0311 GEN2",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "HYBRID",
+    "model": "0311 GEN3",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "HYBRID",
+    "model": "0311 GEN4",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "HYBRID",
+    "model": "0311 V2",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "HYBRID",
+    "model": "Lightning 7 lofts",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "IRON",
+    "model": "0311 GEN5",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "IRON",
+    "model": "0311 GEN6",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "IRON",
+    "model": "0311 GEN7",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "IRON",
+    "model": "0311 GEN8",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "IRON",
+    "model": "0311 GEN8 T",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "IRON",
+    "model": "0317 ST",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "IRON",
+    "model": "P",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "IRON",
+    "model": "P; 0317 ST tour",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "IRON",
+    "model": "XP",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "WEDGE",
+    "model": "0311 wedges",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "WEDGE",
+    "model": "Stick'em Forged",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "PXG",
+    "category": "WEDGE",
+    "model": "Stick'em Forged 8620 steel",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "11",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "11.5 modelos 2024",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "11.5; Studio Style Newport 2",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "11.5)",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "11R",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "11R; Studio Style; Circle T Proto zero-torque",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "5.2",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "5S",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "7",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "7.2",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "7.5",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "9",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "9.2R",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "9.5R",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "9R",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "Catalina",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "Newport 2",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "Newport 2 Plus",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "Phantom 5",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "Phantom models",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "Phantom X",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "Phantom X (11",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "PUTTER",
+    "model": "Studio Design",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "Z 945",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "Z-TX",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "ZX5",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "ZX5 LS",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "ZX5 LS Mk II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "ZX5 Mk II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "ZX7",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "ZX7 Mk II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "ZXi",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "ZXi LS",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "DRIVER",
+    "model": "ZXi Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "FAIRWAY_WOOD",
+    "model": "Z-TX Fairway",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "FAIRWAY_WOOD",
+    "model": "ZX5",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "FAIRWAY_WOOD",
+    "model": "ZX5 Mk II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "FAIRWAY_WOOD",
+    "model": "ZX7",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "FAIRWAY_WOOD",
+    "model": "ZX7 Mk II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "FAIRWAY_WOOD",
+    "model": "ZXi fairway",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "FAIRWAY_WOOD",
+    "model": "ZXi Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "HYBRID",
+    "model": "Z-TX Hybrid",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "HYBRID",
+    "model": "ZX Hybrid",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "HYBRID",
+    "model": "ZX Mk II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "HYBRID",
+    "model": "ZX Utility",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "HYBRID",
+    "model": "ZXiU",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "HYBRID",
+    "model": "ZXiU utility",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "Z 945 irons",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "Z-Forged II",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "Z-TX",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZX4 irons",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZX4 Mk II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZX5",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZX5 Mk II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZX7",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZX7 Mk II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZXi4",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZXi5",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZXi7",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZXi7 launching",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZXiR",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZXiR HL",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "IRON",
+    "model": "ZXiU",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "WEDGE",
+    "model": "RTX",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "WEDGE",
+    "model": "RTX 6 ZipCore",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "WEDGE",
+    "model": "RTX ZipCore",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "WEDGE",
+    "model": "RTX ZipCore formatos",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "WEDGE",
+    "model": "Z-Forged",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "WEDGE",
+    "model": "Z-Forged II",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Srixon",
+    "category": "WEDGE",
+    "model": "Z-TX Wedges",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "DRIVER",
+    "model": "859",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "DRIVER",
+    "model": "859 JD",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "DRIVER",
+    "model": "859 JD con ART tech",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "DRIVER",
+    "model": "859 Pro",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "639 CB",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "639 MB",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "649 MB",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "659 CB",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "659 MB",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "659 models",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "659 TC",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "669 MB",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "669 TC",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "699 all models",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "699 Pro V2",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "699 Pro V3",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "699 V2",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "699 V3",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "749",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "799",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "TAIII",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "IRON",
+    "model": "TAIII Forged",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "PUTTER",
+    "model": "010 series putters",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "PUTTER",
+    "model": "011-SQ",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "PUTTER",
+    "model": "011-SQ zero-torque",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi10",
+    "modelYear": 2024,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi10 LS",
+    "modelYear": 2024,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi10 Max",
+    "modelYear": 2024,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi35",
+    "modelYear": 2025,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi35 LS",
+    "modelYear": 2025,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi35 Max",
+    "modelYear": 2025,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi4D",
+    "modelYear": 2026,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi4D LS",
+    "modelYear": 2026,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi4D Max",
+    "modelYear": 2026,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi4D Max Lite",
+    "modelYear": 2026,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Qi4D Tour",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "SIM",
+    "modelYear": 2020,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "SIM Max",
+    "modelYear": 2020,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "SIM Max-D",
+    "modelYear": 2020,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "SIM2",
+    "modelYear": 2021,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "SIM2 Max",
+    "modelYear": 2021,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "SIM2 Max-D",
+    "modelYear": 2021,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Stealth",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Stealth 2",
+    "modelYear": 2023,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Stealth 2 HD",
+    "modelYear": 2023,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Stealth 2 Plus",
+    "modelYear": 2023,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Stealth HD",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "DRIVER",
+    "model": "Stealth Plus",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "FAIRWAY_WOOD",
+    "model": "Qi35 Fairway",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "FAIRWAY_WOOD",
+    "model": "Qi4D Fairways",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "FAIRWAY_WOOD",
+    "model": "Qi4D Fairways Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "FAIRWAY_WOOD",
+    "model": "Qi4D Fairways Tour",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "FAIRWAY_WOOD",
+    "model": "SIM Max",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "FAIRWAY_WOOD",
+    "model": "Stealth 2 Fairway",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "FAIRWAY_WOOD",
+    "model": "Stealth Fairway",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "HYBRID",
+    "model": "Qi35 Rescue",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "HYBRID",
+    "model": "Qi4D Rescue",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "HYBRID",
+    "model": "Qi4D Rescue Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "HYBRID",
+    "model": "Qi4D Rescue Max Lite",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "HYBRID",
+    "model": "SIM Max Rescue",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "HYBRID",
+    "model": "Stealth 2 Rescue",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "HYBRID",
+    "model": "Stealth Rescue",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "P750",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "P770",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "P790",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "P7CB",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "Qi Max",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "Qi Max HL",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "Qi Max HL game improvement",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "SIM Max",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "SIM Max OS irons",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "Stealth 2 Irons",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "IRON",
+    "model": "Stealth Irons",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "PUTTER",
+    "model": "MySpider ZT",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "PUTTER",
+    "model": "Spider GT",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "PUTTER",
+    "model": "Spider S",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "PUTTER",
+    "model": "Spider ZT",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "PUTTER",
+    "model": "TRUSS",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "WEDGE",
+    "model": "Hi-Toe 3",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "WEDGE",
+    "model": "Hi-Toe 5",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "WEDGE",
+    "model": "Hi-Toe Raw",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "WEDGE",
+    "model": "Milled Grind 3",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "WEDGE",
+    "model": "Milled Grind 4",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "GT2",
+    "modelYear": 2024,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "GT280",
+    "modelYear": 2025,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "GT3",
+    "modelYear": 2024,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "GT4",
+    "modelYear": 2024,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "TSi2",
+    "modelYear": 2020,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "TSi3",
+    "modelYear": 2020,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "TSR1",
+    "modelYear": 2023,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "TSR2",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "TSR3",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "DRIVER",
+    "model": "TSR4",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "FAIRWAY_WOOD",
+    "model": "915F",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "FAIRWAY_WOOD",
+    "model": "916F",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "FAIRWAY_WOOD",
+    "model": "GT Fairway",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "FAIRWAY_WOOD",
+    "model": "TSR",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "FAIRWAY_WOOD",
+    "model": "TSR1",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "FAIRWAY_WOOD",
+    "model": "TSR2",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "FAIRWAY_WOOD",
+    "model": "TSR3",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "HYBRID",
+    "model": "915H",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "HYBRID",
+    "model": "916H",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "HYBRID",
+    "model": "GT Hybrid",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "HYBRID",
+    "model": "GT Utility",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "HYBRID",
+    "model": "TSR-H",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "HYBRID",
+    "model": "U505",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "620 CB",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "620 MB",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "T100",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "T150",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "T200",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "T250",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "T300",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "T350",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "T400",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "IRON",
+    "model": "U505",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "11",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "11.5",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "5.2",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "5S",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "7",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "7.2",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "7.5",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "9",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "9R",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "Phantom 5",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "PUTTER",
+    "model": "Select models",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "WEDGE",
+    "model": "Vokey SM10",
+    "modelYear": 2024,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "WEDGE",
+    "model": "Vokey SM11",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "WEDGE",
+    "model": "Vokey SM11 con Flight Lines",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Titleist",
+    "category": "WEDGE",
+    "model": "Vokey SM8",
+    "modelYear": 2020,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Titleist",
+    "category": "WEDGE",
+    "model": "Vokey SM9",
+    "modelYear": 2022,
+    "sourceStatus": "VERIFIED"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Exotics (LS",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Exotics (modelos variados)",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Exotics Max",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Hot Launch 3.5",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Hot Launch 4 (HL4)",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Hot Launch 521",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Hot Launch 522",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Hot Launch 523",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Hot Launch 523 LS",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Hot Launch 524",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Hot Launch E525",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Max-D)",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Max-K",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "Ti-Utility",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "X",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "DRIVER",
+    "model": "X525",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "Exotics",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "Exotics (LS",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "HL3.5",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "Hot Launch",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "Hot Launch 4",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "Hot Launch 521",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "Hot Launch 522",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "Hot Launch 523",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "Hot Launch 524",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "Max",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "FAIRWAY_WOOD",
+    "model": "X)",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "HYBRID",
+    "model": "E525",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "HYBRID",
+    "model": "Exotics Max",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "HYBRID",
+    "model": "Hot Launch 4 Hybrid",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "HYBRID",
+    "model": "Hot Launch 521",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "HYBRID",
+    "model": "Hot Launch 522",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "HYBRID",
+    "model": "Hot Launch 523",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "HYBRID",
+    "model": "Hot Launch 524",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "HYBRID",
+    "model": "Hot Launch X525",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "C722",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "CB Forged",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "E722",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "E725",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "Exotics MB Forged",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "Exotics Ti-Utility",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "Hot Launch 4 Irons",
+    "modelYear": 2021,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "Hot Launch 521",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "Hot Launch 522",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "Hot Launch 523",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "Hot Launch 524",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "Max; Hot Launch E525",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "Max; Hot Launch irons",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "X525",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "IRON",
+    "model": "X725",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "PUTTER",
+    "model": "Wingman 700",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "PUTTER",
+    "model": "Wingman putters",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "DRIVER",
+    "model": "C300",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "DRIVER",
+    "model": "D200",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "DRIVER",
+    "model": "D300",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "DRIVER",
+    "model": "D7",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "DRIVER",
+    "model": "D8",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "DRIVER",
+    "model": "D9",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "DRIVER",
+    "model": "Dynapower Forged",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "DRIVER",
+    "model": "Dynapower Max",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "DRIVER",
+    "model": "Dynapower Tour",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "FAIRWAY_WOOD",
+    "model": "C300",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "FAIRWAY_WOOD",
+    "model": "D200 fairway",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "FAIRWAY_WOOD",
+    "model": "D7",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "FAIRWAY_WOOD",
+    "model": "D8 fairway",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "FAIRWAY_WOOD",
+    "model": "Dynapower fairway",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "FAIRWAY_WOOD",
+    "model": "Dynapower Max",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "FAIRWAY_WOOD",
+    "model": "Tour",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "HYBRID",
+    "model": "D200 Hybrid",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "HYBRID",
+    "model": "D7 Hybrid",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "HYBRID",
+    "model": "Dynapower",
+    "modelYear": 2024,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "HYBRID",
+    "model": "Dynapower hybrid",
+    "modelYear": 2025,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "HYBRID",
+    "model": "Dynapower Max Hybrid",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "C.Wedges",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "CI11",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "D100",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "D200",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "D7",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "D8",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "D9 irons",
+    "modelYear": 2022,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "Dynapower Forged",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "Dynapower Max",
+    "modelYear": 2023,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "Staff Model Blade",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "Staff Model CB",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "IRON",
+    "model": "Staff Model XB forged 8620 steel",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "PUTTER",
+    "model": "Staff Model putters",
+    "modelYear": 2026,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "WEDGE",
+    "model": "TFI Wedges",
+    "modelYear": 2020,
+    "sourceStatus": "NORMALIZED_SOURCE"
+  }
+]

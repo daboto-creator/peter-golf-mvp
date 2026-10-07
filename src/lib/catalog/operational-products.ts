@@ -177,6 +177,16 @@ export type ActiveGolfCatalogReferences = {
   models: GolfModelSuggestion[];
 };
 
+type CatalogModelReferenceRow = {
+  id: string;
+  brand_id: string;
+  category_id: string;
+  model_name: string;
+  normalized_model_name: string;
+  model_year: number | null;
+  status: Database["public"]["Enums"]["catalog_record_status"];
+};
+
 /**
  * Pure catalog-reference read path shared by Operations and Mi Golf.
  * It intentionally has no pricing, payment, inventory, or Stripe dependency.
@@ -206,9 +216,12 @@ export async function listActiveGolfCatalogReferences(current?: {
         .order("sort_order")
         .order("name"),
       client
-        .from("catalog_product_models")
-        .select("id, brand_id, category_id, model_name, normalized_model_name, status")
-        .order("model_name"),
+        .from("catalog_product_models" as never)
+        .select("id, brand_id, category_id, model_name, normalized_model_name, model_year, status" as never)
+        .order("model_name") as unknown as Promise<{
+          data: CatalogModelReferenceRow[] | null;
+          error: { message: string } | null;
+        }>,
     ]);
     if (brandsResult.error || categoriesResult.error || modelsResult.error) {
       console.error("[catalog] active reference load failed", {
@@ -221,6 +234,7 @@ export async function listActiveGolfCatalogReferences(current?: {
     const categoryIdsWithChildren = new Set(
       categoriesResult.data.flatMap((category) => category.parent_id ? [category.parent_id] : []),
     );
+    const modelRows = modelsResult.data ?? [];
     return {
       data: {
         brands: selectAssignableTaxonomies(brandsResult.data, current?.brandId),
@@ -240,7 +254,7 @@ export async function listActiveGolfCatalogReferences(current?: {
           })),
           current?.categoryId,
         ),
-        models: modelsResult.data
+        models: modelRows
           .filter((model) => model.status === "active" || model.id === current?.canonicalModelId)
           .map((model) => ({
             id: model.id,
@@ -248,6 +262,7 @@ export async function listActiveGolfCatalogReferences(current?: {
             categoryId: model.category_id,
             name: model.model_name,
             normalizedName: model.normalized_model_name,
+            modelYear: model.model_year,
           })),
       },
       error: null,

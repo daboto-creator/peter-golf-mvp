@@ -165,6 +165,7 @@ export function EquipmentForm({
   const [manualBrand, setManualBrand] = useState("");
   const [modelId, setModelId] = useState("");
   const [manualModel, setManualModel] = useState("");
+  const [modelYear, setModelYear] = useState("");
   const [state, setState] = useState<{ ok: boolean; message?: string } | null>(
     null,
   );
@@ -215,6 +216,9 @@ export function EquipmentForm({
           data.set("model", manualModel.trim());
           data.delete("canonicalModelId");
         }
+        if (selectedModel && !String(data.get("modelYear") ?? "").trim() && "modelYear" in selectedModel && selectedModel.modelYear) {
+          data.set("modelYear", String(selectedModel.modelYear));
+        }
         start(async () => {
           const result = await addMiGolfEquipmentAction(data);
           setState(result);
@@ -225,6 +229,7 @@ export function EquipmentForm({
             setManualBrand("");
             setModelId("");
             setManualModel("");
+            setModelYear("");
             setOpen(false);
           }
         });
@@ -240,6 +245,7 @@ export function EquipmentForm({
           setCategoryId(nextCategoryId);
           setModelId("");
           setManualModel("");
+          setModelYear("");
           if (selectedBrand && !models.some((item) => item.brandId === selectedBrand.id && item.categoryId === nextCategoryId)) {
             setBrandId("");
             setManualBrand("");
@@ -286,13 +292,16 @@ export function EquipmentForm({
           value={modelId}
           disabled={!categoryId || !selectedBrand}
           onChange={(event) => {
-            setModelId(event.target.value);
+            const nextModelId = event.target.value;
+            setModelId(nextModelId);
             setManualModel("");
+            const nextModel = filteredModels.find((item) => item.id === nextModelId);
+            setModelYear(nextModel?.modelYear ? String(nextModel.modelYear) : "");
           }}
           className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
         >
           <option value="">{!categoryId || !selectedBrand ? "Selecciona primero categoría y marca" : filteredModels.length ? "Selecciona modelo" : "No hay modelos precargados"}</option>
-          {filteredModels.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          {filteredModels.map((item) => <option key={item.id} value={item.id}>{item.name}{"modelYear" in item && item.modelYear ? ` — ${item.modelYear}` : ""}</option>)}
           {categoryId && selectedBrand ? <option value="__manual_model__">Mi modelo no aparece</option> : null}
         </select>
         {categoryId && selectedBrand && !filteredModels.length ? (
@@ -302,6 +311,7 @@ export function EquipmentForm({
           <Input name="manualModel" placeholder="Escribe el modelo" value={manualModel} onChange={(event) => setManualModel(event.target.value)} required />
         ) : null}
       </div>
+      <Input name="modelYear" type="number" min="1900" max="2200" step="1" placeholder="Año del modelo (opcional)" value={modelYear} onChange={(event) => setModelYear(event.target.value)} />
       <Input name="loft" type="number" min="40" max="64" step="0.1" placeholder="Loft (opcional, ej. 60)" />
       <Input name="notes" placeholder="Notas (opcional)" />
       <div className="flex items-center gap-3">
@@ -344,6 +354,7 @@ export function EquipmentEditForm({ item }: { item: Record<string, unknown> }) {
       <Input name="category" defaultValue={String(item.category)} required />
       <Input name="brand" defaultValue={String(item.brand ?? "")} />
       <Input name="model" defaultValue={String(item.model ?? "")} />
+      <Input name="modelYear" type="number" min="1900" max="2200" step="1" defaultValue={String(item.model_year ?? "")} />
       <Input name="loft" type="number" min="40" max="64" step="0.1" defaultValue={String((item.specifications as Record<string, unknown> | undefined)?.loft ?? "")} />
       <Input name="notes" defaultValue={String(item.notes ?? "")} />
       <div className="flex items-center gap-2">

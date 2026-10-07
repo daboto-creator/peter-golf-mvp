@@ -90,7 +90,7 @@ export default async function MiGolfPage() {
       .maybeSingle(),
     supabase
       .from("mi_golf_equipment" as never)
-      .select("id,category,brand,model,specifications,source,notes")
+      .select("id,category,brand,model,model_year,specifications,source,notes")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .order("updated_at", { ascending: false }),
@@ -241,6 +241,7 @@ export default async function MiGolfPage() {
                           <div className="mt-4">
                             <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">{displayGolfCategory(category, null, "Equipo")}</p>
                             <p className="mt-1 text-lg font-semibold text-[#132338]">{[item.brand, item.model].filter(Boolean).join(" ") || displayGolfCategory(category, null, "Equipo")}</p>
+                            {item.model_year ? <p className="text-muted-foreground mt-1 text-xs">{displayGolfCategory(category, null, "Equipo")} · {String(item.model_year)}</p> : null}
                             {specs ? <p className="mt-2 text-sm font-medium text-[#132338]">{specs}</p> : null}
                           </div>
                           <div className="mt-5 flex items-center gap-2 border-t border-black/5 pt-3">

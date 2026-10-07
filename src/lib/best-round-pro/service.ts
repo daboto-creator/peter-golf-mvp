@@ -452,7 +452,7 @@ export async function loadMiGolfContext() {
       supabase
         .from("mi_golf_equipment" as never)
         .select(
-          "id,category,category_id,brand,canonical_brand_id,model,canonical_model_id,specifications,source,confidence,notes,is_active",
+          "id,category,category_id,brand,canonical_brand_id,model,canonical_model_id,model_year,specifications,source,confidence,notes,is_active",
         )
         .eq("user_id", user.id)
         .eq("is_active", true),
@@ -477,6 +477,7 @@ export async function loadMiGolfContext() {
         brandId: typeof item.canonical_brand_id === "string" ? item.canonical_brand_id : null,
         brand: typeof item.brand === "string" ? item.brand : null,
         modelId: typeof item.canonical_model_id === "string" ? item.canonical_model_id : null,
+        modelYear: typeof item.model_year === "number" ? item.model_year : null,
         model: typeof item.model === "string" ? item.model : null,
         specifications,
         source: String(item.source ?? "USER_DECLARED") as MiGolfEquipment["source"],

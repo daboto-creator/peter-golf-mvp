@@ -1,0 +1,2256 @@
+[
+  {
+    "brand": "Adams Golf",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "putter",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "putter",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "driver",
+    "year": 2022,
+    "raw": "(Hiatus)",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "fairway-wood",
+    "year": 2022,
+    "raw": "(Hiatus)",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "hybrid",
+    "year": 2022,
+    "raw": "(Hiatus)",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "iron",
+    "year": 2022,
+    "raw": "(Hiatus)",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "(Hiatus)",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Adams Golf",
+    "category": "putter",
+    "year": 2022,
+    "raw": "(Hiatus)",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "driver",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "fairway-wood",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "hybrid",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "iron",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "putter",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "driver",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "fairway-wood",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "hybrid",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "iron",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "putter",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "driver",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "fairway-wood",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "hybrid",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "iron",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "putter",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "driver",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "fairway-wood",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "hybrid",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "iron",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "putter",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "driver",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "fairway-wood",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "hybrid",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "iron",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "putter",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "wedge",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "putter",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Ben Hogan Golf",
+    "category": "putter",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "driver",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "fairway-wood",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "hybrid",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "iron",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "putter",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "driver",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "fairway-wood",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "hybrid",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "iron",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "putter",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "driver",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "fairway-wood",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "hybrid",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "iron",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "putter",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "driver",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "fairway-wood",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "hybrid",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "iron",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "putter",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "driver",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "fairway-wood",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "hybrid",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "iron",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "putter",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "driver",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "fairway-wood",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "hybrid",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "putter",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "driver",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "fairway-wood",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "hybrid",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Bridgestone Golf",
+    "category": "putter",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Callaway",
+    "category": "putter",
+    "year": 2020,
+    "raw": "Odyssey (modelos varios)",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Callaway",
+    "category": "iron",
+    "year": 2021,
+    "raw": "Apex (varios modelos)",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Callaway",
+    "category": "putter",
+    "year": 2021,
+    "raw": "Odyssey",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Callaway",
+    "category": "putter",
+    "year": 2022,
+    "raw": "Odyssey",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Callaway",
+    "category": "putter",
+    "year": 2023,
+    "raw": "Odyssey",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Callaway",
+    "category": "putter",
+    "year": 2024,
+    "raw": "Odyssey",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Callaway",
+    "category": "putter",
+    "year": 2025,
+    "raw": "Odyssey",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Callaway",
+    "category": "putter",
+    "year": 2026,
+    "raw": "Odyssey",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "driver",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "fairway-wood",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "hybrid",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "iron",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "putter",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "driver",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "fairway-wood",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "hybrid",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "iron",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "putter",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "driver",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "fairway-wood",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "hybrid",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "iron",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "putter",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "driver",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "fairway-wood",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "hybrid",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "iron",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "putter",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "driver",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "fairway-wood",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "hybrid",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "iron",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "putter",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "driver",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "fairway-wood",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "hybrid",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "iron",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "putter",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "driver",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "fairway-wood",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "hybrid",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cleveland Golf",
+    "category": "iron",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "putter",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "iron",
+    "year": 2021,
+    "raw": "King (varios modelos)",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Cobra",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "putter",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "putter",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "iron",
+    "year": 2023,
+    "raw": "DARKSPEED Irons, King (varios)",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Cobra",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "putter",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "wedge",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Cobra",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Honma",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Honma",
+    "category": "putter",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Honma",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Honma",
+    "category": "putter",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Honma",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Honma",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Honma",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Honma",
+    "category": "wedge",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Honma",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "driver",
+    "year": 2020,
+    "raw": "JPX 919 Hot Metal",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "fairway-wood",
+    "year": 2020,
+    "raw": "JPX 919",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "hybrid",
+    "year": 2020,
+    "raw": "JPX 921 Hybrid",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "driver",
+    "year": 2021,
+    "raw": "JPX 921, JPX Hot Metal",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "fairway-wood",
+    "year": 2021,
+    "raw": "JPX 921",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "hybrid",
+    "year": 2021,
+    "raw": "JPX 921 Hybrid",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "putter",
+    "year": 2021,
+    "raw": "M-Craft putters",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "driver",
+    "year": 2022,
+    "raw": "JPX 900 Tour, JPX 923 Hot Metal",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "fairway-wood",
+    "year": 2022,
+    "raw": "JPX 923",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "hybrid",
+    "year": 2022,
+    "raw": "JPX 923 Hybrid, JPX 923 Hot Metal",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "putter",
+    "year": 2022,
+    "raw": "M-Craft putters",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "driver",
+    "year": 2023,
+    "raw": "JPX 925 Hot Metal, JPX 900 Tour",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "fairway-wood",
+    "year": 2023,
+    "raw": "JPX 925",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "hybrid",
+    "year": 2023,
+    "raw": "JPX 925 Hybrid, JPX 925 Hot Metal",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "putter",
+    "year": 2023,
+    "raw": "M-Craft putters (varios modelos)",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "driver",
+    "year": 2024,
+    "raw": "JPX925 Hot Metal HL",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "fairway-wood",
+    "year": 2024,
+    "raw": "JPX925",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "hybrid",
+    "year": 2024,
+    "raw": "JPX925",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "putter",
+    "year": 2024,
+    "raw": "M-Craft putters",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "driver",
+    "year": 2025,
+    "raw": "JPX One, JPX One Select",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "fairway-wood",
+    "year": 2025,
+    "raw": "JPX One",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "hybrid",
+    "year": 2025,
+    "raw": "JPX One",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "wedge",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "driver",
+    "year": 2026,
+    "raw": "JPX One, JPX One Select",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "fairway-wood",
+    "year": 2026,
+    "raw": "JPX One",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "hybrid",
+    "year": 2026,
+    "raw": "JPX One Hybrid",
+    "reason": "JPX_is_an_iron_family"
+  },
+  {
+    "brand": "Mizuno",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "driver",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "fairway-wood",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "hybrid",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "iron",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "driver",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "fairway-wood",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "hybrid",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "iron",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "putter",
+    "year": 2021,
+    "raw": "Mallet putters, White Hot",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "driver",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "fairway-wood",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "hybrid",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "iron",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "driver",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "fairway-wood",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "hybrid",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "iron",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "putter",
+    "year": 2023,
+    "raw": "White Hot Pro, Mallet series",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "driver",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "fairway-wood",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "hybrid",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "iron",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "driver",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "fairway-wood",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "hybrid",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "iron",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "wedge",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "driver",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "fairway-wood",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "hybrid",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "iron",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Odyssey",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PING",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PING",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PING",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PING",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PING",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PING",
+    "category": "wedge",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PING",
+    "category": "putter",
+    "year": 2025,
+    "raw": "Vault putters",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "PING",
+    "category": "putter",
+    "year": 2026,
+    "raw": "Vault putters",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "PXG",
+    "category": "putter",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PXG",
+    "category": "putter",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PXG",
+    "category": "putter",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PXG",
+    "category": "putter",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PXG",
+    "category": "putter",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PXG",
+    "category": "putter",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "PXG",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "Stick'em Forged, Custom Wedges",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "PXG",
+    "category": "putter",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "driver",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "fairway-wood",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "hybrid",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "iron",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "driver",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "fairway-wood",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "hybrid",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "iron",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "driver",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "fairway-wood",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "hybrid",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "iron",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "driver",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "fairway-wood",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "hybrid",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "iron",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "driver",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "fairway-wood",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "hybrid",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "iron",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "driver",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "fairway-wood",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "hybrid",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "iron",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "wedge",
+    "year": 2025,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "driver",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "fairway-wood",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "hybrid",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "iron",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Scotty Cameron",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "N/A",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Srixon",
+    "category": "putter",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Srixon",
+    "category": "putter",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Srixon",
+    "category": "putter",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Srixon",
+    "category": "putter",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Srixon",
+    "category": "putter",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Srixon",
+    "category": "putter",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Srixon",
+    "category": "putter",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "driver",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "fairway-wood",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "hybrid",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "Custom Wedges",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "putter",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "driver",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "fairway-wood",
+    "year": 2021,
+    "raw": "Custom Fairways",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "hybrid",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "Custom Wedges",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "putter",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "driver",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "fairway-wood",
+    "year": 2022,
+    "raw": "Custom Fairways",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "hybrid",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "Custom Wedges",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "putter",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "driver",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "fairway-wood",
+    "year": 2023,
+    "raw": "Custom Fairways",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "hybrid",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "Custom Wedges",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "fairway-wood",
+    "year": 2024,
+    "raw": "Custom Fairways",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "hybrid",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "Custom Wedges",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "fairway-wood",
+    "year": 2025,
+    "raw": "Custom Fairways",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "hybrid",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "wedge",
+    "year": 2025,
+    "raw": "Custom Wedges",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "fairway-wood",
+    "year": 2026,
+    "raw": "Custom Fairways",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "Custom Wedges",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Sub 70",
+    "category": "putter",
+    "year": 2026,
+    "raw": "011-SQ, Custom Putters",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "driver",
+    "year": 2021,
+    "raw": "Epic Speed, Epic Max",
+    "reason": "belongs_to_callaway"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "fairway-wood",
+    "year": 2021,
+    "raw": "Epic Speed, Epic Max",
+    "reason": "belongs_to_callaway"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "hybrid",
+    "year": 2021,
+    "raw": "Epic Max Rescue",
+    "reason": "belongs_to_callaway"
+  },
+  {
+    "brand": "TaylorMade",
+    "category": "iron",
+    "year": 2021,
+    "raw": "SIM, SIM Max (continúan), Epic Irons",
+    "reason": "belongs_to_callaway"
+  },
+  {
+    "brand": "Titleist",
+    "category": "putter",
+    "year": 2023,
+    "raw": "Phantom series (varios)",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Titleist",
+    "category": "putter",
+    "year": 2024,
+    "raw": "Phantom series (5, 7, 9, 11, 11.5)",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Titleist",
+    "category": "putter",
+    "year": 2025,
+    "raw": "Phantom series (2024-2026 carry-over)",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "wedge",
+    "year": 2020,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "wedge",
+    "year": 2021,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "wedge",
+    "year": 2022,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "wedge",
+    "year": 2023,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "wedge",
+    "year": 2024,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "wedge",
+    "year": 2025,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Tour Edge",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "putter",
+    "year": 2020,
+    "raw": "Standard putters",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "putter",
+    "year": 2021,
+    "raw": "Standard putters",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "putter",
+    "year": 2022,
+    "raw": "Standard models",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "putter",
+    "year": 2023,
+    "raw": "Standard putters",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "putter",
+    "year": 2024,
+    "raw": "Standard models",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "putter",
+    "year": 2025,
+    "raw": "Standard models",
+    "reason": "generic_placeholder_or_wrong_family"
+  },
+  {
+    "brand": "Wilson Staff",
+    "category": "wedge",
+    "year": 2026,
+    "raw": "-",
+    "reason": "placeholder_or_hiatus"
+  }
+]
