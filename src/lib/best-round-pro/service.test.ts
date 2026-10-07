@@ -34,7 +34,7 @@ import {
   type CatalogProductReference,
   type ConversationState,
 } from "./conversation";
-import { canonicalProductFamily, extractDeterministicRecipientFacts, getLastInterpreterTelemetry, processConversationTurn, safeFamilyLanguage } from "./service";
+import { canonicalProductFamily, extractDeterministicRecipientFacts, getLastInterpreterTelemetry, mergeCurrentEquipmentAdviceAnswers, processConversationTurn, safeFamilyLanguage } from "./service";
 
 const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT"): CatalogProductReference => ({
   id,
@@ -103,6 +103,34 @@ function knownLeftState(): ConversationState {
 }
 
 describe("Best Round Pro source-gap regressions", () => {
+  it("keeps durable current wedge facts in the advice answer context", () => {
+    const equipment = [{
+      id: "wedge-52",
+      userId: "user-1",
+      category: "WEDGE",
+      categoryId: null,
+      kind: "wedge",
+      brandId: null,
+      brand: "Callaway",
+      modelId: null,
+      model: "Opus",
+      specifications: { loft: 52 },
+      source: "USER_DECLARED",
+      confidence: "HIGH",
+      notes: null,
+      isActive: true,
+      family: "WEDGE",
+      loft: 52,
+      handedness: null,
+      shaftFlex: null,
+      shaftMaterial: null,
+    }] as const;
+    const answers = mergeCurrentEquipmentAdviceAnswers({}, equipment as never, "SELF");
+    expect(answers.currentWedgeLofts).toEqual([52]);
+    expect(answers.currentWedges).toContain("Callaway Opus");
+    expect(mergeCurrentEquipmentAdviceAnswers({}, equipment as never, "THIRD_PARTY")).toEqual({});
+  });
+
   it("extracts a spouse handedness fact from a compound same-turn message", () => {
     expect(extractDeterministicRecipientFacts("ella es zurda me lo recomiendas", "THIRD_PARTY")).toEqual([
       expect.objectContaining({ field: "handedness", value: "LEFT", durable: false }),

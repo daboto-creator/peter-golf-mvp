@@ -19,7 +19,7 @@ import {
   type GolfEquipmentCategory,
   type GolfModelSuggestion,
 } from "@/lib/catalog/golf-equipment-reference";
-import { listActiveCatalogReferences } from "@/lib/catalog/operational-products";
+import { listActiveGolfCatalogReferences } from "@/lib/catalog/operational-products";
 import { createClient } from "@/lib/supabase/server";
 import {
   DeactivateEquipmentForm,
@@ -99,7 +99,7 @@ export default async function MiGolfPage() {
       .select("id,objective_type,status,details")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false }),
-    listActiveCatalogReferences(),
+    listActiveGolfCatalogReferences(),
     supabase
       .from("mi_golf_recommendation_snapshots" as never)
       .select("id,product_name,product_family,recommendation_outcome,recommendation_strength,key_reasons,caveats,created_at")

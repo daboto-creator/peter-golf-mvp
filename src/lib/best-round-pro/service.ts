@@ -114,6 +114,11 @@ function fitPhrase(perspective: ReturnType<typeof getPlayerPerspective>) {
   return `le puede funcionar a ${perspective.displayReference}`;
 }
 
+function handLabel(hand: string, perspective: ReturnType<typeof getPlayerPerspective>) {
+  if (hand === "LEFT") return perspective.relationToBuyer === "SPOUSE" ? "zurda" : "zurdo";
+  return perspective.relationToBuyer === "SPOUSE" ? "diestra" : "diestro";
+}
+
 export function extractDeterministicRecipientFacts(message: string, recipientContext: "SELF" | "THIRD_PARTY" | "UNKNOWN"): CanonicalCurrentTurnFact[] {
   if (recipientContext !== "THIRD_PARTY") return [];
   const facts: CanonicalCurrentTurnFact[] = [];
@@ -283,6 +288,8 @@ export type ConversationInterpreterTelemetry = {
   factConflictDetected?: boolean;
   manualEditAuthorityApplied?: boolean;
   equipmentFactsLoaded?: string[];
+  currentWedgeLoftsLoaded?: number[];
+  currentWedgesLoaded?: string | null;
   goalFactsLoaded?: string[];
   recommendationSnapshotSaved?: boolean;
 };
@@ -362,6 +369,13 @@ function recordAdviceTelemetry(state: ConversationState, outcome: string | null,
   lastInterpreterTelemetry.adviceEvidenceSufficient = sufficient;
   lastInterpreterTelemetry.materialMissingFactKeys = missing;
   lastInterpreterTelemetry.nextQuestionKey = state.pendingQuestionKey;
+  const wedgeLofts = state.session.diagnosticAnswers.currentWedgeLofts;
+  lastInterpreterTelemetry.currentWedgeLoftsLoaded = Array.isArray(wedgeLofts)
+    ? wedgeLofts.filter((value): value is number => typeof value === "number")
+    : [];
+  lastInterpreterTelemetry.currentWedgesLoaded = typeof state.session.diagnosticAnswers.currentWedges === "string"
+    ? state.session.diagnosticAnswers.currentWedges
+    : null;
 }
 
 function telemetryPlayerFacts(answers: Record<string, string | number | boolean | number[] | null>) {
@@ -506,6 +520,18 @@ function equipmentAnswers(equipment: MiGolfEquipment[]): Record<string, string |
     if (current.length) answers[key] = current.map((item) => [item.brand, item.model].filter(Boolean).join(" ")).filter(Boolean).join(", ");
   }
   return answers;
+}
+
+export function mergeCurrentEquipmentAdviceAnswers(
+  sessionAnswers: Record<string, string | number | boolean | number[] | null | undefined>,
+  equipment: MiGolfEquipment[],
+  recipientContext: "SELF" | "THIRD_PARTY" | "UNKNOWN",
+): Record<string, string | number | boolean | number[] | null> {
+  const definedSessionAnswers = Object.fromEntries(
+    Object.entries(sessionAnswers).filter(([, value]) => value !== undefined),
+  ) as Record<string, string | number | boolean | number[] | null>;
+  if (recipientContext !== "SELF") return definedSessionAnswers;
+  return { ...definedSessionAnswers, ...equipmentAnswers(equipment) };
 }
 
 function currentEquipmentReply(message: string, equipment: MiGolfEquipment[]) {
@@ -661,17 +687,19 @@ export async function processConversationTurn(input: {
     };
     context = { user: null, profile: null, equipment: [], objectives: [] };
   }
-  const initialRecipientContext = resolveRecipientContext(
-    input.message,
-    input.state.participants.player.relationToBuyer === "SELF" ? "SELF" : "THIRD_PARTY",
-  );
-  const durableProfileAnswers = initialRecipientContext === "SELF" ? profileAnswers(context.profile) : {};
-  const durableEquipmentAnswers = initialRecipientContext === "SELF" ? equipmentAnswers(context.equipment) : {};
-  const activeGoal = initialRecipientContext === "SELF"
+  const currentRecipientContext = input.state.participants.player.relationToBuyer === "SELF"
+    ? "SELF" as const
+    : input.state.participants.player.relationToBuyer === "SPOUSE" || input.state.participants.player.relationToBuyer === "CHILD" || input.state.participants.player.relationToBuyer === "FRIEND" || input.state.participants.player.relationToBuyer === "OTHER"
+      ? "THIRD_PARTY" as const
+      : "UNKNOWN" as const;
+  const initialRecipientContext = resolveRecipientContext(input.message, currentRecipientContext);
+  let durableProfileAnswers = initialRecipientContext === "SELF" ? profileAnswers(context.profile) : {};
+  let durableEquipmentAnswers = initialRecipientContext === "SELF" ? equipmentAnswers(context.equipment) : {};
+  let activeGoal = initialRecipientContext === "SELF"
     ? context.objectives.find((goal) => goal.status === "ACTIVE")
     : null;
-  const durableGoalAnswers: Record<string, string | number | number[] | null> = activeGoal ? { goal: activeGoal.objectiveType } : {};
-  const durableAnswers: Record<string, string | number | number[] | null> = { ...durableProfileAnswers, ...durableEquipmentAnswers, ...durableGoalAnswers };
+  let durableGoalAnswers: Record<string, string | number | number[] | null> = activeGoal ? { goal: activeGoal.objectiveType } : {};
+  let durableAnswers: Record<string, string | number | number[] | null> = { ...durableProfileAnswers, ...durableEquipmentAnswers, ...durableGoalAnswers };
   lastInterpreterTelemetry.miGolfLoaded = Boolean(context.user && initialRecipientContext === "SELF");
   lastInterpreterTelemetry.recipientContext = context.user
     ? initialRecipientContext === "SELF" ? "SELF" : initialRecipientContext === "UNKNOWN" ? "UNKNOWN" : "THIRD_PARTY"
@@ -952,6 +980,18 @@ export async function processConversationTurn(input: {
     : participants.player.relationToBuyer === "UNKNOWN"
       ? "UNKNOWN" as const
       : "THIRD_PARTY" as const;
+  // A follow-up such as "¿por qué me recomiendas ese?" carries forward the
+  // conversation's SELF recipient even though it contains no new recipient
+  // phrase. Refresh the authoritative Mi Golf facts at this boundary so a
+  // stale/unknown session participant cannot drop current equipment from the
+  // advice context.
+  if (recipientContext === "SELF" && initialRecipientContext !== "SELF") {
+    durableProfileAnswers = profileAnswers(context.profile);
+    durableEquipmentAnswers = equipmentAnswers(context.equipment);
+    activeGoal = context.objectives.find((goal) => goal.status === "ACTIVE") ?? null;
+    durableGoalAnswers = activeGoal ? { goal: activeGoal.objectiveType } : {};
+    durableAnswers = { ...durableProfileAnswers, ...durableEquipmentAnswers, ...durableGoalAnswers };
+  }
   const previousRecipientContext = input.state.participants.player.relationToBuyer === "SELF"
     ? "SELF"
     : input.state.participants.player.relationToBuyer === "UNKNOWN" ? "UNKNOWN" : "THIRD_PARTY";
@@ -1241,17 +1281,28 @@ export async function processConversationTurn(input: {
     const factualReply = knowledgeIntent?.startsWith("STORE_")
       ? answerStoreKnowledge(knowledgeIntent)
       : dto ? answerProductKnowledge(knowledgeIntent, dto, input.message) : null;
-    const answers = {
-      ...updatedState.session.diagnosticAnswers,
-      ...(recipientContext === "SELF" ? durableEquipmentAnswers : {}),
-    };
+    const answers = mergeCurrentEquipmentAdviceAnswers(
+      updatedState.session.diagnosticAnswers,
+      context.equipment,
+      recipientContext,
+    );
     const family = canonicalProductFamily(focusedProduct);
     const nextAdviceQuestion = getNextProductAdviceQuestion({ answers, productFamily: family });
     const hasHand = answers.handedness === "LEFT" || answers.handedness === "RIGHT";
     const hasLevel = Boolean(answers.handicapIndex !== undefined || answers.handicap !== undefined || answers.handicapStatus || answers.skill);
     const adviceComplete = hasHand && hasLevel && !nextAdviceQuestion;
+    const categoryInterpretation = dto
+      ? interpretCategoryRecommendation({
+          family,
+          product: dto,
+          answers,
+          targetPlayerLevel: focusedProduct.targetPlayerLevel,
+        })
+      : null;
     const adviceReply = adviceComplete
-      ? `Sí, con lo que me has contado lo mantendría como candidato. ${dto?.specs.loftDegrees != null ? `Tiene ${dto.specs.loftDegrees}°` : "Su configuración registrada"}${dto?.specs.shaftFlex ? ` y shaft ${dto.specs.shaftFlex}` : ""}; esos datos son los que más pesan para valorar cómo puede encajar en tu juego. Si quieres seguir con este, estás en la ficha correcta.`
+      ? categoryInterpretation
+        ? `${categoryInterpretation.reason} ${categoryInterpretation.caveat ?? ""}`
+        : `Sí, con lo que me has contado lo mantendría como candidato. ${dto?.specs.loftDegrees != null ? `Tiene ${dto.specs.loftDegrees}°` : "Su configuración registrada"}${dto?.specs.shaftFlex ? ` y shaft ${dto.specs.shaftFlex}` : ""}; esos datos son los que más pesan para valorar cómo puede encajar en tu juego. Si quieres seguir con este, estás en la ficha correcta.`
       : `Para decirte si te lo recomiendo, ${questionPromptFor(nextAdviceQuestion, getPlayerPerspective(updatedState.participants), focusedProduct.category)}`;
     const reply = [factualReply, adviceReply].filter(Boolean).join(" ");
     const state: ConversationState = {
@@ -1269,6 +1320,12 @@ export async function processConversationTurn(input: {
     lastInterpreterTelemetry.executedAdviceAction = adviceComplete ? "RETURN_ADVICE_CONCLUSION" : "ASK_NEXT_MATERIAL_FACT";
     lastInterpreterTelemetry.sameTurnAdviceCompleted = adviceComplete;
     lastInterpreterTelemetry.sameTurnAdviceQuestionKey = adviceComplete ? null : nextAdviceQuestion?.key ?? null;
+    if (categoryInterpretation) {
+      lastInterpreterTelemetry.recommendationFactsUsed = categoryInterpretation.factsUsed;
+      lastInterpreterTelemetry.currentEquipmentFactsUsed = categoryInterpretation.factsUsed.filter((fact) => fact.startsWith("current"));
+      lastInterpreterTelemetry.categoryInterpretations = categoryInterpretation.interpretations;
+      lastInterpreterTelemetry.categoryCaveats = categoryInterpretation.caveat ? [categoryInterpretation.caveat] : [];
+    }
     if (dto) {
       lastInterpreterTelemetry.priceAmountCents = dto.price;
       lastInterpreterTelemetry.priceCurrency = dto.currency;
@@ -1328,10 +1385,11 @@ export async function processConversationTurn(input: {
       return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REFERENCE_CLARIFICATION"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
     }
     if (focusedProduct) {
-      const answers = {
-        ...updatedState.session.diagnosticAnswers,
-        ...(recipientContext === "SELF" ? durableEquipmentAnswers : {}),
-      };
+      const answers = mergeCurrentEquipmentAdviceAnswers(
+        updatedState.session.diagnosticAnswers,
+        context.equipment,
+        recipientContext,
+      );
       const playerHand = answers.handedness;
       const productHand = typeof focusedProduct.handedness === "string" ? focusedProduct.handedness.toUpperCase() : null;
       if ((playerHand === "LEFT" || playerHand === "RIGHT") && (productHand === "LEFT" || productHand === "RIGHT") && playerHand !== productHand) {
@@ -1339,7 +1397,7 @@ export async function processConversationTurn(input: {
         const productLabel = productHand === "LEFT" ? "zurdo" : "diestro";
         const reply = playerPerspective.isSelf
           ? `No. Este ${focusedProduct.name} es para ${productLabel}, así que no te sirve si juegas ${playerLabel}.`
-          : `No. Este ${focusedProduct.name} es para ${productLabel}, así que no le puede funcionar a ${playerPerspective.relationToBuyer === "SPOUSE" ? "tu esposa" : playerPerspective.displayReference} si juega como ${playerLabel}.`;
+          : `No. Este ${focusedProduct.name} es para ${productLabel}, así que no le puede funcionar a ${playerPerspective.relationToBuyer === "SPOUSE" ? "tu esposa" : playerPerspective.displayReference} si juega como ${handLabel(playerHand, playerPerspective)}.`;
         const state: ConversationState = {
           ...updatedState,
           messages: [...updatedState.messages, { role: "user", content: input.message }, { role: "assistant", content: reply }],
@@ -1448,10 +1506,11 @@ export async function processConversationTurn(input: {
     return { state, reply, nextQuestion: null, objection: null, events: ["PRODUCT_REASON_EXPLAINED"], recommendation: null, outcome: null, intent: "PRODUCT_ADVICE" as const };
   }
   if (focusedProduct && (updatedState.productAdvice?.active || updatedState.pendingQuestionCategory === "PRODUCT_ADVICE")) {
-    const answers = {
-      ...updatedState.session.diagnosticAnswers,
-      ...(recipientContext === "SELF" ? durableEquipmentAnswers : {}),
-    };
+    const answers = mergeCurrentEquipmentAdviceAnswers(
+      updatedState.session.diagnosticAnswers,
+      context.equipment,
+      recipientContext,
+    );
     for (const fact of canonicalFacts) {
       if (["handedness", "handicap", "handicapIndex", "handicapStatus", "setExperience", "skill", "skillSource", "objective", "driverObjective", "currentWedgeLofts", "targetWedgeDistanceYards"].includes(fact.field))
         answers[fact.field] = fact.semanticStatus === "NONE" ? "NONE" : fact.semanticStatus === "UNKNOWN" ? "ANSWERED_UNKNOWN" : fact.semanticStatus === "DECLINED" ? "DECLINED" : fact.value;
@@ -1494,7 +1553,9 @@ export async function processConversationTurn(input: {
         : { products: [], error: false };
       const expected = productHand === "RIGHT" ? "diestro" : "zurdo";
       const familyLabel = familyFromScope === "SET" || familyFromProduct === "SET" ? "set completo" : familyFromScope === "DRIVER" || familyFromProduct === "DRIVER" ? "driver" : "producto de esta categoría";
-      const reply = `Este ${focusedProduct.name} disponible es para ${expected}, así que no te serviría si juegas ${playerHand === "LEFT" ? "zurdo" : "diestro"}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} de ${familyLabel}.` : `Revisé el inventario y ahora mismo no tengo otro ${familyLabel} para ${playerHand === "LEFT" ? "zurdo" : "diestro"} disponible.`}`;
+      const reply = playerPerspective.isSelf
+        ? `Este ${focusedProduct.name} disponible es para ${expected}, así que no te serviría si juegas ${handLabel(playerHand, playerPerspective)}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} de ${familyLabel}.` : `Revisé el inventario y ahora mismo no tengo otro ${familyLabel} para ${handLabel(playerHand, playerPerspective)} disponible.`}`
+        : `Este ${focusedProduct.name} disponible es para ${expected}, así que no le puede funcionar a ${playerPerspective.relationToBuyer === "SPOUSE" ? "tu esposa" : playerPerspective.displayReference} si juega ${handLabel(playerHand, playerPerspective)}. ${alternatives.products.length ? `Encontré ${alternatives.products.length} alternativa${alternatives.products.length === 1 ? "" : "s"} de ${familyLabel}.` : `Revisé el inventario y ahora mismo no tengo otro ${familyLabel} para ${handLabel(playerHand, playerPerspective)} disponible.`}`;
       const state: ConversationState = {
         ...updatedState,
         session: { ...updatedState.session, diagnosticAnswers: answers },
