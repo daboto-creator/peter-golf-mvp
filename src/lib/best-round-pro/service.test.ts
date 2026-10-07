@@ -34,7 +34,7 @@ import {
   type CatalogProductReference,
   type ConversationState,
 } from "./conversation";
-import { canonicalProductFamily, extractDeterministicRecipientFacts, getLastInterpreterTelemetry, mergeCurrentEquipmentAdviceAnswers, processConversationTurn, safeFamilyLanguage } from "./service";
+import { canonicalProductFamily, extractDeterministicRecipientFacts, getLastInterpreterTelemetry, mergeCurrentEquipmentAdviceAnswers, processConversationTurn, resolveEffectiveRecipientContext, safeFamilyLanguage } from "./service";
 
 const product = (id: string, handedness: "LEFT" | "RIGHT" = "LEFT"): CatalogProductReference => ({
   id,
@@ -103,6 +103,14 @@ function knownLeftState(): ConversationState {
 }
 
 describe("Best Round Pro source-gap regressions", () => {
+  it("defaults an authenticated ambiguous turn to SELF while preserving third-party state", () => {
+    expect(resolveEffectiveRecipientContext({ message: "quiero comprar un wedge", prior: "UNKNOWN", authenticated: true })).toBe("SELF");
+    expect(resolveEffectiveRecipientContext({ message: "quiero un set para mi esposa", prior: "SELF", authenticated: true })).toBe("THIRD_PARTY");
+    expect(resolveEffectiveRecipientContext({ message: "ella es zurda", prior: "THIRD_PARTY", authenticated: true })).toBe("THIRD_PARTY");
+    expect(resolveEffectiveRecipientContext({ message: "quiero un driver", prior: "THIRD_PARTY", authenticated: true })).toBe("THIRD_PARTY");
+    expect(resolveEffectiveRecipientContext({ message: "quiero un driver", prior: "UNKNOWN", authenticated: false })).toBe("UNKNOWN");
+  });
+
   it("keeps durable current wedge facts in the advice answer context", () => {
     const equipment = [{
       id: "wedge-52",

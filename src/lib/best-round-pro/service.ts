@@ -119,6 +119,18 @@ function handLabel(hand: string, perspective: ReturnType<typeof getPlayerPerspec
   return perspective.relationToBuyer === "SPOUSE" ? "diestra" : "diestro";
 }
 
+export function resolveEffectiveRecipientContext(input: {
+  message: string;
+  prior: "SELF" | "THIRD_PARTY" | "UNKNOWN";
+  authenticated: boolean;
+}) {
+  const explicit = resolveRecipientContext(input.message, "UNKNOWN");
+  if (explicit !== "UNKNOWN") return explicit;
+  if (input.prior === "THIRD_PARTY") return "THIRD_PARTY" as const;
+  if (input.authenticated) return "SELF" as const;
+  return "UNKNOWN" as const;
+}
+
 export function extractDeterministicRecipientFacts(message: string, recipientContext: "SELF" | "THIRD_PARTY" | "UNKNOWN"): CanonicalCurrentTurnFact[] {
   if (recipientContext !== "THIRD_PARTY") return [];
   const facts: CanonicalCurrentTurnFact[] = [];
@@ -687,12 +699,18 @@ export async function processConversationTurn(input: {
     };
     context = { user: null, profile: null, equipment: [], objectives: [] };
   }
-  const currentRecipientContext = input.state.participants.player.relationToBuyer === "SELF"
+  const priorRecipientContext = input.state.participants.player.relationToBuyer === "SELF"
     ? "SELF" as const
     : input.state.participants.player.relationToBuyer === "SPOUSE" || input.state.participants.player.relationToBuyer === "CHILD" || input.state.participants.player.relationToBuyer === "FRIEND" || input.state.participants.player.relationToBuyer === "OTHER"
       ? "THIRD_PARTY" as const
       : "UNKNOWN" as const;
-  const initialRecipientContext = resolveRecipientContext(input.message, currentRecipientContext);
+  const explicitRecipientContext = resolveRecipientContext(input.message, "UNKNOWN");
+  const currentRecipientContext = resolveEffectiveRecipientContext({
+    message: input.message,
+    prior: priorRecipientContext,
+    authenticated: Boolean(context.user),
+  });
+  const initialRecipientContext = currentRecipientContext;
   let durableProfileAnswers = initialRecipientContext === "SELF" ? profileAnswers(context.profile) : {};
   let durableEquipmentAnswers = initialRecipientContext === "SELF" ? equipmentAnswers(context.equipment) : {};
   let activeGoal = initialRecipientContext === "SELF"
@@ -953,6 +971,10 @@ export async function processConversationTurn(input: {
     },
   };
   if (resolveRecipientContext(normalizedMessage, participants.player.relationToBuyer === "SELF" ? "SELF" : "THIRD_PARTY") === "SELF") {
+    participants.player.relationToBuyer = "SELF";
+    participants.player.displayReference = "tú";
+  }
+  if (currentRecipientContext === "SELF" && (explicitRecipientContext === "SELF" || ["UNKNOWN", "SELF"].includes(participants.player.relationToBuyer))) {
     participants.player.relationToBuyer = "SELF";
     participants.player.displayReference = "tú";
   }

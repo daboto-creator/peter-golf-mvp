@@ -18,7 +18,7 @@ import type {
   GolfBrandSuggestion,
   GolfModelSuggestion,
 } from "@/lib/catalog/golf-equipment-reference";
-import { findGolfModelSuggestions, normalizeGolfReference } from "@/lib/catalog/golf-equipment-reference";
+import { findGolfModelSuggestions } from "@/lib/catalog/golf-equipment-reference";
 
 function Feedback({
   state,
@@ -161,18 +161,23 @@ export function EquipmentForm({
   referenceLoadError?: boolean;
 }) {
   const [categoryId, setCategoryId] = useState("");
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
+  const [brandId, setBrandId] = useState("");
+  const [manualBrand, setManualBrand] = useState("");
+  const [modelId, setModelId] = useState("");
+  const [manualModel, setManualModel] = useState("");
   const [state, setState] = useState<{ ok: boolean; message?: string } | null>(
     null,
   );
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
-  const selectedBrand = brands.find((item) => normalizeGolfReference(item.name) === normalizeGolfReference(brand.trim()) || normalizeGolfReference(item.slug) === normalizeGolfReference(brand.trim()));
-  const selectedBrandId = selectedBrand?.id ?? (brand.trim() ? "__manual_brand__" : "");
+  const selectedBrand = brands.find((item) => item.id === brandId);
+  const categoryBrands = useMemo(
+    () => categoryId ? brands : [],
+    [brands, categoryId],
+  );
   const filteredModels = useMemo(
-    () => findGolfModelSuggestions(models, "", selectedBrandId || undefined, categoryId || undefined),
-    [categoryId, models, selectedBrandId],
+    () => findGolfModelSuggestions(models, "", selectedBrand?.id, categoryId || undefined),
+    [categoryId, models, selectedBrand],
   );
   if (!open) {
     return referenceLoadError ? (
@@ -191,32 +196,35 @@ export function EquipmentForm({
         const data = new FormData(event.currentTarget);
         const form = event.currentTarget;
         const category = categories.find((item) => item.id === categoryId);
-        const brand = brands.find(
-          (item) =>
-            normalizeGolfReference(item.name) === normalizeGolfReference(String(data.get("brand"))) ||
-            normalizeGolfReference(item.slug) === normalizeGolfReference(String(data.get("brand"))),
-        );
-        const model = models.find(
-          (item) =>
-            normalizeGolfReference(item.name) ===
-              normalizeGolfReference(String(data.get("model"))) &&
-            (!brand || item.brandId === brand.id) &&
-            (!category || item.categoryId === category.id),
-        );
         if (category) {
           data.set("categoryId", category.id);
           data.set("category", category.label);
         }
-        if (brand) data.set("canonicalBrandId", brand.id);
-        if (model) data.set("canonicalModelId", model.id);
+        if (selectedBrand) {
+          data.set("brand", selectedBrand.name);
+          data.set("canonicalBrandId", selectedBrand.id);
+        } else {
+          data.set("brand", manualBrand.trim());
+          data.delete("canonicalBrandId");
+        }
+        const selectedModel = filteredModels.find((item) => item.id === modelId);
+        if (selectedModel) {
+          data.set("model", selectedModel.name);
+          data.set("canonicalModelId", selectedModel.id);
+        } else {
+          data.set("model", manualModel.trim());
+          data.delete("canonicalModelId");
+        }
         start(async () => {
           const result = await addMiGolfEquipmentAction(data);
           setState(result);
           if (result.ok) {
             form.reset();
             setCategoryId("");
-            setBrand("");
-            setModel("");
+            setBrandId("");
+            setManualBrand("");
+            setModelId("");
+            setManualModel("");
             setOpen(false);
           }
         });
@@ -230,9 +238,11 @@ export function EquipmentForm({
         onChange={(event) => {
           const nextCategoryId = event.target.value;
           setCategoryId(nextCategoryId);
-          setModel("");
-          if (selectedBrand && !findGolfModelSuggestions(models, "", selectedBrand.id, nextCategoryId).length) {
-            setBrand("");
+          setModelId("");
+          setManualModel("");
+          if (selectedBrand && !models.some((item) => item.brandId === selectedBrand.id && item.categoryId === nextCategoryId)) {
+            setBrandId("");
+            setManualBrand("");
           }
         }}
         className="border-input bg-background h-10 rounded-md border px-3 text-sm"
@@ -245,34 +255,54 @@ export function EquipmentForm({
         ))}
       </select>
       <input type="hidden" name="categoryId" value={categoryId} />
-      <Input
-        name="brand"
-        list="mi-golf-brands"
-        placeholder="Marca (o escribe una nueva)"
-        value={brand}
-        onChange={(event) => {
-          setBrand(event.target.value);
-          setModel("");
-        }}
-      />
-      <datalist id="mi-golf-brands">
-        {brands.map((item) => (
-          <option key={item.id} value={item.name} />
-        ))}
-      </datalist>
-      <Input
-        name="model"
-        list="mi-golf-models"
-        placeholder="Modelo (o escribe uno nuevo)"
-        value={model}
-        onChange={(event) => setModel(event.target.value)}
-      />
+      <div className="grid gap-1.5">
+        <Label htmlFor="mi-golf-brand">Marca</Label>
+        <select
+          id="mi-golf-brand"
+          name="brandChoice"
+          value={brandId}
+          disabled={!categoryId}
+          onChange={(event) => {
+            setBrandId(event.target.value);
+            setModelId("");
+            setManualModel("");
+            setManualBrand("");
+          }}
+          className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+        >
+          <option value="">{categoryId ? "Selecciona marca" : "Selecciona primero categoría"}</option>
+          {categoryBrands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          <option value="__manual_brand__">Mi marca no aparece</option>
+        </select>
+        {brandId === "__manual_brand__" ? (
+          <Input name="manualBrand" placeholder="Escribe la marca" value={manualBrand} onChange={(event) => setManualBrand(event.target.value)} required />
+        ) : null}
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="mi-golf-model">Modelo</Label>
+        <select
+          id="mi-golf-model"
+          name="modelChoice"
+          value={modelId}
+          disabled={!categoryId || !selectedBrand}
+          onChange={(event) => {
+            setModelId(event.target.value);
+            setManualModel("");
+          }}
+          className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+        >
+          <option value="">{!categoryId || !selectedBrand ? "Selecciona primero categoría y marca" : filteredModels.length ? "Selecciona modelo" : "No hay modelos precargados"}</option>
+          {filteredModels.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          {categoryId && selectedBrand ? <option value="__manual_model__">Mi modelo no aparece</option> : null}
+        </select>
+        {categoryId && selectedBrand && !filteredModels.length ? (
+          <p className="text-xs text-muted-foreground">No tenemos modelos precargados para esta combinación.</p>
+        ) : null}
+        {modelId === "__manual_model__" || (categoryId && brandId === "__manual_brand__") ? (
+          <Input name="manualModel" placeholder="Escribe el modelo" value={manualModel} onChange={(event) => setManualModel(event.target.value)} required />
+        ) : null}
+      </div>
       <Input name="loft" type="number" min="40" max="64" step="0.1" placeholder="Loft (opcional, ej. 60)" />
-      <datalist id="mi-golf-models">
-        {filteredModels.map((item) => (
-          <option key={item.id} value={item.name} />
-        ))}
-      </datalist>
       <Input name="notes" placeholder="Notas (opcional)" />
       <div className="flex items-center gap-3">
         <Button type="submit" variant="outline" disabled={pending}>
