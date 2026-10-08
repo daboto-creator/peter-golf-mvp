@@ -86,7 +86,11 @@ export async function getBulkImportJob(jobId: string) {
   const client = await createClient();
   const job = await db(client, "bulk_import_jobs").select("*").eq("id", jobId).maybeSingle();
   const rows = await db(client, "bulk_import_rows").select("*").eq("job_id", jobId).order("row_number");
-  return { job: job.data, rows: rows.data ?? [] };
+  const rawRows = rows.data ?? [];
+  const modelIds = rawRows.map((row: { canonical_model_id?: string | null }) => row.canonical_model_id).filter(Boolean);
+  const models = modelIds.length ? await client.from("catalog_product_models").select("id,model_year").in("id", modelIds) : { data: [] };
+  const years = new Map(((models.data ?? []) as unknown as Array<{ id: string; model_year: number | null }>).map((model) => [model.id, model.model_year]));
+  return { job: job.data, rows: rawRows.map((row: { canonical_model_id?: string | null }) => ({ ...row, canonical_model_year: row.canonical_model_id ? years.get(row.canonical_model_id) ?? null : null })) };
 }
 
 async function requireReviewOperator() {
@@ -119,9 +123,13 @@ export async function reviewBulkImportAction(formData: FormData) {
       return { ok: true as const, message: "La carga volvió a revisión." };
     }
     if (jobResult.data.status !== "READY_FOR_REVIEW") return { ok: false as const, message: "Esta carga no está lista para aprobación." };
-    const rows = await db(client, "bulk_import_rows").select("id,severity,excluded").eq("job_id", jobId);
-    const included = (rows.data ?? []).filter((row: { excluded: boolean }) => !row.excluded);
-    const approval = canApproveBulkImport(rows.data ?? []);
+    const rows = await db(client, "bulk_import_rows").select("id,severity,excluded,canonical_model_id,normalized_payload,pricing_result").eq("job_id", jobId);
+    const modelIds = (rows.data ?? []).map((row: { canonical_model_id?: string | null }) => row.canonical_model_id).filter(Boolean);
+    const models = modelIds.length ? await client.from("catalog_product_models").select("id,model_year").in("id", modelIds) : { data: [] };
+    const years = new Map(((models.data ?? []) as unknown as Array<{ id: string; model_year: number | null }>).map((model) => [model.id, model.model_year]));
+    const approvalRows = (rows.data ?? []).map((row: { canonical_model_id?: string | null; normalized_payload?: Record<string, unknown>; pricing_result?: Record<string, unknown> }) => ({ ...row, canonicalModelYear: row.canonical_model_id ? years.get(row.canonical_model_id) ?? null : null, normalizedModelYear: Number(row.normalized_payload?.modelYear) || null }));
+    const included = approvalRows.filter((row: { excluded?: boolean }) => !row.excluded);
+    const approval = canApproveBulkImport(approvalRows, { importType: jobResult.data.import_type });
     if (!approval.allowed) return { ok: false as const, message: approval.message };
     const updated = await db(client, "bulk_import_jobs").update({ status: "APPROVED_FOR_IMPORT", ready_count: included.length, error_count: 0 }).eq("id", jobId);
     if (updated.error) return { ok: false as const, message: "No pudimos aprobar la carga." };
@@ -132,7 +140,7 @@ export async function reviewBulkImportAction(formData: FormData) {
   const row = await db(client, "bulk_import_rows").select("id,job_id,normalization_metadata,normalized_payload,validation_result,pricing_result").eq("id", rowId).eq("job_id", jobId).maybeSingle();
   if (row.error || !row.data) return { ok: false as const, message: "No encontramos esta fila." };
   const currentIssues = Array.isArray(row.data.validation_result?.issues) ? row.data.validation_result.issues : [];
-  const invalidatePricing = { ...(row.data.pricing_result ?? {}), status: "INSUFFICIENT_DATA", proposedPriceMinor: null, marketReferenceMinor: null, estimatedPartnerNetMinor: null, viability: "Requiere nuevo análisis", reusedResearch: false };
+  const invalidatePricing = { ...(row.data.pricing_result ?? {}), status: "INSUFFICIENT_DATA", proposedPriceMinor: null, marketReferenceMinor: null, estimatedPartnerNetMinor: null, viability: "Requiere nuevo análisis", reusedResearch: false, manualPriceApproved: false, manualOverride: false };
   const candidate = action === "resolve_model" ? (row.data.validation_result?.modelCandidates ?? []).find((item: { id?: string }) => item.id === String(formData.get("modelId") ?? "")) : null;
   const patch = action === "exclude"
     ? { excluded: true, exclusion_reason: String(formData.get("reason") ?? "Excluida durante revisión"), reviewed_by: user.id, reviewed_at: new Date().toISOString() }
@@ -144,8 +152,17 @@ export async function reviewBulkImportAction(formData: FormData) {
           ? { manual_resolution: { brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: String(formData.get("manualYear") ?? "") || null }, normalized_payload: { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: Number(formData.get("manualYear")) || null }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "resolve_model" && candidate
             ? { canonical_model_id: candidate.id, normalized_payload: { ...row.data.normalized_payload, model: candidate.name, modelYear: candidate.modelYear ?? row.data.normalized_payload.modelYear }, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => issue.code !== "AMBIGUOUS_MODEL_GENERATION" && issue.code !== "UNKNOWN_MODEL" && issue.code !== "MODEL_SUGGESTION") }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          : action === "use_canonical_year"
+            ? { normalized_payload: { ...row.data.normalized_payload, modelYear: Number(formData.get("canonicalYear")) || null }, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          : action === "manual_price_resolution"
+            ? { pricing_result: { ...(row.data.pricing_result ?? {}), status: "COMPETITIVE", proposedPriceMinor: Number(formData.get("approvedPriceMinor")), approvedPriceMinor: Number(formData.get("approvedPriceMinor")), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Aprobación manual de precio"), viability: "Precio aprobado manualmente", stale: false }, manual_resolution: { pricing: { approvedPriceMinor: Number(formData.get("approvedPriceMinor")), reason: String(formData.get("reason") ?? "Aprobación manual de precio"), actorId: user.id } }, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : null;
   if (action === "resolve_model" && !candidate) return { ok: false as const, message: "Selecciona una generación válida del catálogo." };
+  if (action === "manual_price_resolution") {
+    const approvedPriceMinor = Number(formData.get("approvedPriceMinor"));
+    if (!Number.isSafeInteger(approvedPriceMinor) || approvedPriceMinor <= 0) return { ok: false as const, message: "Escribe un precio aprobado válido en centavos." };
+  }
+  if (action === "use_canonical_year" && !Number.isInteger(Number(formData.get("canonicalYear")))) return { ok: false as const, message: "No encontramos el año canónico." };
   if (!patch) return { ok: false as const, message: "Acción de revisión no reconocida." };
   const updated = await db(client, "bulk_import_rows").update(patch).eq("id", rowId).eq("job_id", jobId);
   if (updated.error) return { ok: false as const, message: "No pudimos actualizar la fila." };
