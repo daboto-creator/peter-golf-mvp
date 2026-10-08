@@ -10,7 +10,7 @@ export const curatedBrandAliases: Record<string, string> = {
 
 export const categoryAliases: Record<string, { name: string; slug: string }> = {
   driver: { name: "Driver", slug: "driver" }, drivers: { name: "Driver", slug: "driver" }, "madera 1": { name: "Driver", slug: "driver" },
-  fairway: { name: "Madera", slug: "fairway-wood" }, "fairway wood": { name: "Madera", slug: "fairway-wood" }, "madera de calle": { name: "Madera", slug: "fairway-wood" },
+  fairway: { name: "Madera", slug: "fairway-wood" }, "fairway wood": { name: "Madera", slug: "fairway-wood" }, "madera de calle": { name: "Madera", slug: "fairway-wood" }, "fairway-wood": { name: "Madera", slug: "fairway-wood" },
   hibrido: { name: "Híbrido", slug: "hybrid" }, hybrid: { name: "Híbrido", slug: "hybrid" }, rescue: { name: "Híbrido", slug: "hybrid" },
   hierro: { name: "Hierros", slug: "iron" }, hierros: { name: "Hierros", slug: "iron" }, iron: { name: "Hierros", slug: "iron" }, irons: { name: "Hierros", slug: "iron" },
   wedge: { name: "Wedges", slug: "wedge" }, wedges: { name: "Wedges", slug: "wedge" }, putter: { name: "Putter", slug: "putter" }, putt: { name: "Putter", slug: "putter" },

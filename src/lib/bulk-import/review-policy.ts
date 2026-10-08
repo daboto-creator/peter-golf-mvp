@@ -7,13 +7,28 @@ export type ReviewApprovalRow = {
   normalized_payload?: Record<string, unknown> | null;
 };
 
-export function isFirstPartyBulkRowPricingReady(row: ReviewApprovalRow) {
+export type FirstPartyPricingReadiness = {
+  ready: boolean;
+  code: "READY" | "PRICING_REVIEW_REQUIRED" | "MISSING_ACQUISITION_COST" | "MISSING_APPROVED_PRICE" | "STALE_PRICING";
+  label: string;
+  message?: string;
+};
+
+export function getFirstPartyBulkPricingReadiness(row: ReviewApprovalRow): FirstPartyPricingReadiness {
   const pricing = row.pricing_result ?? {};
   const proposed = Number(pricing.proposedPriceMinor ?? pricing.approvedPriceMinor ?? 0);
   const acquisition = Number(row.normalized_payload?.acquisitionCostMinor ?? 0);
   const status = String(pricing.status ?? "");
   const manuallyResolved = pricing.manualPriceApproved === true || pricing.manualOverride === true;
-  return proposed > 0 && acquisition > 0 && (manuallyResolved || ["COMPETITIVE", "OVERPRICED", "UNDERPRICED"].includes(status)) && pricing.stale !== true;
+  if (acquisition <= 0) return { ready: false, code: "MISSING_ACQUISITION_COST", label: "Requiere costo de adquisición", message: "First Party requiere un costo de adquisición válido." };
+  if (pricing.stale === true) return { ready: false, code: "STALE_PRICING", label: "Precio desactualizado", message: "El precio cambió y debe validarse nuevamente." };
+  if (proposed <= 0) return { ready: false, code: "MISSING_APPROVED_PRICE", label: "Sin precio aprobado", message: "Define y aprueba un precio antes de importar." };
+  if (!manuallyResolved && !["COMPETITIVE", "OVERPRICED", "UNDERPRICED"].includes(status)) return { ready: false, code: "PRICING_REVIEW_REQUIRED", label: "Requiere revisión de precio", message: "No hay suficiente información de mercado para validar este precio. Define o aprueba un precio antes de importar." };
+  return { ready: true, code: "READY", label: "Precio listo" };
+}
+
+export function isFirstPartyBulkRowPricingReady(row: ReviewApprovalRow) {
+  return getFirstPartyBulkPricingReadiness(row).ready;
 }
 
 export function hasCanonicalModelYearMismatch(row: ReviewApprovalRow) {
