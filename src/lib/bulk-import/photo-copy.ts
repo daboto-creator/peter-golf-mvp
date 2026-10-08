@@ -1,0 +1,15 @@
+export const bulkPhotoSourceCopy = {
+  title: "Fotografías",
+  description: "Indica dónde están las fotos de los productos. La carpeta o ZIP se carga una sola vez para todo el archivo CSV.",
+  driveLabel: "Carpeta compartida de Google Drive",
+  driveField: "URL de carpeta de Google Drive",
+  drivePlaceholder: "https://drive.google.com/drive/folders/...",
+  driveHelp: "Usa una carpeta compartida que contenga las fotos de todos los productos del CSV. La disponibilidad depende de los permisos de acceso.",
+  zipLabel: "Archivo ZIP de fotografías",
+  zipHelp: "El ZIP puede contener las fotos de todos los productos incluidos en el CSV.",
+  keyTitle: "¿Cómo se relacionan las fotos con cada producto?",
+  keyHelp: "En el CSV, la columna ‘Clave fotos’ contiene un identificador. Los archivos de imagen deben empezar con esa misma clave.",
+  keyExample: "CSV: ID externo GT3-001 · Clave fotos GT3-001 · Fotos: GT3-001-01.jpg, GT3-001-02.jpg, GT3-001-03.jpg",
+  keyNormalization: "Espacios, guiones bajos y guiones pueden normalizarse para hacer la coincidencia.",
+  driveOutsideCsv: "La URL de Google Drive no va dentro del CSV. Se agrega en esta pantalla.",
+} as const;

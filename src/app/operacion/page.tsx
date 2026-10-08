@@ -119,6 +119,20 @@ export default function OperationsPage() {
         </Card>
         <Card className="rounded-[20px]">
           <CardHeader>
+            <PackageSearch className="text-pg-gold size-5" aria-hidden="true" />
+            <CardTitle>Carga masiva</CardTitle>
+            <CardDescription>
+              Valida CSV de inventario Best Round o Partner sin crear todavía productos ni publicaciones.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="lg">
+              <Link href="/operacion/carga-masiva">Abrir carga masiva</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card className="rounded-[20px]">
+          <CardHeader>
             <Warehouse className="text-pg-gold size-5" aria-hidden="true" />
             <CardTitle>Inventario</CardTitle>
             <CardDescription>

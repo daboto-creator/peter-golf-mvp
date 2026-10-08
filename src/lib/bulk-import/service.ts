@@ -1,0 +1,184 @@
+"use server";
+
+import { createHash } from "node:crypto";
+import { canCurrentUserManageCatalog, requireCatalogManager } from "@/lib/auth/catalog-authorization";
+import { listActiveGolfCatalogReferences } from "@/lib/catalog/operational-products";
+import { buildBulkPreview } from "./preview";
+import type { BulkImportType, CatalogModelReference } from "./types";
+import { createClient } from "@/lib/supabase/server";
+import { canDiscardBulkImportJob } from "./discard-policy";
+import { canApproveBulkImport } from "./review-policy";
+
+// The generated Supabase types intentionally lag additive PR82 tables; keep
+// this boundary narrow until the next generated schema snapshot.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = (client: Awaited<ReturnType<typeof createClient>>, name: string) => client.from(name as never) as any;
+
+export async function listBulkImportPartners() {
+  await requireCatalogManager("/operacion/carga-masiva");
+  const client = await createClient();
+  const result = await client.from("partner_profiles").select("id, status, commercial_name, first_name, last_name, user_id").order("updated_at", { ascending: false });
+  return (result.data ?? []).map((partner) => ({ id: partner.id, status: partner.status, label: partner.commercial_name || [partner.first_name, partner.last_name].filter(Boolean).join(" ") || "Partner sin nombre" }));
+}
+
+async function resolvePartnerForOperator(partnerId: string | null) {
+  if (!partnerId) return null;
+  const client = await createClient();
+  const result = await client.from("partner_profiles").select("id, status, commercial_name, first_name, last_name").eq("id", partnerId).maybeSingle();
+  return result.data ?? null;
+}
+
+function modelReferencesFromCatalog(data: Awaited<ReturnType<typeof listActiveGolfCatalogReferences>>): CatalogModelReference[] {
+  if (data.error || !data.data) return [];
+  const brands = new Map(data.data.brands.map((brand) => [brand.id, brand]));
+  const categories = new Map(data.data.categories.map((category) => [category.id, category]));
+  return data.data.models.flatMap((model) => {
+    const brand = brands.get(model.brandId); const category = categories.get(model.categoryId);
+    return brand && category ? [{ id: model.id, brandId: brand.id, brandName: brand.name, brandSlug: brand.slug ?? "", categoryId: category.id, categoryName: category.name, categorySlug: category.slug ?? "", modelName: model.name, normalizedModelName: model.normalizedName, modelYear: model.modelYear ?? null }] : [];
+  });
+}
+
+export async function createBulkImportPreview(formData: FormData) {
+  await requireCatalogManager("/operacion/carga-masiva");
+  const file = formData.get("csv");
+  const importType = formData.get("importType") === "PARTNER" ? "PARTNER" : "FIRST_PARTY" as BulkImportType;
+  const partnerIdInput = typeof formData.get("partnerProfileId") === "string" ? String(formData.get("partnerProfileId")) : null;
+  if (!(file instanceof File)) return { ok: false as const, message: "Sube un archivo CSV." };
+  if (!file.name.toLocaleLowerCase("es-MX").endsWith(".csv")) return { ok: false as const, message: "El archivo debe tener extensión CSV." };
+  if (file.size > 2_000_000) return { ok: false as const, message: "El archivo supera el tamaño permitido." };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const partner = importType === "PARTNER" ? await resolvePartnerForOperator(partnerIdInput) : null;
+  if (importType === "PARTNER" && !partner) return { ok: false as const, message: "Selecciona un Partner válido desde el selector." };
+  const references = await listActiveGolfCatalogReferences();
+  const preview = buildBulkPreview({ csv: bytes, importType, models: modelReferencesFromCatalog(references) });
+  const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) return { ok: false as const, message: "Tu sesión expiró." };
+  const sourceHash = createHash("sha256").update(bytes).digest("hex");
+  const existing = await db(client, "bulk_import_jobs").select("id").eq("created_by", user.id).eq("source_hash", sourceHash).maybeSingle();
+  if (existing.data?.id) return { ok: true as const, jobId: existing.data.id, preview };
+  const photoSourceType = formData.get("photoSourceType") === "ZIP_UPLOAD" ? "ZIP_UPLOAD" : formData.get("photoSourceType") === "GOOGLE_DRIVE_SHARED_FOLDER" ? "GOOGLE_DRIVE_SHARED_FOLDER" : null;
+  const photoSourceReference = typeof formData.get("photoSourceReference") === "string" ? String(formData.get("photoSourceReference")).trim().slice(0, 500) : null;
+  const job = await db(client, "bulk_import_jobs").insert({ import_type: importType, partner_profile_id: partner?.id ?? null, source_filename: file.name, source_hash: sourceHash, photo_source_type: photoSourceType, photo_source_reference: photoSourceReference, status: "READY_FOR_REVIEW", row_count: preview.summary.total, ready_count: preview.summary.ready, warning_count: preview.summary.warnings, error_count: preview.summary.errors, created_by: user.id }).select("id").single();
+  if (job.error) return { ok: false as const, message: "No pudimos guardar el historial de la carga." };
+  await db(client, "bulk_import_job_events").insert({ job_id: job.data.id, event_type: "JOB_CREATED", metadata: { sourceHash, rowCount: preview.summary.total } });
+  await db(client, "bulk_import_job_events").insert({ job_id: job.data.id, event_type: "PARSING_COMPLETE", metadata: { rowCount: preview.summary.total } });
+  await db(client, "bulk_import_job_events").insert({ job_id: job.data.id, event_type: "NORMALIZATION_COMPLETE", metadata: { warningCount: preview.summary.warnings } });
+  await db(client, "bulk_import_job_events").insert({ job_id: job.data.id, event_type: "VALIDATION_COMPLETE", metadata: { errorCount: preview.summary.errors } });
+  await db(client, "bulk_import_job_events").insert({ job_id: job.data.id, event_type: "PRICING_COMPLETED", metadata: { rowCount: preview.summary.total } });
+  await db(client, "bulk_import_job_events").insert({ job_id: job.data.id, event_type: "JOB_READY", metadata: { status: "READY_FOR_REVIEW" } });
+  const rows = preview.rows.map((row) => ({ job_id: job.data.id, row_number: row.rowNumber, external_id: row.normalized.externalId, original_payload: row.original, normalized_payload: row.normalized, canonical_model_id: row.canonicalModelId, normalization_metadata: row.fields, validation_result: { issues: row.issues, modelCandidates: row.modelCandidates.map((candidate) => ({ id: candidate.id, name: candidate.modelName, modelYear: candidate.modelYear })) }, pricing_result: row.pricing, photo_metadata: row.photo, severity: row.severity }));
+  const inserted = await db(client, "bulk_import_rows").insert(rows);
+  if (inserted.error) return { ok: false as const, message: "No pudimos guardar el detalle de las filas." };
+  return { ok: true as const, jobId: job.data.id, preview };
+}
+
+export async function listBulkImportHistory() {
+  await requireCatalogManager("/operacion/carga-masiva/historial");
+  const client = await createClient();
+  const result = await db(client, "bulk_import_jobs").select("id, import_type, partner_profile_id, source_filename, status, row_count, ready_count, warning_count, error_count, created_at").order("created_at", { ascending: false }).limit(100);
+  return result.data ?? [];
+}
+
+export async function getBulkImportJob(jobId: string) {
+  await requireCatalogManager("/operacion/carga-masiva");
+  const client = await createClient();
+  const job = await db(client, "bulk_import_jobs").select("*").eq("id", jobId).maybeSingle();
+  const rows = await db(client, "bulk_import_rows").select("*").eq("job_id", jobId).order("row_number");
+  return { job: job.data, rows: rows.data ?? [] };
+}
+
+async function requireReviewOperator() {
+  const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+  if (!user || !(await canCurrentUserManageCatalog())) return { client, user: null };
+  return { client, user };
+}
+
+export async function reviewBulkImportAction(formData: FormData) {
+  const { client, user } = await requireReviewOperator();
+  if (!user) return { ok: false as const, message: "No tienes autorización para revisar esta carga." };
+  const action = String(formData.get("action") ?? "");
+  const jobId = String(formData.get("jobId") ?? "");
+  const rowId = String(formData.get("rowId") ?? "");
+  if (!jobId) return { ok: false as const, message: "No encontramos esta carga." };
+  if (action === "approve" || action === "reopen") {
+    const jobResult = await db(client, "bulk_import_jobs").select("id,status,import_type").eq("id", jobId).maybeSingle();
+    if (jobResult.error || !jobResult.data) return { ok: false as const, message: "No encontramos esta carga." };
+    if (action === "reopen") {
+      if (jobResult.data.status !== "APPROVED_FOR_IMPORT") return { ok: false as const, message: "Sólo puedes reabrir una carga aprobada." };
+      const updated = await db(client, "bulk_import_jobs").update({ status: "READY_FOR_REVIEW" }).eq("id", jobId);
+      if (updated.error) return { ok: false as const, message: "No pudimos reabrir la revisión." };
+      await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: "JOB_REOPENED_FOR_REVIEW", metadata: { actorId: user.id } });
+      return { ok: true as const, message: "La carga volvió a revisión." };
+    }
+    if (jobResult.data.status !== "READY_FOR_REVIEW") return { ok: false as const, message: "Esta carga no está lista para aprobación." };
+    const rows = await db(client, "bulk_import_rows").select("id,severity,excluded").eq("job_id", jobId);
+    const included = (rows.data ?? []).filter((row: { excluded: boolean }) => !row.excluded);
+    const approval = canApproveBulkImport(rows.data ?? []);
+    if (!approval.allowed) return { ok: false as const, message: approval.message };
+    const updated = await db(client, "bulk_import_jobs").update({ status: "APPROVED_FOR_IMPORT", ready_count: included.length, error_count: 0 }).eq("id", jobId);
+    if (updated.error) return { ok: false as const, message: "No pudimos aprobar la carga." };
+    await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: "JOB_APPROVED_FOR_IMPORT", metadata: { actorId: user.id, includedRows: included.length } });
+    return { ok: true as const, message: "La carga fue aprobada para importación." };
+  }
+  if (!rowId) return { ok: false as const, message: "No encontramos esta fila." };
+  const row = await db(client, "bulk_import_rows").select("id,job_id,normalization_metadata,normalized_payload,validation_result,pricing_result").eq("id", rowId).eq("job_id", jobId).maybeSingle();
+  if (row.error || !row.data) return { ok: false as const, message: "No encontramos esta fila." };
+  const currentIssues = Array.isArray(row.data.validation_result?.issues) ? row.data.validation_result.issues : [];
+  const invalidatePricing = { ...(row.data.pricing_result ?? {}), status: "INSUFFICIENT_DATA", proposedPriceMinor: null, marketReferenceMinor: null, estimatedPartnerNetMinor: null, viability: "Requiere nuevo análisis", reusedResearch: false };
+  const candidate = action === "resolve_model" ? (row.data.validation_result?.modelCandidates ?? []).find((item: { id?: string }) => item.id === String(formData.get("modelId") ?? "")) : null;
+  const patch = action === "exclude"
+    ? { excluded: true, exclusion_reason: String(formData.get("reason") ?? "Excluida durante revisión"), reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+    : action === "reinclude"
+      ? { excluded: false, exclusion_reason: null, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+      : action === "accept_normalization"
+        ? { normalization_accepted: true, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+        : action === "manual_resolution"
+          ? { manual_resolution: { brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: String(formData.get("manualYear") ?? "") || null }, normalized_payload: { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: Number(formData.get("manualYear")) || null }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          : action === "resolve_model" && candidate
+            ? { canonical_model_id: candidate.id, normalized_payload: { ...row.data.normalized_payload, model: candidate.name, modelYear: candidate.modelYear ?? row.data.normalized_payload.modelYear }, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => issue.code !== "AMBIGUOUS_MODEL_GENERATION" && issue.code !== "UNKNOWN_MODEL" && issue.code !== "MODEL_SUGGESTION") }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          : null;
+  if (action === "resolve_model" && !candidate) return { ok: false as const, message: "Selecciona una generación válida del catálogo." };
+  if (!patch) return { ok: false as const, message: "Acción de revisión no reconocida." };
+  const updated = await db(client, "bulk_import_rows").update(patch).eq("id", rowId).eq("job_id", jobId);
+  if (updated.error) return { ok: false as const, message: "No pudimos actualizar la fila." };
+  const eventType = action === "exclude" ? "ROW_EXCLUDED" : action === "reinclude" ? "ROW_REINCLUDED" : action === "accept_normalization" ? "NORMALIZATION_ACCEPTED" : action === "resolve_model" ? "MODEL_RESOLVED" : "ROW_CORRECTED";
+  await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: eventType, metadata: { actorId: user.id, rowId } });
+  return { ok: true as const, message: action === "exclude" ? "La fila fue excluida." : action === "reinclude" ? "La fila fue reincluida." : "La fila fue actualizada." };
+}
+
+export async function discardBulkImportJob(jobId: string) {
+  const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) return { ok: false as const, message: "No tienes autorización para descartar esta carga." };
+  const authorized = await canCurrentUserManageCatalog();
+  console.info("bulk_import_discard_attempt", { jobId, actorId: user.id, authorized });
+  if (!authorized) return { ok: false as const, message: "No tienes autorización para descartar esta carga." };
+  const jobResult = await db(client, "bulk_import_jobs")
+    .select("id, status, partner_profile_id")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (jobResult.error || !jobResult.data) {
+    console.warn("bulk_import_discard_lookup_failed", { jobId, actorId: user.id, code: jobResult.error?.code ?? "NOT_FOUND", message: jobResult.error?.message ?? "not found" });
+    return { ok: false as const, message: "No encontramos esta carga." };
+  }
+  const decision = canDiscardBulkImportJob({
+    status: jobResult.data.status,
+    partnerProfileId: jobResult.data.partner_profile_id,
+    finalDomainWriteState: null,
+  }, { isOperator: true });
+  if (!decision.allowed) {
+    console.info("bulk_import_discard_denied", { jobId, actorId: user.id, status: jobResult.data.status, code: decision.code });
+    return { ok: false as const, message: decision.message };
+  }
+  // FK ON DELETE CASCADE removes rows, issues and events. PR82 stores no blobs;
+  // CSV/error exports are transient and generated on demand.
+  const deleted = await db(client, "bulk_import_jobs").delete().eq("id", jobId);
+  if (deleted.error) {
+    console.error("bulk_import_discard_delete_failed", { jobId, actorId: user.id, status: jobResult.data.status, code: deleted.error.code, message: deleted.error.message, details: deleted.error.details });
+    return { ok: false as const, message: "No pudimos descartar la carga. Inténtalo de nuevo." };
+  }
+  console.info("bulk_import_discard_succeeded", { jobId, actorId: user.id, status: jobResult.data.status });
+  return { ok: true as const, message: "La carga fue descartada correctamente." };
+}

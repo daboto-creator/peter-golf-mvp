@@ -1,0 +1,4 @@
+ID externo,Categoría,Marca,Modelo,Año,Estado,Cantidad,Mano,Costo adquisición,Precio propuesto
+FP-MIX-001,Driver,Titleist,GT3,2024,Usado,1,Derecho,10500,15999
+FP-MIX-002,Madera,Callaway,Rogue ST,2022,Usado,1,Derecho,9000,15000
+FP-MIX-003,No existe,Titleist,GT3,2099,Usado,-1,?,10.500,15000

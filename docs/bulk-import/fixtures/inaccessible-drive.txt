@@ -1,0 +1,3 @@
+Fuente: GOOGLE_DRIVE_SHARED_FOLDER
+URL: https://drive.google.com/drive/u/0/my-drive
+Resultado esperado: DRIVE_FOLDER_NOT_ACCESSIBLE; el CSV sigue siendo procesable.
