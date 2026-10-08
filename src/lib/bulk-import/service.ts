@@ -67,7 +67,7 @@ export async function createBulkImportPreview(formData: FormData) {
   await db(client, "bulk_import_job_events").insert({ job_id: job.data.id, event_type: "VALIDATION_COMPLETE", metadata: { errorCount: preview.summary.errors } });
   await db(client, "bulk_import_job_events").insert({ job_id: job.data.id, event_type: "PRICING_COMPLETED", metadata: { rowCount: preview.summary.total } });
   await db(client, "bulk_import_job_events").insert({ job_id: job.data.id, event_type: "JOB_READY", metadata: { status: "READY_FOR_REVIEW" } });
-  const rows = preview.rows.map((row) => ({ job_id: job.data.id, row_number: row.rowNumber, external_id: row.normalized.externalId, original_payload: row.original, normalized_payload: row.normalized, canonical_model_id: row.canonicalModelId, normalization_metadata: row.fields, validation_result: { issues: row.issues }, pricing_result: row.pricing, photo_metadata: row.photo, severity: row.severity }));
+  const rows = preview.rows.map((row) => ({ job_id: job.data.id, row_number: row.rowNumber, external_id: row.normalized.externalId, original_payload: row.original, normalized_payload: row.normalized, canonical_model_id: row.canonicalModelId, normalization_metadata: row.fields, validation_result: { issues: row.issues, modelCandidates: row.modelCandidates.map((candidate) => ({ id: candidate.id, name: candidate.modelName, modelYear: candidate.modelYear })) }, pricing_result: row.pricing, photo_metadata: row.photo, severity: row.severity }));
   const inserted = await db(client, "bulk_import_rows").insert(rows);
   if (inserted.error) return { ok: false as const, message: "No pudimos guardar el detalle de las filas." };
   return { ok: true as const, jobId: job.data.id, preview };
@@ -123,8 +123,11 @@ export async function reviewBulkImportAction(formData: FormData) {
     return { ok: true as const, message: "La carga fue aprobada para importación." };
   }
   if (!rowId) return { ok: false as const, message: "No encontramos esta fila." };
-  const row = await db(client, "bulk_import_rows").select("id,job_id,normalization_metadata,normalized_payload").eq("id", rowId).eq("job_id", jobId).maybeSingle();
+  const row = await db(client, "bulk_import_rows").select("id,job_id,normalization_metadata,normalized_payload,validation_result,pricing_result").eq("id", rowId).eq("job_id", jobId).maybeSingle();
   if (row.error || !row.data) return { ok: false as const, message: "No encontramos esta fila." };
+  const currentIssues = Array.isArray(row.data.validation_result?.issues) ? row.data.validation_result.issues : [];
+  const invalidatePricing = { ...(row.data.pricing_result ?? {}), status: "INSUFFICIENT_DATA", proposedPriceMinor: null, marketReferenceMinor: null, estimatedPartnerNetMinor: null, viability: "Requiere nuevo análisis", reusedResearch: false };
+  const candidate = action === "resolve_model" ? (row.data.validation_result?.modelCandidates ?? []).find((item: { id?: string }) => item.id === String(formData.get("modelId") ?? "")) : null;
   const patch = action === "exclude"
     ? { excluded: true, exclusion_reason: String(formData.get("reason") ?? "Excluida durante revisión"), reviewed_by: user.id, reviewed_at: new Date().toISOString() }
     : action === "reinclude"
@@ -132,12 +135,15 @@ export async function reviewBulkImportAction(formData: FormData) {
       : action === "accept_normalization"
         ? { normalization_accepted: true, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
         : action === "manual_resolution"
-          ? { manual_resolution: { brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: String(formData.get("manualYear") ?? "") || null }, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          ? { manual_resolution: { brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: String(formData.get("manualYear") ?? "") || null }, normalized_payload: { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: Number(formData.get("manualYear")) || null }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          : action === "resolve_model" && candidate
+            ? { canonical_model_id: candidate.id, normalized_payload: { ...row.data.normalized_payload, model: candidate.name, modelYear: candidate.modelYear ?? row.data.normalized_payload.modelYear }, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => issue.code !== "AMBIGUOUS_MODEL_GENERATION" && issue.code !== "UNKNOWN_MODEL" && issue.code !== "MODEL_SUGGESTION") }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : null;
+  if (action === "resolve_model" && !candidate) return { ok: false as const, message: "Selecciona una generación válida del catálogo." };
   if (!patch) return { ok: false as const, message: "Acción de revisión no reconocida." };
   const updated = await db(client, "bulk_import_rows").update(patch).eq("id", rowId).eq("job_id", jobId);
   if (updated.error) return { ok: false as const, message: "No pudimos actualizar la fila." };
-  const eventType = action === "exclude" ? "ROW_EXCLUDED" : action === "reinclude" ? "ROW_REINCLUDED" : action === "accept_normalization" ? "NORMALIZATION_ACCEPTED" : "ROW_CORRECTED";
+  const eventType = action === "exclude" ? "ROW_EXCLUDED" : action === "reinclude" ? "ROW_REINCLUDED" : action === "accept_normalization" ? "NORMALIZATION_ACCEPTED" : action === "resolve_model" ? "MODEL_RESOLVED" : "ROW_CORRECTED";
   await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: eventType, metadata: { actorId: user.id, rowId } });
   return { ok: true as const, message: action === "exclude" ? "La fila fue excluida." : action === "reinclude" ? "La fila fue reincluida." : "La fila fue actualizada." };
 }
