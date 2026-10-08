@@ -88,23 +88,36 @@ export async function getBulkImportJob(jobId: string) {
 }
 
 export async function discardBulkImportJob(jobId: string) {
-  const authorized = await canCurrentUserManageCatalog();
-  if (!authorized) return { ok: false as const, message: "No tienes autorización para descartar esta carga." };
   const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) return { ok: false as const, message: "No tienes autorización para descartar esta carga." };
+  const authorized = await canCurrentUserManageCatalog();
+  console.info("bulk_import_discard_attempt", { jobId, actorId: user.id, authorized });
+  if (!authorized) return { ok: false as const, message: "No tienes autorización para descartar esta carga." };
   const jobResult = await db(client, "bulk_import_jobs")
     .select("id, status, partner_profile_id")
     .eq("id", jobId)
     .maybeSingle();
-  if (jobResult.error || !jobResult.data) return { ok: false as const, message: "No encontramos esta carga." };
+  if (jobResult.error || !jobResult.data) {
+    console.warn("bulk_import_discard_lookup_failed", { jobId, actorId: user.id, code: jobResult.error?.code ?? "NOT_FOUND", message: jobResult.error?.message ?? "not found" });
+    return { ok: false as const, message: "No encontramos esta carga." };
+  }
   const decision = canDiscardBulkImportJob({
     status: jobResult.data.status,
     partnerProfileId: jobResult.data.partner_profile_id,
     finalDomainWriteState: null,
   }, { isOperator: true });
-  if (!decision.allowed) return { ok: false as const, message: decision.message };
+  if (!decision.allowed) {
+    console.info("bulk_import_discard_denied", { jobId, actorId: user.id, status: jobResult.data.status, code: decision.code });
+    return { ok: false as const, message: decision.message };
+  }
   // FK ON DELETE CASCADE removes rows, issues and events. PR82 stores no blobs;
   // CSV/error exports are transient and generated on demand.
   const deleted = await db(client, "bulk_import_jobs").delete().eq("id", jobId);
-  if (deleted.error) return { ok: false as const, message: "No pudimos descartar la carga. Inténtalo de nuevo." };
+  if (deleted.error) {
+    console.error("bulk_import_discard_delete_failed", { jobId, actorId: user.id, status: jobResult.data.status, code: deleted.error.code, message: deleted.error.message, details: deleted.error.details });
+    return { ok: false as const, message: "No pudimos descartar la carga. Inténtalo de nuevo." };
+  }
+  console.info("bulk_import_discard_succeeded", { jobId, actorId: user.id, status: jobResult.data.status });
   return { ok: true as const, message: "La carga fue descartada correctamente." };
 }
