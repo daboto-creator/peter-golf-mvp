@@ -8,6 +8,10 @@ const models: CatalogModelReference[] = [
   { id: "p790-21", brandId: "tm", brandName: "TaylorMade", brandSlug: "taylormade", categoryId: "iron", categoryName: "Hierros", categorySlug: "iron", modelName: "P790", normalizedModelName: "p790", modelYear: 2021 },
   { id: "p790-23", brandId: "tm", brandName: "TaylorMade", brandSlug: "taylormade", categoryId: "iron", categoryName: "Hierros", categorySlug: "iron", modelName: "P790", normalizedModelName: "p790", modelYear: 2023 },
   { id: "gt3", brandId: "titleist", brandName: "Titleist", brandSlug: "titleist", categoryId: "driver", categoryName: "Driver", categorySlug: "driver", modelName: "GT3", normalizedModelName: "gt3", modelYear: 2024 },
+  { id: "gt2-fw-24", brandId: "titleist", brandName: "Titleist", brandSlug: "titleist", categoryId: "fairway", categoryName: "Madera", categorySlug: "fairway-wood", modelName: "GT2 Fairway 5", normalizedModelName: "gt2 fairway 5", modelYear: 2024 },
+  { id: "qi10-fw-24", brandId: "tm", brandName: "TaylorMade", brandSlug: "taylormade", categoryId: "fairway", categoryName: "Madera", categorySlug: "fairway-wood", modelName: "Qi10 Fairway 3", normalizedModelName: "qi10 fairway 3", modelYear: 2024 },
+  { id: "gt2-fw-generic", brandId: "titleist", brandName: "Titleist", brandSlug: "titleist", categoryId: "fairway", categoryName: "Madera", categorySlug: "fairway-wood", modelName: "GT2", normalizedModelName: "gt2", modelYear: null },
+  { id: "qi10-fw-generic", brandId: "tm", brandName: "TaylorMade", brandSlug: "taylormade", categoryId: "fairway", categoryName: "Madera", categorySlug: "fairway-wood", modelName: "Qi10", normalizedModelName: "qi10", modelYear: null },
 ];
 
 describe("bulk import normalization", () => {
@@ -42,6 +46,32 @@ describe("bulk import normalization", () => {
     const preview = buildBulkPreview({ csv: "ID externo,Categoría,Marca,Modelo,Año,Estado,Cantidad,Precio solicitado\nA-1,Driver,Titleist,GT 3,2024,Usado,1,10500\n", importType: "PARTNER", models });
     expect(preview.rows[0].canonicalModelId).toBe("gt3");
     expect(preview.rows[0].issues.some((issue) => issue.code === "MISSING_ACQUISITION_COST")).toBe(false);
+  });
+
+  it("infers fairway category from a unique canonical model when the CSV category is blank", () => {
+    const preview = buildBulkPreview({ csv: "ID externo,Categoría,Marca,Modelo,Año,Estado,Cantidad,Costo adquisición\nFW-1,,Titleist,GT2 Fairway 5,2024,Nuevo,1,1000\n", importType: "FIRST_PARTY", models });
+    expect(preview.rows[0].normalized.categorySlug).toBe("fairway-wood");
+    expect(preview.rows[0].canonicalModelId).toBe("gt2-fw-24");
+    expect(preview.rows[0].fields.category.code).toBe("AUTO_CATEGORY_FROM_CANONICAL_MODEL");
+    expect(preview.rows[0].issues.some((issue) => issue.code === "CATEGORY_REQUIRED")).toBe(false);
+  });
+
+  it("infers TaylorMade fairway category from the canonical model", () => {
+    const preview = buildBulkPreview({ csv: "ID externo,Categoría,Marca,Modelo,Año,Estado,Cantidad,Costo adquisición\nFW-2,Madera,TaylorMade,Qi10 Fairway 3,2024,Nuevo,1,1000\n", importType: "FIRST_PARTY", models });
+    expect(preview.rows[0].normalized.categorySlug).toBe("fairway-wood");
+    expect(preview.rows[0].canonicalModelId).toBe("qi10-fw-24");
+  });
+
+  it("infers and resolves catalog models when the CSV includes a fairway variant suffix", () => {
+    const preview = buildBulkPreview({ csv: "ID externo,Categoría,Marca,Modelo,Año,Estado,Cantidad,Costo adquisición\nFW-4,,Titleist,GT2 Fairway 5,2024,Nuevo,1,1000\n", importType: "FIRST_PARTY", models: models.filter((model) => model.id !== "gt2-fw-24") });
+    expect(preview.rows[0].normalized.categorySlug).toBe("fairway-wood");
+    expect(preview.rows[0].canonicalModelId).toBe("gt2-fw-generic");
+  });
+
+  it("blocks an explicit category that conflicts with the canonical model", () => {
+    const preview = buildBulkPreview({ csv: "ID externo,Categoría,Marca,Modelo,Año,Estado,Cantidad,Costo adquisición\nFW-3,Driver,Titleist,GT2 Fairway 5,2024,Nuevo,1,1000\n", importType: "FIRST_PARTY", models });
+    expect(preview.rows[0].issues.some((issue) => issue.code === "CATEGORY_MODEL_CONFLICT")).toBe(true);
+    expect(preview.rows[0].severity).toBe("ERROR");
   });
 
   it("normalizes photo keys and protects formula exports", () => {
