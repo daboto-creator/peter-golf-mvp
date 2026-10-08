@@ -7,6 +7,7 @@ import { buildBulkPreview } from "./preview";
 import type { BulkImportType, CatalogModelReference } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { canDiscardBulkImportJob } from "./discard-policy";
+import { canApproveBulkImport } from "./review-policy";
 
 // The generated Supabase types intentionally lag additive PR82 tables; keep
 // this boundary narrow until the next generated schema snapshot.
@@ -85,6 +86,60 @@ export async function getBulkImportJob(jobId: string) {
   const job = await db(client, "bulk_import_jobs").select("*").eq("id", jobId).maybeSingle();
   const rows = await db(client, "bulk_import_rows").select("*").eq("job_id", jobId).order("row_number");
   return { job: job.data, rows: rows.data ?? [] };
+}
+
+async function requireReviewOperator() {
+  const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+  if (!user || !(await canCurrentUserManageCatalog())) return { client, user: null };
+  return { client, user };
+}
+
+export async function reviewBulkImportAction(formData: FormData) {
+  const { client, user } = await requireReviewOperator();
+  if (!user) return { ok: false as const, message: "No tienes autorización para revisar esta carga." };
+  const action = String(formData.get("action") ?? "");
+  const jobId = String(formData.get("jobId") ?? "");
+  const rowId = String(formData.get("rowId") ?? "");
+  if (!jobId) return { ok: false as const, message: "No encontramos esta carga." };
+  if (action === "approve" || action === "reopen") {
+    const jobResult = await db(client, "bulk_import_jobs").select("id,status,import_type").eq("id", jobId).maybeSingle();
+    if (jobResult.error || !jobResult.data) return { ok: false as const, message: "No encontramos esta carga." };
+    if (action === "reopen") {
+      if (jobResult.data.status !== "APPROVED_FOR_IMPORT") return { ok: false as const, message: "Sólo puedes reabrir una carga aprobada." };
+      const updated = await db(client, "bulk_import_jobs").update({ status: "READY_FOR_REVIEW" }).eq("id", jobId);
+      if (updated.error) return { ok: false as const, message: "No pudimos reabrir la revisión." };
+      await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: "JOB_REOPENED_FOR_REVIEW", metadata: { actorId: user.id } });
+      return { ok: true as const, message: "La carga volvió a revisión." };
+    }
+    if (jobResult.data.status !== "READY_FOR_REVIEW") return { ok: false as const, message: "Esta carga no está lista para aprobación." };
+    const rows = await db(client, "bulk_import_rows").select("id,severity,excluded").eq("job_id", jobId);
+    const included = (rows.data ?? []).filter((row: { excluded: boolean }) => !row.excluded);
+    const approval = canApproveBulkImport(rows.data ?? []);
+    if (!approval.allowed) return { ok: false as const, message: approval.message };
+    const updated = await db(client, "bulk_import_jobs").update({ status: "APPROVED_FOR_IMPORT", ready_count: included.length, error_count: 0 }).eq("id", jobId);
+    if (updated.error) return { ok: false as const, message: "No pudimos aprobar la carga." };
+    await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: "JOB_APPROVED_FOR_IMPORT", metadata: { actorId: user.id, includedRows: included.length } });
+    return { ok: true as const, message: "La carga fue aprobada para importación." };
+  }
+  if (!rowId) return { ok: false as const, message: "No encontramos esta fila." };
+  const row = await db(client, "bulk_import_rows").select("id,job_id,normalization_metadata,normalized_payload").eq("id", rowId).eq("job_id", jobId).maybeSingle();
+  if (row.error || !row.data) return { ok: false as const, message: "No encontramos esta fila." };
+  const patch = action === "exclude"
+    ? { excluded: true, exclusion_reason: String(formData.get("reason") ?? "Excluida durante revisión"), reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+    : action === "reinclude"
+      ? { excluded: false, exclusion_reason: null, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+      : action === "accept_normalization"
+        ? { normalization_accepted: true, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+        : action === "manual_resolution"
+          ? { manual_resolution: { brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: String(formData.get("manualYear") ?? "") || null }, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          : null;
+  if (!patch) return { ok: false as const, message: "Acción de revisión no reconocida." };
+  const updated = await db(client, "bulk_import_rows").update(patch).eq("id", rowId).eq("job_id", jobId);
+  if (updated.error) return { ok: false as const, message: "No pudimos actualizar la fila." };
+  const eventType = action === "exclude" ? "ROW_EXCLUDED" : action === "reinclude" ? "ROW_REINCLUDED" : action === "accept_normalization" ? "NORMALIZATION_ACCEPTED" : "ROW_CORRECTED";
+  await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: eventType, metadata: { actorId: user.id, rowId } });
+  return { ok: true as const, message: action === "exclude" ? "La fila fue excluida." : action === "reinclude" ? "La fila fue reincluida." : "La fila fue actualizada." };
 }
 
 export async function discardBulkImportJob(jobId: string) {

@@ -10,6 +10,7 @@ export const bulkImportStatuses = [
   "RESOLVING_ASSETS",
   "ANALYZING_PRICING",
   "READY_FOR_REVIEW",
+  "APPROVED_FOR_IMPORT",
   "FAILED",
   "CANCELLED",
 ] as const;
