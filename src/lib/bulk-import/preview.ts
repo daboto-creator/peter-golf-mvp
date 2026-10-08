@@ -1,6 +1,6 @@
 import type { BulkImportType, BulkIssue, BulkPreview, CatalogModelReference, ResolvedBulkRow } from "./types";
 import { parseSpanishCsv } from "./csv";
-import { normalizeBulkRow, resolveModelWithinContext } from "./normalization";
+import { findCanonicalModelCandidates, inferCategoryFromCanonicalModel, inferCategorySlugFromModel, normalizeBulkRow, resolveModelWithinContext } from "./normalization";
 import { runPricingPrecheck } from "./pricing-precheck";
 import { normalizePhotoKey } from "./normalization";
 
@@ -19,9 +19,16 @@ function rowIssues(row: ReturnType<typeof normalizeBulkRow>, importType: BulkImp
 export function buildBulkPreview(input: { csv: string | Uint8Array; importType: BulkImportType; models: CatalogModelReference[]; existingExternalIds?: ReadonlySet<string> }): BulkPreview {
   const parsed = parseSpanishCsv(input.csv);
   const rows: ResolvedBulkRow[] = parsed.rows.map((raw) => {
-    const normalized = normalizeBulkRow(raw);
+    const initiallyNormalized = normalizeBulkRow(raw);
+    const inferredCandidates = findCanonicalModelCandidates(initiallyNormalized, input.models);
+    const hasExplicitCategory = initiallyNormalized.normalized.category !== null;
+    const normalized = inferCategoryFromCanonicalModel(initiallyNormalized, input.models);
     const issues = rowIssues(normalized, input.importType);
     const resolution = resolveModelWithinContext({ row: normalized, models: input.models });
+    const modelSignalCategory = inferCategorySlugFromModel(initiallyNormalized.normalized.model);
+    if (hasExplicitCategory && ((inferredCandidates.length > 0 && resolution.candidates.length === 0) || (modelSignalCategory !== null && modelSignalCategory !== initiallyNormalized.normalized.categorySlug))) {
+      issues.push({ severity: "ERROR", code: "CATEGORY_MODEL_CONFLICT", field: "category", message: "La categoría indicada no coincide con el modelo canónico. Selecciona la categoría correcta o usa el modelo manual." });
+    }
     if (resolution.issue) issues.push({ severity: resolution.issue.code === "MODEL_SUGGESTION" ? "WARNING" : "ERROR", code: resolution.issue.code, field: "model", message: resolution.issue.message, details: resolution.issue.details });
     if (normalized.normalized.externalId && input.existingExternalIds?.has(normalized.normalized.externalId)) issues.push({ severity: "WARNING", code: "EXTERNAL_ID_EXISTS", field: "externalId", message: "Este ID externo ya existe. La fila se omitirá en una importación futura." });
     const pricing = runPricingPrecheck({ importType: input.importType, row: normalized });
