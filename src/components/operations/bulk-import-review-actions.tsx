@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { reviewBulkImportAction } from "@/lib/bulk-import/service";
+import { executeFirstPartyBulkImportAction, reviewBulkImportAction } from "@/lib/bulk-import/service";
 
 type State = Awaited<ReturnType<typeof reviewBulkImportAction>> | null;
 
@@ -25,4 +25,14 @@ export function BulkImportManualFallbackForm({ jobId, rowId }: { jobId: string; 
     return result;
   }, null);
   return <form action={formAction} className="grid gap-2 rounded-lg border p-3"><input type="hidden" name="action" value="manual_resolution" /><input type="hidden" name="jobId" value={jobId} /><input type="hidden" name="rowId" value={rowId} /><p className="text-xs font-semibold">Usar modelo manual</p><div className="grid gap-2 sm:grid-cols-3"><input name="manualBrand" placeholder="Marca" className="h-9 rounded-lg border px-2 text-sm" /><input name="manualModel" placeholder="Modelo" className="h-9 rounded-lg border px-2 text-sm" /><input name="manualYear" placeholder="Año (opcional)" className="h-9 rounded-lg border px-2 text-sm" /></div><Button type="submit" size="sm" variant="outline" disabled={pending}>{pending ? "Guardando…" : "Guardar modelo manual"}</Button>{state && !state.ok ? <span className="text-xs text-destructive">{state.message}</span> : null}</form>;
+}
+
+export function BulkImportExecutionAction({ jobId, retry = false }: { jobId: string; retry?: boolean }) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState<State, FormData>(async (_previous, formData) => {
+    const result = await executeFirstPartyBulkImportAction(String(formData.get("jobId") ?? ""));
+    if (result.ok) router.refresh();
+    return result;
+  }, null);
+  return <form action={formAction} className="inline-flex flex-wrap items-center gap-2" onSubmit={(event) => { if (!window.confirm(retry ? "¿Reintentar las filas fallidas? Las filas importadas no se modificarán." : "¿Crear productos e inventario? Esta acción creará inventario real de Best Round.")) event.preventDefault(); }}><input type="hidden" name="jobId" value={jobId} /><Button type="submit" size="sm" disabled={pending}>{pending ? "Importando…" : retry ? "Reintentar filas fallidas" : "Crear productos e inventario"}</Button>{state && !state.ok ? <span className="text-xs text-destructive">{state.message}</span> : null}</form>;
 }

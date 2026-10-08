@@ -8,6 +8,7 @@ import type { BulkImportType, CatalogModelReference } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { canDiscardBulkImportJob } from "./discard-policy";
 import { canApproveBulkImport } from "./review-policy";
+import { revalidatePath } from "next/cache";
 
 // The generated Supabase types intentionally lag additive PR82 tables; keep
 // this boundary narrow until the next generated schema snapshot.
@@ -102,6 +103,11 @@ export async function reviewBulkImportAction(formData: FormData) {
   const jobId = String(formData.get("jobId") ?? "");
   const rowId = String(formData.get("rowId") ?? "");
   if (!jobId) return { ok: false as const, message: "No encontramos esta carga." };
+  if (action === "execute") {
+    const result = await executeFirstPartyBulkImportAction(jobId);
+    if (result.ok) revalidatePath(`/operacion/carga-masiva/${jobId}`);
+    return result;
+  }
   if (action === "approve" || action === "reopen") {
     const jobResult = await db(client, "bulk_import_jobs").select("id,status,import_type").eq("id", jobId).maybeSingle();
     if (jobResult.error || !jobResult.data) return { ok: false as const, message: "No encontramos esta carga." };
@@ -146,6 +152,27 @@ export async function reviewBulkImportAction(formData: FormData) {
   const eventType = action === "exclude" ? "ROW_EXCLUDED" : action === "reinclude" ? "ROW_REINCLUDED" : action === "accept_normalization" ? "NORMALIZATION_ACCEPTED" : action === "resolve_model" ? "MODEL_RESOLVED" : "ROW_CORRECTED";
   await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: eventType, metadata: { actorId: user.id, rowId } });
   return { ok: true as const, message: action === "exclude" ? "La fila fue excluida." : action === "reinclude" ? "La fila fue reincluida." : "La fila fue actualizada." };
+}
+
+export async function executeFirstPartyBulkImportAction(jobId: string) {
+  const { client, user } = await requireReviewOperator();
+  if (!user) return { ok: false as const, message: "No tienes autorización para importar inventario." };
+  const job = await db(client, "bulk_import_jobs").select("id,status,import_type").eq("id", jobId).maybeSingle();
+  if (job.error || !job.data) return { ok: false as const, message: "No encontramos esta carga." };
+  if (job.data.import_type !== "FIRST_PARTY") return { ok: false as const, message: "Esta carga corresponde a un Partner y no puede importarse desde este flujo." };
+  if (!["APPROVED_FOR_IMPORT", "PARTIALLY_IMPORTED", "FAILED_IMPORT"].includes(job.data.status)) return { ok: false as const, message: "La carga debe estar aprobada para importar." };
+  // Generated Supabase types are refreshed after the staging migration lands.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any).rpc("execute_first_party_bulk_import", { requested_job_id: jobId });
+  if (result.error || !result.data) {
+    console.error("bulk_import_execution_failed", { jobId, actorId: user.id, code: result.error?.code, message: result.error?.message });
+    return { ok: false as const, message: "No pudimos importar esta carga. Revisa las filas e inténtalo de nuevo." };
+  }
+  revalidatePath(`/operacion/carga-masiva/${jobId}`);
+  revalidatePath("/operacion/catalogo");
+  revalidatePath("/operacion/inventario");
+  const summary = result.data as { status?: string; imported?: number; skipped?: number; failed?: number };
+  return { ok: true as const, message: summary.status === "IMPORTED" ? "La importación se completó correctamente." : "La importación terminó con algunas filas pendientes.", summary };
 }
 
 export async function discardBulkImportJob(jobId: string) {
