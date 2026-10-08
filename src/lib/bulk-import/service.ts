@@ -1,11 +1,12 @@
 "use server";
 
 import { createHash } from "node:crypto";
-import { requireCatalogManager } from "@/lib/auth/catalog-authorization";
+import { canCurrentUserManageCatalog, requireCatalogManager } from "@/lib/auth/catalog-authorization";
 import { listActiveGolfCatalogReferences } from "@/lib/catalog/operational-products";
 import { buildBulkPreview } from "./preview";
 import type { BulkImportType, CatalogModelReference } from "./types";
 import { createClient } from "@/lib/supabase/server";
+import { canDiscardBulkImportJob } from "./discard-policy";
 
 // The generated Supabase types intentionally lag additive PR82 tables; keep
 // this boundary narrow until the next generated schema snapshot.
@@ -84,4 +85,26 @@ export async function getBulkImportJob(jobId: string) {
   const job = await db(client, "bulk_import_jobs").select("*").eq("id", jobId).maybeSingle();
   const rows = await db(client, "bulk_import_rows").select("*").eq("job_id", jobId).order("row_number");
   return { job: job.data, rows: rows.data ?? [] };
+}
+
+export async function discardBulkImportJob(jobId: string) {
+  const authorized = await canCurrentUserManageCatalog();
+  if (!authorized) return { ok: false as const, message: "No tienes autorización para descartar esta carga." };
+  const client = await createClient();
+  const jobResult = await db(client, "bulk_import_jobs")
+    .select("id, status, partner_profile_id")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (jobResult.error || !jobResult.data) return { ok: false as const, message: "No encontramos esta carga." };
+  const decision = canDiscardBulkImportJob({
+    status: jobResult.data.status,
+    partnerProfileId: jobResult.data.partner_profile_id,
+    finalDomainWriteState: null,
+  }, { isOperator: true });
+  if (!decision.allowed) return { ok: false as const, message: decision.message };
+  // FK ON DELETE CASCADE removes rows, issues and events. PR82 stores no blobs;
+  // CSV/error exports are transient and generated on demand.
+  const deleted = await db(client, "bulk_import_jobs").delete().eq("id", jobId);
+  if (deleted.error) return { ok: false as const, message: "No pudimos descartar la carga. Inténtalo de nuevo." };
+  return { ok: true as const, message: "La carga fue descartada correctamente." };
 }
