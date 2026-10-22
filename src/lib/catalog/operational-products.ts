@@ -446,6 +446,14 @@ export async function getOperationalProductById(
     const { data, error } = await queryOperationalProductById(id);
 
     if (error) {
+      console.error("[catalog] operational product detail load failed", {
+        productId: id,
+        phase: "product_detail_query",
+        code: error.code ?? null,
+        message: error.message,
+        details: error.details ?? null,
+        hint: error.hint ?? null,
+      });
       return { data: null, error: "unavailable" };
     }
 
@@ -453,7 +461,12 @@ export async function getOperationalProductById(
       data: data ? normalizeProduct(data) : null,
       error: null,
     };
-  } catch {
+  } catch (error) {
+    console.error("[catalog] operational product detail load threw", {
+      productId: id,
+      phase: "product_detail_query",
+      message: error instanceof Error ? error.message : String(error),
+    });
     return { data: null, error: "unavailable" };
   }
 }

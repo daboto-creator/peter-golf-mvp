@@ -9,7 +9,7 @@ type HistoryRow = {
 };
 
 const statusLabel: Record<string, string> = {
-  UPLOADED: "Archivo recibido", PARSING: "Leyendo datos", NORMALIZING: "Normalizando", VALIDATING: "Validando datos", RESOLVING_CATALOG: "Resolviendo catálogo", RESOLVING_ASSETS: "Resolviendo fotos", ANALYZING_PRICING: "Analizando precios", READY_FOR_REVIEW: "Listo para revisar", APPROVED_FOR_IMPORT: "Aprobada para importar", FAILED: "Error", CANCELLED: "Cancelado",
+  UPLOADED: "Archivo recibido", PARSING: "Leyendo datos", NORMALIZING: "Normalizando", VALIDATING: "Validando datos", RESOLVING_CATALOG: "Resolviendo catálogo", RESOLVING_ASSETS: "Resolviendo fotos", ANALYZING_PRICING: "Analizando precios", READY_FOR_REVIEW: "Listo para revisar", APPROVED_FOR_IMPORT: "Aprobada para importar", IMPORTING: "Importando inventario", IMPORTED: "Importación completada", PARTIALLY_IMPORTED: "Importación parcial", FAILED_IMPORT: "Importación fallida", FAILED: "Error", CANCELLED: "Cancelado",
 };
 
 export default async function BulkImportHistoryPage({ searchParams }: { searchParams?: Promise<{ discarded?: string }> }) {

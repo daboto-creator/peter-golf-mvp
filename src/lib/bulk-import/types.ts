@@ -11,12 +11,17 @@ export const bulkImportStatuses = [
   "ANALYZING_PRICING",
   "READY_FOR_REVIEW",
   "APPROVED_FOR_IMPORT",
+  "IMPORTING",
+  "IMPORTED",
+  "PARTIALLY_IMPORTED",
+  "FAILED_IMPORT",
   "FAILED",
   "CANCELLED",
 ] as const;
 export type BulkImportStatus = (typeof bulkImportStatuses)[number];
 
 export type BulkRowSeverity = "PENDING" | "READY" | "WARNING" | "ERROR";
+export type BulkRowExecutionStatus = "PENDING_IMPORT" | "IMPORTING" | "IMPORTED" | "SKIPPED_EXISTING" | "FAILED";
 export type IssueSeverity = "ERROR" | "WARNING" | "INFO";
 
 export type RawCsvRow = {

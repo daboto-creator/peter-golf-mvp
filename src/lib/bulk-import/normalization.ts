@@ -10,7 +10,7 @@ export const curatedBrandAliases: Record<string, string> = {
 
 export const categoryAliases: Record<string, { name: string; slug: string }> = {
   driver: { name: "Driver", slug: "driver" }, drivers: { name: "Driver", slug: "driver" }, "madera 1": { name: "Driver", slug: "driver" },
-  fairway: { name: "Madera", slug: "fairway-wood" }, "fairway wood": { name: "Madera", slug: "fairway-wood" }, "madera de calle": { name: "Madera", slug: "fairway-wood" },
+  fairway: { name: "Madera", slug: "fairway-wood" }, "fairway wood": { name: "Madera", slug: "fairway-wood" }, "madera de calle": { name: "Madera", slug: "fairway-wood" }, "fairway-wood": { name: "Madera", slug: "fairway-wood" },
   hibrido: { name: "Híbrido", slug: "hybrid" }, hybrid: { name: "Híbrido", slug: "hybrid" }, rescue: { name: "Híbrido", slug: "hybrid" },
   hierro: { name: "Hierros", slug: "iron" }, hierros: { name: "Hierros", slug: "iron" }, iron: { name: "Hierros", slug: "iron" }, irons: { name: "Hierros", slug: "iron" },
   wedge: { name: "Wedges", slug: "wedge" }, wedges: { name: "Wedges", slug: "wedge" }, putter: { name: "Putter", slug: "putter" }, putt: { name: "Putter", slug: "putter" },
@@ -146,6 +146,88 @@ export function normalizeBulkRow(row: RawCsvRow): NormalizedBulkRow {
   };
 }
 
+/**
+ * Resolve a missing/ambiguous category from the canonical model universe.
+ * The inference is deliberately conservative: it only returns a category
+ * when brand + model (+ year, when supplied) identify one category uniquely.
+ */
+export function inferCategoryFromCanonicalModel(
+  row: NormalizedBulkRow,
+  models: CatalogModelReference[],
+): NormalizedBulkRow {
+  if (!row.normalized.brand || !row.normalized.model || row.normalized.category) return row;
+
+  const brandKey = key(row.normalized.brand);
+  const modelKey = compact(row.normalized.model);
+  const matches = models.filter((model) => {
+    if (key(model.brandName) !== brandKey) return false;
+    if (compact(model.modelName) !== modelKey && compact(model.normalizedModelName) !== modelKey) return false;
+    return row.normalized.modelYear === null || model.modelYear === null || model.modelYear === row.normalized.modelYear;
+  });
+  const categories = [...new Map(matches.map((model) => [model.categorySlug, model])).values()];
+  if (categories.length === 0) {
+    // A category descriptor in the model text is a safe secondary signal for
+    // common inventory labels (for example “GT2 Fairway 5”). It is only used
+    // when exactly one descriptor is present; generic model text remains
+    // unresolved and requires reviewer input.
+    const signalSlug = inferCategorySlugFromModel(row.normalized.model);
+    if (!signalSlug) return row;
+    const category = models.find((model) => key(model.brandName) === brandKey && model.categorySlug === signalSlug);
+    if (!category) return row;
+    return {
+      ...row,
+      normalized: { ...row.normalized, category: category.categorySlug, categorySlug: category.categorySlug },
+      fields: {
+        ...row.fields,
+        category: { ...row.fields.category, value: category.categorySlug, kind: "AUTO_NORMALIZED", code: "AUTO_CATEGORY_FROM_MODEL_SIGNAL" },
+      },
+    };
+  }
+  if (categories.length !== 1) return row;
+
+  const category = categories[0];
+  return {
+    ...row,
+    normalized: { ...row.normalized, category: category.categorySlug, categorySlug: category.categorySlug },
+    fields: {
+      ...row.fields,
+      category: {
+        ...row.fields.category,
+        value: category.categorySlug,
+        kind: "AUTO_NORMALIZED",
+        code: "AUTO_CATEGORY_FROM_CANONICAL_MODEL",
+      },
+    },
+  };
+}
+
+export function inferCategorySlugFromModel(model: string | null): string | null {
+  if (!model) return null;
+  const modelText = key(model);
+  const signals = [
+    { tokens: ["fairway", "fairway wood", "madera de calle"], slug: "fairway-wood" },
+    { tokens: ["hybrid", "hibrido", "rescue"], slug: "hybrid" },
+    { tokens: ["driver"], slug: "driver" },
+    { tokens: ["wedge"], slug: "wedge" },
+    { tokens: ["putter"], slug: "putter" },
+  ].filter((signal) => signal.tokens.some((token) => modelText.includes(token)));
+  return signals.length === 1 ? signals[0].slug : null;
+}
+
+export function findCanonicalModelCandidates(
+  row: NormalizedBulkRow,
+  models: CatalogModelReference[],
+): CatalogModelReference[] {
+  if (!row.normalized.brand || !row.normalized.model) return [];
+  const brandKey = key(row.normalized.brand);
+  const modelKey = compact(row.normalized.model);
+  return models.filter((model) => {
+    if (key(model.brandName) !== brandKey) return false;
+    if (compact(model.modelName) !== modelKey && compact(model.normalizedModelName) !== modelKey) return false;
+    return row.normalized.modelYear === null || model.modelYear === null || model.modelYear === row.normalized.modelYear;
+  });
+}
+
 export function resolveModelWithinContext(input: { row: NormalizedBulkRow; models: CatalogModelReference[] }): { modelId: string | null; candidates: CatalogModelReference[]; issue?: { code: string; message: string; details?: Record<string, unknown> } } {
   const { row, models } = input;
   if (!row.normalized.brand || !row.normalized.category || !row.normalized.model) return { modelId: null, candidates: [] };
@@ -161,5 +243,11 @@ export function resolveModelWithinContext(input: { row: NormalizedBulkRow; model
   if (exact.length > 1) return { modelId: null, candidates: exact, issue: { code: "AMBIGUOUS_MODEL_GENERATION", message: `Encontramos varias generaciones de ${row.normalized.model}.`, details: { candidateIds: exact.map((candidate) => candidate.id) } } };
   if (candidates.length === 0) return { modelId: null, candidates: [], issue: { code: "UNKNOWN_MODEL", message: `No encontramos '${row.normalized.model}' en el catálogo.` } };
   const fuzzy = candidates.filter((model) => compact(model.modelName).includes(target) || target.includes(compact(model.modelName)));
-  return fuzzy.length === 1 ? { modelId: null, candidates: fuzzy, issue: { code: "MODEL_SUGGESTION", message: `Sugerimos ${fuzzy[0].modelName}; confirma antes de continuar.` } } : { modelId: null, candidates: [], issue: { code: "UNKNOWN_MODEL", message: `No encontramos '${row.normalized.model}' en el catálogo.` } };
+  if (fuzzy.length === 1) {
+    const inferredCategory = row.fields.category.code?.startsWith("AUTO_CATEGORY_");
+    const candidateName = compact(fuzzy[0].modelName);
+    if (inferredCategory && target.startsWith(candidateName)) return { modelId: fuzzy[0].id, candidates: fuzzy };
+    return { modelId: null, candidates: fuzzy, issue: { code: "MODEL_SUGGESTION", message: `Sugerimos ${fuzzy[0].modelName}; confirma antes de continuar.` } };
+  }
+  return { modelId: null, candidates: [], issue: { code: "UNKNOWN_MODEL", message: `No encontramos '${row.normalized.model}' en el catálogo.` } };
 }
