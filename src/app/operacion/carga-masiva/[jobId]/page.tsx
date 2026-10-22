@@ -90,17 +90,17 @@ export default async function BulkImportReviewPage({
   const included = reviewRows.filter((row) => !row.excluded);
   const excluded = reviewRows.filter((row) => row.excluded);
   const currentStates = new Map(
-    reviewRows.map((row) => [
-      row.id,
-      reconcileCurrentRowState({
+    reviewRows.map((row) => {
+      const state = reconcileCurrentRowState({
         importType: job.import_type,
         normalizedPayload: row.normalized_payload,
         pricingResult: row.pricing_result,
         existingIssues: row.validation_result?.issues ?? [],
         canonicalModelYear: row.canonical_model_year,
         manualResolution: row.manual_resolution,
-      }),
-    ]),
+      });
+      return [row.id, row.execution_status === "FAILED" ? { ...state, severity: "ERROR" as const } : state] as const;
+    }),
   );
   const errors = included.filter(
     (row) => currentStates.get(row.id)?.severity === "ERROR",
