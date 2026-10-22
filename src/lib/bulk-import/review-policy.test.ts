@@ -42,4 +42,16 @@ describe("bulk import review approval", () => {
     expect(canApproveBulkImport([{ severity: "READY", normalized_payload: {}, pricing_result: { status: "INSUFFICIENT_DATA", proposedPriceMinor: 250000 } }], { importType: "PARTNER" })).toMatchObject({ allowed: false, code: "PRICING_REVIEW_REQUIRED" });
     expect(canApproveBulkImport([partner], { importType: "PARTNER" })).toMatchObject({ allowed: true });
   });
+  test("Partner manual price with no market reference stays honest and can proceed", () => {
+    const result = getPartnerBulkPricingReadiness({ normalized_payload: {}, pricing_result: { status: "INSUFFICIENT_DATA", proposedPriceMinor: 250000, manualPriceApproved: true, humanReviewStatus: "APPROVED" } });
+    expect(result).toMatchObject({ ready: true, warning: true, label: "Precio listo · mercado limitado" });
+    const reconciled = reconcileCurrentRowState({ importType: "PARTNER", normalizedPayload: { category: "fairway-wood" }, pricingResult: { status: "INSUFFICIENT_DATA", proposedPriceMinor: 250000, manualPriceApproved: true, humanReviewStatus: "APPROVED" }, existingIssues: [] });
+    expect(reconciled.severity).toBe("WARNING");
+    expect(reconciled.issues.some((issue) => issue.code === "MISSING_ACQUISITION_COST")).toBe(false);
+  });
+  test("Partner with neither public price nor desired net is blocking", () => {
+    const result = reconcileCurrentRowState({ importType: "PARTNER", normalizedPayload: { category: "fairway-wood" }, pricingResult: { status: "INSUFFICIENT_DATA" }, existingIssues: [] });
+    expect(result.severity).toBe("ERROR");
+    expect(result.issues[0]?.message).toContain("precio público o un neto deseado");
+  });
 });

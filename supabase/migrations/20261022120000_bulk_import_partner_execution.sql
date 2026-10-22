@@ -69,7 +69,7 @@ begin
         continue;
       end if;
       payload := row.normalized_payload; pricing := row.pricing_result;
-      if coalesce((pricing->>'stale')::boolean,false) or coalesce(pricing->>'status','') not in ('COMPETITIVE','OVERPRICED','UNDERPRICED') then raise exception 'Marketplace pricing review required' using errcode='22023'; end if;
+      if coalesce((pricing->>'stale')::boolean,false) or (coalesce(pricing->>'status','') not in ('COMPETITIVE','OVERPRICED','UNDERPRICED') and not (coalesce(pricing->>'status','')='INSUFFICIENT_DATA' and coalesce((pricing->>'manualPriceApproved')::boolean,false))) then raise exception 'Marketplace pricing review required' using errcode='22023'; end if;
       if coalesce(nullif(pricing->>'approvedPriceMinor','')::numeric,0) <= 0 and coalesce(nullif(pricing->>'proposedPriceMinor','')::numeric,0) <= 0 and coalesce(nullif(pricing->>'calculatedPublicPriceMinor','')::numeric,0) <= 0 then raise exception 'Marketplace price is unavailable' using errcode='22023'; end if;
       select m.id,m.brand_id,m.category_id,m.model_name into model from public.catalog_product_models m where m.id=row.canonical_model_id and m.status='active';
       if found then brand_id:=model.brand_id; category_id:=model.category_id; title:=model.model_name;

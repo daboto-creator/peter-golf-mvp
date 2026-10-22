@@ -14,15 +14,19 @@ export type FirstPartyPricingReadiness = {
   message?: string;
 };
 
-export type PartnerPricingReadiness = { ready: boolean; label: string; code: "READY" | "PRICING_REVIEW_REQUIRED" | "STALE_PRICING"; message?: string };
+export type PartnerPricingReadiness = { ready: boolean; warning: boolean; label: string; code: "READY" | "PRICING_REVIEW_REQUIRED" | "STALE_PRICING"; message?: string };
 
 export function getPartnerBulkPricingReadiness(row: ReviewApprovalRow): PartnerPricingReadiness {
   const pricing = row.pricing_result ?? {};
   const status = String(pricing.status ?? "");
   const amount = Number(pricing.approvedPriceMinor ?? pricing.proposedPriceMinor ?? pricing.calculatedPublicPriceMinor ?? 0);
-  if (pricing.stale === true) return { ready: false, code: "STALE_PRICING", label: "Precio desactualizado", message: "El precio de esta fila requiere una nueva revisión." };
-  if (amount <= 0 || !["COMPETITIVE", "OVERPRICED", "UNDERPRICED"].includes(status)) return { ready: false, code: "PRICING_REVIEW_REQUIRED", label: "Requiere revisión de precio", message: "El precio de esta fila requiere una nueva revisión." };
-  return { ready: true, code: "READY", label: "Precio listo" };
+  if (pricing.stale === true) return { ready: false, warning: false, code: "STALE_PRICING", label: "Precio desactualizado", message: "El precio de esta fila requiere una nueva revisión." };
+  if (amount <= 0) return { ready: false, warning: false, code: "PRICING_REVIEW_REQUIRED", label: "Sin precio aprobado", message: "Define un precio público o un neto deseado." };
+  const marketUnavailable = status === "INSUFFICIENT_DATA";
+  const manuallyResolved = pricing.manualPriceApproved === true || pricing.humanReviewStatus === "APPROVED";
+  if (marketUnavailable && manuallyResolved) return { ready: true, warning: true, code: "READY", label: "Precio listo · mercado limitado", message: "No encontramos suficiente referencia de mercado. El precio fue aprobado manualmente." };
+  if (marketUnavailable || !["COMPETITIVE", "OVERPRICED", "UNDERPRICED"].includes(status)) return { ready: false, warning: false, code: "PRICING_REVIEW_REQUIRED", label: "Requiere revisión de precio", message: "Revisa el precio público o el neto deseado antes de aprobar." };
+  return { ready: true, warning: status !== "COMPETITIVE", code: "READY", label: "Precio listo", message: status === "COMPETITIVE" ? undefined : "El precio tiene una desviación frente al mercado." };
 }
 
 export function getFirstPartyBulkPricingReadiness(row: ReviewApprovalRow): FirstPartyPricingReadiness {
