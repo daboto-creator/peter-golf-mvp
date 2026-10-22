@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { executeFirstPartyBulkImportAction, executePartnerBulkImportAction, reviewBulkImportAction } from "@/lib/bulk-import/service";
+import { getManualModelResolution } from "@/lib/bulk-import/review-reconciliation";
 
 type State = Awaited<ReturnType<typeof reviewBulkImportAction>> | null;
 
@@ -17,15 +18,15 @@ export function BulkImportReviewAction({ action, jobId, rowId, label, variant = 
   return <form action={formAction} className="inline-flex flex-wrap items-center gap-2"><input type="hidden" name="action" value={action} /><input type="hidden" name="jobId" value={jobId} />{rowId ? <input type="hidden" name="rowId" value={rowId} /> : null}<Button type="submit" size="sm" variant={variant} disabled={pending}>{pending ? "Guardando…" : label}</Button>{state && !state.ok ? <span className="text-xs text-destructive">{state.message}</span> : null}</form>;
 }
 
-export function BulkImportManualFallbackForm({ jobId, rowId, manualResolution }: { jobId: string; rowId: string; manualResolution?: Record<string, unknown> | null }) {
+export function BulkImportManualFallbackForm({ jobId, rowId, manualResolution, normalizedPayload }: { jobId: string; rowId: string; manualResolution?: Record<string, unknown> | null; normalizedPayload?: Record<string, unknown> | null }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<State, FormData>(async (_previous, formData) => {
     const result = await reviewBulkImportAction(formData);
     if (result.ok) router.refresh();
     return result;
   }, null);
-  const model = manualResolution?.model && typeof manualResolution.model === "object" ? manualResolution.model as Record<string, unknown> : manualResolution;
-  const active = Boolean(model && String(model.brand ?? "").trim() && String(model.model ?? "").trim());
+  const model = getManualModelResolution(manualResolution, normalizedPayload);
+  const active = Boolean(model?.approved);
   return <form action={formAction} className="grid gap-2 rounded-lg border p-3"><input type="hidden" name="action" value="manual_resolution" /><input type="hidden" name="jobId" value={jobId} /><input type="hidden" name="rowId" value={rowId} /><p className="text-xs font-semibold">{active ? "Modelo manual activo" : "Usar modelo manual"}</p><div className="grid gap-2 sm:grid-cols-3"><input name="manualBrand" defaultValue={active ? String(model?.brand ?? "") : ""} placeholder="Marca" className="h-9 rounded-lg border px-2 text-sm" /><input name="manualModel" defaultValue={active ? String(model?.model ?? "") : ""} placeholder="Modelo" className="h-9 rounded-lg border px-2 text-sm" /><input name="manualYear" defaultValue={active && model?.modelYear != null ? String(model.modelYear) : ""} placeholder="Año (opcional)" className="h-9 rounded-lg border px-2 text-sm" /></div><Button type="submit" size="sm" variant="outline" disabled={pending}>{pending ? "Guardando…" : active ? "Editar modelo manual" : "Guardar modelo manual"}</Button>{state && !state.ok ? <span className="text-xs text-destructive">{state.message}</span> : null}</form>;
 }
 

@@ -127,6 +127,9 @@ export default async function BulkImportReviewPage({
     job.status,
   );
   const reviewable = job.status === "READY_FOR_REVIEW";
+  const failedRows = reviewRows.filter((row) => row.execution_status === "FAILED");
+  const importedRows = reviewRows.filter((row) => row.execution_status === "IMPORTED");
+  const skippedRows = reviewRows.filter((row) => row.execution_status === "SKIPPED_EXISTING");
   const attention = warnings.length + errors.length;
   const filteredRows = reviewRows.filter((row) => {
     const state = currentStates.get(row.id);
@@ -163,7 +166,9 @@ export default async function BulkImportReviewPage({
             {approved
               ? "Aprobada para importar"
               : imported
-                ? job.status === "IMPORTED"
+                ? job.status === "FAILED_IMPORT"
+                  ? "Importación fallida"
+                  : job.status === "IMPORTED"
                   ? "Importación completada"
                   : "Importación parcial"
                 : "Lista para revisar"}
@@ -275,11 +280,12 @@ export default async function BulkImportReviewPage({
           </span>
         )}
       </div>
-      {job.import_type === "PARTNER" && imported ? (
+      {imported ? (
         <div className="rounded-xl border bg-white p-4">
-          <h2 className="font-semibold">Resultados de publicaciones</h2>
+          <h2 className="font-semibold">{job.status === "FAILED_IMPORT" ? "Importación fallida" : job.import_type === "PARTNER" ? "Resultados de publicaciones" : "Resultados de importación"}</h2>
+          <p className="mt-1 text-sm font-medium">{importedRows.length} borradores creados · {skippedRows.length} omitidos · {failedRows.length} filas fallidas</p>
           <p className="text-muted-foreground mt-1 text-sm">
-            Los borradores deben revisarse y aprobarse antes de publicarse.
+            {importedRows.length === 0 ? "No se crearon borradores en esta ejecución." : "Los borradores deben revisarse y aprobarse antes de publicarse."}
           </p>
           <div className="mt-3 grid gap-2 text-sm">
             {reviewRows
@@ -299,6 +305,7 @@ export default async function BulkImportReviewPage({
                 </div>
               ))}
           </div>
+          {failedRows.some((row) => row.execution_error?.includes("error interno")) ? <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">Corrige el problema del sistema antes de reintentar.</p> : null}
         </div>
       ) : null}
       <div className="overflow-x-auto rounded-xl border bg-white">
@@ -334,12 +341,15 @@ export default async function BulkImportReviewPage({
                       pricing_result: row.pricing_result,
                     });
               const state = currentStates.get(row.id);
+              const executionFailed = row.execution_status === "FAILED";
               const receivedPrice =
                 row.original_payload["Precio propuesto"] ??
                 row.original_payload["Precio solicitado"] ??
                 "—";
               const tone = row.excluded
                 ? "border-muted bg-muted/30 text-muted-foreground"
+                : executionFailed
+                  ? "border-red-200 bg-red-50 text-red-900"
                 : state?.severity === "READY"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                   : state?.severity === "WARNING"
@@ -347,6 +357,8 @@ export default async function BulkImportReviewPage({
                     : "border-red-200 bg-red-50 text-red-900";
               const badge = row.excluded
                 ? "⚪ Excluida"
+                : executionFailed
+                  ? "🔴 Fallida"
                 : state?.severity === "READY"
                   ? "🟢 Lista"
                   : state?.severity === "WARNING"
@@ -385,7 +397,12 @@ export default async function BulkImportReviewPage({
                     </span>
                   </td>
                   <td className="max-w-sm p-3">
-                    {(state?.issues?.length ?? 0) > 0 ? state!.issues.map((issue) => (
+                    {executionFailed ? (
+                      <div className="mb-1 rounded border border-red-200 bg-red-50 p-2">
+                        <span className="mr-1 text-xs font-semibold">🔴 Error de creación</span>
+                        <span className="text-xs">{row.execution_error ?? "No se pudo crear el borrador de publicación para esta fila."}</span>
+                      </div>
+                    ) : (state?.issues?.length ?? 0) > 0 ? state!.issues.map((issue) => (
                       <div
                         key={`${issue.code}-${issue.field ?? ""}`}
                         className="mb-1 rounded border bg-white/70 p-2"
@@ -399,7 +416,7 @@ export default async function BulkImportReviewPage({
                         </span>
                         <span className="text-xs">{issue.message}</span>
                       </div>
-                    )) : row.execution_error || "—"}
+                    )) : "—"}
                   </td>
                   <td className="p-3">
                     <div className="grid gap-2">
@@ -516,6 +533,7 @@ export default async function BulkImportReviewPage({
                           jobId={jobId}
                           rowId={row.id}
                           manualResolution={row.manual_resolution}
+                          normalizedPayload={row.normalized_payload}
                         />
                       ) : null}
                     </div>

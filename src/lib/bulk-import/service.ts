@@ -230,6 +230,11 @@ export async function reviewBulkImportAction(formData: FormData) {
   if (reviewJob.data.status !== "READY_FOR_REVIEW") return { ok: false as const, message: "Reabre la revisión antes de editar una fila." };
   const row = await db(client, "bulk_import_rows").select("id,job_id,canonical_model_id,normalization_metadata,normalized_payload,validation_result,pricing_result,manual_resolution,severity,excluded,original_payload").eq("id", rowId).eq("job_id", jobId).maybeSingle();
   if (row.error || !row.data) return { ok: false as const, message: "No encontramos esta fila." };
+  if (action === "manual_resolution") {
+    const manualBrand = String(formData.get("manualBrand") ?? "").trim();
+    const manualModel = String(formData.get("manualModel") ?? "").trim();
+    if (!manualBrand || !manualModel) return { ok: false as const, message: "Escribe la marca y el modelo antes de aprobar un modelo manual." };
+  }
   if (action === "manual_price_resolution" && reviewJob.data.import_type === "PARTNER") {
     return { ok: false as const, message: "Revisa el precio Partner desde Editar fila." };
   }

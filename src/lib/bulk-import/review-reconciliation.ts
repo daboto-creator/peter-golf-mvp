@@ -9,7 +9,7 @@ const DERIVED_CODES = new Set([
 
 const MODEL_RESOLUTION_CODES = new Set(["UNKNOWN_MODEL", "AMBIGUOUS_MODEL_GENERATION", "MODEL_SUGGESTION"]);
 
-export function getManualModelResolution(value: Record<string, unknown> | null | undefined) {
+export function getManualModelResolution(value: Record<string, unknown> | null | undefined, fallback?: Record<string, unknown> | null) {
   const model = value?.model;
   if (model && typeof model === "object") {
     const approved = (model as Record<string, unknown>).approved === true;
@@ -21,6 +21,9 @@ export function getManualModelResolution(value: Record<string, unknown> | null |
   const brand = String(value?.brand ?? "").trim();
   const name = String(value?.model ?? "").trim();
   if (brand && name) return { approved: true, brand, model: name, modelYear: value?.modelYear ?? null };
+  const fallbackBrand = String(fallback?.brand ?? "").trim();
+  const fallbackModel = String(fallback?.model ?? "").trim();
+  if (fallbackBrand && fallbackModel) return { approved: false, brand: fallbackBrand, model: fallbackModel, modelYear: fallback?.modelYear ?? null };
   return null;
 }
 
