@@ -268,6 +268,11 @@ export async function executePartnerBulkImportAction(jobId: string) {
   if (job.data.import_type !== "PARTNER") return { ok: false as const, message: "Esta carga no corresponde a un Partner." };
   if (!job.data.partner_profile_id) return { ok: false as const, message: "La carga no tiene un Partner válido." };
   if (!["APPROVED_FOR_IMPORT", "PARTIALLY_IMPORTED", "FAILED_IMPORT"].includes(job.data.status)) return { ok: false as const, message: "La carga debe estar aprobada para crear borradores." };
+  if (job.data.status === "PARTIALLY_IMPORTED") {
+    const retryState = await db(client, "bulk_import_jobs").update({ status: "FAILED_IMPORT" }).eq("id", jobId).eq("status", "PARTIALLY_IMPORTED");
+    if (retryState.error) return { ok: false as const, message: "La importación ya está en proceso o no puede reintentarse." };
+    await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: "FAILED_ROWS_RETRY_STARTED", metadata: { actorId: user.id, domainType: "PARTNER_LISTING" } });
+  }
   // Additive migration is reflected in the next generated schema snapshot.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (client as any).rpc("execute_partner_bulk_import", { requested_job_id: jobId });

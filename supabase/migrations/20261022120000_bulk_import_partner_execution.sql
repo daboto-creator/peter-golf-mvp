@@ -47,7 +47,9 @@ begin
   if not found then raise exception 'Bulk import job not found' using errcode = 'P0002'; end if;
   if job.import_type <> 'PARTNER' then raise exception 'First Party jobs cannot use the Partner executor' using errcode = '42501'; end if;
   if job.partner_profile_id is null then raise exception 'Partner profile is required' using errcode = '22023'; end if;
-  if job.status in ('IMPORTING','IMPORTED','PARTIALLY_IMPORTED') then
+  -- An IMPORTED job is immutable; PARTIALLY_IMPORTED remains retryable for
+  -- failed rows only. Existing links make successful rows idempotent.
+  if job.status in ('IMPORTING','IMPORTED') then
     return jsonb_build_object('status',job.status,'imported',coalesce(job.imported_count,0),'skipped',coalesce(job.skipped_count,0),'failed',coalesce(job.failed_import_count,0));
   end if;
   if job.status not in ('APPROVED_FOR_IMPORT','FAILED_IMPORT') then raise exception 'Bulk import job is not approved' using errcode = '22023'; end if;
