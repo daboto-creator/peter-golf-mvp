@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { canApproveBulkImport, getFirstPartyBulkPricingReadiness } from "./review-policy";
+import { canApproveBulkImport, getFirstPartyBulkPricingReadiness, getPartnerBulkPricingReadiness } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
 
 describe("bulk import review approval", () => {
@@ -35,5 +35,11 @@ describe("bulk import review approval", () => {
     const result = reconcileCurrentRowState({ importType: "FIRST_PARTY", normalizedPayload: { category: null, acquisitionCostMinor: 100000 }, pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 100000 }, existingIssues: [] });
     expect(result.severity).toBe("ERROR");
     expect(result.issues[0]?.code).toBe("CATEGORY_REQUIRED");
+  });
+  test("Partner approval requires a current actionable price but never cost", () => {
+    const partner = { severity: "READY", normalized_payload: {}, pricing_result: { status: "COMPETITIVE", proposedPriceMinor: 250000 } };
+    expect(getPartnerBulkPricingReadiness(partner).ready).toBe(true);
+    expect(canApproveBulkImport([{ severity: "READY", normalized_payload: {}, pricing_result: { status: "INSUFFICIENT_DATA", proposedPriceMinor: 250000 } }], { importType: "PARTNER" })).toMatchObject({ allowed: false, code: "PRICING_REVIEW_REQUIRED" });
+    expect(canApproveBulkImport([partner], { importType: "PARTNER" })).toMatchObject({ allowed: true });
   });
 });

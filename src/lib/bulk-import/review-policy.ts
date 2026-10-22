@@ -14,6 +14,17 @@ export type FirstPartyPricingReadiness = {
   message?: string;
 };
 
+export type PartnerPricingReadiness = { ready: boolean; label: string; code: "READY" | "PRICING_REVIEW_REQUIRED" | "STALE_PRICING"; message?: string };
+
+export function getPartnerBulkPricingReadiness(row: ReviewApprovalRow): PartnerPricingReadiness {
+  const pricing = row.pricing_result ?? {};
+  const status = String(pricing.status ?? "");
+  const amount = Number(pricing.approvedPriceMinor ?? pricing.proposedPriceMinor ?? pricing.calculatedPublicPriceMinor ?? 0);
+  if (pricing.stale === true) return { ready: false, code: "STALE_PRICING", label: "Precio desactualizado", message: "El precio de esta fila requiere una nueva revisión." };
+  if (amount <= 0 || !["COMPETITIVE", "OVERPRICED", "UNDERPRICED"].includes(status)) return { ready: false, code: "PRICING_REVIEW_REQUIRED", label: "Requiere revisión de precio", message: "El precio de esta fila requiere una nueva revisión." };
+  return { ready: true, code: "READY", label: "Precio listo" };
+}
+
 export function getFirstPartyBulkPricingReadiness(row: ReviewApprovalRow): FirstPartyPricingReadiness {
   const pricing = row.pricing_result ?? {};
   const proposed = Number(pricing.proposedPriceMinor ?? pricing.approvedPriceMinor ?? 0);
@@ -43,6 +54,10 @@ export function canApproveBulkImport(rows: ReviewApprovalRow[], options: { impor
     const pricingBlocked = included.filter((row) => !isFirstPartyBulkRowPricingReady(row));
     if (pricingBlocked.length > 0) return { allowed: false as const, code: "PRICING_REVIEW_REQUIRED", pricingBlockedCount: pricingBlocked.length, message: `No puedes aprobar esta carga todavía. ${pricingBlocked.length} fila${pricingBlocked.length === 1 ? " requiere" : " requieren"} revisión de precio.` };
     if (included.some(hasCanonicalModelYearMismatch)) return { allowed: false as const, code: "MODEL_YEAR_MISMATCH", message: "El año recibido no coincide con la generación seleccionada. Selecciona otra generación o usa el modelo manual." };
+  }
+  if (options.importType === "PARTNER") {
+    const pricingBlocked = included.filter((row) => !getPartnerBulkPricingReadiness(row).ready);
+    if (pricingBlocked.length > 0) return { allowed: false as const, code: "PRICING_REVIEW_REQUIRED", pricingBlockedCount: pricingBlocked.length, message: `No puedes aprobar esta carga todavía. ${pricingBlocked.length} fila${pricingBlocked.length === 1 ? " requiere" : " requieren"} revisión de precio.` };
   }
   return { allowed: true as const, includedCount: included.length };
 }

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { executeFirstPartyBulkImportAction, reviewBulkImportAction } from "@/lib/bulk-import/service";
+import { executeFirstPartyBulkImportAction, executePartnerBulkImportAction, reviewBulkImportAction } from "@/lib/bulk-import/service";
 
 type State = Awaited<ReturnType<typeof reviewBulkImportAction>> | null;
 
@@ -35,6 +35,16 @@ export function BulkImportExecutionAction({ jobId, retry = false }: { jobId: str
     return result;
   }, null);
   return <form action={formAction} className="inline-flex flex-wrap items-center gap-2" onSubmit={(event) => { if (!window.confirm(retry ? "¿Reintentar las filas fallidas? Las filas importadas no se modificarán." : "¿Crear productos e inventario? Esta acción creará inventario real de Best Round.")) event.preventDefault(); }}><input type="hidden" name="jobId" value={jobId} /><Button type="submit" size="sm" disabled={pending}>{pending ? "Importando…" : retry ? "Reintentar filas fallidas" : "Crear productos e inventario"}</Button>{state && !state.ok ? <span className="text-xs text-destructive">{state.message}</span> : null}</form>;
+}
+
+export function BulkImportPartnerExecutionAction({ jobId, retry = false }: { jobId: string; retry?: boolean }) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState<State, FormData>(async (_previous, formData) => {
+    const result = await executePartnerBulkImportAction(String(formData.get("jobId") ?? ""));
+    if (result.ok) router.refresh();
+    return result;
+  }, null);
+  return <form action={formAction} className="inline-flex flex-wrap items-center gap-2" onSubmit={(event) => { if (!window.confirm(retry ? "¿Reintentar las filas fallidas? Los borradores existentes no se modificarán." : "¿Crear borradores de publicaciones? Esta acción no publicará automáticamente.")) event.preventDefault(); }}><input type="hidden" name="jobId" value={jobId} /><Button type="submit" size="sm" disabled={pending}>{pending ? "Creando borradores…" : retry ? "Reintentar filas fallidas" : "Crear borradores de publicaciones"}</Button>{state && !state.ok ? <span className="text-xs text-destructive">{state.message}</span> : null}</form>;
 }
 
 export function BulkImportManualPriceForm({ jobId, rowId, currentPrice }: { jobId: string; rowId: string; currentPrice?: number | null }) {

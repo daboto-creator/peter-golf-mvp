@@ -260,6 +260,27 @@ export async function executeFirstPartyBulkImportAction(jobId: string) {
   return { ok: true as const, message: summary.status === "IMPORTED" ? "La importación se completó correctamente." : "La importación terminó con algunas filas pendientes.", summary };
 }
 
+export async function executePartnerBulkImportAction(jobId: string) {
+  const { client, user } = await requireReviewOperator();
+  if (!user) return { ok: false as const, message: "No tienes autorización para crear borradores." };
+  const job = await db(client, "bulk_import_jobs").select("id,status,import_type,partner_profile_id").eq("id", jobId).maybeSingle();
+  if (job.error || !job.data) return { ok: false as const, message: "No encontramos esta carga." };
+  if (job.data.import_type !== "PARTNER") return { ok: false as const, message: "Esta carga no corresponde a un Partner." };
+  if (!job.data.partner_profile_id) return { ok: false as const, message: "La carga no tiene un Partner válido." };
+  if (!["APPROVED_FOR_IMPORT", "PARTIALLY_IMPORTED", "FAILED_IMPORT"].includes(job.data.status)) return { ok: false as const, message: "La carga debe estar aprobada para crear borradores." };
+  // Additive migration is reflected in the next generated schema snapshot.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any).rpc("execute_partner_bulk_import", { requested_job_id: jobId });
+  if (result.error || !result.data) {
+    console.error("partner_bulk_import_execution_failed", { jobId, actorId: user.id, code: result.error?.code, message: result.error?.message });
+    return { ok: false as const, message: "No pudimos crear los borradores. Revisa las filas e inténtalo de nuevo." };
+  }
+  revalidatePath(`/operacion/carga-masiva/${jobId}`);
+  revalidatePath("/operacion/publicaciones");
+  const summary = result.data as { status?: string; imported?: number; skipped?: number; failed?: number };
+  return { ok: true as const, message: summary.status === "IMPORTED" ? "Los borradores se crearon correctamente." : "La importación terminó con algunas filas pendientes.", summary };
+}
+
 export async function discardBulkImportJob(jobId: string) {
   const client = await createClient();
   const { data: { user } } = await client.auth.getUser();
