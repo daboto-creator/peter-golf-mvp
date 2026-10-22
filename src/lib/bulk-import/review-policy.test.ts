@@ -54,4 +54,21 @@ describe("bulk import review approval", () => {
     expect(result.severity).toBe("ERROR");
     expect(result.issues[0]?.message).toContain("precio público o un neto deseado");
   });
+  test.each(["PARTNER", "FIRST_PARTY"] as const)("approved manual model clears stale catalog errors for %s", (importType) => {
+    const result = reconcileCurrentRowState({
+      importType,
+      normalizedPayload: { category: "driver", acquisitionCostMinor: importType === "FIRST_PARTY" ? 100000 : undefined },
+      pricingResult: importType === "FIRST_PARTY" ? { status: "COMPETITIVE", proposedPriceMinor: 150000 } : { status: "COMPETITIVE", proposedPriceMinor: 150000 },
+      existingIssues: [{ code: "UNKNOWN_MODEL", severity: "ERROR", field: "model", message: "old" }],
+      manualResolution: { model: { approved: true, brand: "Cobra", model: "DarkSpeed X", modelYear: 2024 } },
+    });
+    expect(result.issues.some((issue) => issue.code === "UNKNOWN_MODEL")).toBe(false);
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: "MANUAL_MODEL_APPROVED", severity: "INFO" }));
+    expect(result.severity).toBe("READY");
+  });
+  test("unresolved model still blocks when no manual fallback is approved", () => {
+    const result = reconcileCurrentRowState({ importType: "PARTNER", normalizedPayload: { category: "driver" }, pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 150000 }, existingIssues: [{ code: "UNKNOWN_MODEL", severity: "ERROR", field: "model", message: "old" }] });
+    expect(result.severity).toBe("ERROR");
+    expect(result.issues.some((issue) => issue.code === "UNKNOWN_MODEL")).toBe(true);
+  });
 });

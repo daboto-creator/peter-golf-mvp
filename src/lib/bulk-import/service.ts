@@ -102,9 +102,14 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
   if (canonicalModelId) canonicalModelYear = references.find((model) => model.id === canonicalModelId)?.modelYear ?? null;
   const currentIssues = (Array.isArray(row.validation_result?.issues) ? row.validation_result.issues : []) as BulkIssue[];
   const modelIssues: BulkIssue[] = resolution.issue ? [{ severity: resolution.issue.code === "MODEL_SUGGESTION" ? "WARNING" : "ERROR", code: resolution.issue.code, field: "model", message: resolution.issue.message, details: resolution.issue.details }] : [];
-  const reconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult: row.pricing_result, existingIssues: [...currentIssues.filter((issue) => !["UNKNOWN_MODEL", "MODEL_SUGGESTION", "AMBIGUOUS_MODEL_GENERATION"].includes(issue.code)), ...modelIssues], canonicalModelYear });
+  const manualResolution = row.manual_resolution ?? null;
+  const reconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult: row.pricing_result, existingIssues: [...currentIssues.filter((issue) => !["UNKNOWN_MODEL", "MODEL_SUGGESTION", "AMBIGUOUS_MODEL_GENERATION"].includes(issue.code)), ...modelIssues], canonicalModelYear, manualResolution });
   let pricingResult = row.pricing_result ?? {};
-  const audit = { ...(row.manual_resolution ?? {}), edit: { actorId: userId, source: "BULK_REVIEW", at: new Date().toISOString(), previous: { acquisitionCostMinor: previous.acquisitionCostMinor, askingPriceMinor: previous.askingPriceMinor }, reviewed: { acquisitionCostMinor: next.acquisitionCostMinor, askingPriceMinor: next.askingPriceMinor } } };
+  const identityChanged = ["category", "modelYear"].some((field) => String(next[field] ?? "") !== String(previous[field] ?? ""));
+  const preservedManual = identityChanged
+    ? Object.fromEntries(Object.entries(manualResolution ?? {}).filter(([key]) => !["model", "brand", "modelYear"].includes(key)))
+    : manualResolution ?? {};
+  const audit = { ...preservedManual, edit: { actorId: userId, source: "BULK_REVIEW", at: new Date().toISOString(), previous: { acquisitionCostMinor: previous.acquisitionCostMinor, askingPriceMinor: previous.askingPriceMinor }, reviewed: { acquisitionCostMinor: next.acquisitionCostMinor, askingPriceMinor: next.askingPriceMinor } } };
   if (costChanged) pricingResult = { ...pricingResult, status: "INSUFFICIENT_DATA", proposedPriceMinor: null, approvedPriceMinor: null, stale: true, manualPriceApproved: false, manualOverride: false, viability: "Requiere nuevo análisis" };
   if (importType === "PARTNER" && (priceChanged || desiredNetChanged)) {
     const config = await loadMarketplaceEconomicsConfig(_client, partnerId);
@@ -118,7 +123,7 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
     }
   }
   if (importType === "FIRST_PARTY" && priceChanged && Number(next.askingPriceMinor) > 0 && !costChanged) pricingResult = { ...pricingResult, status: pricingResult.status ?? "INSUFFICIENT_DATA", proposedPriceMinor: Number(next.askingPriceMinor), approvedPriceMinor: Number(next.askingPriceMinor), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Edición de precio en revisión"), stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
-  const finalReconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult, existingIssues: reconciled.issues, canonicalModelYear });
+  const finalReconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult, existingIssues: reconciled.issues, canonicalModelYear, manualResolution: identityChanged ? preservedManual : manualResolution });
   return { normalized_payload: next, canonical_model_id: canonicalModelId, pricing_result: pricingResult, validation_result: { ...(row.validation_result ?? {}), issues: finalReconciled.issues, modelCandidates: resolution.candidates.map((candidate) => ({ id: candidate.id, name: candidate.modelName, modelYear: candidate.modelYear })) }, severity: finalReconciled.severity, manual_resolution: audit, reviewed_by: userId, reviewed_at: new Date().toISOString() };
 }
 
@@ -238,7 +243,7 @@ export async function reviewBulkImportAction(formData: FormData) {
       : action === "accept_normalization"
         ? { normalization_accepted: true, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
         : action === "manual_resolution"
-          ? { manual_resolution: { brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: String(formData.get("manualYear") ?? "") || null }, normalized_payload: { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: Number(formData.get("manualYear")) || null }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          ? { manual_resolution: { ...(row.data.manual_resolution ?? {}), model: { approved: true, brand: String(formData.get("manualBrand") ?? "").trim(), model: String(formData.get("manualModel") ?? "").trim(), modelYear: Number(formData.get("manualYear")) || null, actorId: user.id, source: "BULK_REVIEW", approvedAt: new Date().toISOString() } }, canonical_model_id: null, normalized_payload: { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? "").trim(), model: String(formData.get("manualModel") ?? "").trim(), modelYear: Number(formData.get("manualYear")) || null }, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => !["UNKNOWN_MODEL", "AMBIGUOUS_MODEL_GENERATION", "MODEL_SUGGESTION"].includes(String(issue.code))) }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "resolve_model" && candidate
             ? { canonical_model_id: candidate.id, normalized_payload: { ...row.data.normalized_payload, model: candidate.name, modelYear: candidate.modelYear ?? row.data.normalized_payload.modelYear }, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => issue.code !== "AMBIGUOUS_MODEL_GENERATION" && issue.code !== "UNKNOWN_MODEL" && issue.code !== "MODEL_SUGGESTION") }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "use_canonical_year"
@@ -265,7 +270,8 @@ export async function reviewBulkImportAction(formData: FormData) {
       const model = await client.from("catalog_product_models").select("model_year").eq("id", canonicalId).maybeSingle();
       canonicalModelYear = (model.data as unknown as { model_year: number | null } | null)?.model_year ?? null;
     }
-    const reconciliation = reconcileCurrentRowState({ importType: reviewJob.data.import_type, normalizedPayload: resultingPayload, pricingResult: resultingPricing, existingIssues: Array.isArray(row.data.validation_result?.issues) ? row.data.validation_result.issues : [], canonicalModelYear });
+    const resultingManualResolution = (patch as Record<string, unknown>)?.manual_resolution as Record<string, unknown> | undefined ?? row.data.manual_resolution ?? null;
+    const reconciliation = reconcileCurrentRowState({ importType: reviewJob.data.import_type, normalizedPayload: resultingPayload, pricingResult: resultingPricing, existingIssues: Array.isArray(row.data.validation_result?.issues) ? row.data.validation_result.issues : [], canonicalModelYear, manualResolution: resultingManualResolution });
     patch = { ...patch, validation_result: { ...(row.data.validation_result ?? {}), issues: reconciliation.issues }, severity: reconciliation.severity } as typeof patch;
   }
   const updated = await db(client, "bulk_import_rows").update(patch as Record<string, unknown>).eq("id", rowId).eq("job_id", jobId);

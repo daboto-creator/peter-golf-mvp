@@ -34,6 +34,7 @@ type ReviewRow = {
   original_payload: Record<string, unknown>;
   normalized_payload: Record<string, unknown>;
   normalization_metadata: Record<string, unknown>;
+  manual_resolution?: Record<string, unknown> | null;
   validation_result: {
     issues?: Array<{
       code: string;
@@ -97,6 +98,7 @@ export default async function BulkImportReviewPage({
         pricingResult: row.pricing_result,
         existingIssues: row.validation_result?.issues ?? [],
         canonicalModelYear: row.canonical_model_year,
+        manualResolution: row.manual_resolution,
       }),
     ]),
   );
@@ -483,10 +485,12 @@ export default async function BulkImportReviewPage({
                               : `$${(Number(row.pricing_result.proposedPriceMinor) / 100).toFixed(2)}`}
                           </p>
                           <p>
-                            <strong>Catálogo:</strong>{" "}
+                            <strong>Referencia:</strong>{" "}
                             {row.canonical_model_id
-                              ? `Modelo canónico (${row.canonical_model_year ?? "año no especificado"})`
-                              : "Modelo manual"}
+                              ? `Modelo del catálogo (${row.canonical_model_year ?? "año no especificado"})`
+                              : row.manual_resolution?.model || (row.manual_resolution?.brand && row.manual_resolution?.model)
+                                ? "Modelo manual"
+                                : "Sin resolver"}
                           </p>
                           <p>
                             <strong>Pricing:</strong>{" "}
@@ -511,6 +515,7 @@ export default async function BulkImportReviewPage({
                         <BulkImportManualFallbackForm
                           jobId={jobId}
                           rowId={row.id}
+                          manualResolution={row.manual_resolution}
                         />
                       ) : null}
                     </div>

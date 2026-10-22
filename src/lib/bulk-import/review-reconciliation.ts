@@ -4,7 +4,25 @@ import { getFirstPartyBulkPricingReadiness, getPartnerBulkPricingReadiness, hasC
 const DERIVED_CODES = new Set([
   "INSUFFICIENT_DATA", "PRICING_REVIEW_REQUIRED", "MISSING_APPROVED_PRICE", "STALE_PRICING",
   "MISSING_ACQUISITION_COST", "AMBIGUOUS_CATEGORY", "UNKNOWN_CATEGORY", "CATEGORY_REQUIRED", "MODEL_YEAR_MISMATCH", "PARTNER_PRICING_REVIEW_REQUIRED", "PARTNER_STALE_PRICING", "PARTNER_MARKET_WARNING",
+  "MANUAL_MODEL_APPROVED",
 ]);
+
+const MODEL_RESOLUTION_CODES = new Set(["UNKNOWN_MODEL", "AMBIGUOUS_MODEL_GENERATION", "MODEL_SUGGESTION"]);
+
+export function getManualModelResolution(value: Record<string, unknown> | null | undefined) {
+  const model = value?.model;
+  if (model && typeof model === "object") {
+    const approved = (model as Record<string, unknown>).approved === true;
+    const brand = String((model as Record<string, unknown>).brand ?? "").trim();
+    const name = String((model as Record<string, unknown>).model ?? "").trim();
+    if (approved && brand && name) return { ...model as Record<string, unknown>, approved: true, brand, model: name };
+  }
+  // Backward-compatible recognition for rows saved by the first fallback UI.
+  const brand = String(value?.brand ?? "").trim();
+  const name = String(value?.model ?? "").trim();
+  if (brand && name) return { approved: true, brand, model: name, modelYear: value?.modelYear ?? null };
+  return null;
+}
 
 export function reconcileCurrentRowState(input: {
   importType: BulkImportType;
@@ -12,8 +30,10 @@ export function reconcileCurrentRowState(input: {
   pricingResult: Record<string, unknown> | null | undefined;
   existingIssues: BulkIssue[];
   canonicalModelYear?: number | null;
+  manualResolution?: Record<string, unknown> | null;
 }): { issues: BulkIssue[]; severity: BulkRowSeverity } {
-  const issues = input.existingIssues.filter((issue) => !DERIVED_CODES.has(issue.code));
+  const manualModel = getManualModelResolution(input.manualResolution);
+  const issues = input.existingIssues.filter((issue) => !DERIVED_CODES.has(issue.code) && !(manualModel && MODEL_RESOLUTION_CODES.has(issue.code)));
   const category = String(input.normalizedPayload.category ?? "").trim();
   if (!category) issues.push({ severity: "ERROR", code: "CATEGORY_REQUIRED", field: "category", message: "Selecciona una categoría antes de importar." });
   if (input.importType === "FIRST_PARTY") {
@@ -28,6 +48,7 @@ export function reconcileCurrentRowState(input: {
   if (hasCanonicalModelYearMismatch({ canonicalModelYear: input.canonicalModelYear, normalizedModelYear: Number(input.normalizedPayload.modelYear) || null })) {
     issues.push({ severity: "ERROR", code: "MODEL_YEAR_MISMATCH", field: "modelYear", message: `El año recibido (${input.normalizedPayload.modelYear}) no coincide con la generación seleccionada (${input.canonicalModelYear}).` });
   }
+  if (manualModel) issues.push({ severity: "INFO", code: "MANUAL_MODEL_APPROVED", field: "model", message: `Modelo manual aprobado: ${manualModel.brand} ${manualModel.model}.` });
   const severity = issues.some((issue) => issue.severity === "ERROR") ? "ERROR" : issues.some((issue) => issue.severity === "WARNING") ? "WARNING" : "READY";
   return { issues, severity };
 }
