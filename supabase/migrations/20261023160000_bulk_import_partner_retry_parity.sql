@@ -46,7 +46,8 @@ begin
          or coalesce(nullif(v_pricing->'economics'->>'processingTotalMinor','')::numeric, -1) < 0
          or coalesce(nullif(v_pricing->'economics'->>'adminPercentageFeeMinor','')::numeric, -1) < 0
          or coalesce(nullif(v_pricing->'economics'->>'adminFixedFeeMinor','')::numeric, -1) < 0
-         or coalesce(nullif(v_pricing->'economics'->>'estimatedBestRoundRevenueMinor','')::numeric, -1) < 0 then
+         or coalesce(nullif(v_pricing->'economics'->>'estimatedBestRoundRevenueMinor','')::numeric, -1) < 0
+         or coalesce(v_pricing->'economics'->>'meetsMinimumMarketplaceRevenue', 'true') = 'false' then
         raise exception 'Marketplace economics are invalid' using errcode='22023';
       end if;
       v_failure_category := 'MANUAL_MODEL_APPROVAL_REQUIRED';
