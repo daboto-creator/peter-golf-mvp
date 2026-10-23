@@ -289,10 +289,16 @@ export default async function BulkImportReviewPage({
       </div>
       {imported ? (
         <div className="rounded-xl border bg-white p-4">
-          <h2 className="font-semibold">{job.status === "FAILED_IMPORT" ? "Importación fallida" : job.import_type === "PARTNER" ? "Resultados de publicaciones" : "Resultados de importación"}</h2>
-          <p className="mt-1 text-sm font-medium">{importedRows.length} borradores creados · {skippedRows.length} omitidos · {failedRows.length} filas fallidas{job.status === "PARTIALLY_IMPORTED" ? ` · ${retryReadyRows.length > 0 ? retryReadyRows.length + " listas para reintentar" : failedRows.length + " pendientes de corrección"}` : ""}</p>
+          <h2 className="font-semibold">{job.status === "FAILED_IMPORT" ? "Importación fallida" : job.import_type === "PARTNER" ? "Resultados de publicaciones" : "Resultados de productos"}</h2>
+          <p className="mt-1 text-sm font-medium">{importedRows.length} {job.import_type === "PARTNER" ? "borradores" : "productos"} creados · {skippedRows.length} omitidos · {failedRows.length} filas fallidas{job.status === "PARTIALLY_IMPORTED" ? ` · ${retryReadyRows.length > 0 ? retryReadyRows.length + " listas para reintentar" : failedRows.length + " pendientes de corrección"}` : ""}</p>
           <p className="text-muted-foreground mt-1 text-sm">
-            {importedRows.length === 0 ? "No se crearon borradores en esta ejecución." : "Los borradores deben revisarse y aprobarse antes de publicarse."}
+            {importedRows.length === 0
+              ? job.import_type === "PARTNER"
+                ? "No se crearon borradores en esta ejecución."
+                : "No se crearon productos en esta ejecución."
+              : job.import_type === "PARTNER"
+                ? "Los borradores deben revisarse y aprobarse antes de publicarse."
+                : "Los productos se crearon en estado de preparación y deben revisarse antes de activarse."}
           </p>
           <div className="mt-3 grid gap-2 text-sm">
             {reviewRows
