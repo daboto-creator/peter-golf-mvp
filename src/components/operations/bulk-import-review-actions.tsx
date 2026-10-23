@@ -60,7 +60,7 @@ export function BulkImportManualPriceForm({ jobId, rowId, currentPrice }: { jobI
   return <form action={formAction} className="grid gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3"><input type="hidden" name="action" value="manual_price_resolution" /><input type="hidden" name="jobId" value={jobId} /><input type="hidden" name="rowId" value={rowId} /><p className="text-xs font-semibold">Revisar precio</p><input name="approvedPrice" defaultValue={currentPrice == null ? "" : (currentPrice / 100).toFixed(2)} inputMode="decimal" placeholder="Precio de venta (MXN)" className="h-9 rounded-lg border px-2 text-sm" /><input name="reason" placeholder="Motivo (opcional)" className="h-9 rounded-lg border px-2 text-sm" /><Button type="submit" size="sm" variant="outline" disabled={pending}>{pending ? "Guardando…" : "Aprobar precio manualmente"}</Button>{state && !state.ok ? <span className="text-xs text-destructive">{state.message}</span> : null}</form>;
 }
 
-export function BulkImportEditRowForm({ jobId, rowId, row, currentPrice, importType = "FIRST_PARTY" }: { jobId: string; rowId: string; row: Record<string, unknown>; currentPrice?: number | null; importType?: "FIRST_PARTY" | "PARTNER" }) {
+export function BulkImportEditRowForm({ jobId, rowId, row, currentPrice, pricingResult, importType = "FIRST_PARTY" }: { jobId: string; rowId: string; row: Record<string, unknown>; currentPrice?: number | null; pricingResult?: Record<string, unknown> | null; importType?: "FIRST_PARTY" | "PARTNER" }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<State, FormData>(async (_previous, formData) => {
     const result = await reviewBulkImportAction(formData);
@@ -70,6 +70,8 @@ export function BulkImportEditRowForm({ jobId, rowId, row, currentPrice, importT
   const price = Number(currentPrice ?? row.askingPriceMinor ?? 0);
   const cost = Number(row.acquisitionCostMinor ?? 0);
   const desiredNet = Number(row.desiredNetMinor ?? 0);
+  const calculated = Number(pricingResult?.approvedPriceMinor ?? pricingResult?.calculatedPublicPriceMinor ?? pricingResult?.proposedPriceMinor ?? 0);
+  const estimatedNet = Number(pricingResult?.estimatedPartnerNetMinor ?? 0);
   return <details className="rounded-lg border p-3">
     <summary className="cursor-pointer text-xs font-semibold underline">Editar fila</summary>
     <form action={formAction} className="mt-2 grid gap-2">
@@ -83,8 +85,9 @@ export function BulkImportEditRowForm({ jobId, rowId, row, currentPrice, importT
         <label className="text-xs">Condición<select name="condition" defaultValue={String(row.condition ?? "")} className="mt-1 h-9 w-full rounded-lg border px-2 text-sm"><option value="new">Nuevo</option><option value="used">Usado</option></select></label>
         <label className="text-xs">Mano<select name="hand" defaultValue={String(row.hand ?? "")} className="mt-1 h-9 w-full rounded-lg border px-2 text-sm"><option value="RIGHT">Derecho</option><option value="LEFT">Izquierdo</option></select></label>
       </div>
+      {importType === "PARTNER" && calculated > 0 ? <p className="text-xs text-muted-foreground">Precio público calculado: ${(calculated / 100).toFixed(2)}{estimatedNet > 0 ? ` · Neto estimado Partner: $${(estimatedNet / 100).toFixed(2)}` : ""}</p> : null}
       <label className="text-xs">Clave fotos<input name="photoKey" defaultValue={String(row.photoKey ?? "")} className="mt-1 h-9 w-full rounded-lg border px-2 text-sm" /></label>
-      <input name="reason" placeholder="Motivo de cambio (opcional)" className="h-9 rounded-lg border px-2 text-sm" /><Button type="submit" size="sm" variant="outline" disabled={pending}>{pending ? "Guardando…" : "Guardar cambios"}</Button>{state && !state.ok ? <span className="text-xs text-destructive">{state.message}</span> : null}
+      <input name="reason" placeholder="Motivo de cambio (opcional)" className="h-9 rounded-lg border px-2 text-sm" /><Button type="submit" size="sm" variant="outline" disabled={pending}>{pending ? "Guardando…" : importType === "PARTNER" ? "Recalcular y aprobar precio" : "Guardar cambios"}</Button>{state && !state.ok ? <span className="text-xs text-destructive">{state.message}</span> : null}
     </form>
   </details>;
 }

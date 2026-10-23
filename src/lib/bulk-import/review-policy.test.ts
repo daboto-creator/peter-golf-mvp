@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { canApproveBulkImport, getFirstPartyBulkPricingReadiness, getPartnerBulkPricingReadiness } from "./review-policy";
+import { canApproveBulkImport, getDisplayedReviewedPriceMinor, getFirstPartyBulkPricingReadiness, getPartnerBulkPricingReadiness, shouldRecalculatePartnerPricing } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
 
 describe("bulk import review approval", () => {
@@ -53,6 +53,18 @@ describe("bulk import review approval", () => {
     const result = reconcileCurrentRowState({ importType: "PARTNER", normalizedPayload: { category: "fairway-wood" }, pricingResult: { status: "INSUFFICIENT_DATA" }, existingIssues: [] });
     expect(result.severity).toBe("ERROR");
     expect(result.issues[0]?.message).toContain("precio público o un neto deseado");
+  });
+  test("same Partner public price still recalculates unresolved pricing", () => {
+    expect(shouldRecalculatePartnerPricing({ pricingSubmitted: true, priceChanged: false, desiredNetChanged: false, normalizedPayload: { askingPriceMinor: 1051000 }, pricingResult: { status: "INSUFFICIENT_DATA", humanReviewStatus: "APPROVED", manualPriceApproved: false, approvedPriceMinor: 1004435, calculatedPublicPriceMinor: 1004435, stale: false } })).toBe(true);
+  });
+  test("same desired Partner net still recalculates unresolved pricing", () => {
+    expect(shouldRecalculatePartnerPricing({ pricingSubmitted: true, priceChanged: false, desiredNetChanged: false, normalizedPayload: { askingPriceMinor: 1051000, desiredNetMinor: 800000 }, pricingResult: { status: "INSUFFICIENT_DATA", humanReviewStatus: "APPROVED", manualPriceApproved: false, approvedPriceMinor: 1004435, stale: false } })).toBe(true);
+  });
+  test("already-ready unchanged Partner pricing is a no-op", () => {
+    expect(shouldRecalculatePartnerPricing({ pricingSubmitted: true, priceChanged: false, desiredNetChanged: false, normalizedPayload: { askingPriceMinor: 1051000 }, pricingResult: { status: "COMPETITIVE", humanReviewStatus: "APPROVED", manualPriceApproved: true, approvedPriceMinor: 1051000, stale: false } })).toBe(false);
+  });
+  test("display uses approved/calculated value before proposed or input", () => {
+    expect(getDisplayedReviewedPriceMinor({ proposedPriceMinor: null, approvedPriceMinor: 1004435, calculatedPublicPriceMinor: 1004435 }, { askingPriceMinor: 1051000 })).toBe(1004435);
   });
   test.each(["PARTNER", "FIRST_PARTY"] as const)("approved manual model clears stale catalog errors for %s", (importType) => {
     const result = reconcileCurrentRowState({

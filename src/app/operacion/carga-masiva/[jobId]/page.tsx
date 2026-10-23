@@ -14,6 +14,7 @@ import {
   getFirstPartyBulkPricingReadiness,
   getPartnerBulkPricingReadiness,
   hasCanonicalModelYearMismatch,
+  getDisplayedReviewedPriceMinor,
 } from "@/lib/bulk-import/review-policy";
 import { reconcileCurrentRowState } from "@/lib/bulk-import/review-reconciliation";
 import { canEditBulkRow, isBulkRowRetryReady } from "@/lib/bulk-import/row-execution-policy";
@@ -405,9 +406,9 @@ export default async function BulkImportReviewPage({
                       : ""}
                   </td>
                   <td className="p-3">
-                    {row.pricing_result?.proposedPriceMinor == null
+                    {getDisplayedReviewedPriceMinor(row.pricing_result, row.normalized_payload) == null
                       ? "—"
-                      : `$${(Number(row.pricing_result.proposedPriceMinor) / 100).toFixed(2)}`}
+                      : `$${(getDisplayedReviewedPriceMinor(row.pricing_result, row.normalized_payload)! / 100).toFixed(2)}`}
                     <span className="text-muted-foreground block text-xs">
                       {pricing.label}
                     </span>
@@ -481,6 +482,7 @@ export default async function BulkImportReviewPage({
                           jobId={jobId}
                           rowId={row.id}
                           row={row.normalized_payload}
+                          pricingResult={row.pricing_result}
                           importType={job.import_type}
                         />
                       ) : null}
@@ -511,9 +513,9 @@ export default async function BulkImportReviewPage({
                             <strong>Precio recibido:</strong>{" "}
                             {String(receivedPrice)} ·{" "}
                             <strong>Precio revisado:</strong>{" "}
-                            {row.pricing_result?.proposedPriceMinor == null
+                            {getDisplayedReviewedPriceMinor(row.pricing_result, row.normalized_payload) == null
                               ? "—"
-                              : `$${(Number(row.pricing_result.proposedPriceMinor) / 100).toFixed(2)}`}
+                              : `$${(getDisplayedReviewedPriceMinor(row.pricing_result, row.normalized_payload)! / 100).toFixed(2)}`}
                           </p>
                           <p>
                             <strong>Referencia:</strong>{" "}

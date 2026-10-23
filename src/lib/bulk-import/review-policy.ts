@@ -25,7 +25,7 @@ export function getPartnerBulkPricingReadiness(row: ReviewApprovalRow): PartnerP
   const marketUnavailable = status === "INSUFFICIENT_DATA";
   const manuallyResolved = pricing.manualPriceApproved === true || pricing.humanReviewStatus === "APPROVED";
   if (marketUnavailable && manuallyResolved) return { ready: true, warning: true, code: "READY", label: "Precio listo · mercado limitado", message: "No encontramos suficiente referencia de mercado. El precio fue aprobado manualmente." };
-  if (marketUnavailable || !["COMPETITIVE", "OVERPRICED", "UNDERPRICED"].includes(status)) return { ready: false, warning: false, code: "PRICING_REVIEW_REQUIRED", label: "Requiere revisión de precio", message: "Revisa el precio público o el neto deseado antes de aprobar." };
+  if (marketUnavailable || !["COMPETITIVE", "OVERPRICED", "UNDERPRICED"].includes(status)) return { ready: false, warning: false, code: "PRICING_REVIEW_REQUIRED", label: "Precio pendiente de aprobación", message: amount > 0 ? "El precio tiene valores calculados, pero la aprobación manual no quedó registrada." : "Revisa el precio público o el neto deseado antes de aprobar." };
   return { ready: true, warning: status !== "COMPETITIVE", code: "READY", label: "Precio listo", message: status === "COMPETITIVE" ? undefined : "El precio tiene una desviación frente al mercado." };
 }
 
@@ -44,6 +44,29 @@ export function getFirstPartyBulkPricingReadiness(row: ReviewApprovalRow): First
 
 export function isFirstPartyBulkRowPricingReady(row: ReviewApprovalRow) {
   return getFirstPartyBulkPricingReadiness(row).ready;
+}
+
+export function getDisplayedReviewedPriceMinor(pricingResult: Record<string, unknown> | null | undefined, normalizedPayload?: Record<string, unknown> | null) {
+  const pricing = pricingResult ?? {};
+  for (const value of [pricing.approvedPriceMinor, pricing.calculatedPublicPriceMinor, pricing.proposedPriceMinor, normalizedPayload?.askingPriceMinor]) {
+    const amount = Number(value);
+    if (Number.isSafeInteger(amount) && amount > 0) return amount;
+  }
+  return null;
+}
+
+export function shouldRecalculatePartnerPricing(input: {
+  pricingSubmitted: boolean;
+  priceChanged: boolean;
+  desiredNetChanged: boolean;
+  normalizedPayload: Record<string, unknown>;
+  pricingResult: Record<string, unknown> | null | undefined;
+}) {
+  if (!input.pricingSubmitted) return false;
+  const pricing = input.pricingResult ?? {};
+  const readiness = getPartnerBulkPricingReadiness({ normalized_payload: input.normalizedPayload, pricing_result: pricing });
+  const unresolved = !readiness.ready || pricing.manualPriceApproved !== true || pricing.humanReviewStatus !== "APPROVED" || pricing.stale === true || Number(pricing.approvedPriceMinor ?? pricing.calculatedPublicPriceMinor ?? pricing.proposedPriceMinor ?? 0) <= 0;
+  return input.priceChanged || input.desiredNetChanged || unresolved;
 }
 
 export function hasCanonicalModelYearMismatch(row: ReviewApprovalRow) {

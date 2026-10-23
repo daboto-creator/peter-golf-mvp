@@ -7,7 +7,7 @@ import { buildBulkPreview } from "./preview";
 import type { BulkImportType, BulkIssue, CatalogModelReference } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { canDiscardBulkImportJob } from "./discard-policy";
-import { canApproveBulkImport } from "./review-policy";
+import { canApproveBulkImport, getFirstPartyBulkPricingReadiness, shouldRecalculatePartnerPricing } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
 import { canEditBulkRow } from "./row-execution-policy";
 import { normalizeCategory, normalizeCondition, normalizeHand, normalizeYear, parseMoneyToMinorUnits, resolveModelWithinContext } from "./normalization";
@@ -89,6 +89,7 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
   const parsedDesiredNetMinor = desiredNetRaw ? Number(parseMoneyToMinorUnits(desiredNetRaw).value ?? 0) : null;
   const priceChanged = parsedPriceMinor !== null && parsedPriceMinor !== Number(previous.askingPriceMinor ?? 0);
   const desiredNetChanged = parsedDesiredNetMinor !== null && parsedDesiredNetMinor !== Number(previous.desiredNetMinor ?? 0);
+  const pricingSubmitted = priceRaw !== "" || desiredNetRaw !== "";
   if (costChanged) set("acquisitionCostMinor", Number(parseMoneyToMinorUnits(costRaw).value ?? 0));
   if (parsedPriceMinor !== null) set("askingPriceMinor", parsedPriceMinor);
   if (importType === "PARTNER" && parsedDesiredNetMinor !== null) set("desiredNetMinor", parsedDesiredNetMinor);
@@ -112,18 +113,22 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
     : manualResolution ?? {};
   const audit = { ...preservedManual, edit: { actorId: userId, source: "BULK_REVIEW", at: new Date().toISOString(), previous: { acquisitionCostMinor: previous.acquisitionCostMinor, askingPriceMinor: previous.askingPriceMinor }, reviewed: { acquisitionCostMinor: next.acquisitionCostMinor, askingPriceMinor: next.askingPriceMinor } } };
   if (costChanged) pricingResult = { ...pricingResult, status: "INSUFFICIENT_DATA", proposedPriceMinor: null, approvedPriceMinor: null, stale: true, manualPriceApproved: false, manualOverride: false, viability: "Requiere nuevo análisis" };
-  if (importType === "PARTNER" && (priceChanged || desiredNetChanged)) {
+  const pricingBeforeEdit = row.pricing_result ?? {};
+  const pricingNeedsReview = importType === "PARTNER"
+    ? shouldRecalculatePartnerPricing({ pricingSubmitted, priceChanged, desiredNetChanged, normalizedPayload: previous, pricingResult: pricingBeforeEdit })
+    : !getFirstPartyBulkPricingReadiness({ normalized_payload: previous, pricing_result: pricingBeforeEdit }).ready || pricingBeforeEdit.manualPriceApproved !== true || pricingBeforeEdit.humanReviewStatus !== "APPROVED";
+  if (importType === "PARTNER" && pricingNeedsReview) {
     const config = await loadMarketplaceEconomicsConfig(_client, partnerId);
     const requestedPublic = Number(next.askingPriceMinor) > 0 ? Number(next.askingPriceMinor) : null;
     const requestedNet = Number(next.desiredNetMinor) > 0 ? Number(next.desiredNetMinor) : null;
     if (config && (requestedPublic !== null || requestedNet !== null)) {
-      const inputMode = desiredNetChanged && !priceChanged ? "NET_PRIORITY" : "PUBLIC_PRICE_PRIORITY";
+      const inputMode = desiredNetChanged && !priceChanged ? "NET_PRIORITY" : String(pricingResult.inputMode ?? "PUBLIC_PRICE_PRIORITY") === "NET_PRIORITY" && !priceChanged ? "NET_PRIORITY" : "PUBLIC_PRICE_PRIORITY";
       const resolution = resolveMarketplacePrice({ inputMode, desiredPublicPriceMinor: requestedPublic, desiredPartnerNetMinor: requestedNet, config });
       const marketStatus = String(pricingResult.marketStatus ?? pricingResult.status ?? "INSUFFICIENT_DATA");
       pricingResult = { ...pricingResult, status: marketStatus, marketStatus, proposedPriceMinor: resolution.calculatedPublicPriceMinor, approvedPriceMinor: resolution.calculatedPublicPriceMinor, calculatedPublicPriceMinor: resolution.calculatedPublicPriceMinor, estimatedPartnerNetMinor: resolution.economics.partnerNetMinor, economics: resolution.economics, manualPriceApproved: true, manualOverride: true, humanReviewStatus: "APPROVED", manualPriceReason: String(formData.get("reason") ?? "Revisión de precio Partner"), stale: false, viability: marketStatus === "INSUFFICIENT_DATA" ? "Referencia de mercado insuficiente" : marketStatus };
     }
   }
-  if (importType === "FIRST_PARTY" && priceChanged && Number(next.askingPriceMinor) > 0 && !costChanged) pricingResult = { ...pricingResult, status: pricingResult.status ?? "INSUFFICIENT_DATA", proposedPriceMinor: Number(next.askingPriceMinor), approvedPriceMinor: Number(next.askingPriceMinor), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Edición de precio en revisión"), stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
+  if (importType === "FIRST_PARTY" && pricingSubmitted && Number(next.askingPriceMinor) > 0 && !costChanged && pricingNeedsReview) pricingResult = { ...pricingResult, status: pricingResult.status ?? "INSUFFICIENT_DATA", proposedPriceMinor: Number(next.askingPriceMinor), approvedPriceMinor: Number(next.askingPriceMinor), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Edición de precio en revisión"), stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
   const finalReconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult, existingIssues: reconciled.issues, canonicalModelYear, manualResolution: identityChanged ? preservedManual : manualResolution });
   return { normalized_payload: next, canonical_model_id: canonicalModelId, pricing_result: pricingResult, validation_result: { ...(row.validation_result ?? {}), issues: finalReconciled.issues, modelCandidates: resolution.candidates.map((candidate) => ({ id: candidate.id, name: candidate.modelName, modelYear: candidate.modelYear })) }, severity: finalReconciled.severity, manual_resolution: audit, reviewed_by: userId, reviewed_at: new Date().toISOString() };
 }
