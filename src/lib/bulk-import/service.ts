@@ -328,13 +328,13 @@ export async function executeFirstPartyBulkImportAction(jobId: string) {
   const result = await (client as any).rpc("execute_first_party_bulk_import", { requested_job_id: jobId });
   if (result.error || !result.data) {
     console.error("bulk_import_execution_failed", { jobId, actorId: user.id, code: result.error?.code, message: result.error?.message });
-    return { ok: false as const, message: "No pudimos importar esta carga. Revisa las filas e inténtalo de nuevo." };
+    return { ok: false as const, message: "No pudimos crear los productos de esta carga. Revisa las filas e inténtalo de nuevo." };
   }
   revalidatePath(`/operacion/carga-masiva/${jobId}`);
   revalidatePath("/operacion/catalogo");
   revalidatePath("/operacion/inventario");
   const summary = result.data as { status?: string; imported?: number; skipped?: number; failed?: number };
-  return { ok: true as const, message: summary.status === "IMPORTED" ? "La importación se completó correctamente." : "La importación terminó con algunas filas pendientes.", summary };
+  return { ok: true as const, message: summary.status === "IMPORTED" ? "Los productos se crearon correctamente." : "La importación terminó con algunos productos pendientes.", summary };
 }
 
 export async function executePartnerBulkImportAction(jobId: string) {
