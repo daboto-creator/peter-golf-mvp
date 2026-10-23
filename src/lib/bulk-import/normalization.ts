@@ -244,7 +244,7 @@ export function resolveModelWithinContext(input: { row: NormalizedBulkRow; model
   if (candidates.length === 0) return { modelId: null, candidates: [], issue: { code: "UNKNOWN_MODEL", message: `No encontramos '${row.normalized.model}' en el catálogo.` } };
   const fuzzy = candidates.filter((model) => compact(model.modelName).includes(target) || target.includes(compact(model.modelName)));
   if (fuzzy.length === 1) {
-    const inferredCategory = row.fields.category.code?.startsWith("AUTO_CATEGORY_");
+    const inferredCategory = row.fields?.category?.code?.startsWith("AUTO_CATEGORY_") === true;
     const candidateName = compact(fuzzy[0].modelName);
     if (inferredCategory && target.startsWith(candidateName)) return { modelId: fuzzy[0].id, candidates: fuzzy };
     return { modelId: null, candidates: fuzzy, issue: { code: "MODEL_SUGGESTION", message: `Sugerimos ${fuzzy[0].modelName}; confirma antes de continuar.` } };

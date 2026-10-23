@@ -101,7 +101,7 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
   if (photoKey) set("photoKey", photoKey.normalize("NFKC").toLocaleLowerCase("es-MX").replace(/[ _]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""));
 
   const references = modelReferencesFromCatalog(await listActiveGolfCatalogReferences());
-  const reviewedRow = { rowNumber: 0, original: {}, normalized: { ...next, brand: String(next.brand ?? ""), category: String(next.category ?? ""), model: String(next.model ?? "") }, fields: {} } as never;
+  const reviewedRow = { rowNumber: 0, original: {}, normalized: { ...next, brand: String(next.brand ?? ""), category: String(next.category ?? ""), model: String(next.model ?? "") }, fields: { category: { value: String(next.category ?? ""), code: "" } } } as never;
   const resolution = resolveModelWithinContext({ row: reviewedRow, models: references });
   const canonicalModelId = resolution.modelId;
   let canonicalModelYear: number | null = null;
@@ -135,6 +135,15 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
   if (importType === "FIRST_PARTY" && shouldRecalculateFirstPartyPricing({ pricingSubmitted, normalizedPayload: next, pricingResult, costChanged })) pricingResult = { ...pricingResult, status: pricingResult.status ?? "INSUFFICIENT_DATA", proposedPriceMinor: Number(next.askingPriceMinor), approvedPriceMinor: Number(next.askingPriceMinor), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Edición de precio en revisión"), stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
   const finalReconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult, existingIssues: reconciled.issues, canonicalModelYear, manualResolution: identityChanged ? preservedManual : manualResolution });
   return { normalized_payload: next, canonical_model_id: canonicalModelId, pricing_result: pricingResult, validation_result: { ...(row.validation_result ?? {}), issues: finalReconciled.issues, modelCandidates: resolution.candidates.map((candidate) => ({ id: candidate.id, name: candidate.modelName, modelYear: candidate.modelYear })) }, severity: finalReconciled.severity, manual_resolution: audit, reviewed_by: userId, reviewed_at: new Date().toISOString() };
+}
+
+async function safeBuildReviewedRowPatch(...args: Parameters<typeof buildReviewedRowPatch>) {
+  try {
+    return await buildReviewedRowPatch(...args);
+  } catch (error) {
+    console.error("bulk_import_row_edit_failed", { error });
+    return null;
+  }
 }
 
 export async function createBulkImportPreview(formData: FormData) {
@@ -270,7 +279,7 @@ export async function reviewBulkImportAction(formData: FormData) {
           : action === "manual_price_resolution"
             ? { normalized_payload: { ...row.data.normalized_payload, askingPriceMinor: parseReviewedPrice(formData) }, pricing_result: { ...(row.data.pricing_result ?? {}), status: String(row.data.pricing_result?.status ?? "INSUFFICIENT_DATA"), proposedPriceMinor: parseReviewedPrice(formData), approvedPriceMinor: parseReviewedPrice(formData), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Aprobación manual de precio"), viability: "Precio aprobado manualmente", stale: false, humanReviewStatus: "APPROVED" }, manual_resolution: { ...(row.data.manual_resolution ?? {}), pricing: { approvedPriceMinor: parseReviewedPrice(formData), reason: String(formData.get("reason") ?? "Aprobación manual de precio"), actorId: user.id, source: "BULK_REVIEW" } }, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "edit_row"
-            ? await buildReviewedRowPatch(client, row.data, formData, user.id, reviewJob.data.import_type, reviewJob.data.partner_profile_id ?? null)
+            ? await safeBuildReviewedRowPatch(client, row.data, formData, user.id, reviewJob.data.import_type, reviewJob.data.partner_profile_id ?? null)
           : null;
   if (action === "resolve_model" && !candidate) return { ok: false as const, message: "Selecciona una generación válida del catálogo." };
   if (action === "manual_price_resolution") {
@@ -279,7 +288,7 @@ export async function reviewBulkImportAction(formData: FormData) {
   }
   if (action === "use_canonical_year" && !Number.isInteger(Number(formData.get("canonicalYear")))) return { ok: false as const, message: "No encontramos el año canónico." };
   if (!patch) return { ok: false as const, message: "Acción de revisión no reconocida." };
-  if (action === "edit_row" && !patch) return { ok: false as const, message: "No pudimos interpretar los valores revisados." };
+  if (action === "edit_row" && !patch) return { ok: false as const, message: "No pudimos guardar los cambios de esta fila." };
   const resultingPayload = (patch as Record<string, unknown>)?.normalized_payload as Record<string, unknown> | undefined ?? row.data.normalized_payload;
   const resultingPricing = (patch as Record<string, unknown>)?.pricing_result as Record<string, unknown> | undefined ?? row.data.pricing_result;
   if (action !== "exclude" && action !== "reinclude") {
