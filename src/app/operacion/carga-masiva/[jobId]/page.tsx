@@ -16,6 +16,7 @@ import {
   hasCanonicalModelYearMismatch,
 } from "@/lib/bulk-import/review-policy";
 import { reconcileCurrentRowState } from "@/lib/bulk-import/review-reconciliation";
+import { canEditBulkRow, isBulkRowRetryReady } from "@/lib/bulk-import/row-execution-policy";
 
 type ReviewRow = {
   id: string;
@@ -99,17 +100,19 @@ export default async function BulkImportReviewPage({
         canonicalModelYear: row.canonical_model_year,
         manualResolution: row.manual_resolution,
       });
-      return [row.id, row.execution_status === "FAILED" ? { ...state, severity: "ERROR" as const } : state] as const;
+      return [row.id, state] as const;
     }),
   );
-  const errors = included.filter(
-    (row) => currentStates.get(row.id)?.severity === "ERROR",
-  );
+  const importedRows = reviewRows.filter((row) => row.execution_status === "IMPORTED");
+  const skippedRows = reviewRows.filter((row) => row.execution_status === "SKIPPED_EXISTING");
+  const errors = included.filter((row) => row.execution_status !== "IMPORTED" && row.execution_status !== "SKIPPED_EXISTING" && currentStates.get(row.id)?.severity === "ERROR");
   const warnings = included.filter(
-    (row) => currentStates.get(row.id)?.severity === "WARNING",
+    (row) => row.execution_status !== "IMPORTED" && row.execution_status !== "SKIPPED_EXISTING" && currentStates.get(row.id)?.severity === "WARNING",
   );
   const pricingReview = included.filter(
     (row) =>
+      row.execution_status !== "IMPORTED" &&
+      row.execution_status !== "SKIPPED_EXISTING" &&
       !(
         job.import_type === "FIRST_PARTY"
           ? getFirstPartyBulkPricingReadiness({
@@ -123,19 +126,19 @@ export default async function BulkImportReviewPage({
       ).ready,
   ).length;
   const approved = job.status === "APPROVED_FOR_IMPORT";
-  const imported = ["IMPORTED", "PARTIALLY_IMPORTED", "FAILED_IMPORT"].includes(
-    job.status,
-  );
+  const imported = ["IMPORTED", "PARTIALLY_IMPORTED", "FAILED_IMPORT"].includes(job.status);
   const reviewable = job.status === "READY_FOR_REVIEW";
   const failedRows = reviewRows.filter((row) => row.execution_status === "FAILED");
-  const importedRows = reviewRows.filter((row) => row.execution_status === "IMPORTED");
-  const skippedRows = reviewRows.filter((row) => row.execution_status === "SKIPPED_EXISTING");
-  const attention = warnings.length + errors.length;
+  const retryReadyRows = failedRows.filter((row) => isBulkRowRetryReady({ jobStatus: job.status, executionStatus: row.execution_status, excluded: row.excluded, importType: job.import_type, normalizedPayload: row.normalized_payload, pricingResult: row.pricing_result, existingIssues: row.validation_result?.issues ?? [], canonicalModelYear: row.canonical_model_year, manualResolution: row.manual_resolution }));
+  const attention = included.filter((row) => row.execution_status !== "IMPORTED" && row.execution_status !== "SKIPPED_EXISTING" && currentStates.get(row.id)?.severity !== "READY").length;
   const filteredRows = reviewRows.filter((row) => {
     const state = currentStates.get(row.id);
     return (
       filter === "todas" ||
       (filter === "listas" && !row.excluded && state?.severity === "READY") ||
+      (filter === "importadas" && row.execution_status === "IMPORTED") ||
+      (filter === "pendientes" && !row.excluded && row.execution_status !== "IMPORTED" && row.execution_status !== "SKIPPED_EXISTING") ||
+      (filter === "reintentar" && retryReadyRows.some((candidate) => candidate.id === row.id)) ||
       (filter === "advertencias" &&
         !row.excluded &&
         state?.severity === "WARNING") ||
@@ -219,6 +222,9 @@ export default async function BulkImportReviewPage({
       <div className="flex flex-wrap gap-2">
         {[
           ["todas", "Todas"],
+          ["importadas", "Importadas"],
+          ["pendientes", "Pendientes"],
+          ["reintentar", "Listas para reintentar"],
           ["listas", "Listas"],
           ["advertencias", "Advertencias"],
           ["errores", "Errores"],
@@ -265,12 +271,12 @@ export default async function BulkImportReviewPage({
         {(job.status === "PARTIALLY_IMPORTED" ||
           job.status === "FAILED_IMPORT") &&
         job.import_type === "FIRST_PARTY" ? (
-          <BulkImportExecutionAction jobId={jobId} retry />
+          retryReadyRows.length > 0 ? <BulkImportExecutionAction jobId={jobId} retry /> : <span className="rounded-lg border px-3 py-2 text-sm text-muted-foreground">Corrige las filas fallidas antes de reintentar.</span>
         ) : null}
         {(job.status === "PARTIALLY_IMPORTED" ||
           job.status === "FAILED_IMPORT") &&
         job.import_type === "PARTNER" ? (
-          <BulkImportPartnerExecutionAction jobId={jobId} retry />
+          retryReadyRows.length > 0 ? <BulkImportPartnerExecutionAction jobId={jobId} retry /> : <span className="rounded-lg border px-3 py-2 text-sm text-muted-foreground">Corrige las filas fallidas antes de reintentar.</span>
         ) : null}
         {!imported ? (
           <BulkImportDiscardForm jobId={jobId} approved={approved} />
@@ -283,7 +289,7 @@ export default async function BulkImportReviewPage({
       {imported ? (
         <div className="rounded-xl border bg-white p-4">
           <h2 className="font-semibold">{job.status === "FAILED_IMPORT" ? "Importación fallida" : job.import_type === "PARTNER" ? "Resultados de publicaciones" : "Resultados de importación"}</h2>
-          <p className="mt-1 text-sm font-medium">{importedRows.length} borradores creados · {skippedRows.length} omitidos · {failedRows.length} filas fallidas</p>
+          <p className="mt-1 text-sm font-medium">{importedRows.length} borradores creados · {skippedRows.length} omitidos · {failedRows.length} filas fallidas{job.status === "PARTIALLY_IMPORTED" ? ` · ${retryReadyRows.length > 0 ? retryReadyRows.length + " listas para reintentar" : failedRows.length + " pendientes de corrección"}` : ""}</p>
           <p className="text-muted-foreground mt-1 text-sm">
             {importedRows.length === 0 ? "No se crearon borradores en esta ejecución." : "Los borradores deben revisarse y aprobarse antes de publicarse."}
           </p>
@@ -342,12 +348,18 @@ export default async function BulkImportReviewPage({
                     });
               const state = currentStates.get(row.id);
               const executionFailed = row.execution_status === "FAILED";
+              const rowRetryReady = retryReadyRows.some((candidate) => candidate.id === row.id);
+              const canEditRow = canEditBulkRow(job.status, row.execution_status);
               const receivedPrice =
                 row.original_payload["Precio propuesto"] ??
                 row.original_payload["Precio solicitado"] ??
                 "—";
               const tone = row.excluded
                 ? "border-muted bg-muted/30 text-muted-foreground"
+                : row.execution_status === "IMPORTED"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : executionFailed && rowRetryReady
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : executionFailed
                   ? "border-red-200 bg-red-50 text-red-900"
                 : state?.severity === "READY"
@@ -357,8 +369,12 @@ export default async function BulkImportReviewPage({
                     : "border-red-200 bg-red-50 text-red-900";
               const badge = row.excluded
                 ? "⚪ Excluida"
+                : row.execution_status === "IMPORTED"
+                  ? "🟢 Importada"
+                : executionFailed && rowRetryReady
+                  ? "🟢 Lista para reintentar"
                 : executionFailed
-                  ? "🔴 Fallida"
+                  ? "🔴 Requiere corrección"
                 : state?.severity === "READY"
                   ? "🟢 Lista"
                   : state?.severity === "WARNING"
@@ -420,7 +436,7 @@ export default async function BulkImportReviewPage({
                   </td>
                   <td className="p-3">
                     <div className="grid gap-2">
-                      {!imported && reviewable ? (
+                      {canEditRow ? (
                         row.excluded ? (
                           <BulkImportReviewAction
                             action="reinclude"
@@ -438,7 +454,7 @@ export default async function BulkImportReviewPage({
                           />
                         )
                       ) : null}
-                      {!imported && reviewable
+                      {canEditRow
                         ? (row.validation_result?.modelCandidates ?? []).map(
                             (candidate) => (
                               <BulkImportReviewAction
@@ -451,8 +467,7 @@ export default async function BulkImportReviewPage({
                             ),
                           )
                         : null}
-                      {!imported &&
-                      reviewable &&
+                      {canEditRow &&
                       yearMismatch &&
                       row.canonical_model_year != null ? (
                         <BulkImportCanonicalYearAction
@@ -461,7 +476,7 @@ export default async function BulkImportReviewPage({
                           year={row.canonical_model_year}
                         />
                       ) : null}
-                      {!imported && reviewable ? (
+                      {canEditRow ? (
                         <BulkImportEditRowForm
                           jobId={jobId}
                           rowId={row.id}
@@ -469,8 +484,7 @@ export default async function BulkImportReviewPage({
                           importType={job.import_type}
                         />
                       ) : null}
-                      {!imported &&
-                      reviewable &&
+                      {canEditRow &&
                       Object.keys(row.normalization_metadata).length > 0 &&
                       !row.normalization_accepted ? (
                         <BulkImportReviewAction
@@ -528,7 +542,7 @@ export default async function BulkImportReviewPage({
                           </p>
                         </div>
                       </details>
-                      {!imported && reviewable && !row.canonical_model_id ? (
+                      {canEditRow && !row.canonical_model_id ? (
                         <BulkImportManualFallbackForm
                           jobId={jobId}
                           rowId={row.id}

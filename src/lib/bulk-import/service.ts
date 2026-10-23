@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canDiscardBulkImportJob } from "./discard-policy";
 import { canApproveBulkImport } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
+import { canEditBulkRow } from "./row-execution-policy";
 import { normalizeCategory, normalizeCondition, normalizeHand, normalizeYear, parseMoneyToMinorUnits, resolveModelWithinContext } from "./normalization";
 import { revalidatePath } from "next/cache";
 import { resolveMarketplacePrice } from "@/lib/pricing/marketplace-pricing-engine";
@@ -227,9 +228,13 @@ export async function reviewBulkImportAction(formData: FormData) {
   if (!rowId) return { ok: false as const, message: "No encontramos esta fila." };
   const reviewJob = await db(client, "bulk_import_jobs").select("status,import_type,partner_profile_id").eq("id", jobId).maybeSingle();
   if (reviewJob.error || !reviewJob.data) return { ok: false as const, message: "No encontramos esta carga." };
-  if (reviewJob.data.status !== "READY_FOR_REVIEW") return { ok: false as const, message: "Reabre la revisión antes de editar una fila." };
-  const row = await db(client, "bulk_import_rows").select("id,job_id,canonical_model_id,normalization_metadata,normalized_payload,validation_result,pricing_result,manual_resolution,severity,excluded,original_payload").eq("id", rowId).eq("job_id", jobId).maybeSingle();
+  const row = await db(client, "bulk_import_rows").select("id,job_id,canonical_model_id,normalization_metadata,normalized_payload,validation_result,pricing_result,manual_resolution,severity,excluded,original_payload,execution_status").eq("id", rowId).eq("job_id", jobId).maybeSingle();
   if (row.error || !row.data) return { ok: false as const, message: "No encontramos esta fila." };
+  if (!canEditBulkRow(reviewJob.data.status, row.data.execution_status)) {
+    if (row.data.execution_status === "IMPORTED") return { ok: false as const, message: reviewJob.data.import_type === "PARTNER" ? "Esta fila ya fue importada. Edita la publicación desde Marketplace." : "Esta fila ya fue importada. Edita el producto desde Catálogo." };
+    if (row.data.execution_status === "SKIPPED_EXISTING") return { ok: false as const, message: "Esta fila ya existe y se conserva sin cambios." };
+    return { ok: false as const, message: "Corrige la fila desde una revisión activa o desde sus errores pendientes." };
+  }
   if (action === "manual_resolution") {
     const manualBrand = String(formData.get("manualBrand") ?? "").trim();
     const manualModel = String(formData.get("manualModel") ?? "").trim();
