@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { canApproveBulkImport, getDisplayedReviewedPriceMinor, getFirstPartyBulkPricingReadiness, getPartnerBulkPricingReadiness, shouldRecalculateFirstPartyPricing, shouldRecalculatePartnerPricing } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
+import { hasBulkAcquisitionCostChanged } from "./row-execution-policy";
 
 describe("bulk import review approval", () => {
   const ready = { severity: "READY", normalized_payload: { acquisitionCostMinor: 100000 }, pricing_result: { status: "COMPETITIVE", proposedPriceMinor: 150000 } };
@@ -65,6 +66,21 @@ describe("bulk import review approval", () => {
   });
   test("same First Party sale price can be approved without a fake change", () => {
     expect(shouldRecalculateFirstPartyPricing({ pricingSubmitted: true, normalizedPayload: { askingPriceMinor: 834000, acquisitionCostMinor: 500000 }, pricingResult: { status: "INSUFFICIENT_DATA", proposedPriceMinor: null, manualPriceApproved: false, stale: false }, costChanged: false })).toBe(true);
+  });
+  test("prefilled unchanged acquisition cost is not treated as a change", () => {
+    expect(hasBulkAcquisitionCostChanged(800000, 800000)).toBe(false);
+  });
+  test("a numerically changed acquisition cost is detected", () => {
+    expect(hasBulkAcquisitionCostChanged(800000, 810000)).toBe(true);
+  });
+  test("same First Party cost and price reapprove unresolved pricing", () => {
+    expect(shouldRecalculateFirstPartyPricing({ pricingSubmitted: true, normalizedPayload: { askingPriceMinor: 1250000, acquisitionCostMinor: 800000 }, pricingResult: { status: "INSUFFICIENT_DATA", stale: true, manualPriceApproved: false }, costChanged: false })).toBe(true);
+  });
+  test("changed First Party cost with submitted price reapproves in one save", () => {
+    expect(shouldRecalculateFirstPartyPricing({ pricingSubmitted: true, normalizedPayload: { askingPriceMinor: 1190000, acquisitionCostMinor: 1000000 }, pricingResult: { status: "INSUFFICIENT_DATA", stale: true, manualPriceApproved: false }, costChanged: true })).toBe(true);
+  });
+  test("ready First Party pricing with unchanged values is a no-op", () => {
+    expect(shouldRecalculateFirstPartyPricing({ pricingSubmitted: true, normalizedPayload: { askingPriceMinor: 1250000, acquisitionCostMinor: 800000 }, pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 1250000, approvedPriceMinor: 1250000, manualPriceApproved: true, humanReviewStatus: "APPROVED", stale: false }, costChanged: false })).toBe(false);
   });
   test("display uses approved/calculated value before proposed or input", () => {
     expect(getDisplayedReviewedPriceMinor({ proposedPriceMinor: null, approvedPriceMinor: 1004435, calculatedPublicPriceMinor: 1004435 }, { askingPriceMinor: 1051000 })).toBe(1004435);

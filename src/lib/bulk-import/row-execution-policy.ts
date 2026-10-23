@@ -6,6 +6,10 @@ export function hasBulkModelIdentityChanged(previous: Record<string, unknown>, n
   return ["brand", "model", "category", "modelYear"].some((field) => normalize(field, previous[field]) !== normalize(field, next[field]));
 }
 
+export function hasBulkAcquisitionCostChanged(previousCostMinor: unknown, submittedCostMinor: number | null) {
+  return submittedCostMinor !== null && submittedCostMinor !== Number(previousCostMinor ?? 0);
+}
+
 export function deriveBulkJobAggregate(rows: Array<{ excluded?: boolean; execution_status?: string | null }>) {
   const included = rows.filter((row) => !row.excluded);
   const imported = rows.filter((row) => row.execution_status === "IMPORTED").length;

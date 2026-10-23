@@ -75,10 +75,10 @@ export function shouldRecalculateFirstPartyPricing(input: {
   pricingResult: Record<string, unknown> | null | undefined;
   costChanged: boolean;
 }) {
-  if (!input.pricingSubmitted || input.costChanged || Number(input.normalizedPayload.askingPriceMinor ?? 0) <= 0) return false;
+  if (!input.pricingSubmitted || Number(input.normalizedPayload.askingPriceMinor ?? 0) <= 0 || Number(input.normalizedPayload.acquisitionCostMinor ?? 0) <= 0) return false;
   const pricing = input.pricingResult ?? {};
   const readiness = getFirstPartyBulkPricingReadiness({ normalized_payload: input.normalizedPayload, pricing_result: pricing });
-  return !readiness.ready || pricing.manualPriceApproved !== true || pricing.humanReviewStatus !== "APPROVED";
+  return input.costChanged || !readiness.ready || pricing.manualPriceApproved !== true || pricing.humanReviewStatus !== "APPROVED";
 }
 
 export function hasCanonicalModelYearMismatch(row: ReviewApprovalRow) {
