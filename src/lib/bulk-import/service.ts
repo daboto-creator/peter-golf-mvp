@@ -14,6 +14,7 @@ import { normalizeCategory, normalizeCondition, normalizeHand, normalizeYear, pa
 import { revalidatePath } from "next/cache";
 import { resolveMarketplacePrice } from "@/lib/pricing/marketplace-pricing-engine";
 import type { MarketplaceEconomicsConfig } from "@/lib/pricing/marketplace-pricing-types";
+import { calculatePricing } from "@/lib/pricing/pricing-engine";
 
 // The generated Supabase types intentionally lag additive PR82 tables; keep
 // this boundary narrow until the next generated schema snapshot.
@@ -64,6 +65,38 @@ async function loadMarketplaceEconomicsConfig(client: Awaited<ReturnType<typeof 
   const fee = rules.data ? await db(client, "payment_fee_configs").select("percentage_bps,fixed_fee").eq("code", rules.data.payment_fee_config_code).eq("active", true).maybeSingle() : { data: null, error: new Error("missing pricing rule") };
   if ([financial, rules, fee, tier].some((result) => result.error || !result.data)) return null;
   return { commissionBps: Number(tier.data.commission_rate_bps), commissionVatBps: Number(financial.data.commission_tax_bps ?? 0), paymentProcessingBps: Number(fee.data.percentage_bps), paymentProcessingFixedMinor: Number(fee.data.fixed_fee), partnerProcessingShareBps: Number(financial.data.partner_processing_share_bps), adminFeeBps: Number(financial.data.admin_fee_bps), adminFixedFeeMinor: Number(financial.data.admin_fixed_fee), minimumMarketplaceRevenueMinor: financial.data.minimum_marketplace_revenue == null ? null : Number(financial.data.minimum_marketplace_revenue) };
+}
+
+async function calculateFirstPartyReviewedPricing(client: Awaited<ReturnType<typeof createClient>>, input: { categorySlug: string; condition: string; acquisitionCostMinor: number; salePriceMinor: number; manualPriceReason?: string | null }) {
+  const category = await db(client, "categories").select("id").eq("slug", input.categorySlug).maybeSingle();
+  if (category.error || !category.data) return null;
+  const profile = await db(client, "category_pricing_profiles").select("new_rule_code,used_rule_code").eq("category_id", category.data.id).maybeSingle();
+  const ruleCode = input.condition === "new" ? profile.data?.new_rule_code : profile.data?.used_rule_code;
+  if (profile.error || !ruleCode) return null;
+  const [rule, fee, override] = await Promise.all([
+    db(client, "pricing_rules").select("target_return_bps").eq("code", ruleCode).eq("active", true).maybeSingle(),
+    db(client, "payment_fee_configs").select("percentage_bps,fixed_fee").eq("code", "stripe_domestic_mx").eq("active", true).maybeSingle(),
+    // Generated Supabase types do not include this stable pricing authorization RPC yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (client as any).rpc("can_override_pricing_floor"),
+  ]);
+  if (rule.error || fee.error || !rule.data || !fee.data) return null;
+  const canOverride = override.error ? false : override.data === true;
+  try {
+    const result = calculatePricing({
+      costs: { acquisitionCost: input.acquisitionCostMinor, conditioningCost: 0, packagingCost: 0, shippingSubsidy: 0 },
+      pricingRuleCode: ruleCode,
+      targetReturnBps: Number(rule.data.target_return_bps),
+      paymentFee: { code: "stripe_domestic_mx", percentageBps: Number(fee.data.percentage_bps), fixedFeeMinor: Number(fee.data.fixed_fee) },
+      market: { medianPriceMxn: null, averagePriceMxn: null, lowPriceMxn: null, highPriceMxn: null, sampleSize: 0, confidence: "unavailable", source: null, sourceUrl: null, checkedAt: null },
+      finalSalePrice: input.salePriceMinor,
+      manualPriceReason: input.manualPriceReason,
+      canPriceBelowFinancial: canOverride,
+    });
+    return { result, canOverride };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Pricing validation failed.", canOverride };
+  }
 }
 
 async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createClient>>, row: { normalized_payload?: Record<string, unknown>; validation_result?: { issues?: Array<{ code?: string; severity?: string; field?: string; message?: string }>; modelCandidates?: Array<{ id: string; name: string; modelYear: number | null }> }; pricing_result?: Record<string, unknown> | null; manual_resolution?: Record<string, unknown> }, formData: FormData, userId: string, importType: BulkImportType, partnerId: string | null) {
@@ -134,7 +167,15 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
       pricingResult = { ...pricingResult, status: marketStatus, marketStatus, proposedPriceMinor: resolution.calculatedPublicPriceMinor, approvedPriceMinor: resolution.calculatedPublicPriceMinor, calculatedPublicPriceMinor: resolution.calculatedPublicPriceMinor, estimatedPartnerNetMinor: resolution.economics.partnerNetMinor, economics: resolution.economics, manualPriceApproved: true, manualOverride: true, humanReviewStatus: "APPROVED", manualPriceReason: String(formData.get("reason") ?? "Revisión de precio Partner"), stale: false, viability: marketStatus === "INSUFFICIENT_DATA" ? "Referencia de mercado insuficiente" : marketStatus };
     }
   }
-  if (importType === "FIRST_PARTY" && shouldRecalculateFirstPartyPricing({ pricingSubmitted, normalizedPayload: next, pricingResult, costChanged })) pricingResult = { ...pricingResult, status: pricingResult.status ?? "INSUFFICIENT_DATA", proposedPriceMinor: Number(next.askingPriceMinor), approvedPriceMinor: Number(next.askingPriceMinor), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Edición de precio en revisión"), stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
+  if (importType === "FIRST_PARTY" && shouldRecalculateFirstPartyPricing({ pricingSubmitted, normalizedPayload: next, pricingResult, costChanged })) {
+    const reviewed = await calculateFirstPartyReviewedPricing(_client, { categorySlug: String(next.categorySlug ?? next.category ?? ""), condition: String(next.condition ?? "used"), acquisitionCostMinor: Number(next.acquisitionCostMinor ?? 0), salePriceMinor: Number(next.askingPriceMinor ?? 0), manualPriceReason: String(formData.get("reason") ?? "").trim() || null });
+    if (reviewed?.result) {
+      const result = reviewed.result;
+      pricingResult = { ...pricingResult, status: "INSUFFICIENT_DATA", marketStatus: "INSUFFICIENT_DATA", financialPriceMinor: result.financialPrice, automaticSuggestedPriceMinor: result.automaticSuggestedPrice, proposedPriceMinor: result.finalSalePrice, approvedPriceMinor: result.finalSalePrice, calculatedPublicPriceMinor: result.finalSalePrice, expectedContributionMinor: result.expectedContribution, returnOnCostBps: result.returnOnCostBps, marginOnSaleBps: result.marginOnSaleBps, manualPriceApproved: true, manualOverride: result.override, manualPriceReason: result.manualPriceReason, stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
+    } else if (reviewed?.error) {
+      pricingResult = { ...pricingResult, status: "INSUFFICIENT_DATA", marketStatus: "INSUFFICIENT_DATA", financialPriceMinor: Number(pricingResult.financialPriceMinor ?? 0), proposedPriceMinor: Number(next.askingPriceMinor ?? 0), approvedPriceMinor: null, manualPriceApproved: false, manualOverride: false, manualPriceReason: null, stale: false, humanReviewStatus: null, belowFinancialFloor: reviewed.error.includes("debajo") || reviewed.error.includes("administrador"), viability: reviewed.error };
+    }
+  }
   const finalReconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult, existingIssues: reconciled.issues, canonicalModelYear, manualResolution: identityChanged ? preservedManual : manualResolution });
   return { normalized_payload: next, canonical_model_id: canonicalModelId, pricing_result: pricingResult, validation_result: { ...(row.validation_result ?? {}), issues: finalReconciled.issues, modelCandidates: resolution.candidates.map((candidate) => ({ id: candidate.id, name: candidate.modelName, modelYear: candidate.modelYear })) }, severity: finalReconciled.severity, manual_resolution: audit, reviewed_by: userId, reviewed_at: new Date().toISOString() };
 }

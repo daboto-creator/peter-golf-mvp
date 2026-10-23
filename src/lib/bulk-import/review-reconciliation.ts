@@ -4,7 +4,7 @@ import { getFirstPartyBulkPricingReadiness, getPartnerBulkPricingReadiness, hasC
 const DERIVED_CODES = new Set([
   "INSUFFICIENT_DATA", "PRICING_REVIEW_REQUIRED", "MISSING_APPROVED_PRICE", "STALE_PRICING",
   "MISSING_ACQUISITION_COST", "AMBIGUOUS_CATEGORY", "UNKNOWN_CATEGORY", "CATEGORY_REQUIRED", "MODEL_YEAR_MISMATCH", "PARTNER_PRICING_REVIEW_REQUIRED", "PARTNER_STALE_PRICING", "PARTNER_MARKET_WARNING",
-  "MANUAL_MODEL_APPROVED",
+  "BELOW_FINANCIAL_FLOOR", "MANUAL_MODEL_APPROVED", "MANUAL_MODEL_APPROVAL_REQUIRED",
 ]);
 
 const MODEL_RESOLUTION_CODES = new Set(["UNKNOWN_MODEL", "AMBIGUOUS_MODEL_GENERATION", "MODEL_SUGGESTION"]);
@@ -39,6 +39,10 @@ export function reconcileCurrentRowState(input: {
   const issues = input.existingIssues.filter((issue) => !DERIVED_CODES.has(issue.code) && !(manualModel && MODEL_RESOLUTION_CODES.has(issue.code)));
   const category = String(input.normalizedPayload.category ?? "").trim();
   if (!category) issues.push({ severity: "ERROR", code: "CATEGORY_REQUIRED", field: "category", message: "Selecciona una categoría antes de importar." });
+  const model = String(input.normalizedPayload.model ?? "").trim();
+  if (!input.canonicalModelYear && model && !getManualModelResolution(input.manualResolution)?.approved) {
+    issues.push({ severity: "ERROR", code: "MANUAL_MODEL_APPROVAL_REQUIRED", field: "model", message: "El modelo no está vinculado al catálogo. Aprueba explícitamente el modelo manual antes de importar." });
+  }
   if (input.importType === "FIRST_PARTY") {
     const pricing = getFirstPartyBulkPricingReadiness({ normalized_payload: input.normalizedPayload, pricing_result: input.pricingResult });
     if (!pricing.ready) issues.push({ severity: pricing.code === "MISSING_ACQUISITION_COST" ? "ERROR" : "WARNING", code: pricing.code, field: "price", message: pricing.message ?? pricing.label });

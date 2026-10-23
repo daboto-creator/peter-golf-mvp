@@ -9,7 +9,7 @@ export type ReviewApprovalRow = {
 
 export type FirstPartyPricingReadiness = {
   ready: boolean;
-  code: "READY" | "PRICING_REVIEW_REQUIRED" | "MISSING_ACQUISITION_COST" | "MISSING_APPROVED_PRICE" | "STALE_PRICING";
+  code: "READY" | "PRICING_REVIEW_REQUIRED" | "MISSING_ACQUISITION_COST" | "MISSING_APPROVED_PRICE" | "STALE_PRICING" | "BELOW_FINANCIAL_FLOOR";
   label: string;
   message?: string;
 };
@@ -38,6 +38,9 @@ export function getFirstPartyBulkPricingReadiness(row: ReviewApprovalRow): First
   if (acquisition <= 0) return { ready: false, code: "MISSING_ACQUISITION_COST", label: "Requiere costo de adquisición", message: "First Party requiere un costo de adquisición válido." };
   if (pricing.stale === true) return { ready: false, code: "STALE_PRICING", label: "Precio desactualizado", message: "El precio cambió y debe validarse nuevamente." };
   if (proposed <= 0) return { ready: false, code: "MISSING_APPROVED_PRICE", label: "Sin precio aprobado", message: "Define y aprueba un precio antes de importar." };
+  const financialPrice = Number(pricing.financialPriceMinor ?? 0);
+  const belowFloor = financialPrice > 0 && proposed < financialPrice && pricing.manualOverride !== true;
+  if (belowFloor) return { ready: false, code: "BELOW_FINANCIAL_FLOOR", label: "Precio debajo del mínimo financiero", message: `El precio está por debajo del mínimo financiero. Precio mínimo: $${(financialPrice / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 })} MXN.` };
   if (!manuallyResolved && !["COMPETITIVE", "OVERPRICED", "UNDERPRICED"].includes(status)) return { ready: false, code: "PRICING_REVIEW_REQUIRED", label: "Requiere revisión de precio", message: "No hay suficiente información de mercado para validar este precio. Define o aprueba un precio antes de importar." };
   return { ready: true, code: "READY", label: "Precio listo" };
 }

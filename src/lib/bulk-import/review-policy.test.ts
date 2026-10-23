@@ -82,6 +82,17 @@ describe("bulk import review approval", () => {
   test("ready First Party pricing with unchanged values is a no-op", () => {
     expect(shouldRecalculateFirstPartyPricing({ pricingSubmitted: true, normalizedPayload: { askingPriceMinor: 1250000, acquisitionCostMinor: 800000 }, pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 1250000, approvedPriceMinor: 1250000, manualPriceApproved: true, humanReviewStatus: "APPROVED", stale: false }, costChanged: false })).toBe(false);
   });
+  test("First Party below-floor pricing is a blocking financial error", () => {
+    const result = getFirstPartyBulkPricingReadiness({ normalized_payload: { acquisitionCostMinor: 700000 }, pricing_result: { status: "INSUFFICIENT_DATA", approvedPriceMinor: 950000, financialPriceMinor: 1016909, manualPriceApproved: true, humanReviewStatus: "APPROVED", stale: false } });
+    expect(result).toMatchObject({ ready: false, code: "BELOW_FINANCIAL_FLOOR" });
+    expect(result.message).toContain("mínimo financiero");
+  });
+  test("First Party approved manual model is durable while unresolved models require approval", () => {
+    const approved = reconcileCurrentRowState({ importType: "FIRST_PARTY", normalizedPayload: { category: "driver", model: "QA Manual Test X", acquisitionCostMinor: 700000 }, pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 150000 }, existingIssues: [], manualResolution: { model: { approved: true, brand: "Cobra", model: "QA Manual Test X", modelYear: 2024 } } });
+    expect(approved.issues.some((issue) => issue.code === "MANUAL_MODEL_APPROVAL_REQUIRED")).toBe(false);
+    const unresolved = reconcileCurrentRowState({ importType: "FIRST_PARTY", normalizedPayload: { category: "driver", model: "QA Manual Test X", acquisitionCostMinor: 700000 }, pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 150000 }, existingIssues: [] });
+    expect(unresolved.issues.some((issue) => issue.code === "MANUAL_MODEL_APPROVAL_REQUIRED")).toBe(true);
+  });
   test("display uses approved/calculated value before proposed or input", () => {
     expect(getDisplayedReviewedPriceMinor({ proposedPriceMinor: null, approvedPriceMinor: 1004435, calculatedPublicPriceMinor: 1004435 }, { askingPriceMinor: 1051000 })).toBe(1004435);
   });
