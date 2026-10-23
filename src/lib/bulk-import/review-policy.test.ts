@@ -55,6 +55,10 @@ describe("bulk import review approval", () => {
     expect(result.severity).toBe("ERROR");
     expect(result.issues[0]?.message).toContain("precio público o un neto deseado");
   });
+  test("Partner economics do not inherit the First Party financial floor", () => {
+    const result = getPartnerBulkPricingReadiness({ normalized_payload: {}, pricing_result: { status: "INSUFFICIENT_DATA", approvedPriceMinor: 950000, manualPriceApproved: true, humanReviewStatus: "APPROVED", stale: false, financialPriceMinor: 1016909, economics: { publicPriceMinor: 950000, partnerNetMinor: 800000, commissionMinor: 0, commissionVatMinor: 0, processingTotalMinor: 0, adminPercentageFeeMinor: 0, adminFixedFeeMinor: 0, estimatedBestRoundRevenueMinor: 1 } } });
+    expect(result.ready).toBe(true);
+  });
   test("same Partner public price still recalculates unresolved pricing", () => {
     expect(shouldRecalculatePartnerPricing({ pricingSubmitted: true, priceChanged: false, desiredNetChanged: false, normalizedPayload: { askingPriceMinor: 1051000 }, pricingResult: { status: "INSUFFICIENT_DATA", humanReviewStatus: "APPROVED", manualPriceApproved: false, approvedPriceMinor: 1004435, calculatedPublicPriceMinor: 1004435, stale: false } })).toBe(true);
   });
