@@ -7,10 +7,14 @@ import { buildBulkPreview } from "./preview";
 import type { BulkImportType, BulkIssue, CatalogModelReference } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { canDiscardBulkImportJob } from "./discard-policy";
-import { canApproveBulkImport } from "./review-policy";
+import { canApproveBulkImport, getFirstPartyBulkPricingReadiness, shouldRecalculateFirstPartyPricing, shouldRecalculatePartnerPricing } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
+import { canEditBulkRow, hasBulkAcquisitionCostChanged, hasBulkModelIdentityChanged } from "./row-execution-policy";
 import { normalizeCategory, normalizeCondition, normalizeHand, normalizeYear, parseMoneyToMinorUnits, resolveModelWithinContext } from "./normalization";
 import { revalidatePath } from "next/cache";
+import { resolveMarketplacePrice } from "@/lib/pricing/marketplace-pricing-engine";
+import type { MarketplaceEconomicsConfig } from "@/lib/pricing/marketplace-pricing-types";
+import { calculatePricing } from "@/lib/pricing/pricing-engine";
 
 // The generated Supabase types intentionally lag additive PR82 tables; keep
 // this boundary narrow until the next generated schema snapshot.
@@ -48,45 +52,141 @@ function parseReviewedPrice(formData: FormData) {
   return Number(legacyMinor ?? 0);
 }
 
-async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createClient>>, row: { normalized_payload?: Record<string, unknown>; validation_result?: { issues?: Array<{ code?: string; severity?: string; field?: string; message?: string }>; modelCandidates?: Array<{ id: string; name: string; modelYear: number | null }> }; pricing_result?: Record<string, unknown> | null; manual_resolution?: Record<string, unknown> }, formData: FormData, userId: string) {
+async function loadMarketplaceEconomicsConfig(client: Awaited<ReturnType<typeof createClient>>, partnerId: string | null): Promise<MarketplaceEconomicsConfig | null> {
+  const config = await db(client, "marketplace_config_versions").select("id").eq("status", "PUBLISHED").is("effective_to", null).maybeSingle();
+  if (config.error || !config.data) return null;
+  const partnerTier = partnerId ? await db(client, "partner_score_tier_state").select("current_tier").eq("partner_id", partnerId).maybeSingle() : { data: null, error: null };
+  const tierName = partnerTier.data?.current_tier ?? "BOGEY";
+  const [financial, rules, tier] = await Promise.all([
+    db(client, "marketplace_financial_rules").select("partner_processing_share_bps,admin_fee_bps,admin_fixed_fee,commission_tax_bps,minimum_marketplace_revenue").eq("config_version_id", config.data.id).maybeSingle(),
+    db(client, "marketplace_pricing_rules").select("payment_fee_config_code").eq("config_version_id", config.data.id).maybeSingle(),
+    db(client, "marketplace_tier_rules").select("commission_rate_bps").eq("config_version_id", config.data.id).eq("tier", tierName).maybeSingle(),
+  ]);
+  const fee = rules.data ? await db(client, "payment_fee_configs").select("percentage_bps,fixed_fee").eq("code", rules.data.payment_fee_config_code).eq("active", true).maybeSingle() : { data: null, error: new Error("missing pricing rule") };
+  if ([financial, rules, fee, tier].some((result) => result.error || !result.data)) return null;
+  return { commissionBps: Number(tier.data.commission_rate_bps), commissionVatBps: Number(financial.data.commission_tax_bps ?? 0), paymentProcessingBps: Number(fee.data.percentage_bps), paymentProcessingFixedMinor: Number(fee.data.fixed_fee), partnerProcessingShareBps: Number(financial.data.partner_processing_share_bps), adminFeeBps: Number(financial.data.admin_fee_bps), adminFixedFeeMinor: Number(financial.data.admin_fixed_fee), minimumMarketplaceRevenueMinor: financial.data.minimum_marketplace_revenue == null ? null : Number(financial.data.minimum_marketplace_revenue) };
+}
+
+async function calculateFirstPartyReviewedPricing(client: Awaited<ReturnType<typeof createClient>>, input: { categorySlug: string; condition: string; acquisitionCostMinor: number; salePriceMinor: number; manualPriceReason?: string | null }) {
+  const category = await db(client, "categories").select("id").eq("slug", input.categorySlug).maybeSingle();
+  if (category.error || !category.data) return null;
+  const profile = await db(client, "category_pricing_profiles").select("new_rule_code,used_rule_code").eq("category_id", category.data.id).maybeSingle();
+  const ruleCode = input.condition === "new" ? profile.data?.new_rule_code : profile.data?.used_rule_code;
+  if (profile.error || !ruleCode) return null;
+  const [rule, fee, override] = await Promise.all([
+    db(client, "pricing_rules").select("target_return_bps").eq("code", ruleCode).eq("active", true).maybeSingle(),
+    db(client, "payment_fee_configs").select("percentage_bps,fixed_fee").eq("code", "stripe_domestic_mx").eq("active", true).maybeSingle(),
+    // Generated Supabase types do not include this stable pricing authorization RPC yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (client as any).rpc("can_override_pricing_floor"),
+  ]);
+  if (rule.error || fee.error || !rule.data || !fee.data) return null;
+  const canOverride = override.error ? false : override.data === true;
+  try {
+    const result = calculatePricing({
+      costs: { acquisitionCost: input.acquisitionCostMinor, conditioningCost: 0, packagingCost: 0, shippingSubsidy: 0 },
+      pricingRuleCode: ruleCode,
+      targetReturnBps: Number(rule.data.target_return_bps),
+      paymentFee: { code: "stripe_domestic_mx", percentageBps: Number(fee.data.percentage_bps), fixedFeeMinor: Number(fee.data.fixed_fee) },
+      market: { medianPriceMxn: null, averagePriceMxn: null, lowPriceMxn: null, highPriceMxn: null, sampleSize: 0, confidence: "unavailable", source: null, sourceUrl: null, checkedAt: null },
+      finalSalePrice: input.salePriceMinor,
+      manualPriceReason: input.manualPriceReason,
+      canPriceBelowFinancial: canOverride,
+    });
+    return { result, canOverride };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Pricing validation failed.", canOverride };
+  }
+}
+
+async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createClient>>, row: { normalized_payload?: Record<string, unknown>; validation_result?: { issues?: Array<{ code?: string; severity?: string; field?: string; message?: string }>; modelCandidates?: Array<{ id: string; name: string; modelYear: number | null }> }; pricing_result?: Record<string, unknown> | null; manual_resolution?: Record<string, unknown> }, formData: FormData, userId: string, importType: BulkImportType, partnerId: string | null) {
   const previous = (row.normalized_payload ?? {}) as Record<string, unknown>;
   const next = { ...previous };
   const set = (key: string, value: unknown) => { if (value !== undefined) next[key] = value; };
   const category = normalizeCategory(String(formData.get("category") ?? previous.category ?? ""));
+  const brand = String(formData.get("brand") ?? previous.brand ?? "").trim();
+  const model = String(formData.get("model") ?? previous.model ?? "").trim();
   const year = normalizeYear(String(formData.get("modelYear") ?? previous.modelYear ?? ""));
   const hand = normalizeHand(String(formData.get("hand") ?? previous.hand ?? ""));
   const condition = normalizeCondition(String(formData.get("condition") ?? previous.condition ?? ""));
   set("category", category.value ? String(category.value) : null);
   set("categorySlug", category.value ? String(category.value) : null);
+  set("brand", brand);
+  set("model", model);
   set("modelYear", year.value);
   set("hand", hand.value);
   set("condition", condition.value);
   const quantityRaw = String(formData.get("quantity") ?? previous.quantity ?? "").trim();
   if (quantityRaw) set("quantity", Number(quantityRaw));
   const costRaw = String(formData.get("acquisitionCost") ?? "").trim();
-  const priceRaw = String(formData.get("salePrice") ?? "").trim();
-  const costChanged = costRaw !== "";
-  const priceChanged = priceRaw !== "";
-  if (costChanged) set("acquisitionCostMinor", Number(parseMoneyToMinorUnits(costRaw).value ?? 0));
-  if (priceChanged) set("askingPriceMinor", Number(parseMoneyToMinorUnits(priceRaw).value ?? 0));
+  const priceRaw = String(formData.get(importType === "PARTNER" ? "publicPrice" : "salePrice") ?? "").trim();
+  const desiredNetRaw = String(formData.get("desiredNet") ?? "").trim();
+  const costSubmitted = costRaw !== "";
+  const parsedCostMinor = costSubmitted ? Number(parseMoneyToMinorUnits(costRaw).value ?? 0) : null;
+  const costChanged = hasBulkAcquisitionCostChanged(previous.acquisitionCostMinor, parsedCostMinor);
+  const parsedPriceMinor = priceRaw ? Number(parseMoneyToMinorUnits(priceRaw).value ?? 0) : null;
+  const parsedDesiredNetMinor = desiredNetRaw ? Number(parseMoneyToMinorUnits(desiredNetRaw).value ?? 0) : null;
+  const priceChanged = parsedPriceMinor !== null && parsedPriceMinor !== Number(previous.askingPriceMinor ?? 0);
+  const desiredNetChanged = parsedDesiredNetMinor !== null && parsedDesiredNetMinor !== Number(previous.desiredNetMinor ?? 0);
+  const pricingSubmitted = priceRaw !== "" || desiredNetRaw !== "";
+  if (parsedCostMinor !== null) set("acquisitionCostMinor", parsedCostMinor);
+  if (parsedPriceMinor !== null) set("askingPriceMinor", parsedPriceMinor);
+  if (importType === "PARTNER" && parsedDesiredNetMinor !== null) set("desiredNetMinor", parsedDesiredNetMinor);
   const photoKey = String(formData.get("photoKey") ?? "").trim();
   if (photoKey) set("photoKey", photoKey.normalize("NFKC").toLocaleLowerCase("es-MX").replace(/[ _]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""));
 
   const references = modelReferencesFromCatalog(await listActiveGolfCatalogReferences());
-  const reviewedRow = { rowNumber: 0, original: {}, normalized: { ...next, brand: String(next.brand ?? ""), category: String(next.category ?? ""), model: String(next.model ?? "") }, fields: {} } as never;
+  const reviewedRow = { rowNumber: 0, original: {}, normalized: { ...next, brand: String(next.brand ?? ""), category: String(next.category ?? ""), model: String(next.model ?? "") }, fields: { category: { value: String(next.category ?? ""), code: "" } } } as never;
   const resolution = resolveModelWithinContext({ row: reviewedRow, models: references });
   const canonicalModelId = resolution.modelId;
   let canonicalModelYear: number | null = null;
   if (canonicalModelId) canonicalModelYear = references.find((model) => model.id === canonicalModelId)?.modelYear ?? null;
   const currentIssues = (Array.isArray(row.validation_result?.issues) ? row.validation_result.issues : []) as BulkIssue[];
   const modelIssues: BulkIssue[] = resolution.issue ? [{ severity: resolution.issue.code === "MODEL_SUGGESTION" ? "WARNING" : "ERROR", code: resolution.issue.code, field: "model", message: resolution.issue.message, details: resolution.issue.details }] : [];
-  const reconciled = reconcileCurrentRowState({ importType: "FIRST_PARTY", normalizedPayload: next, pricingResult: row.pricing_result, existingIssues: [...currentIssues.filter((issue) => !["UNKNOWN_MODEL", "MODEL_SUGGESTION", "AMBIGUOUS_MODEL_GENERATION"].includes(issue.code)), ...modelIssues], canonicalModelYear });
+  const manualResolution = row.manual_resolution ?? null;
+  const reconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult: row.pricing_result, existingIssues: [...currentIssues.filter((issue) => !["UNKNOWN_MODEL", "MODEL_SUGGESTION", "AMBIGUOUS_MODEL_GENERATION"].includes(issue.code)), ...modelIssues], canonicalModelYear, manualResolution });
   let pricingResult = row.pricing_result ?? {};
-  const audit = { ...(row.manual_resolution ?? {}), edit: { actorId: userId, source: "BULK_REVIEW", at: new Date().toISOString(), previous: { acquisitionCostMinor: previous.acquisitionCostMinor, askingPriceMinor: previous.askingPriceMinor }, reviewed: { acquisitionCostMinor: next.acquisitionCostMinor, askingPriceMinor: next.askingPriceMinor } } };
+  const identityChanged = hasBulkModelIdentityChanged(previous, next);
+  const preservedManual = identityChanged
+    ? Object.fromEntries(Object.entries(manualResolution ?? {}).filter(([key]) => !["model", "brand", "modelYear"].includes(key)))
+    : manualResolution ?? {};
+  const audit = { ...preservedManual, edit: { actorId: userId, source: "BULK_REVIEW", at: new Date().toISOString(), previous: { acquisitionCostMinor: previous.acquisitionCostMinor, askingPriceMinor: previous.askingPriceMinor }, reviewed: { acquisitionCostMinor: next.acquisitionCostMinor, askingPriceMinor: next.askingPriceMinor } } };
   if (costChanged) pricingResult = { ...pricingResult, status: "INSUFFICIENT_DATA", proposedPriceMinor: null, approvedPriceMinor: null, stale: true, manualPriceApproved: false, manualOverride: false, viability: "Requiere nuevo análisis" };
-  if (priceChanged && Number(next.askingPriceMinor) > 0 && !costChanged) pricingResult = { ...pricingResult, status: "COMPETITIVE", proposedPriceMinor: Number(next.askingPriceMinor), approvedPriceMinor: Number(next.askingPriceMinor), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Edición de precio en revisión"), stale: false, viability: "Precio aprobado manualmente" };
-  const finalReconciled = reconcileCurrentRowState({ importType: "FIRST_PARTY", normalizedPayload: next, pricingResult, existingIssues: reconciled.issues, canonicalModelYear });
+  const pricingBeforeEdit = row.pricing_result ?? {};
+  const pricingNeedsReview = importType === "PARTNER"
+    ? shouldRecalculatePartnerPricing({ pricingSubmitted, priceChanged, desiredNetChanged, normalizedPayload: previous, pricingResult: pricingBeforeEdit })
+    : !getFirstPartyBulkPricingReadiness({ normalized_payload: previous, pricing_result: pricingBeforeEdit }).ready || pricingBeforeEdit.manualPriceApproved !== true || pricingBeforeEdit.humanReviewStatus !== "APPROVED";
+  if (importType === "PARTNER" && pricingNeedsReview) {
+    const config = await loadMarketplaceEconomicsConfig(_client, partnerId);
+    const requestedPublic = Number(next.askingPriceMinor) > 0 ? Number(next.askingPriceMinor) : null;
+    const requestedNet = Number(next.desiredNetMinor) > 0 ? Number(next.desiredNetMinor) : null;
+    if (config && (requestedPublic !== null || requestedNet !== null)) {
+      const inputMode = desiredNetChanged && !priceChanged ? "NET_PRIORITY" : String(pricingResult.inputMode ?? "PUBLIC_PRICE_PRIORITY") === "NET_PRIORITY" && !priceChanged ? "NET_PRIORITY" : "PUBLIC_PRICE_PRIORITY";
+      const resolution = resolveMarketplacePrice({ inputMode, desiredPublicPriceMinor: requestedPublic, desiredPartnerNetMinor: requestedNet, config });
+      const marketStatus = String(pricingResult.marketStatus ?? pricingResult.status ?? "INSUFFICIENT_DATA");
+      pricingResult = { ...pricingResult, status: marketStatus, marketStatus, proposedPriceMinor: resolution.calculatedPublicPriceMinor, approvedPriceMinor: resolution.calculatedPublicPriceMinor, calculatedPublicPriceMinor: resolution.calculatedPublicPriceMinor, estimatedPartnerNetMinor: resolution.economics.partnerNetMinor, economics: resolution.economics, manualPriceApproved: true, manualOverride: true, humanReviewStatus: "APPROVED", manualPriceReason: String(formData.get("reason") ?? "Revisión de precio Partner"), stale: false, viability: marketStatus === "INSUFFICIENT_DATA" ? "Referencia de mercado insuficiente" : marketStatus };
+    }
+  }
+  if (importType === "FIRST_PARTY" && shouldRecalculateFirstPartyPricing({ pricingSubmitted, normalizedPayload: next, pricingResult, costChanged })) {
+    const reviewed = await calculateFirstPartyReviewedPricing(_client, { categorySlug: String(next.categorySlug ?? next.category ?? ""), condition: String(next.condition ?? "used"), acquisitionCostMinor: Number(next.acquisitionCostMinor ?? 0), salePriceMinor: Number(next.askingPriceMinor ?? 0), manualPriceReason: String(formData.get("reason") ?? "").trim() || null });
+    if (reviewed?.result) {
+      const result = reviewed.result;
+      pricingResult = { ...pricingResult, status: "INSUFFICIENT_DATA", marketStatus: "INSUFFICIENT_DATA", financialPriceMinor: result.financialPrice, automaticSuggestedPriceMinor: result.automaticSuggestedPrice, proposedPriceMinor: result.finalSalePrice, approvedPriceMinor: result.finalSalePrice, calculatedPublicPriceMinor: result.finalSalePrice, expectedContributionMinor: result.expectedContribution, returnOnCostBps: result.returnOnCostBps, marginOnSaleBps: result.marginOnSaleBps, manualPriceApproved: true, manualOverride: result.override, manualPriceReason: result.manualPriceReason, stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
+    } else if (reviewed?.error) {
+      pricingResult = { ...pricingResult, status: "INSUFFICIENT_DATA", marketStatus: "INSUFFICIENT_DATA", financialPriceMinor: Number(pricingResult.financialPriceMinor ?? 0), proposedPriceMinor: Number(next.askingPriceMinor ?? 0), approvedPriceMinor: null, manualPriceApproved: false, manualOverride: false, manualPriceReason: null, stale: false, humanReviewStatus: null, belowFinancialFloor: reviewed.error.includes("debajo") || reviewed.error.includes("administrador"), viability: reviewed.error };
+    }
+  }
+  const finalReconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult, existingIssues: reconciled.issues, canonicalModelYear, manualResolution: identityChanged ? preservedManual : manualResolution });
   return { normalized_payload: next, canonical_model_id: canonicalModelId, pricing_result: pricingResult, validation_result: { ...(row.validation_result ?? {}), issues: finalReconciled.issues, modelCandidates: resolution.candidates.map((candidate) => ({ id: candidate.id, name: candidate.modelName, modelYear: candidate.modelYear })) }, severity: finalReconciled.severity, manual_resolution: audit, reviewed_by: userId, reviewed_at: new Date().toISOString() };
+}
+
+async function safeBuildReviewedRowPatch(...args: Parameters<typeof buildReviewedRowPatch>) {
+  try {
+    return await buildReviewedRowPatch(...args);
+  } catch (error) {
+    console.error("bulk_import_row_edit_failed", { error });
+    return null;
+  }
 }
 
 export async function createBulkImportPreview(formData: FormData) {
@@ -187,11 +287,23 @@ export async function reviewBulkImportAction(formData: FormData) {
     return { ok: true as const, message: "La carga fue aprobada para importación." };
   }
   if (!rowId) return { ok: false as const, message: "No encontramos esta fila." };
-  const reviewJob = await db(client, "bulk_import_jobs").select("status,import_type").eq("id", jobId).maybeSingle();
+  const reviewJob = await db(client, "bulk_import_jobs").select("status,import_type,partner_profile_id").eq("id", jobId).maybeSingle();
   if (reviewJob.error || !reviewJob.data) return { ok: false as const, message: "No encontramos esta carga." };
-  if (reviewJob.data.status !== "READY_FOR_REVIEW") return { ok: false as const, message: "Reabre la revisión antes de editar una fila." };
-  const row = await db(client, "bulk_import_rows").select("id,job_id,canonical_model_id,normalization_metadata,normalized_payload,validation_result,pricing_result,manual_resolution,severity,excluded,original_payload").eq("id", rowId).eq("job_id", jobId).maybeSingle();
+  const row = await db(client, "bulk_import_rows").select("id,job_id,canonical_model_id,normalization_metadata,normalized_payload,validation_result,pricing_result,manual_resolution,severity,excluded,original_payload,execution_status").eq("id", rowId).eq("job_id", jobId).maybeSingle();
   if (row.error || !row.data) return { ok: false as const, message: "No encontramos esta fila." };
+  if (!canEditBulkRow(reviewJob.data.status, row.data.execution_status)) {
+    if (row.data.execution_status === "IMPORTED") return { ok: false as const, message: reviewJob.data.import_type === "PARTNER" ? "Esta fila ya fue importada. Edita la publicación desde Marketplace." : "Esta fila ya fue importada. Edita el producto desde Catálogo." };
+    if (row.data.execution_status === "SKIPPED_EXISTING") return { ok: false as const, message: "Esta fila ya existe y se conserva sin cambios." };
+    return { ok: false as const, message: "Corrige la fila desde una revisión activa o desde sus errores pendientes." };
+  }
+  if (action === "manual_resolution") {
+    const manualBrand = String(formData.get("manualBrand") ?? "").trim();
+    const manualModel = String(formData.get("manualModel") ?? "").trim();
+    if (!manualBrand || !manualModel) return { ok: false as const, message: "Escribe la marca y el modelo antes de aprobar un modelo manual." };
+  }
+  if (action === "manual_price_resolution" && reviewJob.data.import_type === "PARTNER") {
+    return { ok: false as const, message: "Revisa el precio Partner desde Editar fila." };
+  }
   const currentIssues = Array.isArray(row.data.validation_result?.issues) ? row.data.validation_result.issues : [];
   const invalidatePricing = { ...(row.data.pricing_result ?? {}), status: "INSUFFICIENT_DATA", proposedPriceMinor: null, marketReferenceMinor: null, estimatedPartnerNetMinor: null, viability: "Requiere nuevo análisis", reusedResearch: false, manualPriceApproved: false, manualOverride: false };
   const candidate = action === "resolve_model" ? (row.data.validation_result?.modelCandidates ?? []).find((item: { id?: string }) => item.id === String(formData.get("modelId") ?? "")) : null;
@@ -202,15 +314,15 @@ export async function reviewBulkImportAction(formData: FormData) {
       : action === "accept_normalization"
         ? { normalization_accepted: true, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
         : action === "manual_resolution"
-          ? { manual_resolution: { brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: String(formData.get("manualYear") ?? "") || null }, normalized_payload: { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? ""), model: String(formData.get("manualModel") ?? ""), modelYear: Number(formData.get("manualYear")) || null }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          ? { manual_resolution: { ...(row.data.manual_resolution ?? {}), model: { approved: true, brand: String(formData.get("manualBrand") ?? "").trim(), model: String(formData.get("manualModel") ?? "").trim(), modelYear: Number(formData.get("manualYear")) || null, actorId: user.id, source: "BULK_REVIEW", approvedAt: new Date().toISOString() } }, canonical_model_id: null, normalized_payload: { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? "").trim(), model: String(formData.get("manualModel") ?? "").trim(), modelYear: Number(formData.get("manualYear")) || null }, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => !["UNKNOWN_MODEL", "AMBIGUOUS_MODEL_GENERATION", "MODEL_SUGGESTION"].includes(String(issue.code))) }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "resolve_model" && candidate
             ? { canonical_model_id: candidate.id, normalized_payload: { ...row.data.normalized_payload, model: candidate.name, modelYear: candidate.modelYear ?? row.data.normalized_payload.modelYear }, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => issue.code !== "AMBIGUOUS_MODEL_GENERATION" && issue.code !== "UNKNOWN_MODEL" && issue.code !== "MODEL_SUGGESTION") }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "use_canonical_year"
             ? { normalized_payload: { ...row.data.normalized_payload, modelYear: Number(formData.get("canonicalYear")) || null }, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "manual_price_resolution"
-            ? { normalized_payload: { ...row.data.normalized_payload, askingPriceMinor: parseReviewedPrice(formData) }, pricing_result: { ...(row.data.pricing_result ?? {}), status: "COMPETITIVE", proposedPriceMinor: parseReviewedPrice(formData), approvedPriceMinor: parseReviewedPrice(formData), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Aprobación manual de precio"), viability: "Precio aprobado manualmente", stale: false }, manual_resolution: { ...(row.data.manual_resolution ?? {}), pricing: { approvedPriceMinor: parseReviewedPrice(formData), reason: String(formData.get("reason") ?? "Aprobación manual de precio"), actorId: user.id, source: "BULK_REVIEW" } }, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+            ? { normalized_payload: { ...row.data.normalized_payload, askingPriceMinor: parseReviewedPrice(formData) }, pricing_result: { ...(row.data.pricing_result ?? {}), status: String(row.data.pricing_result?.status ?? "INSUFFICIENT_DATA"), proposedPriceMinor: parseReviewedPrice(formData), approvedPriceMinor: parseReviewedPrice(formData), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Aprobación manual de precio"), viability: "Precio aprobado manualmente", stale: false, humanReviewStatus: "APPROVED" }, manual_resolution: { ...(row.data.manual_resolution ?? {}), pricing: { approvedPriceMinor: parseReviewedPrice(formData), reason: String(formData.get("reason") ?? "Aprobación manual de precio"), actorId: user.id, source: "BULK_REVIEW" } }, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "edit_row"
-            ? await buildReviewedRowPatch(client, row.data, formData, user.id)
+            ? await safeBuildReviewedRowPatch(client, row.data, formData, user.id, reviewJob.data.import_type, reviewJob.data.partner_profile_id ?? null)
           : null;
   if (action === "resolve_model" && !candidate) return { ok: false as const, message: "Selecciona una generación válida del catálogo." };
   if (action === "manual_price_resolution") {
@@ -219,7 +331,7 @@ export async function reviewBulkImportAction(formData: FormData) {
   }
   if (action === "use_canonical_year" && !Number.isInteger(Number(formData.get("canonicalYear")))) return { ok: false as const, message: "No encontramos el año canónico." };
   if (!patch) return { ok: false as const, message: "Acción de revisión no reconocida." };
-  if (action === "edit_row" && !patch) return { ok: false as const, message: "No pudimos interpretar los valores revisados." };
+  if (action === "edit_row" && !patch) return { ok: false as const, message: "No pudimos guardar los cambios de esta fila." };
   const resultingPayload = (patch as Record<string, unknown>)?.normalized_payload as Record<string, unknown> | undefined ?? row.data.normalized_payload;
   const resultingPricing = (patch as Record<string, unknown>)?.pricing_result as Record<string, unknown> | undefined ?? row.data.pricing_result;
   if (action !== "exclude" && action !== "reinclude") {
@@ -229,7 +341,8 @@ export async function reviewBulkImportAction(formData: FormData) {
       const model = await client.from("catalog_product_models").select("model_year").eq("id", canonicalId).maybeSingle();
       canonicalModelYear = (model.data as unknown as { model_year: number | null } | null)?.model_year ?? null;
     }
-    const reconciliation = reconcileCurrentRowState({ importType: reviewJob.data.import_type, normalizedPayload: resultingPayload, pricingResult: resultingPricing, existingIssues: Array.isArray(row.data.validation_result?.issues) ? row.data.validation_result.issues : [], canonicalModelYear });
+    const resultingManualResolution = (patch as Record<string, unknown>)?.manual_resolution as Record<string, unknown> | undefined ?? row.data.manual_resolution ?? null;
+    const reconciliation = reconcileCurrentRowState({ importType: reviewJob.data.import_type, normalizedPayload: resultingPayload, pricingResult: resultingPricing, existingIssues: Array.isArray(row.data.validation_result?.issues) ? row.data.validation_result.issues : [], canonicalModelYear, manualResolution: resultingManualResolution });
     patch = { ...patch, validation_result: { ...(row.data.validation_result ?? {}), issues: reconciliation.issues }, severity: reconciliation.severity } as typeof patch;
   }
   const updated = await db(client, "bulk_import_rows").update(patch as Record<string, unknown>).eq("id", rowId).eq("job_id", jobId);
@@ -246,18 +359,49 @@ export async function executeFirstPartyBulkImportAction(jobId: string) {
   if (job.error || !job.data) return { ok: false as const, message: "No encontramos esta carga." };
   if (job.data.import_type !== "FIRST_PARTY") return { ok: false as const, message: "Esta carga corresponde a un Partner y no puede importarse desde este flujo." };
   if (!["APPROVED_FOR_IMPORT", "PARTIALLY_IMPORTED", "FAILED_IMPORT"].includes(job.data.status)) return { ok: false as const, message: "La carga debe estar aprobada para importar." };
+  if (job.data.status === "PARTIALLY_IMPORTED" || job.data.status === "FAILED_IMPORT") {
+    const retryState = await db(client, "bulk_import_jobs").update({ status: "APPROVED_FOR_IMPORT" }).eq("id", jobId).in("status", ["PARTIALLY_IMPORTED", "FAILED_IMPORT"]);
+    if (retryState.error) return { ok: false as const, message: "La importación ya está en proceso o no puede reintentarse." };
+    await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: "FAILED_ROWS_RETRY_STARTED", metadata: { actorId: user.id, domainType: "FIRST_PARTY" } });
+  }
   // Generated Supabase types are refreshed after the staging migration lands.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (client as any).rpc("execute_first_party_bulk_import", { requested_job_id: jobId });
   if (result.error || !result.data) {
     console.error("bulk_import_execution_failed", { jobId, actorId: user.id, code: result.error?.code, message: result.error?.message });
-    return { ok: false as const, message: "No pudimos importar esta carga. Revisa las filas e inténtalo de nuevo." };
+    return { ok: false as const, message: "No pudimos crear los productos de esta carga. Revisa las filas e inténtalo de nuevo." };
   }
   revalidatePath(`/operacion/carga-masiva/${jobId}`);
   revalidatePath("/operacion/catalogo");
   revalidatePath("/operacion/inventario");
   const summary = result.data as { status?: string; imported?: number; skipped?: number; failed?: number };
-  return { ok: true as const, message: summary.status === "IMPORTED" ? "La importación se completó correctamente." : "La importación terminó con algunas filas pendientes.", summary };
+  return { ok: true as const, message: summary.status === "IMPORTED" ? "Los productos se crearon correctamente." : "La importación terminó con algunos productos pendientes.", summary };
+}
+
+export async function executePartnerBulkImportAction(jobId: string) {
+  const { client, user } = await requireReviewOperator();
+  if (!user) return { ok: false as const, message: "No tienes autorización para crear borradores." };
+  const job = await db(client, "bulk_import_jobs").select("id,status,import_type,partner_profile_id").eq("id", jobId).maybeSingle();
+  if (job.error || !job.data) return { ok: false as const, message: "No encontramos esta carga." };
+  if (job.data.import_type !== "PARTNER") return { ok: false as const, message: "Esta carga no corresponde a un Partner." };
+  if (!job.data.partner_profile_id) return { ok: false as const, message: "La carga no tiene un Partner válido." };
+  if (!["APPROVED_FOR_IMPORT", "PARTIALLY_IMPORTED", "FAILED_IMPORT"].includes(job.data.status)) return { ok: false as const, message: "La carga debe estar aprobada para crear borradores." };
+  if (job.data.status === "PARTIALLY_IMPORTED") {
+    const retryState = await db(client, "bulk_import_jobs").update({ status: "FAILED_IMPORT" }).eq("id", jobId).eq("status", "PARTIALLY_IMPORTED");
+    if (retryState.error) return { ok: false as const, message: "La importación ya está en proceso o no puede reintentarse." };
+    await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: "FAILED_ROWS_RETRY_STARTED", metadata: { actorId: user.id, domainType: "PARTNER_LISTING" } });
+  }
+  // Additive migration is reflected in the next generated schema snapshot.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any).rpc("execute_partner_bulk_import", { requested_job_id: jobId });
+  if (result.error || !result.data) {
+    console.error("partner_bulk_import_execution_failed", { jobId, actorId: user.id, code: result.error?.code, message: result.error?.message });
+    return { ok: false as const, message: "No pudimos crear los borradores. Revisa las filas e inténtalo de nuevo." };
+  }
+  revalidatePath(`/operacion/carga-masiva/${jobId}`);
+  revalidatePath("/operacion/publicaciones");
+  const summary = result.data as { status?: string; imported?: number; skipped?: number; failed?: number };
+  return { ok: true as const, message: summary.status === "IMPORTED" ? "Los borradores se crearon correctamente." : "La importación terminó con algunas filas pendientes.", summary };
 }
 
 export async function discardBulkImportJob(jobId: string) {

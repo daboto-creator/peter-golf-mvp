@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canExecuteFirstPartyBulkImport } from "./execution-policy";
+import { canExecuteFirstPartyBulkImport, canExecutePartnerBulkImport } from "./execution-policy";
 
 const base = { importType: "FIRST_PARTY" as const, status: "APPROVED_FOR_IMPORT" as const, isOperator: true, importableRows: 1, hasBlockingErrors: false };
 
@@ -16,3 +16,13 @@ describe("first party bulk execution policy", () => {
   });
 });
 
+describe("partner bulk execution policy", () => {
+  const partner = { importType: "PARTNER" as const, status: "APPROVED_FOR_IMPORT" as const, isOperator: true, partnerProfileId: "partner-1", importableRows: 1, hasBlockingErrors: false, pricingReady: true };
+  it("allows an approved Partner job without acquisition cost", () => expect(canExecutePartnerBulkImport(partner)).toEqual({ allowed: true }));
+  it("rejects First Party, missing ownership, stale pricing and unsafe states", () => {
+    expect(canExecutePartnerBulkImport({ ...partner, importType: "FIRST_PARTY" })).toMatchObject({ allowed: false, code: "FIRST_PARTY_NOT_SUPPORTED" });
+    expect(canExecutePartnerBulkImport({ ...partner, partnerProfileId: null })).toMatchObject({ allowed: false, code: "MISSING_PARTNER" });
+    expect(canExecutePartnerBulkImport({ ...partner, pricingReady: false })).toMatchObject({ allowed: false, code: "PRICING_REVIEW_REQUIRED" });
+    expect(canExecutePartnerBulkImport({ ...partner, status: "READY_FOR_REVIEW" })).toMatchObject({ allowed: false, code: "INVALID_STATE" });
+  });
+});

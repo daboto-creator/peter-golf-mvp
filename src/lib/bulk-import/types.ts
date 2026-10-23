@@ -113,6 +113,8 @@ export type PricingPrecheck = {
   viability: string;
   researchRequestKey: string | null;
   reusedResearch: boolean;
+  calculatedPublicPriceMinor?: number | null;
+  economics?: Record<string, number | boolean | null> | null;
 };
 
 export type PhotoSourceResult = {

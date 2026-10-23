@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildBulkPreview } from "./preview";
 import { parseSpanishCsv, exportErrorCsv } from "./csv";
-import { normalizeBrand, normalizeCategory, normalizeHand, normalizeFlex, normalizeShaftMaterial, parseMoneyToMinorUnits, normalizePhotoKey } from "./normalization";
+import { normalizeBrand, normalizeCategory, normalizeHand, normalizeFlex, normalizeShaftMaterial, parseMoneyToMinorUnits, normalizePhotoKey, resolveModelWithinContext } from "./normalization";
 import type { CatalogModelReference } from "./types";
 
 const models: CatalogModelReference[] = [
@@ -77,5 +77,14 @@ describe("bulk import normalization", () => {
   it("normalizes photo keys and protects formula exports", () => {
     expect(normalizePhotoKey("GT3 001")).toBe("gt3-001");
     expect(exportErrorCsv([{ Fila: 2, "ID externo": "=HYPERLINK(\"x\")", Estado: "Error", Código: "X", Problema: "No" }])).toContain("'=HYPERLINK");
+  });
+
+  it("does not crash when fuzzy model resolution receives partial field metadata", () => {
+    expect(() => resolveModelWithinContext({ row: { rowNumber: 1, original: {}, normalized: { brand: "Titleist", category: "driver", model: "GT3 X", modelYear: 2024 }, fields: {} } as never, models })).not.toThrow();
+  });
+
+  it("returns a safe fuzzy suggestion without category metadata", () => {
+    const result = resolveModelWithinContext({ row: { rowNumber: 1, original: {}, normalized: { brand: "Titleist", category: "driver", model: "GT3 X", modelYear: 2024 }, fields: {} } as never, models });
+    expect(result.issue?.code).toBe("MODEL_SUGGESTION");
   });
 });
