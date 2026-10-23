@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { canApproveBulkImport, getDisplayedReviewedPriceMinor, getFirstPartyBulkPricingReadiness, getPartnerBulkPricingReadiness, shouldRecalculatePartnerPricing } from "./review-policy";
+import { canApproveBulkImport, getDisplayedReviewedPriceMinor, getFirstPartyBulkPricingReadiness, getPartnerBulkPricingReadiness, shouldRecalculateFirstPartyPricing, shouldRecalculatePartnerPricing } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
 
 describe("bulk import review approval", () => {
@@ -62,6 +62,9 @@ describe("bulk import review approval", () => {
   });
   test("already-ready unchanged Partner pricing is a no-op", () => {
     expect(shouldRecalculatePartnerPricing({ pricingSubmitted: true, priceChanged: false, desiredNetChanged: false, normalizedPayload: { askingPriceMinor: 1051000 }, pricingResult: { status: "COMPETITIVE", humanReviewStatus: "APPROVED", manualPriceApproved: true, approvedPriceMinor: 1051000, stale: false } })).toBe(false);
+  });
+  test("same First Party sale price can be approved without a fake change", () => {
+    expect(shouldRecalculateFirstPartyPricing({ pricingSubmitted: true, normalizedPayload: { askingPriceMinor: 834000, acquisitionCostMinor: 500000 }, pricingResult: { status: "INSUFFICIENT_DATA", proposedPriceMinor: null, manualPriceApproved: false, stale: false }, costChanged: false })).toBe(true);
   });
   test("display uses approved/calculated value before proposed or input", () => {
     expect(getDisplayedReviewedPriceMinor({ proposedPriceMinor: null, approvedPriceMinor: 1004435, calculatedPublicPriceMinor: 1004435 }, { askingPriceMinor: 1051000 })).toBe(1004435);

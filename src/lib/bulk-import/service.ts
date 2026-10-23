@@ -7,9 +7,9 @@ import { buildBulkPreview } from "./preview";
 import type { BulkImportType, BulkIssue, CatalogModelReference } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { canDiscardBulkImportJob } from "./discard-policy";
-import { canApproveBulkImport, getFirstPartyBulkPricingReadiness, shouldRecalculatePartnerPricing } from "./review-policy";
+import { canApproveBulkImport, getFirstPartyBulkPricingReadiness, shouldRecalculateFirstPartyPricing, shouldRecalculatePartnerPricing } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
-import { canEditBulkRow } from "./row-execution-policy";
+import { canEditBulkRow, hasBulkModelIdentityChanged } from "./row-execution-policy";
 import { normalizeCategory, normalizeCondition, normalizeHand, normalizeYear, parseMoneyToMinorUnits, resolveModelWithinContext } from "./normalization";
 import { revalidatePath } from "next/cache";
 import { resolveMarketplacePrice } from "@/lib/pricing/marketplace-pricing-engine";
@@ -71,11 +71,15 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
   const next = { ...previous };
   const set = (key: string, value: unknown) => { if (value !== undefined) next[key] = value; };
   const category = normalizeCategory(String(formData.get("category") ?? previous.category ?? ""));
+  const brand = String(formData.get("brand") ?? previous.brand ?? "").trim();
+  const model = String(formData.get("model") ?? previous.model ?? "").trim();
   const year = normalizeYear(String(formData.get("modelYear") ?? previous.modelYear ?? ""));
   const hand = normalizeHand(String(formData.get("hand") ?? previous.hand ?? ""));
   const condition = normalizeCondition(String(formData.get("condition") ?? previous.condition ?? ""));
   set("category", category.value ? String(category.value) : null);
   set("categorySlug", category.value ? String(category.value) : null);
+  set("brand", brand);
+  set("model", model);
   set("modelYear", year.value);
   set("hand", hand.value);
   set("condition", condition.value);
@@ -107,7 +111,7 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
   const manualResolution = row.manual_resolution ?? null;
   const reconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult: row.pricing_result, existingIssues: [...currentIssues.filter((issue) => !["UNKNOWN_MODEL", "MODEL_SUGGESTION", "AMBIGUOUS_MODEL_GENERATION"].includes(issue.code)), ...modelIssues], canonicalModelYear, manualResolution });
   let pricingResult = row.pricing_result ?? {};
-  const identityChanged = ["category", "modelYear"].some((field) => String(next[field] ?? "") !== String(previous[field] ?? ""));
+  const identityChanged = hasBulkModelIdentityChanged(previous, next);
   const preservedManual = identityChanged
     ? Object.fromEntries(Object.entries(manualResolution ?? {}).filter(([key]) => !["model", "brand", "modelYear"].includes(key)))
     : manualResolution ?? {};
@@ -128,7 +132,7 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
       pricingResult = { ...pricingResult, status: marketStatus, marketStatus, proposedPriceMinor: resolution.calculatedPublicPriceMinor, approvedPriceMinor: resolution.calculatedPublicPriceMinor, calculatedPublicPriceMinor: resolution.calculatedPublicPriceMinor, estimatedPartnerNetMinor: resolution.economics.partnerNetMinor, economics: resolution.economics, manualPriceApproved: true, manualOverride: true, humanReviewStatus: "APPROVED", manualPriceReason: String(formData.get("reason") ?? "Revisión de precio Partner"), stale: false, viability: marketStatus === "INSUFFICIENT_DATA" ? "Referencia de mercado insuficiente" : marketStatus };
     }
   }
-  if (importType === "FIRST_PARTY" && pricingSubmitted && Number(next.askingPriceMinor) > 0 && !costChanged && pricingNeedsReview) pricingResult = { ...pricingResult, status: pricingResult.status ?? "INSUFFICIENT_DATA", proposedPriceMinor: Number(next.askingPriceMinor), approvedPriceMinor: Number(next.askingPriceMinor), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Edición de precio en revisión"), stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
+  if (importType === "FIRST_PARTY" && shouldRecalculateFirstPartyPricing({ pricingSubmitted, normalizedPayload: next, pricingResult, costChanged })) pricingResult = { ...pricingResult, status: pricingResult.status ?? "INSUFFICIENT_DATA", proposedPriceMinor: Number(next.askingPriceMinor), approvedPriceMinor: Number(next.askingPriceMinor), manualPriceApproved: true, manualOverride: true, manualPriceReason: String(formData.get("reason") ?? "Edición de precio en revisión"), stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
   const finalReconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult, existingIssues: reconciled.issues, canonicalModelYear, manualResolution: identityChanged ? preservedManual : manualResolution });
   return { normalized_payload: next, canonical_model_id: canonicalModelId, pricing_result: pricingResult, validation_result: { ...(row.validation_result ?? {}), issues: finalReconciled.issues, modelCandidates: resolution.candidates.map((candidate) => ({ id: candidate.id, name: candidate.modelName, modelYear: candidate.modelYear })) }, severity: finalReconciled.severity, manual_resolution: audit, reviewed_by: userId, reviewed_at: new Date().toISOString() };
 }
@@ -303,6 +307,11 @@ export async function executeFirstPartyBulkImportAction(jobId: string) {
   if (job.error || !job.data) return { ok: false as const, message: "No encontramos esta carga." };
   if (job.data.import_type !== "FIRST_PARTY") return { ok: false as const, message: "Esta carga corresponde a un Partner y no puede importarse desde este flujo." };
   if (!["APPROVED_FOR_IMPORT", "PARTIALLY_IMPORTED", "FAILED_IMPORT"].includes(job.data.status)) return { ok: false as const, message: "La carga debe estar aprobada para importar." };
+  if (job.data.status === "PARTIALLY_IMPORTED" || job.data.status === "FAILED_IMPORT") {
+    const retryState = await db(client, "bulk_import_jobs").update({ status: "APPROVED_FOR_IMPORT" }).eq("id", jobId).in("status", ["PARTIALLY_IMPORTED", "FAILED_IMPORT"]);
+    if (retryState.error) return { ok: false as const, message: "La importación ya está en proceso o no puede reintentarse." };
+    await db(client, "bulk_import_job_events").insert({ job_id: jobId, event_type: "FAILED_ROWS_RETRY_STARTED", metadata: { actorId: user.id, domainType: "FIRST_PARTY" } });
+  }
   // Generated Supabase types are refreshed after the staging migration lands.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (client as any).rpc("execute_first_party_bulk_import", { requested_job_id: jobId });

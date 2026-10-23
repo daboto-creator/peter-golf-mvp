@@ -69,6 +69,18 @@ export function shouldRecalculatePartnerPricing(input: {
   return input.priceChanged || input.desiredNetChanged || unresolved;
 }
 
+export function shouldRecalculateFirstPartyPricing(input: {
+  pricingSubmitted: boolean;
+  normalizedPayload: Record<string, unknown>;
+  pricingResult: Record<string, unknown> | null | undefined;
+  costChanged: boolean;
+}) {
+  if (!input.pricingSubmitted || input.costChanged || Number(input.normalizedPayload.askingPriceMinor ?? 0) <= 0) return false;
+  const pricing = input.pricingResult ?? {};
+  const readiness = getFirstPartyBulkPricingReadiness({ normalized_payload: input.normalizedPayload, pricing_result: pricing });
+  return !readiness.ready || pricing.manualPriceApproved !== true || pricing.humanReviewStatus !== "APPROVED";
+}
+
 export function hasCanonicalModelYearMismatch(row: ReviewApprovalRow) {
   return row.canonicalModelYear != null && row.normalizedModelYear != null && row.canonicalModelYear !== row.normalizedModelYear;
 }

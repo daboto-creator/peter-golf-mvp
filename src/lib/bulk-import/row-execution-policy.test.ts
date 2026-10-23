@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { canEditBulkRow, isBulkRowRetryReady } from "./row-execution-policy";
+import { canEditBulkRow, deriveBulkJobAggregate, hasBulkModelIdentityChanged, isBulkRowRetryReady } from "./row-execution-policy";
 
 describe("bulk row remediation policy", () => {
   test("only failed rows are editable after a partial import", () => {
@@ -35,5 +35,27 @@ describe("bulk row remediation policy", () => {
       pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 150000 },
       existingIssues: [],
     })).toBe(false);
+  });
+
+  test.each(["PARTNER", "FIRST_PARTY"])("model identity changes invalidate manual fallback for %s", () => {
+    const previous = { brand: "Cobra", model: "DarkSpeed X", category: "driver", modelYear: 2024 };
+    expect(hasBulkModelIdentityChanged(previous, { ...previous, brand: "TaylorMade" })).toBe(true);
+    expect(hasBulkModelIdentityChanged(previous, { ...previous, model: "Qi35" })).toBe(true);
+    expect(hasBulkModelIdentityChanged(previous, { ...previous, category: "hybrid" })).toBe(true);
+    expect(hasBulkModelIdentityChanged(previous, { ...previous, modelYear: 2025 })).toBe(true);
+    expect(hasBulkModelIdentityChanged(previous, { ...previous, brand: " cobra ", model: "darkspeed x" })).toBe(false);
+  });
+
+  test.each(["PARTNER", "FIRST_PARTY"])("aggregate counters include prior imported rows for %s", () => {
+    expect(deriveBulkJobAggregate([
+      { execution_status: "IMPORTED" }, { execution_status: "IMPORTED" },
+      { execution_status: "IMPORTED" }, { execution_status: "IMPORTED" },
+      { execution_status: "FAILED" },
+    ])).toEqual({ imported: 4, skipped: 0, failed: 1, status: "PARTIALLY_IMPORTED" });
+    expect(deriveBulkJobAggregate([
+      { execution_status: "IMPORTED" }, { execution_status: "IMPORTED" },
+      { execution_status: "IMPORTED" }, { execution_status: "IMPORTED" },
+      { execution_status: "IMPORTED" },
+    ])).toEqual({ imported: 5, skipped: 0, failed: 0, status: "IMPORTED" });
   });
 });
