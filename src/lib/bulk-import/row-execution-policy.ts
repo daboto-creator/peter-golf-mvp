@@ -10,15 +10,40 @@ export function hasBulkAcquisitionCostChanged(previousCostMinor: unknown, submit
   return submittedCostMinor !== null && submittedCostMinor !== Number(previousCostMinor ?? 0);
 }
 
-export function getFirstPartyPricingAfterManualModelApproval(input: {
+export function getPricingAfterManualModelApproval(input: {
+  importType: BulkImportType;
   previousPayload: Record<string, unknown>;
   approvedPayload: Record<string, unknown>;
   currentPricing: Record<string, unknown> | null | undefined;
-  invalidatedPricing: Record<string, unknown>;
 }) {
-  return hasBulkModelIdentityChanged(input.previousPayload, input.approvedPayload)
-    ? input.invalidatedPricing
-    : input.currentPricing;
+  if (!hasBulkModelIdentityChanged(input.previousPayload, input.approvedPayload)) {
+    return input.currentPricing;
+  }
+
+  const invalidated = {
+    ...(input.currentPricing ?? {}),
+    status: "INSUFFICIENT_DATA",
+    proposedPriceMinor: null,
+    approvedPriceMinor: null,
+    calculatedPublicPriceMinor: null,
+    manualPriceApproved: false,
+    manualOverride: false,
+    manualPriceReason: null,
+    humanReviewStatus: null,
+    stale: true,
+    viability: "Requiere nuevo análisis",
+  };
+
+  return input.importType === "PARTNER"
+    ? {
+        ...invalidated,
+        marketStatus: "INSUFFICIENT_DATA",
+        marketReferenceMinor: null,
+        estimatedPartnerNetMinor: null,
+        economics: null,
+        reusedResearch: false,
+      }
+    : invalidated;
 }
 
 export function deriveBulkJobAggregate(rows: Array<{ excluded?: boolean; execution_status?: string | null }>) {
