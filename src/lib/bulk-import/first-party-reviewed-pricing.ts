@@ -3,7 +3,15 @@ import type { PricingEngineResult } from "@/lib/pricing/pricing-types";
 export function buildSuccessfulFirstPartyReviewedPricing(
   previous: Record<string, unknown> | null | undefined,
   result: PricingEngineResult,
+  configuration: {
+    pricingRuleCode: string;
+    targetReturnBps: number;
+    paymentFeeConfigCode: string;
+    paymentFeePercentageBps: number;
+    paymentFeeFixedMinor: number;
+  },
 ) {
+  const belowFinancialFloor = result.finalSalePrice < result.financialPrice;
   return {
     ...(previous ?? {}),
     status: "INSUFFICIENT_DATA",
@@ -21,7 +29,9 @@ export function buildSuccessfulFirstPartyReviewedPricing(
     manualPriceReason: result.manualPriceReason,
     stale: false,
     humanReviewStatus: "APPROVED",
-    belowFinancialFloor: false,
+    belowFinancialFloor,
+    financialFloorOverrideApproved: belowFinancialFloor && Boolean(result.manualPriceReason),
+    ...configuration,
     viability: "Precio aprobado manualmente",
   };
 }
@@ -45,6 +55,7 @@ export function buildFailedFirstPartyReviewedPricing(
     humanReviewStatus: null,
     belowFinancialFloor:
       input.error.includes("debajo") || input.error.includes("administrador"),
+    financialFloorOverrideApproved: false,
     viability: input.error,
   };
 }

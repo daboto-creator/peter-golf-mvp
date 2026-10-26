@@ -1,10 +1,9 @@
 import type { BulkImportType } from "./types";
 import { reconcileCurrentRowState } from "./review-reconciliation";
+import { hasBulkModelIdentityChanged } from "./model-identity";
+import { normalizeFirstPartyPricingState } from "./review-policy";
 
-export function hasBulkModelIdentityChanged(previous: Record<string, unknown>, next: Record<string, unknown>) {
-  const normalize = (field: string, value: unknown) => field === "modelYear" ? (Number(value) || null) : String(value ?? "").trim().toLocaleLowerCase("es-MX");
-  return ["brand", "model", "category", "modelYear"].some((field) => normalize(field, previous[field]) !== normalize(field, next[field]));
-}
+export { hasBulkModelIdentityChanged } from "./model-identity";
 
 export function hasBulkAcquisitionCostChanged(previousCostMinor: unknown, submittedCostMinor: number | null) {
   return submittedCostMinor !== null && submittedCostMinor !== Number(previousCostMinor ?? 0);
@@ -17,7 +16,9 @@ export function getPricingAfterManualModelApproval(input: {
   currentPricing: Record<string, unknown> | null | undefined;
 }) {
   if (!hasBulkModelIdentityChanged(input.previousPayload, input.approvedPayload)) {
-    return input.currentPricing;
+    return input.importType === "FIRST_PARTY"
+      ? normalizeFirstPartyPricingState(input.currentPricing)
+      : input.currentPricing;
   }
 
   const invalidated = {
@@ -48,9 +49,9 @@ export function getPricingAfterManualModelApproval(input: {
 
 export function deriveBulkJobAggregate(rows: Array<{ excluded?: boolean; execution_status?: string | null }>) {
   const included = rows.filter((row) => !row.excluded);
-  const imported = rows.filter((row) => row.execution_status === "IMPORTED").length;
-  const skipped = rows.filter((row) => row.execution_status === "SKIPPED_EXISTING").length;
-  const failed = rows.filter((row) => row.execution_status === "FAILED").length;
+  const imported = included.filter((row) => row.execution_status === "IMPORTED").length;
+  const skipped = included.filter((row) => row.execution_status === "SKIPPED_EXISTING").length;
+  const failed = included.filter((row) => row.execution_status === "FAILED").length;
   const status = failed === 0 && imported + skipped >= included.length ? "IMPORTED" : imported === 0 && failed > 0 ? "FAILED_IMPORT" : "PARTIALLY_IMPORTED";
   return { imported, skipped, failed, status } as const;
 }
@@ -69,6 +70,7 @@ export function isBulkRowRetryReady(input: {
   normalizedPayload: Record<string, unknown>;
   pricingResult: Record<string, unknown> | null | undefined;
   existingIssues: Parameters<typeof reconcileCurrentRowState>[0]["existingIssues"];
+  canonicalModelId?: string | null;
   canonicalModelYear?: number | null;
   manualResolution?: Record<string, unknown> | null;
 }) {
@@ -79,6 +81,7 @@ export function isBulkRowRetryReady(input: {
     normalizedPayload: input.normalizedPayload,
     pricingResult: input.pricingResult,
     existingIssues: input.existingIssues,
+    canonicalModelId: input.canonicalModelId,
     canonicalModelYear: input.canonicalModelYear,
     manualResolution: input.manualResolution,
   }).severity !== "ERROR";

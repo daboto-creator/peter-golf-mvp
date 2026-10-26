@@ -98,6 +98,7 @@ export default async function BulkImportReviewPage({
         normalizedPayload: row.normalized_payload,
         pricingResult: row.pricing_result,
         existingIssues: row.validation_result?.issues ?? [],
+        canonicalModelId: row.canonical_model_id,
         canonicalModelYear: row.canonical_model_year,
         manualResolution: row.manual_resolution,
       });
@@ -130,7 +131,7 @@ export default async function BulkImportReviewPage({
   const imported = ["IMPORTED", "PARTIALLY_IMPORTED", "FAILED_IMPORT"].includes(job.status);
   const reviewable = job.status === "READY_FOR_REVIEW";
   const failedRows = reviewRows.filter((row) => row.execution_status === "FAILED");
-  const retryReadyRows = failedRows.filter((row) => isBulkRowRetryReady({ jobStatus: job.status, executionStatus: row.execution_status, excluded: row.excluded, importType: job.import_type, normalizedPayload: row.normalized_payload, pricingResult: row.pricing_result, existingIssues: row.validation_result?.issues ?? [], canonicalModelYear: row.canonical_model_year, manualResolution: row.manual_resolution }));
+  const retryReadyRows = failedRows.filter((row) => isBulkRowRetryReady({ jobStatus: job.status, executionStatus: row.execution_status, excluded: row.excluded, importType: job.import_type, normalizedPayload: row.normalized_payload, pricingResult: row.pricing_result, existingIssues: row.validation_result?.issues ?? [], canonicalModelId: row.canonical_model_id, canonicalModelYear: row.canonical_model_year, manualResolution: row.manual_resolution }));
   const attention = included.filter((row) => row.execution_status !== "IMPORTED" && row.execution_status !== "SKIPPED_EXISTING" && currentStates.get(row.id)?.severity !== "READY").length;
   const filteredRows = reviewRows.filter((row) => {
     const state = currentStates.get(row.id);
@@ -339,6 +340,7 @@ export default async function BulkImportReviewPage({
           <tbody>
             {filteredRows.map((row) => {
               const yearMismatch = hasCanonicalModelYearMismatch({
+                canonicalModelId: row.canonical_model_id,
                 canonicalModelYear: row.canonical_model_year,
                 normalizedModelYear:
                   Number(row.normalized_payload.modelYear) || null,

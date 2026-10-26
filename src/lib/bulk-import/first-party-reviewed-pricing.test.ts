@@ -23,6 +23,14 @@ const successfulResult: PricingEngineResult = {
   warnings: [],
 };
 
+const configuration = {
+  pricingRuleCode: "used_driver",
+  targetReturnBps: 4_000,
+  paymentFeeConfigCode: "stripe_domestic_mx",
+  paymentFeePercentageBps: 360,
+  paymentFeeFixedMinor: 300,
+};
+
 describe("First Party reviewed pricing persistence", () => {
   test("replaces a stale below-floor failure with a self-consistent successful result", () => {
     const previous = {
@@ -34,7 +42,7 @@ describe("First Party reviewed pricing persistence", () => {
       viability: "Sólo un administrador puede guardar por debajo del precio financiero.",
     };
 
-    expect(buildSuccessfulFirstPartyReviewedPricing(previous, successfulResult)).toMatchObject({
+    expect(buildSuccessfulFirstPartyReviewedPricing(previous, successfulResult, configuration)).toMatchObject({
       financialPriceMinor: 1_597_822,
       proposedPriceMinor: 1_650_000,
       approvedPriceMinor: 1_650_000,
@@ -48,7 +56,7 @@ describe("First Party reviewed pricing persistence", () => {
   });
 
   test("a later below-floor rejection clears the prior approval", () => {
-    const approved = buildSuccessfulFirstPartyReviewedPricing({}, successfulResult);
+    const approved = buildSuccessfulFirstPartyReviewedPricing({}, successfulResult, configuration);
     const rejected = buildFailedFirstPartyReviewedPricing(approved, {
       salePriceMinor: 1_500_000,
       error: "Sólo un administrador puede guardar por debajo del precio financiero.",
@@ -64,5 +72,10 @@ describe("First Party reviewed pricing persistence", () => {
       manualOverride: false,
       humanReviewStatus: null,
     });
+  });
+
+  test("an engine-accepted below-floor price records an explicit reviewed override", () => {
+    const pricing = buildSuccessfulFirstPartyReviewedPricing({}, { ...successfulResult, financialPrice: 1_700_000, finalSalePrice: 1_650_000, manualPriceReason: "Autorización financiera" }, configuration);
+    expect(pricing).toMatchObject({ belowFinancialFloor: true, financialFloorOverrideApproved: true, manualOverride: true, manualPriceReason: "Autorización financiera" });
   });
 });

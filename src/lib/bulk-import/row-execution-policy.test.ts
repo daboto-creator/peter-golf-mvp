@@ -19,7 +19,7 @@ describe("bulk row remediation policy", () => {
       executionStatus: "FAILED",
       importType: "PARTNER" as const,
       normalizedPayload: { category: "driver" },
-      pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 150000 },
+      pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 150000, economics: { publicPriceMinor: 150000, partnerNetMinor: 140000, commissionMinor: 1000, commissionVatMinor: 160, processingTotalMinor: 500, adminPercentageFeeMinor: 100, adminFixedFeeMinor: 100, estimatedBestRoundRevenueMinor: 500, meetsMinimumMarketplaceRevenue: true } },
       existingIssues: [],
     };
     expect(isBulkRowRetryReady({ ...base, existingIssues: [{ code: "UNKNOWN_MODEL", severity: "ERROR", message: "missing" }] })).toBe(false);
@@ -49,7 +49,7 @@ describe("bulk row remediation policy", () => {
     };
 
     expect(isBulkRowRetryReady(base)).toBe(false);
-    expect(isBulkRowRetryReady({ ...base, manualResolution: { model: { approved: true, brand: "Cobra", model: "QA Manual Test X", modelYear: 2024 } } })).toBe(true);
+    expect(isBulkRowRetryReady({ ...base, manualResolution: { model: { approved: true, brand: "Cobra", model: "QA Manual Test X", category: "driver", modelYear: 2024 } } })).toBe(true);
   });
 
   test.each(["FIRST_PARTY", "PARTNER"] as const)("approving Row B's unchanged manual identity preserves %s pricing exactly", (importType) => {
@@ -59,8 +59,8 @@ describe("bulk row remediation policy", () => {
       : { approvedPriceMinor: 1_650_000, calculatedPublicPriceMinor: 1_650_000, estimatedPartnerNetMinor: 1_400_000, economics: { partnerNetMinor: 1_400_000 }, manualPriceApproved: true, humanReviewStatus: "APPROVED", marketStatus: "COMPETITIVE", stale: false };
     const result = getPricingAfterManualModelApproval({ importType, previousPayload, approvedPayload: { ...previousPayload }, currentPricing: pricing });
 
-    expect(result).toBe(pricing);
-    expect(result).toStrictEqual(pricing);
+    if (importType === "PARTNER") expect(result).toBe(pricing);
+    expect(result).toStrictEqual(importType === "FIRST_PARTY" ? { ...pricing, belowFinancialFloor: false, financialFloorOverrideApproved: false } : pricing);
   });
 
   test.each(["FIRST_PARTY", "PARTNER"] as const)("semantic identity normalization preserves %s pricing", (importType) => {
@@ -72,7 +72,8 @@ describe("bulk row remediation policy", () => {
       currentPricing: pricing,
     });
 
-    expect(result).toBe(pricing);
+    if (importType === "PARTNER") expect(result).toBe(pricing);
+    else expect(result).toStrictEqual({ ...pricing, belowFinancialFloor: false, financialFloorOverrideApproved: false });
   });
 
   test("a real First Party identity change invalidates only First Party pricing state", () => {
@@ -121,5 +122,13 @@ describe("bulk row remediation policy", () => {
       { execution_status: "IMPORTED" }, { execution_status: "IMPORTED" },
       { execution_status: "IMPORTED" },
     ])).toEqual({ imported: 5, skipped: 0, failed: 0, status: "IMPORTED" });
+  });
+
+  test.each(["PARTNER", "FIRST_PARTY"])("excluded failed rows do not block an imported aggregate for %s", () => {
+    expect(deriveBulkJobAggregate([
+      { execution_status: "IMPORTED" },
+      { execution_status: "SKIPPED_EXISTING" },
+      { execution_status: "FAILED", excluded: true },
+    ])).toEqual({ imported: 1, skipped: 1, failed: 0, status: "IMPORTED" });
   });
 });
