@@ -31,7 +31,7 @@ export function getPartnerBulkPricingReadiness(row: ReviewApprovalRow): PartnerP
 
 export function getFirstPartyBulkPricingReadiness(row: ReviewApprovalRow): FirstPartyPricingReadiness {
   const pricing = row.pricing_result ?? {};
-  const proposed = Number(pricing.proposedPriceMinor ?? pricing.approvedPriceMinor ?? 0);
+  const proposed = Number(pricing.approvedPriceMinor ?? pricing.calculatedPublicPriceMinor ?? pricing.proposedPriceMinor ?? 0);
   const acquisition = Number(row.normalized_payload?.acquisitionCostMinor ?? 0);
   const status = String(pricing.status ?? "");
   const manuallyResolved = pricing.manualPriceApproved === true || pricing.manualOverride === true;

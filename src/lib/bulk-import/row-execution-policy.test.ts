@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { canEditBulkRow, deriveBulkJobAggregate, hasBulkModelIdentityChanged, isBulkRowRetryReady } from "./row-execution-policy";
+import { canEditBulkRow, deriveBulkJobAggregate, getPricingAfterManualModelApproval, hasBulkModelIdentityChanged, isBulkRowRetryReady } from "./row-execution-policy";
 
 describe("bulk row remediation policy", () => {
   test("only failed rows are editable after a partial import", () => {
@@ -35,6 +35,30 @@ describe("bulk row remediation policy", () => {
       pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 150000 },
       existingIssues: [],
     })).toBe(false);
+  });
+
+  test("First Party retry readiness requires pricing and durable manual model approval independently", () => {
+    const base = {
+      jobStatus: "PARTIALLY_IMPORTED",
+      executionStatus: "FAILED",
+      importType: "FIRST_PARTY" as const,
+      normalizedPayload: { category: "driver", brand: "Cobra", model: "QA Manual Test X", modelYear: 2024, acquisitionCostMinor: 1_100_000 },
+      pricingResult: { status: "INSUFFICIENT_DATA", financialPriceMinor: 1_597_822, approvedPriceMinor: 1_650_000, proposedPriceMinor: 1_650_000, belowFinancialFloor: false, manualPriceApproved: true, humanReviewStatus: "APPROVED", stale: false },
+      existingIssues: [],
+      canonicalModelYear: null,
+    };
+
+    expect(isBulkRowRetryReady(base)).toBe(false);
+    expect(isBulkRowRetryReady({ ...base, manualResolution: { model: { approved: true, brand: "Cobra", model: "QA Manual Test X", modelYear: 2024 } } })).toBe(true);
+  });
+
+  test("approving the unchanged manual model preserves successful pricing", () => {
+    const payload = { category: "driver", brand: "Cobra", model: "QA Manual Test X", modelYear: 2024 };
+    const pricing = { approvedPriceMinor: 1_650_000, manualPriceApproved: true, humanReviewStatus: "APPROVED", stale: false };
+    const invalidated = { approvedPriceMinor: null, manualPriceApproved: false, stale: true };
+
+    expect(getPricingAfterManualModelApproval({ previousPayload: payload, approvedPayload: { ...payload }, currentPricing: pricing, invalidatedPricing: invalidated })).toBe(pricing);
+    expect(getPricingAfterManualModelApproval({ previousPayload: payload, approvedPayload: { ...payload, model: "Different model" }, currentPricing: pricing, invalidatedPricing: invalidated })).toBe(invalidated);
   });
 
   test.each(["PARTNER", "FIRST_PARTY"])("model identity changes invalidate manual fallback for %s", () => {

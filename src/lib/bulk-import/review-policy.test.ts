@@ -91,6 +91,10 @@ describe("bulk import review approval", () => {
     expect(result).toMatchObject({ ready: false, code: "BELOW_FINANCIAL_FLOOR" });
     expect(result.message).toContain("mínimo financiero");
   });
+  test("First Party readiness derives the floor from current amounts, not a stale persisted flag", () => {
+    const result = getFirstPartyBulkPricingReadiness({ normalized_payload: { acquisitionCostMinor: 1_100_000 }, pricing_result: { status: "INSUFFICIENT_DATA", approvedPriceMinor: 1_650_000, financialPriceMinor: 1_597_822, belowFinancialFloor: true, manualPriceApproved: true, humanReviewStatus: "APPROVED", stale: false } });
+    expect(result).toMatchObject({ ready: true, code: "READY" });
+  });
   test("First Party approved manual model is durable while unresolved models require approval", () => {
     const approved = reconcileCurrentRowState({ importType: "FIRST_PARTY", normalizedPayload: { category: "driver", model: "QA Manual Test X", acquisitionCostMinor: 700000 }, pricingResult: { status: "COMPETITIVE", proposedPriceMinor: 150000 }, existingIssues: [], manualResolution: { model: { approved: true, brand: "Cobra", model: "QA Manual Test X", modelYear: 2024 } } });
     expect(approved.issues.some((issue) => issue.code === "MANUAL_MODEL_APPROVAL_REQUIRED")).toBe(false);

@@ -10,6 +10,17 @@ export function hasBulkAcquisitionCostChanged(previousCostMinor: unknown, submit
   return submittedCostMinor !== null && submittedCostMinor !== Number(previousCostMinor ?? 0);
 }
 
+export function getPricingAfterManualModelApproval(input: {
+  previousPayload: Record<string, unknown>;
+  approvedPayload: Record<string, unknown>;
+  currentPricing: Record<string, unknown> | null | undefined;
+  invalidatedPricing: Record<string, unknown>;
+}) {
+  return hasBulkModelIdentityChanged(input.previousPayload, input.approvedPayload)
+    ? input.invalidatedPricing
+    : input.currentPricing;
+}
+
 export function deriveBulkJobAggregate(rows: Array<{ excluded?: boolean; execution_status?: string | null }>) {
   const included = rows.filter((row) => !row.excluded);
   const imported = rows.filter((row) => row.execution_status === "IMPORTED").length;

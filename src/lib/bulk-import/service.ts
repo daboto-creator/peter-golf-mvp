@@ -9,12 +9,13 @@ import { createClient } from "@/lib/supabase/server";
 import { canDiscardBulkImportJob } from "./discard-policy";
 import { canApproveBulkImport, getFirstPartyBulkPricingReadiness, shouldRecalculateFirstPartyPricing, shouldRecalculatePartnerPricing } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
-import { canEditBulkRow, hasBulkAcquisitionCostChanged, hasBulkModelIdentityChanged } from "./row-execution-policy";
+import { canEditBulkRow, getPricingAfterManualModelApproval, hasBulkAcquisitionCostChanged, hasBulkModelIdentityChanged } from "./row-execution-policy";
 import { normalizeCategory, normalizeCondition, normalizeHand, normalizeYear, parseMoneyToMinorUnits, resolveModelWithinContext } from "./normalization";
 import { revalidatePath } from "next/cache";
 import { resolveMarketplacePrice } from "@/lib/pricing/marketplace-pricing-engine";
 import type { MarketplaceEconomicsConfig } from "@/lib/pricing/marketplace-pricing-types";
 import { calculatePricing } from "@/lib/pricing/pricing-engine";
+import { buildFailedFirstPartyReviewedPricing, buildSuccessfulFirstPartyReviewedPricing } from "./first-party-reviewed-pricing";
 
 // The generated Supabase types intentionally lag additive PR82 tables; keep
 // this boundary narrow until the next generated schema snapshot.
@@ -170,10 +171,9 @@ async function buildReviewedRowPatch(_client: Awaited<ReturnType<typeof createCl
   if (importType === "FIRST_PARTY" && shouldRecalculateFirstPartyPricing({ pricingSubmitted, normalizedPayload: next, pricingResult, costChanged })) {
     const reviewed = await calculateFirstPartyReviewedPricing(_client, { categorySlug: String(next.categorySlug ?? next.category ?? ""), condition: String(next.condition ?? "used"), acquisitionCostMinor: Number(next.acquisitionCostMinor ?? 0), salePriceMinor: Number(next.askingPriceMinor ?? 0), manualPriceReason: String(formData.get("reason") ?? "").trim() || null });
     if (reviewed?.result) {
-      const result = reviewed.result;
-      pricingResult = { ...pricingResult, status: "INSUFFICIENT_DATA", marketStatus: "INSUFFICIENT_DATA", financialPriceMinor: result.financialPrice, automaticSuggestedPriceMinor: result.automaticSuggestedPrice, proposedPriceMinor: result.finalSalePrice, approvedPriceMinor: result.finalSalePrice, calculatedPublicPriceMinor: result.finalSalePrice, expectedContributionMinor: result.expectedContribution, returnOnCostBps: result.returnOnCostBps, marginOnSaleBps: result.marginOnSaleBps, manualPriceApproved: true, manualOverride: result.override, manualPriceReason: result.manualPriceReason, stale: false, humanReviewStatus: "APPROVED", viability: "Precio aprobado manualmente" };
+      pricingResult = buildSuccessfulFirstPartyReviewedPricing(pricingResult, reviewed.result);
     } else if (reviewed?.error) {
-      pricingResult = { ...pricingResult, status: "INSUFFICIENT_DATA", marketStatus: "INSUFFICIENT_DATA", financialPriceMinor: Number(pricingResult.financialPriceMinor ?? 0), proposedPriceMinor: Number(next.askingPriceMinor ?? 0), approvedPriceMinor: null, manualPriceApproved: false, manualOverride: false, manualPriceReason: null, stale: false, humanReviewStatus: null, belowFinancialFloor: reviewed.error.includes("debajo") || reviewed.error.includes("administrador"), viability: reviewed.error };
+      pricingResult = buildFailedFirstPartyReviewedPricing(pricingResult, { salePriceMinor: Number(next.askingPriceMinor ?? 0), error: reviewed.error });
     }
   }
   const finalReconciled = reconcileCurrentRowState({ importType, normalizedPayload: next, pricingResult, existingIssues: reconciled.issues, canonicalModelYear, manualResolution: identityChanged ? preservedManual : manualResolution });
@@ -306,6 +306,12 @@ export async function reviewBulkImportAction(formData: FormData) {
   }
   const currentIssues = Array.isArray(row.data.validation_result?.issues) ? row.data.validation_result.issues : [];
   const invalidatePricing = { ...(row.data.pricing_result ?? {}), status: "INSUFFICIENT_DATA", proposedPriceMinor: null, marketReferenceMinor: null, estimatedPartnerNetMinor: null, viability: "Requiere nuevo análisis", reusedResearch: false, manualPriceApproved: false, manualOverride: false };
+  const manualModelPayload = action === "manual_resolution"
+    ? { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? "").trim(), model: String(formData.get("manualModel") ?? "").trim(), modelYear: Number(formData.get("manualYear")) || null }
+    : null;
+  const manualModelPricing = manualModelPayload
+    ? getPricingAfterManualModelApproval({ previousPayload: row.data.normalized_payload, approvedPayload: manualModelPayload, currentPricing: row.data.pricing_result, invalidatedPricing: invalidatePricing })
+    : row.data.pricing_result;
   const candidate = action === "resolve_model" ? (row.data.validation_result?.modelCandidates ?? []).find((item: { id?: string }) => item.id === String(formData.get("modelId") ?? "")) : null;
   let patch = action === "exclude"
     ? { excluded: true, exclusion_reason: String(formData.get("reason") ?? "Excluida durante revisión"), reviewed_by: user.id, reviewed_at: new Date().toISOString() }
@@ -314,7 +320,7 @@ export async function reviewBulkImportAction(formData: FormData) {
       : action === "accept_normalization"
         ? { normalization_accepted: true, reviewed_by: user.id, reviewed_at: new Date().toISOString() }
         : action === "manual_resolution"
-          ? { manual_resolution: { ...(row.data.manual_resolution ?? {}), model: { approved: true, brand: String(formData.get("manualBrand") ?? "").trim(), model: String(formData.get("manualModel") ?? "").trim(), modelYear: Number(formData.get("manualYear")) || null, actorId: user.id, source: "BULK_REVIEW", approvedAt: new Date().toISOString() } }, canonical_model_id: null, normalized_payload: { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? "").trim(), model: String(formData.get("manualModel") ?? "").trim(), modelYear: Number(formData.get("manualYear")) || null }, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => !["UNKNOWN_MODEL", "AMBIGUOUS_MODEL_GENERATION", "MODEL_SUGGESTION"].includes(String(issue.code))) }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+          ? { manual_resolution: { ...(row.data.manual_resolution ?? {}), model: { approved: true, brand: String(formData.get("manualBrand") ?? "").trim(), model: String(formData.get("manualModel") ?? "").trim(), modelYear: Number(formData.get("manualYear")) || null, actorId: user.id, source: "BULK_REVIEW", approvedAt: new Date().toISOString() } }, canonical_model_id: null, normalized_payload: manualModelPayload!, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => !["UNKNOWN_MODEL", "AMBIGUOUS_MODEL_GENERATION", "MODEL_SUGGESTION"].includes(String(issue.code))) }, pricing_result: manualModelPricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "resolve_model" && candidate
             ? { canonical_model_id: candidate.id, normalized_payload: { ...row.data.normalized_payload, model: candidate.name, modelYear: candidate.modelYear ?? row.data.normalized_payload.modelYear }, validation_result: { ...row.data.validation_result, issues: currentIssues.filter((issue: { code?: string }) => issue.code !== "AMBIGUOUS_MODEL_GENERATION" && issue.code !== "UNKNOWN_MODEL" && issue.code !== "MODEL_SUGGESTION") }, pricing_result: invalidatePricing, severity: "WARNING", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
           : action === "use_canonical_year"
