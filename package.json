@@ -14,6 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "swing-ai:dev": "vite --config experiments/swing-ai/mediapipe/vite.config.mts",
+    "swing-ai:build": "vite build --config experiments/swing-ai/mediapipe/vite.config.mts",
+    "swing-ai:test": "vitest run --config experiments/swing-ai/mediapipe/vitest.config.mts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "supabase:start": "supabase start",
@@ -48,6 +51,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@mediapipe/tasks-vision": "1.1.1",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
@@ -70,6 +74,7 @@
     "supabase": "2.110.0",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite": "8.2.0",
     "vitest": "^4.1.10"
   }
 }

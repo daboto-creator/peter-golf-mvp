@@ -4,6 +4,10 @@ import test from "node:test";
 import { parseBenchmarkJsonl, summarizeBenchmark } from "./aggregate.mjs";
 
 const fixture = new URL("./fixtures/synthetic-runs.jsonl", import.meta.url);
+const detailedExample = new URL(
+  "../mediapipe/examples/benchmark-run.example.json",
+  import.meta.url,
+);
 
 test("synthetic runs validate the harness but never become representative", () => {
   const [summary] = summarizeBenchmark(
@@ -49,4 +53,26 @@ test("rejects clips outside the five-to-ten-second window", () => {
     peakMemoryMb: 1,
   });
   assert.throws(() => parseBenchmarkJsonl(invalid), /between 5 and 10/);
+});
+
+test("accepts unavailable memory without fabricating a zero measurement", () => {
+  const rows = parseBenchmarkJsonl(readFileSync(fixture, "utf8"));
+  rows.push({
+    ...rows[0],
+    runId: "authorized-without-memory",
+    videoId: "opaque-no-memory",
+    evidenceClass: "AUTHORIZED",
+    peakMemoryMb: null,
+  });
+  const [summary] = summarizeBenchmark(rows);
+  assert.equal(summary.peakMemoryMbMax, null);
+});
+
+test("the detailed example exposes an aggregator-compatible summary", () => {
+  const example = JSON.parse(readFileSync(detailedExample, "utf8"));
+  const [row] = parseBenchmarkJsonl(JSON.stringify(example.summary));
+  const [summary] = summarizeBenchmark([row]);
+  assert.equal(summary.syntheticRuns, 1);
+  assert.equal(summary.representativeRuns, 0);
+  assert.equal(summary.representative, false);
 });

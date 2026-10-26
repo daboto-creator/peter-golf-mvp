@@ -1,0 +1,4 @@
+dist/
+local-videos/
+results/*.json
+results/*.jsonl

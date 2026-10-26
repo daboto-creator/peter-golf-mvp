@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Prototipo local y aislado para evaluar MediaPipe Pose Landmarker Full con videos autorizados de golf."
+    />
+    <title>Best Round Swing AI · MediaPipe Benchmark</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Experimento aislado · no producción</p>
+        <h1>MediaPipe Swing Video Benchmark</h1>
+        <p class="lede">
+          Procesa un clip autorizado de 5–10 segundos en este dispositivo. El
+          video no se sube, no se persiste y no se usa para entrenamiento.
+        </p>
+      </header>
+
+      <section class="panel controls" aria-labelledby="setup-title">
+        <h2 id="setup-title">1. Configuración</h2>
+        <label>
+          Video local
+          <input id="video-file" type="file" accept="video/*" />
+        </label>
+        <div class="grid-two">
+          <label>
+            Perspectiva declarada
+            <select id="perspective">
+              <option value="FACE_ON">FACE_ON</option>
+              <option value="DOWN_THE_LINE">DOWN_THE_LINE</option>
+            </select>
+          </label>
+          <label>
+            Delegate
+            <select id="delegate">
+              <option value="CPU">CPU — baseline</option>
+              <option value="GPU">GPU — compatibilidad experimental</option>
+            </select>
+          </label>
+          <label>
+            Clase de evidencia
+            <select id="evidence-class">
+              <option value="AUTHORIZED">AUTHORIZED</option>
+              <option value="PUBLIC_LICENSED">PUBLIC_LICENSED</option>
+              <option value="SYNTHETIC">SYNTHETIC — no cuenta como real</option>
+            </select>
+          </label>
+        </div>
+        <label class="consent">
+          <input id="rights-confirmed" type="checkbox" />
+          Confirmo que tengo derechos y consentimiento para analizar este video
+          localmente.
+        </label>
+        <button id="run" type="button">Ejecutar benchmark</button>
+        <p id="status" role="status" aria-live="polite">Selecciona un video.</p>
+      </section>
+
+      <section class="panel viewer" aria-labelledby="review-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Revisión visual</p>
+            <h2 id="review-title">2. Fotograma anotado</h2>
+          </div>
+          <output id="progress">0%</output>
+        </div>
+        <video id="video" muted playsinline preload="metadata"></video>
+        <canvas id="canvas" aria-label="Fotograma con landmarks"></canvas>
+        <div id="annotated-frames" class="downloads"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="result-title">
+        <h2 id="result-title">3. Resultado</h2>
+        <div id="summary" class="summary empty">
+          Aún no existe una ejecución local.
+        </div>
+        <div class="downloads">
+          <button id="download-json" type="button" disabled>
+            Descargar JSON detallado
+          </button>
+          <button id="download-jsonl" type="button" disabled>
+            Descargar JSONL para agregador
+          </button>
+        </div>
+      </section>
+
+      <aside class="notice">
+        <strong>Límite de interpretación:</strong> los landmarks describen lo
+        que el modelo pudo observar en píxeles. No prueban mecánica corporal,
+        causa de una falla, velocidad de swing ni necesidad de comprar un
+        bastón.
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

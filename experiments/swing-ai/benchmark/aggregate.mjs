@@ -28,10 +28,18 @@ export function parseBenchmarkJsonl(text) {
         "totalFrames",
         "usableFrames",
         "latencyMs",
-        "peakMemoryMb",
       ])
         if (typeof row[field] !== "number" || !Number.isFinite(row[field]))
           throw new Error(`line ${index + 1}: ${field} must be finite`);
+      if (
+        row.peakMemoryMb !== null &&
+        (typeof row.peakMemoryMb !== "number" ||
+          !Number.isFinite(row.peakMemoryMb) ||
+          row.peakMemoryMb < 0)
+      )
+        throw new Error(
+          `line ${index + 1}: peakMemoryMb must be finite, non-negative or null`,
+        );
       if (row.durationSeconds < 5 || row.durationSeconds > 10)
         throw new Error(
           `line ${index + 1}: duration must be between 5 and 10 seconds`,
@@ -79,8 +87,12 @@ export function summarizeBenchmark(rows) {
         real.map((run) => run.latencyMs),
         0.95,
       ),
-      peakMemoryMbMax: real.length
-        ? Math.max(...real.map((run) => run.peakMemoryMb))
+      peakMemoryMbMax: real.some((run) => run.peakMemoryMb !== null)
+        ? Math.max(
+            ...real
+              .map((run) => run.peakMemoryMb)
+              .filter((value) => value !== null),
+          )
         : null,
       errors: real.filter((run) => run.errorCode).length,
       representative: new Set(real.map((run) => run.videoId)).size >= 20,
