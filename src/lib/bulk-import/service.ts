@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canDiscardBulkImportJob } from "./discard-policy";
 import { canApproveBulkImport, getFirstPartyBulkPricingReadiness, shouldRecalculateFirstPartyPricing, shouldRecalculatePartnerPricing } from "./review-policy";
 import { reconcileCurrentRowState } from "./review-reconciliation";
-import { canEditBulkRow, getPricingAfterManualModelApproval, hasBulkAcquisitionCostChanged, hasBulkModelIdentityChanged } from "./row-execution-policy";
+import { canEditBulkRow, getFirstPartyPricingAfterManualModelApproval, hasBulkAcquisitionCostChanged, hasBulkModelIdentityChanged } from "./row-execution-policy";
 import { normalizeCategory, normalizeCondition, normalizeHand, normalizeYear, parseMoneyToMinorUnits, resolveModelWithinContext } from "./normalization";
 import { revalidatePath } from "next/cache";
 import { resolveMarketplacePrice } from "@/lib/pricing/marketplace-pricing-engine";
@@ -310,7 +310,9 @@ export async function reviewBulkImportAction(formData: FormData) {
     ? { ...row.data.normalized_payload, brand: String(formData.get("manualBrand") ?? "").trim(), model: String(formData.get("manualModel") ?? "").trim(), modelYear: Number(formData.get("manualYear")) || null }
     : null;
   const manualModelPricing = manualModelPayload
-    ? getPricingAfterManualModelApproval({ previousPayload: row.data.normalized_payload, approvedPayload: manualModelPayload, currentPricing: row.data.pricing_result, invalidatedPricing: invalidatePricing })
+    ? reviewJob.data.import_type === "FIRST_PARTY"
+      ? getFirstPartyPricingAfterManualModelApproval({ previousPayload: row.data.normalized_payload, approvedPayload: manualModelPayload, currentPricing: row.data.pricing_result, invalidatedPricing: invalidatePricing })
+      : invalidatePricing
     : row.data.pricing_result;
   const candidate = action === "resolve_model" ? (row.data.validation_result?.modelCandidates ?? []).find((item: { id?: string }) => item.id === String(formData.get("modelId") ?? "")) : null;
   let patch = action === "exclude"

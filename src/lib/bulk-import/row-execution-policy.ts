@@ -10,7 +10,7 @@ export function hasBulkAcquisitionCostChanged(previousCostMinor: unknown, submit
   return submittedCostMinor !== null && submittedCostMinor !== Number(previousCostMinor ?? 0);
 }
 
-export function getPricingAfterManualModelApproval(input: {
+export function getFirstPartyPricingAfterManualModelApproval(input: {
   previousPayload: Record<string, unknown>;
   approvedPayload: Record<string, unknown>;
   currentPricing: Record<string, unknown> | null | undefined;

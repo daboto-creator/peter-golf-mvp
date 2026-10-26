@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { canEditBulkRow, deriveBulkJobAggregate, getPricingAfterManualModelApproval, hasBulkModelIdentityChanged, isBulkRowRetryReady } from "./row-execution-policy";
+import { canEditBulkRow, deriveBulkJobAggregate, getFirstPartyPricingAfterManualModelApproval, hasBulkModelIdentityChanged, isBulkRowRetryReady } from "./row-execution-policy";
 
 describe("bulk row remediation policy", () => {
   test("only failed rows are editable after a partial import", () => {
@@ -57,8 +57,8 @@ describe("bulk row remediation policy", () => {
     const pricing = { approvedPriceMinor: 1_650_000, manualPriceApproved: true, humanReviewStatus: "APPROVED", stale: false };
     const invalidated = { approvedPriceMinor: null, manualPriceApproved: false, stale: true };
 
-    expect(getPricingAfterManualModelApproval({ previousPayload: payload, approvedPayload: { ...payload }, currentPricing: pricing, invalidatedPricing: invalidated })).toBe(pricing);
-    expect(getPricingAfterManualModelApproval({ previousPayload: payload, approvedPayload: { ...payload, model: "Different model" }, currentPricing: pricing, invalidatedPricing: invalidated })).toBe(invalidated);
+    expect(getFirstPartyPricingAfterManualModelApproval({ previousPayload: payload, approvedPayload: { ...payload }, currentPricing: pricing, invalidatedPricing: invalidated })).toBe(pricing);
+    expect(getFirstPartyPricingAfterManualModelApproval({ previousPayload: payload, approvedPayload: { ...payload, model: "Different model" }, currentPricing: pricing, invalidatedPricing: invalidated })).toBe(invalidated);
   });
 
   test.each(["PARTNER", "FIRST_PARTY"])("model identity changes invalidate manual fallback for %s", () => {
