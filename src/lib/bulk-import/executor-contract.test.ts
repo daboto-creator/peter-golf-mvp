@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migration = readFileSync(join(process.cwd(), "supabase/migrations/20261026164501_final_bulk_import_platform_hardening.sql"), "utf8");
+const migration = readFileSync(join(process.cwd(), "supabase/migrations/20261026165356_final_bulk_import_platform_hardening.sql"), "utf8");
 const service = readFileSync(join(process.cwd(), "src/lib/bulk-import/service.ts"), "utf8");
 const firstParty = migration.slice(migration.indexOf("create or replace function public.execute_first_party_bulk_import"), migration.indexOf("create or replace function public.execute_partner_bulk_import"));
 const partner = migration.slice(migration.indexOf("create or replace function public.execute_partner_bulk_import"));
