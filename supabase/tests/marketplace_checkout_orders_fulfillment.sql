@@ -179,6 +179,20 @@ do $$ begin
   then raise exception 'Marketplace economics snapshot did not match approved quotes'; end if;
 end $$;
 
+-- The legacy order confirmation action remains unavailable for Marketplace
+-- and mixed orders; fulfillment groups retain their dedicated transitions.
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000005',true);
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.confirm_operational_order(
+      current_setting('test.checkout_order')::uuid,1,
+      '6e000000-0000-4000-8000-000000000003');
+    raise exception 'Mixed Marketplace order used legacy operational confirmation';
+  exception when invalid_parameter_value then null; end;
+end $$;
+reset role;
+
 select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000004',true);
 set local role authenticated;
 do $$ declare method_id uuid; begin
