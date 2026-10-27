@@ -354,20 +354,16 @@ $$;
 
 reset role;
 
--- Operational confirmation does not rewrite the deprecated payment columns.
+-- Card compatibility projects to the neutral enum pair at payment creation;
+-- operational confirmation must not rewrite either projection.
 do $$
 begin
-  if exists (
-    select 1 from public.orders
-    where id in (
-      '77000000-0000-4000-8000-000000000001',
-      '77000000-0000-4000-8000-000000000002'
-    )
-      and (payment_status <> 'transfer_pending'
-        or payment_method <> 'bank_transfer')
-  )
+  if not exists (select 1 from public.orders where id='77000000-0000-4000-8000-000000000001'
+      and payment_status='pending' and payment_method='none')
+    or not exists (select 1 from public.orders where id='77000000-0000-4000-8000-000000000002'
+      and payment_status='transfer_pending' and payment_method='bank_transfer')
   then
-    raise exception 'Operational confirmation rewrote legacy payment columns';
+    raise exception 'Payment compatibility projection is inconsistent';
   end if;
 end;
 $$;

@@ -27,20 +27,21 @@ export function OrderStateActions({
     cancelManualOrderAction,
     initialOrderActionResult,
   );
-  const isAwaitingStripePayment =
-    order.payment?.provider === "stripe" && order.payment.status !== "paid";
+  const isAwaitingCheckoutPayment =
+    order.origin === "web" && order.payment?.status !== "paid";
   if (order.status === "cancelled") return null;
   return (
     <section className="space-y-4 rounded-xl border bg-white p-5 sm:p-6">
       <h2 className="text-xl font-semibold">Acciones de estado</h2>
       {order.status === "pending_confirmation" ? (
-        isAwaitingStripePayment ? (
+        isAwaitingCheckoutPayment ? (
           <p
             role="status"
             className="rounded-lg bg-blue-50 p-4 text-sm text-blue-950"
           >
-            Estamos esperando la confirmación del pago por Stripe. El inventario
-            no se descontará hasta que el pago esté confirmado.
+            {order.payment?.provider === "stripe"
+              ? "Estamos esperando la confirmación del pago por Stripe. El inventario no se descontará hasta que el pago esté confirmado."
+              : "Confirma el pago antes de preparar el pedido. El inventario reservado se descontará cuando el pago quede registrado."}
           </p>
         ) : (
           <form
@@ -48,7 +49,7 @@ export function OrderStateActions({
             onSubmit={(event) => {
               if (
                 !confirm(
-                  "Confirmar este pedido y descontar todo el inventario ahora?",
+                  "Confirmar este pedido? El inventario reservado se descontó al confirmarse el pago.",
                 )
               )
                 event.preventDefault();
@@ -56,7 +57,7 @@ export function OrderStateActions({
           >
             <Hidden order={order} idempotencyKey={confirmKey} />
             <Button disabled={confirming || !confirmKey}>
-              {confirming ? "Confirmando…" : "Confirmar y descontar inventario"}
+              {confirming ? "Confirmando…" : "Confirmar pedido"}
             </Button>
           </form>
         )
