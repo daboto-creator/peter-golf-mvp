@@ -86,4 +86,6 @@ The historical PR86 audit remains unchanged. This note records the present evide
 - `npm run lint`: **passed**.
 - `npm run build`: **passed** with `APP_ENV=development` and non-secret local placeholder `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` values required for prerendering.
 - `git diff --check`: **passed**.
-- Staging Supabase health and root health are checked separately in the PR run record; no schema or transaction data changes were made.
+- `npm run supabase:lint`: **passed**, no findings.
+- `npx supabase test db --local`: **not passed**. The 35 repository SQL regression files are plain SQL rather than TAP plans, so pg_prove reports no subtests; two hosted-portability scripts also cannot `SET SESSION AUTHORIZATION` to their test roles under the local runner. This is a test harness/role limitation, not a successful regression result.
+- Stable staging Vercel deployment from this candidate: `dpl_B5V7mJvsAMiQejbvDYDTAaPvLiz4`, READY; root HTTP 200; `/api/health/supabase` HTTP 200 (`available`, `staging`). The PR check reports Vercel PASS and GitHub Validate PASS. No schema or transaction data changes were made.
