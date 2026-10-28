@@ -1,91 +1,105 @@
 # PR88 — Controlled Stripe TEST E2E evidence
 
-Date: 2026-10-27  
+Date: 2026-10-28
 Repository base: `7becb59191f3a2cb8e5776c030c9093f3c77bfa9`  
 Environment: `peter-golf-staging` (`xdulakstgsgdujjylhox`)  
-Scope: evidence collection only; no commercial transaction fixtures or runtime changes have been made.
+Scope: staging Stripe TEST only; disposable `QA-PR88-STRIPE-*` First Party fixtures. PR84 QA jobs and production were not touched.
 
 ## Executive status
 
-**Classification: NOT READY — FIXABLE BLOCKERS.** This turn did not achieve Stripe E2E proof. The staging application is reachable, the database test-mode gates are enabled, and the webhook route rejects an unsigned request before processing. The application’s staging environment validation also requires a `sk_test_` key and a non-empty `whsec_` signing secret when Stripe TEST checkout is enabled. Secret values were never displayed.
+**Classification: NOT READY — FIXABLE BLOCKERS.** First Party Stripe TEST checkout, signed webhook processing, payment, inventory commit, duplicate-event replay, provider expiry, decline, and full refund were exercised through the staging application and Stripe TEST provider. The tests exposed a P0 payment/reservation race: a declined card releases the First Party reservation while the hosted Stripe Checkout form still permits a card retry. The test session was allowed to expire before any retry succeeded. Partner and mixed-cart provider transactions were not run, so they remain unproven.
 
-The connected account/tooling did not provide access to Stripe’s provider dashboard or event delivery/replay controls. Therefore the configured endpoint and subscribed event list could not be verified with Stripe, and no provider event, session, charge, refund, or test card transaction was created. No QA fixtures were created because this provider-side prerequisite could not be independently verified. Do not interpret code or database tests as provider E2E evidence.
+No runtime code or schema was changed. The only repository change in this corrective is this evidence document. No Stripe LIVE credentials, real card, commercial order, payout, shipping label, or production system was used.
 
-## Runtime and implementation map
+## Provider and environment verification
 
-| Stage | Current implementation | Evidence in this audit |
-|---|---|---|
-| Buyer cart / checkout | `/checkout`; `src/lib/cart/cart-actions.ts`; `create_customer_checkout_order` for First Party and `create_marketplace_checkout_order` for Marketplace/mixed carts | Code inspection; no authenticated browser checkout |
-| Stripe Checkout creation | `src/lib/payments/stripe-actions.ts`; `prepare_stripe_checkout_session` snapshots server-side expected amount and attempt/idempotency data, then creates a Checkout Session with metadata | Code inspection only |
-| Webhook ingress | `src/app/api/webhooks/stripe/route.ts`; verifies Stripe signature, rejects `livemode`, normalizes allowlisted event payloads, calls service-role RPC | Code inspection plus staging unsigned POST returned HTTP 400 `invalid_signature` |
-| Webhook persistence | `process_stripe_webhook_event`; `stripe_webhook_events`, `stripe_checkout_sessions`, `order_payments`, histories | Schema/RPC found in repository and staging; no signed provider event received |
-| Inventory | `inventory`, `inventory_reservations`, `inventory_movements`; PR87 adds First Party checkout reservation parity, shared commit/release lifecycle | Existing automated SQL tests and code; no new live fixture lifecycle run |
-| Partner economics | Marketplace pricing snapshot, partner payables, immutable integer-cent ledger entries | Code/database structure only; no new test order |
-| Fulfillment | `order_fulfillments`, status history, ownership and deadline fields | Schema and code only; no new order |
-| Customer surfaces | `/cuenta/pedidos`, `/cuenta/pedidos/[id]`, `/pedido-confirmado/[id]`, Stripe success page | Route/code inspection; no signed-in test buyer session |
-| Operations surfaces | `/operacion/pedidos`, order detail, Marketplace fulfillment/payout areas | Route/code inspection; no test order to inspect |
-| Partner surfaces | Marketplace partner order/finance routes | Route/code inspection; no new partner session/order |
+- Stripe CLI version `1.45.1`; selected profile was **Peter Golf Pro Shop sandbox**. CLI event reads and created events were in TEST mode; all matched event/session records reported `livemode=false`.
+- Staging DB gates `payments_test_mode_enabled()` and `stripe_checkout_test_mode_enabled()` returned `true`.
+- Vercel project is `peter-golf-staging`. Vercel variable names are present, but secret values are withheld by Vercel and were not printed. Deployed runtime accepted a valid provider signature, and the existing staging runtime guard requires `PAYMENTS_MODE=test`, `STRIPE_CHECKOUT_MODE=test`, a `sk_test_` secret, and a configured webhook secret. No secret value was exposed.
+- Stripe TEST webhook endpoint `we_1U0wrBDLG0ay9qywjKiw7Bij` is enabled, `livemode=false`, and points to `https://peter-golf-staging.vercel.app/api/webhooks/stripe`.
+- Its subscribed events exactly match the implemented set: `checkout.session.completed`, `checkout.session.expired`, `payment_intent.payment_failed`, `refund.created`, `refund.updated`, and `refund.failed`.
+- Provider signing-secret coherence is **E2E-PROVEN**: a real TEST Checkout completion was accepted and its signed `checkout.session.completed` event was persisted as processed. An unsigned/invalidly signed POST returned HTTP 400 `invalid_signature`; no matching event row or order/payment mutation was created.
 
-The staging database contains `orders`, `order_items`, `order_payments`, `payment_submissions`, `order_idempotency_keys`, `payment_idempotency_keys`, `order_fulfillments`, `inventory`, `inventory_reservations`, `inventory_movements`, `stripe_checkout_sessions`, `stripe_webhook_events`, `stripe_refunds`, `marketplace_partner_payables`, and `marketplace_partner_ledger_entries`.
+## Architecture map and First Party result
 
-## Stripe configuration evidence
+`/productos` → `/carrito` → `/checkout` → `create_customer_checkout_order` → `/cuenta/pedidos/[id]` → `createStripeCheckoutAction` / `prepare_stripe_checkout_session` → Stripe-hosted Checkout → `/api/webhooks/stripe` → `process_stripe_webhook_event` → payment/reservation/inventory state. The charge amount came from the server-prepared order payment in integer minor units; the client did not set the amount.
 
-- `public.payments_test_mode_enabled()` returned `true` in staging.
-- `public.stripe_checkout_test_mode_enabled()` returned `true` in staging.
-- `src/env/server.ts` validation requires `PAYMENTS_MODE=test`, `STRIPE_CHECKOUT_MODE=test`, a Stripe secret beginning `sk_test_`, and a webhook signing secret beginning `whsec_`; it rejects a live secret in TEST mode.
-- The stable webhook URL checked was `https://peter-golf-staging.vercel.app/api/webhooks/stripe`. An unsigned POST returned `400` with `invalid_signature`, demonstrating that the deployed route is reachable and signature verification rejects before database processing.
-- **Provider-side verification is UNKNOWN:** no Stripe dashboard/API connection was available to verify that this exact staging URL is registered, that it is enabled, or that it subscribes to the application’s actual event set: `checkout.session.completed`, `checkout.session.expired`, `payment_intent.payment_failed`, `refund.created`, `refund.updated`, `refund.failed`.
-- The route’s response does not prove provider delivery, nor does it prove an event was persisted.
-- No Stripe secret, signing secret, or card number was exposed or written to the repository.
+### E2E-01 — First Party successful checkout
+
+- Buyer A authenticated through the staging UI and completed checkout using the official Stripe TEST card `4242…4242` (expiry/CVC were test-only and are not retained here).
+- Order `PG-W-BBB845FE53AA`, order ID `bbb845fe-53aa-4f61-9d4c-66f4c78b3298`; payment ID `3b43d0e1-8418-4fa7-b4a4-13d390ea8ccf`.
+- Stripe session `cs_test_a1Gwv9VRAe8uJXthIjGok3S9v5UL2tvcl3IkZOwbu4RUA6nNLQtlql2gLg`; processed event `evt_1UVEtYDLG0ay9qywJzU6OpwT` (`checkout.session.completed`, `livemode=false`, Stripe `pending_webhooks=0`). PaymentIntent `pi_3UVEtXDLG0ay9qyw0q6mIUW6`.
+- Server total and Stripe total both `24,900 MXN minor units` (MXN 249.00), including explicit MXN 149.00 shipping.
+- One payment became `paid`; the session became `completed`; one First Party reservation `447864a2-5b4c-4ba7-b4c4-13d390ea8ccf` became `COMMITTED` (reservation ID verified separately as `447864a2-5b4c-4ba7-b4c4-13d390ea8ccf`); inventory changed from on-hand/reserved `10/0` to `9/0`; exactly one `sale` movement exists.
+- No Partner payable or Marketplace ledger entry was created for this First Party item. Buyer order detail showed the paid state based on `order_payments`. Legacy compatibility fields remained `payment_method=none`, `payment_status=pending`; they did not claim bank transfer, and they are stale projections that must not drive financial decisions.
+- Order remains `pending_confirmation`, awaiting Operations lifecycle handling. Operations and Partner UI could not be verified because no Operations/Partner session was used.
+
+### E2E-04 — duplicate successful webhook
+
+Stripe provider replay sent the exact event `evt_1UVEtYDLG0ay9qywJzU6OpwT` again to the verified staging endpoint. Stripe then reported `pending_webhooks=0`. The database retained one event record; payment remained paid; there was still one committed reservation and one sale movement; inventory stayed `9/0`. Duplicate delivery was E2E-proven idempotent for this First Party success.
+
+### E2E-05 — card decline and P0 retry/reservation race
+
+- Buyer B used Stripe’s official TEST decline card on order `PG-W-3D4454D3AA2D`, order ID `3d4454d3-aa2d-4da6-a6fb-04cfc3dbbaf3`, payment ID `a2065054-4b14-495a-a492-fedc169483a7`, session `cs_test_a1v7yi4U9c40GtS3PYUErSfQMY0OEKj0hghM8Xl3m1xmlc8tL7uBjMOknz`.
+- The hosted page showed a card-declined message and remained interactive with the card form available for another attempt. At the same time, staging processed `evt_3UVYGTDLG0ay9qyw2pC2JAuG` (`payment_intent.payment_failed`), set payment `failed`, and changed the reservation to `RELEASED`; inventory remained on-hand/reserved `1/0` with one release movement.
+- This leaves an unsafe interval: the existing Stripe Checkout page can still accept another payment attempt after the inventory reservation has been released. If a later attempt succeeds, the paid order may no longer hold the stock it represents. We did not submit a successful retry.
+- The TEST session was already expired by the time the safe provider-expire request ran. Stripe event `evt_1UVYjJDLG0ay9qyw4xuUTWjI` (`checkout.session.expired`) was processed. Payment stayed failed, session is expired, reservation is released, inventory remains `1/0`.
+- **P0 launch blocker; follow-up PR required.** Make payment failure terminal before releasing stock (for example, safely close the Stripe session before release) or retain the reservation while Stripe can retry. Add an E2E test that declines once, then attempts a successful card on the same Checkout flow and proves there can be no paid order without a reserved unit. This corrective did not change runtime behavior.
+
+### E2E-06 — Checkout expiry and reservation release
+
+Buyer A’s last-unit session `cs_test_a1i4xsfcRZ4oQvWZKDC5DOVIVnXYhOfGZklb3RtmXPhg9qyNPyahqN37BF` expired in Stripe TEST. Event `evt_1UVFcXDLG0ay9qywnBQTaIVV` (`checkout.session.expired`) was processed. Its reservation `714fb302-e4e6-4070-bc6f-0fe88ee274a8` transitioned `ACTIVE → EXPIRED`, with one release movement; inventory returned to `1/0`. A later Buyer B order could reserve the released unit. This proves provider expiry release, while the failure/retry race above remains open.
+
+### E2E-07 — last unit
+
+Buyer A’s active reservation for the single-unit fixture prevented Buyer B from adding that item to Mi Bolsa; the UI returned “La cantidad solicitada ya no está disponible.” This blocked Buyer B before order or Stripe session creation. After Buyer A’s session expired and released stock, Buyer B could add the product and create a new order. This is provider-boundary evidence of the reservation guard, but the conflict occurred at add-to-cart rather than a second authenticated checkout RPC attempt.
+
+### E2E-09 — First Party full refund
+
+- Full TEST refund `re_3UVEtXDLG0ay9qyw0ETQbLKR` for PaymentIntent `pi_3UVEtXDLG0ay9qyw0q6mIUW6` succeeded for `24,900` minor units.
+- `refund.created` event `evt_3UVEtXDLG0ay9qyw0D1JVJl0` and `refund.updated` event `evt_3UVEtXDLG0ay9qyw0aujpS8G` were both processed.
+- Payment became `refunded`, `refunded_amount=24,900`; the reservation remained `COMMITTED`; inventory remained on-hand/reserved `9/0` with the original single sale movement and no return movement. Order stayed `pending_confirmation` and there was no operational refund/restock transition in the observed flow.
+- Refund state is E2E-proven. Restock/cancellation policy is not automated or proven; operations must explicitly handle the physical item and inventory. This is a P1 pilot procedure gap unless a manual audited restock/refund process is established.
 
 ## Scenario evidence matrix
 
-`CODE-PROVEN` means implementation/tests exist; `DB-PROVEN` means staging schema/state or read-only predicate was inspected. Neither means E2E-PROVEN.
-
-| Scenario | Status | Evidence level | Order / payment / provider reference | Reservation / inventory / fulfillment / ledger | Cleanup |
+| Scenario | Status | Evidence level | Provider / domain reference | Reservation, inventory, fulfillment, ledger | Cleanup state |
 |---|---|---|---|---|---|
-| E2E-01 First Party success | Not run | CODE-PROVEN, DB-PROVEN | None | Not exercised | No fixtures |
-| E2E-02 Partner success | Not run | CODE-PROVEN, DB-PROVEN | None | Not exercised | No fixtures |
-| E2E-03 First Party + Partner mixed cart | Not run | CODE-PROVEN, DB-PROVEN | None | Not exercised | No fixtures |
-| E2E-04 Duplicate webhook replay | Not run against deployed endpoint | CODE-PROVEN (SQL/automated coverage) | No Stripe event ID | No staging effects tested | No fixtures |
-| E2E-05 Stripe test payment failure | Not run | CODE-PROVEN | None | No provider-driven release observed | No fixtures |
-| E2E-06 Checkout session expiry | Not run | CODE-PROVEN (abandoned-checkout SQL tests) | None | No provider-driven release observed | No fixtures |
-| E2E-07 First Party last-unit conflict before Stripe | Not run with buyers/sessions | CODE-PROVEN / DB regression coverage from PR87 | None | No payable order/session comparison | No fixtures |
-| E2E-08 Invalid webhook signature | Request rejected | E2E-PROVEN for ingress rejection only | No order/payment/event ID | Route returned 400 `invalid_signature`; no signed processing attempted | No fixture/data cleanup required |
-| E2E-09 First Party refund | Not run | CODE-PROVEN only; refund action currently full-refund path | None | Refund/restock behavior not observed | No fixtures |
-| E2E-10 Partner refund before payout | Not run | CODE-PROVEN only | None | Payable/ledger hold or reversal not observed | No fixtures |
-| E2E-11 Multi-Partner order | Not run | CODE-PROVEN / DB model | None | Not exercised | No fixtures |
-| E2E-12 Partial refund | Not run; current action is full refund | PARTIAL | None | No partial-cent reconciliation observed | No fixtures |
-| E2E-13 Transient webhook retry | Not provider-tested | CODE-PROVEN (route returns retryable 500 on transient processing failure) | None | Stripe retry attempt/outcome not observed | No fixtures |
-| Live-mode event rejection | Not sent to staging | CODE-PROVEN (route rejects `livemode`) | No event | No DB effect tested with signed fixture | No fixtures |
+| E2E-01 First Party success | Pass | E2E-PROVEN | Order `bbb845fe-53aa-4f61-9d4c-66f4c78b3298`; payment `3b43d0e1-8418-4fa7-b4a4-13d390ea8ccf`; session `cs_test_a1Gwv9…`; event `evt_1UVEtY…` | `COMMITTED`; 10/0 → 9/0; one sale; no Partner payable/ledger | Retained as QA payment record; fully refunded later |
+| E2E-02 Partner success | Not run | CODE/DB-PROVEN only | No QA Partner fixture or transaction | Not exercised | No Partner fixtures |
+| E2E-03 mixed First Party + Partner | Not run | CODE/DB-PROVEN only | None | Not exercised | None |
+| E2E-04 duplicate webhook replay | Pass | E2E-PROVEN | Same event `evt_1UVEtY…` resent; provider pending hooks 0 | One event row, one sale movement, stock unchanged on replay | Retained audit event |
+| E2E-05 payment failure | Decline and release pass; safe retry fails | E2E-PROVEN; P0 blocker | Order `3d4454d3-aa2d-4da6-a6fb-04cfc3dbbaf3`; payment `a2065054-4b14-495a-a492-fedc169483a7`; event `evt_3UVYG…` | Payment failed, reservation released, stock 1/0; hosted form remained retryable | Stripe session expired; event `evt_1UVYj…` processed |
+| E2E-06 checkout expiry | Pass | E2E-PROVEN | Event `evt_1UVFc…`; last-unit order `a498aadb-6e5b-4d27-a79c-d4fcd09ad7fc` | `ACTIVE → EXPIRED`; stock 1/1 → 1/0; one release movement | Order and immutable audit retained |
+| E2E-07 last-unit conflict | Pass at cart gate | E2E-PROVEN, narrower than checkout-RPC race | Buyer A active session; Buyer B blocked before order/session | One unit reserved only by Buyer A | Buyer A session expired; Buyer B reserved after release, later declined and session expired |
+| E2E-08 invalid signature | Pass | E2E-PROVEN ingress | Unsigned request to stable endpoint | HTTP 400 `invalid_signature`; zero DB effects | No fixture needed |
+| E2E-09 First Party full refund | Pass | E2E-PROVEN | Refund `re_3UVEtX…`; events `evt_3UVEtX…` and `evt_3UVEtX…` | Payment refunded; committed reservation and sale movement remain; no restock movement | Immutable refund/order audit retained |
+| E2E-10 Partner refund before payout | Not run | CODE/DB-PROVEN only | No Partner charge | Payable/ledger reversal not exercised | None |
+| E2E-11 multi-Partner | Not run | CODE/DB-PROVEN only | No Partner fixtures | Not exercised | None |
+| E2E-12 partial refund | Not run; current operational action is full-refund oriented | PARTIAL | No partial refund ID | No partial-cent reconciliation | None |
+| E2E-13 webhook retry on transient failure | Not induced | CODE-PROVEN only | No transient-failure replay | Provider retry outcome not proven | None |
+| Live-mode event rejection | Not sent | CODE-PROVEN only | No live credentials or event used | No DB effect tested with a signed fixture | None |
 
-## Reconciliation and safety notes
+## Other surfaces, economics, and cleanup
 
-- No Stripe TEST Session, payment, refund, or webhook event was created in this audit; consequently there are no transaction IDs or before/after inventory counts to report.
-- Read-only final sanity check: PR84 First Party job `14b73876-fbca-4a07-b32f-f00811ed0dbb` remains `IMPORTED` (3 imported / 0 skipped / 0 failed); PR84 Partner job `5dd2c1e8-b34b-46ee-8199-50b5f73c3459` remains `IMPORTED` (5 / 0 / 0). Catalog counts remain 18 active brands and 658 active models. These QA records were not changed.
-- The card checkout amount is constructed from server-prepared database values in integer minor units; client input does not supply the authoritative charge amount. This is code evidence, not a provider reconciliation.
-- PR87 introduced First Party reservations using the shared `inventory_reservations` lifecycle. PR87’s staging concurrency and lifecycle checks are prior evidence and are not repeated or promoted to Stripe E2E evidence here.
-- Partner economics, order attribution, and ledger/payable behavior are implemented in Marketplace-specific code/RPCs and integer-cent records. No Stripe-paid Partner order was available to reconcile.
-- Buyer, Operations, and Partner pages exist in code. Their visibility and ownership behavior on a new paid order remain unproven in this run.
-- Existing PR84 QA jobs were not modified. No new fixtures or orders were created. No production Vercel, Supabase, Stripe LIVE, payout, or shipping-provider action occurred.
+- Buyer surfaces: authenticated account, checkout, order history/detail, success page and paid status were observed for First Party. Stripe showed safe decline messaging. No Partner customer order view was tested.
+- Operations UI: not tested with an Operations identity. Paid First Party order remains pending operational confirmation. Do not claim Operations can complete paid/refund handling without SQL.
+- Partner UI and ownership isolation: not tested; no Partner fixture was created.
+- Marketplace pricing/economics, fulfillment attribution, ledger/payable amounts, and Partner refunds were not exercised through Stripe. PR86 code/schema evidence remains non-E2E evidence.
+- Disposable fixtures created: two `QA-PR88-STRIPE-*` First Party products/variants/inventory records and two staging auth buyers. The main product began at on-hand 10 and now has on-hand 9 after its sale; its full refund did not restock it. The last-unit fixture is back at on-hand/reserved 1/0. Its expiry/failure reservations are terminal. Paid/refund/webhook/order records are retained as immutable QA audit evidence. The Stripe TEST hosted session that showed a decline is expired. No partner fixture was created.
+- PR84 First Party job `14b73876-fbca-4a07-b32f-f00811ed0dbb` and Partner job `5dd2c1e8-b34b-46ee-8199-50b5f73c3459` were not modified. Production Vercel, Supabase, Stripe LIVE, real payouts and real shipping were untouched.
 
-## Blockers and next safe steps
+## Launch blockers and next safe work
 
-1. **P1 provider access prerequisite:** use Stripe TEST dashboard/API access to verify the staging endpoint URL, mode, active status, and subscribed event list. Verify the signing secret belongs to this endpoint without revealing it.
-2. With verified endpoint/config and disposable staging buyer/partner fixtures, execute First Party, Partner, and mixed success plus duplicate event, failure, expiry, and last-unit conflict. Record provider event/session IDs and order/payment/reservation/inventory/fulfillment/ledger IDs.
-3. Exercise First Party and Partner refunds in Stripe TEST and inspect persisted state. Test partial refund only if the product claims it is supported; current action code exposes full refund only.
-4. Verify buyer, Operations, and Partner views against those test records, including ownership isolation.
-5. Keep fixture rows tagged `QA-PR88-STRIPE-*`; retain immutable financial/audit history and mark/cancel fixtures using supported lifecycle actions instead of deleting protected records.
+1. **P0 — failure/retry reservation race.** Make a Stripe decline unable to remain retryable after the reservation is released, or retain inventory until the Checkout session is closed/expired. Prove failed-card → retry success behavior with a test that checks inventory and order/payment coherence. Do not start pilot transactions before this is resolved.
+2. **P1 — refund operations.** Define and test the First Party refund/restock/cancellation lifecycle. Establish a manual auditable process if physical restock is intentionally separate from payment refund.
+3. **P1 — Partner and mixed transactions.** Create new isolated QA Partner fixtures and run Partner-only and mixed successful Stripe TEST flows, including economics, seller attribution, fulfillment separation, and refund-before-payout. These remain NOT PROVEN.
+4. **P1 — Operations/Partner surfaces.** Verify transaction visibility and actions under actual authorized staff and Partner sessions.
+5. **P1 — transient webhook retry and multi-Partner coverage.** Still CODE-PROVEN only / not run.
+6. **Partial refund:** not proven and not supported by the full-refund-only operational action observed; classify based on pilot policy before launch.
 
-The historical PR86 audit remains unchanged. This note records the present evidence limit and does not close its payment/refund/fulfillment E2E gaps.
+Historical PR86 audit remains intact. This note updates only PR88 evidence and does not claim pilot readiness.
 
 ## Validation
 
-- `npm run test`: **785 passed** (87 test files).
-- `npm run typecheck`: **passed**.
-- `npm run lint`: **passed**.
-- `npm run build`: **passed** with `APP_ENV=development` and non-secret local placeholder `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` values required for prerendering.
-- `git diff --check`: **passed**.
-- `npm run supabase:lint`: **passed**, no findings.
-- `npx supabase test db --local`: **not passed**. The 35 repository SQL regression files are plain SQL rather than TAP plans, so pg_prove reports no subtests; two hosted-portability scripts also cannot `SET SESSION AUTHORIZATION` to their test roles under the local runner. This is a test harness/role limitation, not a successful regression result.
-- Stable staging Vercel deployment from this candidate: `dpl_B5V7mJvsAMiQejbvDYDTAaPvLiz4`, READY; root HTTP 200; `/api/health/supabase` HTTP 200 (`available`, `staging`). The PR check reports Vercel PASS and GitHub Validate PASS. No schema or transaction data changes were made.
+The original candidate's code gates were: `npm run test` 785 passed (87 test files), typecheck PASS, lint PASS, build PASS, `git diff --check` PASS, `npm run supabase:lint` PASS. This corrective changes only this Markdown evidence file; those gates must be re-run on the updated candidate. No migration or SQL/runtime change was made.
