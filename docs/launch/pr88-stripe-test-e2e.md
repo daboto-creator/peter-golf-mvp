@@ -30,7 +30,7 @@ No runtime code or schema was changed. The only repository change in this correc
 - Order `PG-W-BBB845FE53AA`, order ID `bbb845fe-53aa-4f61-9d4c-66f4c78b3298`; payment ID `3b43d0e1-8418-4fa7-b4a4-13d390ea8ccf`.
 - Stripe session `cs_test_a1Gwv9VRAe8uJXthIjGok3S9v5UL2tvcl3IkZOwbu4RUA6nNLQtlql2gLg`; processed event `evt_1UVEtYDLG0ay9qywJzU6OpwT` (`checkout.session.completed`, `livemode=false`, Stripe `pending_webhooks=0`). PaymentIntent `pi_3UVEtXDLG0ay9qyw0q6mIUW6`.
 - Server total and Stripe total both `24,900 MXN minor units` (MXN 249.00), including explicit MXN 149.00 shipping.
-- One payment became `paid`; the session became `completed`; one First Party reservation `447864a2-5b4c-4ba7-b4c4-13d390ea8ccf` became `COMMITTED` (reservation ID verified separately as `447864a2-5b4c-4ba7-b4c4-13d390ea8ccf`); inventory changed from on-hand/reserved `10/0` to `9/0`; exactly one `sale` movement exists.
+- One payment became `paid`; the session became `completed`; First Party reservation `447864a2-5b4c-4ba7-b4c4-13d390ea8ccf` became `COMMITTED`; inventory changed from on-hand/reserved `10/0` to `9/0`; exactly one `sale` movement exists.
 - No Partner payable or Marketplace ledger entry was created for this First Party item. Buyer order detail showed the paid state based on `order_payments`. Legacy compatibility fields remained `payment_method=none`, `payment_status=pending`; they did not claim bank transfer, and they are stale projections that must not drive financial decisions.
 - Order remains `pending_confirmation`, awaiting Operations lifecycle handling. Operations and Partner UI could not be verified because no Operations/Partner session was used.
 
@@ -86,7 +86,7 @@ Buyer A’s active reservation for the single-unit fixture prevented Buyer B fro
 - Operations UI: not tested with an Operations identity. Paid First Party order remains pending operational confirmation. Do not claim Operations can complete paid/refund handling without SQL.
 - Partner UI and ownership isolation: not tested; no Partner fixture was created.
 - Marketplace pricing/economics, fulfillment attribution, ledger/payable amounts, and Partner refunds were not exercised through Stripe. PR86 code/schema evidence remains non-E2E evidence.
-- Disposable fixtures created: two `QA-PR88-STRIPE-*` First Party products/variants/inventory records and two staging auth buyers. The main product began at on-hand 10 and now has on-hand 9 after its sale; its full refund did not restock it. The last-unit fixture is back at on-hand/reserved 1/0. Its expiry/failure reservations are terminal. Paid/refund/webhook/order records are retained as immutable QA audit evidence. The Stripe TEST hosted session that showed a decline is expired. No partner fixture was created.
+- Disposable fixtures created: two `QA-PR88-STRIPE-*` First Party products/variants/inventory records and two staging auth buyers. Both products are now unpublished; both buyer accounts are banned from further sign-in. The main product began at on-hand 10 and now has on-hand 9 after its sale; its full refund did not restock it. The last-unit fixture is back at on-hand/reserved 1/0. Its expiry/failure reservations are terminal. Paid/refund/webhook/order records are retained as immutable QA audit evidence. The Stripe TEST hosted session that showed a decline is expired. No partner fixture was created.
 - PR84 First Party job `14b73876-fbca-4a07-b32f-f00811ed0dbb` and Partner job `5dd2c1e8-b34b-46ee-8199-50b5f73c3459` were not modified. Production Vercel, Supabase, Stripe LIVE, real payouts and real shipping were untouched.
 
 ## Launch blockers and next safe work
@@ -102,4 +102,4 @@ Historical PR86 audit remains intact. This note updates only PR88 evidence and d
 
 ## Validation
 
-The original candidate's code gates were: `npm run test` 785 passed (87 test files), typecheck PASS, lint PASS, build PASS, `git diff --check` PASS, `npm run supabase:lint` PASS. This corrective changes only this Markdown evidence file; those gates must be re-run on the updated candidate. No migration or SQL/runtime change was made.
+On the updated documentation-only candidate: `npm run test` **785 passed** (87 test files); `npm run typecheck` **PASS**; `npm run lint` **PASS**; `npm run build` **PASS**; `npm run supabase:lint` **PASS**; `git diff --check` **PASS**. GitHub Validate and Vercel Preview checks **PASS**. Stable staging deployment `dpl_888nV5ufVGj1CGUtJm99iybVqKPk` is READY; root HTTP 200; `/api/health/supabase` HTTP 200 with `available` / `staging`. Deployment was created from the clean candidate worktree; Vercel's manual CLI deployment metadata does not expose a `gitSource` SHA. No migration or runtime code change was made. Production was untouched.
