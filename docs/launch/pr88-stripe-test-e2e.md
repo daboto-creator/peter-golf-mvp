@@ -100,6 +100,171 @@ Buyer A’s active reservation for the single-unit fixture prevented Buyer B fro
 
 Historical PR86 audit remains intact. This note updates only PR88 evidence and does not claim pilot readiness.
 
+## Corrective 3 — preserved decline/retry fix and mixed checkout closure
+
+Date: 2026-10-29
+Decline/retry implementation SHA: `f6ff851c1a9073eb5ffc2d839fa062de65736725`
+
+The prior corrective was recovered as four uncommitted files, tested locally,
+committed, and pushed to PR #89 before this investigation continued. The
+candidate adds
+`20261028172546_stripe_decline_retry_reservation_safety.sql` plus First Party,
+Stripe, and mixed Marketplace SQL regressions. The migration makes
+`payment_intent.payment_failed` an auditable retryable attempt while the
+Checkout Session remains payable, aligns reservation expiry to the provider
+Session, blocks unsafe Operations cancellation, and preserves monotonic paid
+state. The real First Party TEST flow already exercised against this exact
+migration content was decline -> reservation `ACTIVE` -> same Session success
+-> payment `paid` -> reservation `COMMITTED`, with one inventory sale and no
+release. The committed regressions additionally cover competitor blocking,
+decline -> expiry release once, late failure monotonicity, and expiry alignment.
+
+### Prior mixed failure — exact root cause and classification
+
+**Classification: FIXTURE DEFECT.** The earlier temporary QA wrapper executed
+this statement after `SET LOCAL ROLE authenticated`:
+
+```sql
+select id into strict qid
+from public.marketplace_pricing_quotes
+where id = 'd0ff2abe-fda6-4fe5-bd9d-a81801999f42'
+  and status = 'APPROVED';
+```
+
+Buyer RLS intentionally hides `marketplace_pricing_quotes`, so the fixture's
+direct `SELECT INTO STRICT` returned zero rows and PostgreSQL raised SQLSTATE
+`P0002`, message `query returned no rows`, context
+`PL/pgSQL function inline_code_block line 4 at SQL statement`. The failure was
+not raised by `create_marketplace_checkout_order`; that RPC was never invoked.
+The original idempotency keys `...271`, `...272`, and `...273` have zero cart
+or order rows; the failure window has zero orders and zero checkout audit rows.
+Therefore it left no order, payment, fulfillment, reservation, inventory
+mutation, payable, or ledger entry.
+
+The fixture now resolves and validates the protected quote before switching to
+the buyer role, then passes only the approved quote ID into authenticated RPCs.
+`marketplace_checkout_orders_fulfillment.sql` has an explicit early fixture
+assertion for both the approved Partner offer and the active/published First
+Party offer, with a clear RLS hint. Runtime invariants were not weakened.
+
+### Valid mixed fixture snapshot before checkout
+
+- Buyer: the same authenticated QA buyer for both lines; cart
+  `c36de59e-5620-40b3-9217-2a9e9b94f630`, version `4`, currency `MXN` at the
+  authoritative checkout call.
+- First Party: product `89000000-0000-4000-8000-000000000101`, variant
+  `89000000-0000-4000-8000-000000000102`, inventory
+  `89000000-0000-4000-8000-000000000103`; product `active`, published, and
+  not archived; variant active, not archived, and owned by that product;
+  inventory existed at on-hand/reserved `2/0`; cart `price_seen=2,500` equaled
+  `coalesce(variant.price, product.price)=2,500`; currency was `MXN` and one
+  unit was available.
+- Partner: listing `88000000-0000-4000-8000-000000000231` was `APPROVED`;
+  approved version and cart version were both
+  `88000000-0000-4000-8000-000000000232`. Quote
+  `d0ff2abe-fda6-4fe5-bd9d-a81801999f42` was the latest `APPROVED` quote,
+  expired at `2026-11-04 19:21:12.571076+00`, and had public price/cart
+  `price_seen=100,000 MXN`. Partner
+  `88000000-0000-4000-8000-000000000211` was `VERIFIED`, was not the buyer,
+  and had no open critical penalty. Inventory
+  `43b8d12e-d375-4866-a6e0-5508412fb76e` was on-hand/reserved `2/0` before
+  checkout. Fulfillment/custody were `PARTNER_FULFILLED` / `PARTNER_CUSTODY`;
+  canonical model `88000000-0000-4000-8000-000000000221` existed.
+- Shipping: method `35aaac42-f2e7-4d4d-850f-beb9312b3282` was active,
+  `MXN`, price `14,900`. Published Marketplace config
+  `c5d934d3-edd1-45c2-9915-7c83ff218d52` existed with checkout reservation
+  `30 minutes`, confirmation `24 hours`, and handoff `48 hours`.
+
+### Partner-only Stripe TEST success
+
+- Order `62e69020-9906-4a02-9450-cc16ca07d348`, payment
+  `a248f859-11ca-40ee-a9af-1337036fe4b1`, Checkout Session
+  `cs_test_a1qGNSaEuN13KKV9Ae9BdZzqktdhDn0Tt9EdeDX0MtFeh1RollR2EYQ9D8`,
+  PaymentIntent `pi_3UVcSUDLG0ay9qyw0gDR1LLd`, processed completion event
+  `evt_1UVcSVDLG0ay9qywo6y9gRfE` (`livemode=false`, provider pending hooks 0).
+- Partner fulfillment `f382df2d-bdc1-41f2-9fe5-2aae077876d4`, Partner
+  `88000000-0000-4000-8000-000000000211`; reservation
+  `02bd217e-35ec-4ece-84d2-60195c4546c0` committed. The listing inventory
+  moved 3/0 -> 2/0 once at payment.
+- Immutable economics: public line 100,000; commission 15,000; commission VAT
+  2,400; processing 3,900 split 1,950 Partner / 1,950 Best Round; admin percent
+  750; admin fixed 3,900; other fees 0; Partner net 76,000; Best Round revenue
+  17,700 minor MXN units. One payable and one `PAYABLE_CREATED` ledger entry
+  were created for 76,000.
+
+### Mixed First Party + Partner Stripe TEST success
+
+- Final successful order `1dd6186f-e730-4c08-bc4d-08e604b25871`
+  (`PG-W-1DD6186FE730`), payment
+  `09542f9a-68a8-435a-85e3-d5f66f5cbf55`, Checkout attempt
+  `e76d659a-1de1-4234-84ee-91c5d70c7fe1`, one linked Session
+  `cs_test_a11PrJA6C59zapHgob56YM3fhAxHvYi6xE6Kkxk6Fckp8jNKZiBbTRogLA`,
+  PaymentIntent `pi_3UVx4aDLG0ay9qyw0t8qdddr`, and processed completion
+  event `evt_1UVx4bDLG0ay9qywTpHOxAjW`.
+- One order, one payment, one Session, total 117,400 minor MXN units: First
+  Party line 2,500 + Partner line 100,000 + shipping 14,900. Payment is `paid`
+  and Session is `completed`.
+- First Party reservation `5095ed4c-be85-4223-b2c7-f320d0ea5c19` and Partner
+  reservation `c9c56f8f-4ab7-4a71-aa6d-c2a421a76555` both changed
+  `ACTIVE -> COMMITTED`. First Party inventory 2/1 -> 1/0 with one sale and no
+  release; Partner inventory 2/1 -> 1/0 with one sale and no release.
+- Fulfillment ownership is separated: BEST_ROUND fulfillment
+  `ec9aa2b1-6d35-4309-afe2-9454144544f3` contains only the First Party item;
+  PARTNER fulfillment `8536c464-2486-4ca5-b086-89b02b6b33a5` contains only
+  the Marketplace item and is bound to Partner
+  `88000000-0000-4000-8000-000000000211` with
+  `PARTNER_FULFILLED` / `PARTNER_CUSTODY`.
+- Partner economics apply only to the Partner line and exactly match its
+  approved snapshot: public line 100,000; commission 15,000; commission VAT
+  2,400; processing 3,900 split 1,950 / 1,950; payment processing 360 bps + 300
+  fixed; Partner share 5,000 bps; admin 75 bps = 750 plus 3,900 fixed; other
+  fees 0; Partner net 76,000; Best Round revenue 17,700. The First Party item
+  has no Marketplace snapshot or payable.
+- Exactly one Partner payable `ebd04e1c-5ced-4043-a451-d42578f06579` and one
+  `PAYABLE_CREATED` ledger entry `cdf14d44-2eb5-4492-a089-a1aaeb1cf153` exist,
+  both for 76,000. Replaying the exact completion event left one event row,
+  two committed reservations, one sale per inventory domain, two fulfillments,
+  one payable, and one ledger entry.
+
+Two earlier disposable mixed harness orders expired unpaid while the provider
+link/payment automation was being built. Their provider expiry webhooks released
+both reservations. They are retained as QA audit evidence and are not counted
+as successful E2E transactions.
+
+### Partner refund before payout
+
+Full TEST refund `re_3UVcSUDLG0ay9qyw0qp7L1rB` succeeded for 114,900 minor
+MXN units on the Partner-only PaymentIntent. Events
+`evt_3UVcSUDLG0ay9qyw0b4vyW4j` (`refund.created`) and
+`evt_3UVcSUDLG0ay9qyw0DOggInI` (`refund.updated`) were processed. The payment
+is `refunded`; payable `68adbe32-2356-4860-8294-fc53f5ed7cb4` is `REVERSED`
+for its full 76,000; exactly one `PAYABLE_REVERSED` ledger entry offsets the
+original pending balance; and active payout item count is zero. No payout was
+executed. The Partner reservation remains committed and no automatic inventory
+return was created; fulfillment remains `PENDING_CONFIRMATION`. This physical
+restock/fulfillment handling joins the existing refund operations P1 and does
+not reopen the payment/payable correctness result.
+
+### Remaining findings after Corrective 3
+
+- P0: none identified in the exercised decline/retry, Partner-only, or mixed
+  TEST paths.
+- P1: refund/restock and fulfillment cancellation remain operationally manual
+  for both First Party and Partner physical inventory; Operations/Partner UI,
+  transient webhook retry, partial refund, and multi-Partner end-to-end coverage
+  remain outside this corrective.
+- Production, real payouts, real cards, and Stripe LIVE remained untouched.
+
 ## Validation
 
-On the updated documentation-only candidate: `npm run test` **785 passed** (87 test files); `npm run typecheck` **PASS**; `npm run lint` **PASS**; `npm run build` **PASS**; `npm run supabase:lint` **PASS**; `git diff --check` **PASS**. GitHub Validate and Vercel checks **PASS**. Stable staging deployment is READY; root HTTP 200; `/api/health/supabase` HTTP 200 with `available` / `staging`. Deployment was created from the clean candidate worktree; Vercel's manual CLI deployment metadata does not expose a `gitSource` SHA. The final deployment ID is in the PR closeout report. No migration or runtime code change was made. Production was untouched.
+On the Corrective 3 candidate: `npm run test` **785 passed** (87 test
+files); `npm run typecheck` **PASS**; `npm run lint` **PASS**; local Next
+production build **PASS** using the supported webpack builder and documented
+non-secret local public configuration (the sandbox blocks Turbopack's internal
+worker port); `npm run supabase:lint` **PASS**; `git diff --check` **PASS**.
+The First Party, Stripe TEST, and Marketplace checkout/fulfillment SQL
+regressions all pass. Linked migration dry-run reports the remote database up
+to date with no migrations pending; local and remote histories both end at
+`20261028172546`. GitHub checks, exact staging deployment, candidate parity,
+and stable health are recorded in the final PR closeout after the evidence
+commit is pushed. Production was untouched.

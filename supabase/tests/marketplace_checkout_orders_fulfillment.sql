@@ -121,6 +121,56 @@ do $$ declare q public.marketplace_pricing_quotes; begin
 end $$;
 reset role;
 
+-- E2E fixture guard: resolve protected quote rows before switching to the
+-- buyer role. Buyer RLS intentionally hides marketplace_pricing_quotes, so a
+-- SELECT INTO STRICT after SET ROLE authenticated is a fixture bug, not a
+-- create_marketplace_checkout_order failure.
+do $$
+declare
+  approved_quote_id uuid := nullif(
+    current_setting('test.checkout_quote_a', true), ''
+  )::uuid;
+  first_party_variant_id uuid := nullif(
+    current_setting('test.checkout_variant', true), ''
+  )::uuid;
+begin
+  if approved_quote_id is null or not exists (
+    select 1
+    from public.marketplace_pricing_quotes q
+    join public.marketplace_listings l on l.id = q.listing_id
+    join public.partner_profiles p on p.id = l.partner_id
+    join public.marketplace_listing_inventory i on i.listing_id = l.id
+    where q.id = approved_quote_id
+      and q.status = 'APPROVED'
+      and q.expires_at > now()
+      and l.status = 'APPROVED'
+      and l.approved_version_id = q.listing_version_id
+      and p.status = 'VERIFIED'
+      and i.quantity_on_hand - i.quantity_reserved >= 1
+  ) then
+    raise exception 'PR88 fixture assertion failed: approved Partner offer is unavailable'
+      using errcode = 'P0002',
+        hint = 'Resolve and validate the quote before SET ROLE authenticated; buyer RLS intentionally hides quote rows.';
+  end if;
+
+  if first_party_variant_id is null or not exists (
+    select 1
+    from public.product_variants v
+    join public.products p on p.id = v.product_id
+    join public.inventory i on i.variant_id = v.id
+    where v.id = first_party_variant_id
+      and v.active
+      and v.archived_at is null
+      and p.status = 'active'
+      and p.published
+      and p.archived_at is null
+      and i.quantity_on_hand - i.quantity_reserved >= 1
+  ) then
+    raise exception 'PR88 fixture assertion failed: First Party offer is unavailable'
+      using errcode = 'P0002';
+  end if;
+end $$;
+
 update public.site_settings set value='{"enabled":true}' where key='marketplace.enabled';
 update public.site_settings set value='{"mode":"test"}' where key='payments.mode';
 update public.site_settings set value='{"mode":"test"}' where key='stripe.checkout.mode';
