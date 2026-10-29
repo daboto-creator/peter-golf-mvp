@@ -265,6 +265,10 @@ worker port); `npm run supabase:lint` **PASS**; `git diff --check` **PASS**.
 The First Party, Stripe TEST, and Marketplace checkout/fulfillment SQL
 regressions all pass. Linked migration dry-run reports the remote database up
 to date with no migrations pending; local and remote histories both end at
-`20261028172546`. GitHub checks, exact staging deployment, candidate parity,
-and stable health are recorded in the final PR closeout after the evidence
-commit is pushed. Production was untouched.
+`20261028172546`. GitHub Validate and Vercel both **PASS** on PR head
+`a06602e1ecc3897ee31892c9dffa53eaa4581158`. Stable staging deployment
+`dpl_Fx8xYjB7RJvVNkWwxCN3yqDcNFCy` is **READY**, target `production` of the
+`peter-golf-staging` project; its source metadata confirms the same Git SHA,
+branch `codex/pr88-stripe-test-e2e`, and PR 89. Stable root returned HTTP 200;
+`/api/health/supabase` returned HTTP 200 with `available` / `staging`; the
+recent error-log query returned no entries. Production project was untouched.
