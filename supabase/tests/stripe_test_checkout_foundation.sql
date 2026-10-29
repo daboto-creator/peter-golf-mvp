@@ -235,7 +235,9 @@ do $$ begin
   exception when unique_violation then null; end;
 end $$;
 
--- Expired then completed, and payment_failed then completed, are monotonic.
+-- Retryable PaymentIntent failures leave the Checkout Session open and the
+-- payment pending. Multiple/duplicate failures are audit-only; completion is
+-- authoritative, and delayed failure/expiry events cannot regress it.
 select set_config('request.jwt.claim.sub','16000000-0000-4000-8000-000000000001',true);
 set local role authenticated;
 do $$ declare attempt record; begin
@@ -249,23 +251,49 @@ end $$;
 reset role; set local role service_role;
 do $$ declare attempt_id uuid:=current_setting('test.stripe_attempt_id')::uuid; begin
   perform public.process_stripe_webhook_event(
-    'evt_expired_first','checkout.session.expired',now(),'2026-07-29.dahlia',false,repeat('1',64),
-    'cs_test_sequence',null,null,null,null,null,null,null,null,null,null);
+    'evt_failed_first','payment_intent.payment_failed',now(),
+    '2026-07-29.dahlia',false,repeat('1',64),null,attempt_id,
+    '96000000-0000-4000-8000-000000000004','pi_sequence',null,null,null,null,null,null,null);
   perform public.process_stripe_webhook_event(
-    'evt_failed_after_expiry','payment_intent.payment_failed',now()+interval '1 second',
+    'evt_failed_second','payment_intent.payment_failed',now()+interval '1 second',
     '2026-07-29.dahlia',false,repeat('2',64),null,attempt_id,
     '96000000-0000-4000-8000-000000000004','pi_sequence',null,null,null,null,null,null,null);
+  perform public.process_stripe_webhook_event(
+    'evt_failed_first','payment_intent.payment_failed',now(),
+    '2026-07-29.dahlia',false,repeat('1',64),null,attempt_id,
+    '96000000-0000-4000-8000-000000000004','pi_sequence',null,null,null,null,null,null,null);
+end $$;
+reset role;
+do $$ begin
+  if (select status from public.order_payments
+      where id='96000000-0000-4000-8000-000000000004')<>'pending'
+    or (select status from public.stripe_checkout_sessions
+      where stripe_checkout_session_id='cs_test_sequence')<>'open'
+    or (select count(*) from public.stripe_webhook_events
+      where stripe_event_id in ('evt_failed_first','evt_failed_second')
+        and processing_status='processed')<>2
+  then raise exception 'Retryable decline changed aggregate or Checkout state'; end if;
+end $$;
+set local role service_role;
+do $$ declare attempt_id uuid:=current_setting('test.stripe_attempt_id')::uuid; begin
   perform public.process_stripe_webhook_event(
     'evt_completed_after_fail','checkout.session.completed',now()+interval '2 seconds',
     '2026-07-29.dahlia',false,repeat('3',64),'cs_test_sequence',attempt_id,
     '96000000-0000-4000-8000-000000000004',
     'pi_sequence',12500,'MXN','paid',null,null,null,null);
+  perform public.process_stripe_webhook_event(
+    'evt_failed_late','payment_intent.payment_failed',now()+interval '3 seconds',
+    '2026-07-29.dahlia',false,repeat('4',64),null,attempt_id,
+    '96000000-0000-4000-8000-000000000004','pi_sequence',null,null,null,null,null,null,null);
+  perform public.process_stripe_webhook_event(
+    'evt_expired_late_sequence','checkout.session.expired',now()+interval '4 seconds',
+    '2026-07-29.dahlia',false,repeat('5',64),'cs_test_sequence',null,null,null,null,null,null,null,null,null,null);
 end $$;
 reset role;
 do $$ begin
   if (select status from public.order_payments where id='96000000-0000-4000-8000-000000000004')<>'paid'
     or (select status from public.stripe_checkout_sessions where stripe_checkout_session_id='cs_test_sequence')<>'completed'
-  then raise exception 'Out-of-order Stripe events regressed state'; end if;
+  then raise exception 'Retry completion or late event regressed state'; end if;
 end $$;
 
 -- Partial, failed and total refunds are auditable and do not restock.

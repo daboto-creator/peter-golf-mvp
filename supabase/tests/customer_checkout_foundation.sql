@@ -485,6 +485,10 @@ end $$;
 insert into public.site_settings(key,value)
 values ('stripe.checkout.mode','{"mode":"test"}'::jsonb)
 on conflict(key) do update set value=excluded.value;
+select set_config('peter_golf.inventory_rpc_write','enabled',true);
+update public.inventory set quantity_on_hand=1,quantity_reserved=0
+where variant_id='53000000-0000-4000-8000-000000000002';
+select set_config('peter_golf.inventory_rpc_write','disabled',true);
 select set_config('request.jwt.claim.sub','13000000-0000-4000-8000-000000000002',true);
 set local role authenticated;
 do $$ declare added record; selected_cart public.carts%rowtype; method_id uuid; result record; begin
@@ -523,16 +527,101 @@ select p.id,1,'73000000-0000-4000-8000-000000000071',repeat('a',64),
   '13000000-0000-4000-8000-000000000002',now()+interval '30 minutes'
 from public.order_payments p
 where p.order_id=current_setting('test.checkout_card_order')::uuid;
-update public.stripe_checkout_sessions set status='expired',expired_at=now()
-where idempotency_key='73000000-0000-4000-8000-000000000071';
+
+do $$ begin
+  if exists (
+    select 1 from public.inventory_reservations r
+    join public.order_payments p on p.order_id=r.order_id
+    join public.stripe_checkout_sessions s on s.payment_id=p.id
+    where r.order_id=current_setting('test.checkout_card_order')::uuid
+      and r.expires_at<s.expires_at
+  ) then raise exception 'Reservation expiry precedes payable Checkout expiry'; end if;
+end $$;
+
+do $$ declare attempt_id uuid; payment_id uuid; begin
+  select s.id,s.payment_id into strict attempt_id,payment_id
+  from public.stripe_checkout_sessions s
+  where s.idempotency_key='73000000-0000-4000-8000-000000000071';
+  perform set_config('test.checkout_fp_attempt',attempt_id::text,true);
+  perform set_config('test.checkout_fp_payment',payment_id::text,true);
+end $$;
+set local role service_role;
+do $$ begin
+  perform public.process_stripe_webhook_event(
+    'evt_pr88_fp_decline','payment_intent.payment_failed',now(),
+    '2026-07-29.dahlia',false,repeat('b',64),null,
+    current_setting('test.checkout_fp_attempt')::uuid,
+    current_setting('test.checkout_fp_payment')::uuid,
+    'pi_pr88_fp_decline',null,null,null,null,null,null,null);
+  perform public.process_stripe_webhook_event(
+    'evt_pr88_fp_decline','payment_intent.payment_failed',now(),
+    '2026-07-29.dahlia',false,repeat('b',64),null,
+    current_setting('test.checkout_fp_attempt')::uuid,
+    current_setting('test.checkout_fp_payment')::uuid,
+    'pi_pr88_fp_decline',null,null,null,null,null,null,null);
+end $$;
+reset role;
+do $$ begin
+  if (select p.status from public.order_payments p
+      where p.order_id=current_setting('test.checkout_card_order')::uuid)<>'pending'
+    or (select s.status from public.stripe_checkout_sessions s
+      join public.order_payments p on p.id=s.payment_id
+      where p.order_id=current_setting('test.checkout_card_order')::uuid)<>'open'
+    or (select r.status from public.inventory_reservations r
+      where r.order_id=current_setting('test.checkout_card_order')::uuid)<>'ACTIVE'
+    or (select quantity_reserved from public.inventory
+      where variant_id='53000000-0000-4000-8000-000000000002')<>1
+    or exists(select 1 from public.inventory_movements m
+      join public.inventory_reservations r on r.id=m.reference_id
+      where r.order_id=current_setting('test.checkout_card_order')::uuid
+        and m.movement_type='release')
+  then raise exception 'First Party decline released or closed retryable Checkout'; end if;
+end $$;
+
+-- The other buyer remains blocked before a second order/Session can be made.
+select set_config('request.jwt.claim.sub','13000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.add_customer_cart_item(
+      '43000000-0000-4000-8000-000000000002',
+      '53000000-0000-4000-8000-000000000002',1,
+      '73000000-0000-4000-8000-000000000072');
+    raise exception 'Competing buyer acquired reserved last unit';
+  exception when check_violation then null; end;
+end $$;
+reset role;
+
+-- Operations cannot release stock while the same provider Session is payable.
+select set_config('request.jwt.claim.sub','13000000-0000-4000-8000-000000000003',true);
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.cancel_operational_order(
+      current_setting('test.checkout_card_order')::uuid,1,
+      'Intento durante Checkout vigente',
+      '73000000-0000-4000-8000-000000000073');
+    raise exception 'Cancellation released a payable Stripe reservation';
+  exception when check_violation then null; end;
+end $$;
+reset role;
+
+set local role service_role;
+do $$ begin
+  perform public.process_stripe_webhook_event(
+    'evt_pr88_fp_expired','checkout.session.expired',now()+interval '30 minutes',
+    '2026-07-29.dahlia',false,repeat('c',64),
+    'cs_test_pr87_expiry_0001',null,null,null,null,null,null,null,null,null,null);
+end $$;
+reset role;
 do $$ begin
   if (select status from public.inventory_reservations
       where order_id=current_setting('test.checkout_card_order')::uuid)<>'EXPIRED'
-    or (select quantity_on_hand from public.inventory
-      where variant_id='53000000-0000-4000-8000-000000000001')<>1
     or (select quantity_reserved from public.inventory
-      where variant_id='53000000-0000-4000-8000-000000000001')<>0
-  then raise exception 'Stripe Checkout expiry did not release First Party stock'; end if;
+      where variant_id='53000000-0000-4000-8000-000000000002')<>0
+    or (select status from public.order_payments
+      where order_id=current_setting('test.checkout_card_order')::uuid)<>'pending'
+  then raise exception 'Decline then Stripe expiry did not release First Party stock once'; end if;
 end $$;
 
 rollback;
