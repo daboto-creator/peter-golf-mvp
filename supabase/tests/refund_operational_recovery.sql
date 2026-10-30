@@ -230,9 +230,72 @@ do $$ declare c public.inventory_recovery_cases%rowtype; begin
 end $$;
 reset role;
 
+-- Normal Stripe checkout remains pending_confirmation and has no fulfillment
+-- row yet. A full successful refund in this real pre-confirmation domain state
+-- must return committed stock exactly once.
+insert into public.orders(id,order_number,user_id,status,subtotal,total,shipping_address_snapshot,origin)
+values('79000000-0000-4000-8000-000000000005','PG-W-RECOVERY-0005',
+ '19000000-0000-4000-8000-000000000001','pending_confirmation',10000,10000,
+ '{"recipient_name":"Buyer","street":"Test"}','web');
+insert into public.order_items(id,order_id,product_id,variant_id,sku_snapshot,product_name_snapshot,
+ variant_name_snapshot,condition_snapshot,unit_price_snapshot,quantity,line_total,item_source)
+values('99000000-0000-4000-8000-000000000005','79000000-0000-4000-8000-000000000005',
+ '49000000-0000-4000-8000-000000000001','59000000-0000-4000-8000-000000000001',
+ 'REC-V1','Recovery Product','Recovery Variant','new',10000,1,10000,'FIRST_PARTY');
+insert into public.order_payments(id,order_id,provider,method,status,expected_amount,refunded_amount,currency,paid_at)
+values('a9000000-0000-4000-8000-000000000005','79000000-0000-4000-8000-000000000005',
+ 'stripe','card','pending',10000,0,'MXN',null);
+select set_config('peter_golf.inventory_rpc_write','enabled',true);
+update public.inventory set quantity_reserved=1 where id='69000000-0000-4000-8000-000000000001';
+select set_config('peter_golf.marketplace_order_write','enabled',true);
+insert into public.inventory_reservations(order_id,order_item_id,source,inventory_id,quantity,status,
+ idempotency_key,expires_at,committed_at)
+values('79000000-0000-4000-8000-000000000005','99000000-0000-4000-8000-000000000005',
+ 'FIRST_PARTY','69000000-0000-4000-8000-000000000001',1,'ACTIVE','recovery-test:order-5',now()+interval '30 minutes',null);
+select set_config('peter_golf.marketplace_order_write','disabled',true);
+insert into public.stripe_checkout_sessions(id,payment_id,attempt_number,idempotency_key,payload_hash,
+ stripe_checkout_session_id,status,amount_total,currency,created_by,expires_at)
+values('2c000000-0000-4000-8000-000000000005','a9000000-0000-4000-8000-000000000005',1,
+ 'd9000000-0000-4000-8000-000000000005',repeat('d',64),
+ 'cs_test_recovery_preconfirm','open',10000,'MXN',
+ '19000000-0000-4000-8000-000000000001',now()+interval '30 minutes');
+set local role service_role;
+do $$ begin
+ perform public.process_stripe_webhook_event('evt_recovery_preconfirm_paid','checkout.session.completed',now(),
+   '2026-07-29.dahlia',false,repeat('e',64),'cs_test_recovery_preconfirm',
+   '2c000000-0000-4000-8000-000000000005','a9000000-0000-4000-8000-000000000005',
+   'pi_recovery_preconfirm',10000,'MXN','paid',null,null,null,null);
+end $$;
+reset role;
+do $$ begin
+ if (select status from public.order_payments where id='a9000000-0000-4000-8000-000000000005')<>'paid'
+   or not exists(select 1 from public.stripe_checkout_sessions where stripe_checkout_session_id='cs_test_recovery_preconfirm'
+      and stripe_payment_intent_id='pi_recovery_preconfirm' and status='completed')
+ then raise exception 'Pending-confirmation test completion state: payment %, session %, PI %',
+   (select status from public.order_payments where id='a9000000-0000-4000-8000-000000000005'),
+   (select status from public.stripe_checkout_sessions where stripe_checkout_session_id='cs_test_recovery_preconfirm'),
+   (select stripe_payment_intent_id from public.stripe_checkout_sessions where stripe_checkout_session_id='cs_test_recovery_preconfirm'); end if;
+end $$;
+set local role service_role;
+do $$ begin
+ perform public.process_stripe_webhook_event('evt_recovery_preconfirm_refund','refund.updated',now(),
+   '2026-07-29.dahlia',false,repeat('f',64),null,null,null,'pi_recovery_preconfirm',
+   10000,'MXN',null,'re_recovery_preconfirm','succeeded',null,now());
+end $$;
+reset role;
+do $$ begin
+ if (select status from public.order_payments where id='a9000000-0000-4000-8000-000000000005')<>'refunded'
+   or (select status from public.inventory_recovery_cases where order_item_id='99000000-0000-4000-8000-000000000005')<>'RESTOCKED'
+   or (select disposition from public.inventory_recovery_cases where order_item_id='99000000-0000-4000-8000-000000000005')<>'RESTOCKABLE'
+   or (select status from public.inventory_reservations where order_item_id='99000000-0000-4000-8000-000000000005')<>'COMMITTED'
+   or (select quantity_on_hand from public.inventory where id='69000000-0000-4000-8000-000000000001')<>18
+   or (select count(*) from public.inventory_movements where reference_type='inventory_recovery')<>3
+ then raise exception 'Pending-confirmation refund did not recover stock exactly once'; end if;
+end $$;
+
 do $$ begin
  if (select status from public.order_payments where id='a9000000-0000-4000-8000-000000000004')<>'paid'
-   or (select count(*) from public.inventory_recovery_case_history)<>6
+   or (select count(*) from public.inventory_recovery_case_history)<>8
  then raise exception 'Financial or recovery audit history is incoherent'; end if;
 end $$;
 
