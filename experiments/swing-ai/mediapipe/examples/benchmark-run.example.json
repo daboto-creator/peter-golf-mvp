@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "swing-ai-mediapipe-benchmark-v1",
+  "generatedAt": "2026-10-23T00:00:00.000Z",
+  "summary": {
+    "runId": "example-only",
+    "modelId": "mediapipe-pose-landmarker-full",
+    "modelVersion": "1.1.1+float16/1",
+    "videoId": "sha256:example-not-a-real-video",
+    "evidenceClass": "SYNTHETIC",
+    "perspective": "FACE_ON",
+    "durationSeconds": 5,
+    "totalFrames": 1,
+    "usableFrames": 0,
+    "latencyMs": 0,
+    "peakMemoryMb": null,
+    "errorCode": "EXAMPLE_ONLY_NO_INFERENCE"
+  },
+  "model": {
+    "package": "@mediapipe/tasks-vision",
+    "packageVersion": "1.1.1",
+    "modelAsset": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+    "modelVersion": "float16/1",
+    "modelSha256": "5134a3aad27a58b93da0088d431f366da362b44e3ccfbe3462b3827a839011b1",
+    "delegate": "CPU",
+    "runtime": "BROWSER_WEB_WORKER"
+  },
+  "environment": {
+    "userAgent": "EXAMPLE_ONLY",
+    "hardwareConcurrency": null,
+    "deviceMemoryGb": null,
+    "crossOriginIsolated": false
+  },
+  "capture": {
+    "mimeType": "video/example",
+    "sizeBytes": 0,
+    "width": 0,
+    "height": 0,
+    "sampleFps": 10,
+    "originalFilenameIncluded": false
+  },
+  "thresholds": {
+    "detection": 0.5,
+    "presence": 0.5,
+    "tracking": 0.5,
+    "usableLandmarkConfidence": 0.5
+  },
+  "resources": {
+    "wallTimeMs": 0,
+    "inferenceTimeMsTotal": 0,
+    "inferenceTimeMsP50": null,
+    "inferenceTimeMsP95": null,
+    "memoryMeasurement": "UNAVAILABLE"
+  },
+  "privacy": {
+    "localFileOnly": true,
+    "videoUploaded": false,
+    "videoPersistedByPrototype": false,
+    "trainingUse": false,
+    "assetOrigins": [
+      "https://cdn.jsdelivr.net",
+      "https://storage.googleapis.com"
+    ]
+  },
+  "errors": [
+    {
+      "code": "EXAMPLE_ONLY_NO_INFERENCE",
+      "message": "Schema example; no video or model inference was used.",
+      "timestampMs": null
+    }
+  ],
+  "frames": [
+    {
+      "timestampMs": 0,
+      "inferenceMs": 0,
+      "poseDetected": false,
+      "landmarkCount": 0,
+      "meanConfidence": null,
+      "minimumRequiredConfidence": null,
+      "usable": false,
+      "failureReason": "NO_POSE",
+      "landmarks": []
+    }
+  ],
+  "limitations": [
+    "EXAMPLE_ONLY_NO_INFERENCE",
+    "No fitting recommendation is represented."
+  ]
+}

@@ -29,3 +29,10 @@ Keep source videos outside the repository, record consent or the exact public
 license, use an opaque `videoId`, pin every model revision, and run every model
 against the same decoded frames. Only `AUTHORIZED` or `PUBLIC_LICENSED` rows
 count toward representative results; at least 20 distinct videos are required.
+
+## PR2: MediaPipe benchmark
+
+El ejecutor browser-first vive en `mediapipe/`. Reutiliza los contratos y el
+agregador del discovery, procesa archivos elegidos por el usuario en un Web
+Worker y exporta JSON/JSONL sin incluir el nombre original del video. Consulta
+`mediapipe/README.md` antes de ejecutar clips autorizados.
