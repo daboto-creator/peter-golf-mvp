@@ -82,6 +82,7 @@ begin
   perform set_config('test.checkout_listing_b',listing_b::text,true);
   perform set_config('test.checkout_version_a',version_a::text,true);
   perform set_config('test.checkout_version_b',version_b::text,true);
+  perform set_config('test.checkout_model',model_id::text,true);
   perform set_config('test.checkout_variant',selected_variant_id::text,true);
   perform set_config('test.checkout_product',(select product_id::text from public.product_variants where id=selected_variant_id),true);
 end;
@@ -691,5 +692,114 @@ do $$ begin
   exception when insufficient_privilege then null; end;
 end $$;
 reset role;
+
+-- Archiving a canonical model removes it from new Marketplace resolution while
+-- preserving the real immutable order snapshot created by the mixed checkout.
+-- Both resolution attempts use the same model id; separate submitted listings
+-- avoid replaying a listing whose lock version changed after the first review.
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000005',true);
+do $$
+declare
+  model_id uuid := current_setting('test.checkout_model')::uuid;
+  model_row public.catalog_product_models;
+  listing_before uuid := gen_random_uuid();
+  listing_after uuid := gen_random_uuid();
+  version_before uuid := gen_random_uuid();
+  version_after uuid := gen_random_uuid();
+  resolved public.catalog_product_models;
+  snapshot_item uuid;
+  snapshot_before record;
+  snapshot_after record;
+begin
+  select * into strict model_row from public.catalog_product_models where id=model_id;
+  if model_row.status <> 'active' then
+    raise exception 'Resolver fixture model must begin active';
+  end if;
+
+  select s.order_item_id, s.listing_id, s.listing_version_id,
+         s.canonical_product_model_id, s.public_line_total,
+         s.estimated_partner_net, s.config_version_id
+    into strict snapshot_before
+  from public.marketplace_order_item_snapshots s
+  where s.canonical_product_model_id=model_id
+  order by s.order_item_id
+  limit 1;
+  snapshot_item := snapshot_before.order_item_id;
+  if snapshot_before.canonical_product_model_id <> model_id then
+    raise exception 'Real Marketplace order snapshot does not reference the archive target';
+  end if;
+
+  insert into public.marketplace_listings(id,partner_id,status,lock_version)
+  values
+    (listing_before,'6b000000-0000-4000-8000-000000000001','DRAFT',1),
+    (listing_after,'6b000000-0000-4000-8000-000000000001','DRAFT',1);
+  insert into public.marketplace_listing_versions(
+    id,listing_id,version_number,state,canonical_model_id,brand_id,category_id,
+    title,description,condition,condition_grade,condition_notes,
+    defects_acknowledged,specifications,declared_defects,accessories_included,
+    quantity,fulfillment,custody,submitted_at,created_by
+  )
+  select version_id,listing_id,1,'SUBMITTED',null,model_row.brand_id,
+    model_row.category_id,'Resolver archive regression','Submitted fixture',
+    'used','good','Regression fixture',true,'{}','[]','[]',1,
+    'PARTNER_FULFILLED','PARTNER_CUSTODY',now(),
+    '6a000000-0000-4000-8000-000000000005'
+  from (values (version_before,listing_before),(version_after,listing_after)) f(version_id,listing_id);
+  update public.marketplace_listings
+  set status='SUBMITTED',current_version_id=case id
+      when listing_before then version_before else version_after end,
+      last_submitted_at=now()
+  where id in (listing_before,listing_after);
+
+  resolved := public.resolve_marketplace_listing_product(
+    listing_before,1,model_id,null,null,'Archive regression active resolution'
+  );
+  if resolved.id <> model_id or resolved.status <> 'active'
+     or not exists(select 1 from public.marketplace_listing_versions
+       where id=version_before and canonical_model_id=model_id)
+     or (select lock_version from public.marketplace_listings where id=listing_before)<>2
+  then raise exception 'Active canonical model was not resolved by the Marketplace RPC'; end if;
+
+  model_row := public.archive_catalog_product_model(
+    model_id,model_row.updated_at,'PR88 archive selection regression'
+  );
+  if model_row.status <> 'archived' then
+    raise exception 'Archive RPC did not archive resolver target';
+  end if;
+
+  begin
+    perform public.resolve_marketplace_listing_product(
+      listing_after,1,model_id,null,null,'Archive regression inactive resolution'
+    );
+    raise exception 'Archived canonical model resolved for a new Marketplace listing';
+  exception when check_violation then
+    if sqlerrm not like '%Canonical model does not match listing category%' then raise; end if;
+  end;
+
+  if (select lock_version from public.marketplace_listings where id=listing_after)<>1
+     or (select canonical_model_id from public.marketplace_listing_versions where id=version_after) is not null
+  then raise exception 'Rejected archived-model resolution partially mutated the listing'; end if;
+
+  select s.order_item_id, s.listing_id, s.listing_version_id,
+         s.canonical_product_model_id, s.public_line_total,
+         s.estimated_partner_net, s.config_version_id
+    into strict snapshot_after
+  from public.marketplace_order_item_snapshots s
+  where s.order_item_id=snapshot_item;
+  if snapshot_after.order_item_id <> snapshot_before.order_item_id
+     or snapshot_after.listing_id <> snapshot_before.listing_id
+     or snapshot_after.listing_version_id <> snapshot_before.listing_version_id
+     or snapshot_after.canonical_product_model_id <> model_id
+     or snapshot_after.public_line_total <> snapshot_before.public_line_total
+     or snapshot_after.estimated_partner_net <> snapshot_before.estimated_partner_net
+     or snapshot_after.config_version_id <> snapshot_before.config_version_id
+     or not exists(select 1 from public.catalog_product_models where id=model_id and status='archived')
+     or not exists(select 1 from public.marketplace_order_item_snapshots s
+       join public.marketplace_listing_versions v on v.id=s.listing_version_id
+       join public.catalog_product_models m on m.id=s.canonical_product_model_id
+       where s.order_item_id=snapshot_item and m.status='archived'
+         and v.id=s.listing_version_id)
+  then raise exception 'Historical Marketplace snapshot was changed or became unreadable after archive'; end if;
+end $$;
 
 rollback;

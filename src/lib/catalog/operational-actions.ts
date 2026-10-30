@@ -749,6 +749,32 @@ export async function archiveProductAction(
   );
 }
 
+export async function archiveCatalogProductModelAction(input: {
+  modelId: string;
+  expectedUpdatedAt: string;
+  reason: string;
+}): Promise<CatalogActionResult> {
+  await requireCatalogManager("/operacion/catalogo");
+  const modelId = z.uuid().safeParse(input.modelId);
+  const expectedUpdatedAt = z.iso.datetime().safeParse(input.expectedUpdatedAt);
+  const reason = z.string().trim().min(3).max(500).safeParse(input.reason);
+  if (!modelId.success || !expectedUpdatedAt.success || !reason.success) {
+    return { status: "error", message: "No fue posible archivar el modelo." };
+  }
+  const client = await createClient();
+  const result = await client.rpc("archive_catalog_product_model" as never, {
+    requested_model_id: modelId.data,
+    expected_updated_at: expectedUpdatedAt.data,
+    requested_reason: reason.data,
+  } as never);
+  if (result.error) {
+    return { status: "error", message: "No fue posible archivar el modelo." };
+  }
+  revalidatePath("/operacion/catalogo");
+  revalidatePath("/operacion/marketplace/publicaciones");
+  return { status: "success", message: "El modelo quedó archivado." };
+}
+
 export async function restoreProductAction(
   productId: string,
 ): Promise<CatalogActionResult> {
