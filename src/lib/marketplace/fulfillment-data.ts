@@ -10,10 +10,31 @@ export async function listPartnerSales() {
 
 export async function getPartnerSale(fulfillmentId: string) {
   const client = await createClient();
-  const { data, error } = await client.rpc("get_partner_marketplace_sales", {
-    requested_fulfillment_id: fulfillmentId,
-  });
-  return { data: data ?? [], error };
+  const [sales, refundVisibility] = await Promise.all([
+    client.rpc("get_partner_marketplace_sales", {
+      requested_fulfillment_id: fulfillmentId,
+    }),
+    client.rpc("get_partner_marketplace_refund_visibility", {
+      requested_fulfillment_id: fulfillmentId,
+    }),
+  ]);
+  if (sales.error || refundVisibility.error) {
+    return { data: [], error: sales.error ?? refundVisibility.error };
+  }
+  const refundsByFulfillment = new Map(
+    (refundVisibility.data ?? []).map((entry) => [entry.fulfillment_id, entry]),
+  );
+  return {
+    data: (sales.data ?? []).map((sale) => {
+      const visibility = refundsByFulfillment.get(sale.fulfillment_id);
+      return {
+        ...sale,
+        refund_status: visibility?.refund_status ?? "none",
+        payable_status: visibility?.payable_status ?? null,
+      };
+    }),
+    error: sales.error ?? refundVisibility.error,
+  };
 }
 
 export async function listMarketplaceOrdersForOperations() {

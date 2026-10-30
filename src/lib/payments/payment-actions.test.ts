@@ -114,7 +114,7 @@ describe("refundStripePaymentAction", () => {
         },
       },
       {
-        idempotencyKey: `pg_full_refund_${paymentId}`,
+        idempotencyKey: `pg_full_refund_${paymentId}_${requestKey}`,
       },
     );
 
@@ -132,13 +132,12 @@ describe("refundStripePaymentAction", () => {
     );
   });
 
-  test("uses payment-based idempotency instead of the browser request key", async () => {
+  test("uses the payment and stable request key for safe retry idempotency", async () => {
     await refundStripePaymentAction({ status: "idle", message: "" }, form());
 
     const options = mocks.refundsCreate.mock.calls[0]?.[1];
 
-    expect(options?.idempotencyKey).toBe(`pg_full_refund_${paymentId}`);
-    expect(options?.idempotencyKey).not.toContain(requestKey);
+    expect(options?.idempotencyKey).toBe(`pg_full_refund_${paymentId}_${requestKey}`);
   });
 
   test("rejects a Stripe payment that is not currently paid", async () => {

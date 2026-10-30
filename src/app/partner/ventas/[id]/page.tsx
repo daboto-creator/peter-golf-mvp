@@ -52,6 +52,8 @@ export default async function PartnerSaleDetailPage({
             Neto estimado:{" "}
             {formatMoneyMinorUnits(Number(sale.estimated_partner_net))}
           </p>
+          <p>Estado del reembolso: {refundLabel(sale.refund_status)}</p>
+          <p>Estado de tu saldo: {payableLabel(sale.payable_status)}</p>
           <p className="text-muted-foreground sm:col-span-2">
             Best Round protege los datos de pago y la identidad de otros
             sellers. Aquí sólo aparece lo necesario para preparar tu parte.
@@ -148,4 +150,40 @@ export default async function PartnerSaleDetailPage({
       ) : null}
     </div>
   );
+}
+
+function refundLabel(status: string) {
+  switch (status) {
+    case "succeeded":
+    case "refunded":
+      return "Reembolsado";
+    case "pending":
+    case "requires_action":
+      return "Reembolso en proceso";
+    case "failed":
+      return "Reembolso fallido; requiere revisión";
+    case "canceled":
+      return "Reembolso cancelado";
+    case "partially_refunded":
+      return "Reembolso parcial; saldo en revisión";
+    default:
+      return "Sin reembolso registrado";
+  }
+}
+
+function payableLabel(status: string | null) {
+  switch (status) {
+    case "REVERSED":
+      return "Revertido por reembolso";
+    case "PENDING":
+      return "Pendiente";
+    case "ON_HOLD":
+      return "Retenido";
+    case "AVAILABLE":
+      return "Disponible según la liquidación";
+    case "PAID":
+      return "Liquidado";
+    default:
+      return "Sin saldo asociado";
+  }
 }

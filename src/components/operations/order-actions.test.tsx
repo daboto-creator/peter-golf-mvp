@@ -7,6 +7,7 @@ import type { ManualOrderDetail } from "@/lib/orders/operational-orders";
 vi.mock("@/lib/orders/order-actions", () => ({
   cancelManualOrderAction: vi.fn(),
   confirmManualOrderAction: vi.fn(),
+  recordFirstPartyOrderHandoffAction: vi.fn(),
 }));
 
 afterEach(cleanup);
@@ -48,6 +49,7 @@ const baseOrder: ManualOrderDetail = {
     paidAt: null,
     rejectedAt: null,
     refundedAt: null,
+    refunds: [],
     stripeCheckoutStatus: null,
     submissions: [],
     history: [],
@@ -68,6 +70,7 @@ const baseOrder: ManualOrderDetail = {
     references: null,
   },
   items: [],
+  recoveryCases: [],
   history: [],
 };
 

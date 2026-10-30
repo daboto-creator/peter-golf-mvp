@@ -110,6 +110,34 @@ export async function cancelManualOrderAction(
   return transition(formData, "cancel");
 }
 
+export async function recordFirstPartyOrderHandoffAction(
+  _state: OrderActionResult,
+  formData: FormData,
+): Promise<OrderActionResult> {
+  const orderId = value(formData, "orderId");
+  await requireOrdersManager(`/operacion/pedidos/${orderId}`);
+  const parsedId = uuid.safeParse(orderId);
+  const parsedVersion = version.safeParse(value(formData, "version"));
+  const key = uuid.safeParse(value(formData, "idempotencyKey"));
+  const carrier = z.string().trim().min(2).max(80).safeParse(value(formData, "carrier"));
+  const tracking = z.string().trim().min(3).max(120).safeParse(value(formData, "trackingNumber"));
+  if (!parsedId.success || !parsedVersion.success || !key.success || !carrier.success || !tracking.success) {
+    return { status: "error", message: "La información de entrega no es válida." };
+  }
+  const client = await createClient();
+  const { error } = await client.rpc("record_first_party_order_handoff", {
+    requested_order_id: parsedId.data,
+    expected_version: parsedVersion.data,
+    requested_carrier: carrier.data,
+    requested_tracking_number: tracking.data,
+    requested_idempotency_key: key.data,
+  });
+  if (error) return failure(error.code);
+  revalidatePath("/operacion/pedidos");
+  revalidatePath(`/operacion/pedidos/${parsedId.data}`);
+  return { status: "idle", message: "Entrega al transportista registrada." };
+}
+
 async function transition(
   formData: FormData,
   operation: "confirm" | "cancel",

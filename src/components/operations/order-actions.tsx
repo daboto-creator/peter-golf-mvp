@@ -7,6 +7,7 @@ import { initialOrderActionResult } from "@/lib/orders/order-action-state";
 import {
   cancelManualOrderAction,
   confirmManualOrderAction,
+  recordFirstPartyOrderHandoffAction,
 } from "@/lib/orders/order-actions";
 import type { ManualOrderDetail } from "@/lib/orders/operational-orders";
 
@@ -14,10 +15,12 @@ export function OrderStateActions({
   order,
   confirmKey,
   cancelKey,
+  handoffKey = "",
 }: {
   order: ManualOrderDetail;
   confirmKey: string;
   cancelKey: string;
+  handoffKey?: string;
 }) {
   const [confirmState, confirmAction, confirming] = useActionState(
     confirmManualOrderAction,
@@ -25,6 +28,10 @@ export function OrderStateActions({
   );
   const [cancelState, cancelAction, cancelling] = useActionState(
     cancelManualOrderAction,
+    initialOrderActionResult,
+  );
+  const [handoffState, handoffAction, handingOff] = useActionState(
+    recordFirstPartyOrderHandoffAction,
     initialOrderActionResult,
   );
   const isAwaitingCheckoutPayment =
@@ -62,6 +69,30 @@ export function OrderStateActions({
           </form>
         )
       ) : null}
+      {order.status === "preparing" &&
+      order.payment?.status === "paid" &&
+      order.items.length > 0 &&
+      order.items.every((item) => item.source === "FIRST_PARTY") ? (
+        <form action={handoffAction} className="space-y-3 rounded-lg border p-4">
+          <p className="text-sm text-slate-700">
+            Registra este paso únicamente cuando el pedido haya sido entregado físicamente al transportista. Después de este punto, un reembolso requiere disposición de Ops.
+          </p>
+          <Hidden order={order} idempotencyKey={handoffKey} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium">
+              Transportista
+              <input name="carrier" required minLength={2} maxLength={80} className="border-input mt-2 h-11 w-full rounded-xl border px-3 font-normal" />
+            </label>
+            <label className="text-sm font-medium">
+              Número de guía
+              <input name="trackingNumber" required minLength={3} maxLength={120} className="border-input mt-2 h-11 w-full rounded-xl border px-3 font-normal" />
+            </label>
+          </div>
+          <Button disabled={handingOff || !handoffKey}>
+            {handingOff ? "Registrando…" : "Registrar entrega al transportista"}
+          </Button>
+        </form>
+      ) : null}
       {order.payment?.status === "paid" ? (
         <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-950">
           Registra primero el reembolso del pago para habilitar la cancelación.
@@ -95,7 +126,7 @@ export function OrderStateActions({
           </Button>
         </form>
       )}
-      {[confirmState, cancelState].map((state, index) =>
+      {[confirmState, cancelState, handoffState].map((state, index) =>
         state.status === "error" ? (
           <p
             key={index}
