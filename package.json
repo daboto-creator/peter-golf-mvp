@@ -17,6 +17,7 @@
     "swing-ai:dev": "vite --config experiments/swing-ai/mediapipe/vite.config.mts",
     "swing-ai:build": "vite build --config experiments/swing-ai/mediapipe/vite.config.mts",
     "swing-ai:test": "vitest run --config experiments/swing-ai/mediapipe/vitest.config.mts",
+    "test:checkout-concurrency": "node scripts/test-first-party-checkout-concurrency.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "supabase:start": "supabase start",

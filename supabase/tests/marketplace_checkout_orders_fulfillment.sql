@@ -121,7 +121,59 @@ do $$ declare q public.marketplace_pricing_quotes; begin
 end $$;
 reset role;
 
+-- E2E fixture guard: resolve protected quote rows before switching to the
+-- buyer role. Buyer RLS intentionally hides marketplace_pricing_quotes, so a
+-- SELECT INTO STRICT after SET ROLE authenticated is a fixture bug, not a
+-- create_marketplace_checkout_order failure.
+do $$
+declare
+  approved_quote_id uuid := nullif(
+    current_setting('test.checkout_quote_a', true), ''
+  )::uuid;
+  first_party_variant_id uuid := nullif(
+    current_setting('test.checkout_variant', true), ''
+  )::uuid;
+begin
+  if approved_quote_id is null or not exists (
+    select 1
+    from public.marketplace_pricing_quotes q
+    join public.marketplace_listings l on l.id = q.listing_id
+    join public.partner_profiles p on p.id = l.partner_id
+    join public.marketplace_listing_inventory i on i.listing_id = l.id
+    where q.id = approved_quote_id
+      and q.status = 'APPROVED'
+      and q.expires_at > now()
+      and l.status = 'APPROVED'
+      and l.approved_version_id = q.listing_version_id
+      and p.status = 'VERIFIED'
+      and i.quantity_on_hand - i.quantity_reserved >= 1
+  ) then
+    raise exception 'PR88 fixture assertion failed: approved Partner offer is unavailable'
+      using errcode = 'P0002',
+        hint = 'Resolve and validate the quote before SET ROLE authenticated; buyer RLS intentionally hides quote rows.';
+  end if;
+
+  if first_party_variant_id is null or not exists (
+    select 1
+    from public.product_variants v
+    join public.products p on p.id = v.product_id
+    join public.inventory i on i.variant_id = v.id
+    where v.id = first_party_variant_id
+      and v.active
+      and v.archived_at is null
+      and p.status = 'active'
+      and p.published
+      and p.archived_at is null
+      and i.quantity_on_hand - i.quantity_reserved >= 1
+  ) then
+    raise exception 'PR88 fixture assertion failed: First Party offer is unavailable'
+      using errcode = 'P0002';
+  end if;
+end $$;
+
 update public.site_settings set value='{"enabled":true}' where key='marketplace.enabled';
+update public.site_settings set value='{"mode":"test"}' where key='payments.mode';
+update public.site_settings set value='{"mode":"test"}' where key='stripe.checkout.mode';
 
 -- Both buyers may add the last unit before reservation. Only checkout A wins.
 select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000003',true);
@@ -155,15 +207,59 @@ do $$ declare o record; method_id uuid; begin
   select * into o from public.create_marketplace_checkout_order(
     current_setting('test.checkout_cart_a')::uuid,current_setting('test.checkout_cart_a_version')::integer,
     method_id,null,'{"recipient_name":"Buyer A","phone":"5512345678","street":"Golf","exterior_number":"1","interior_number":"","neighborhood":"Centro","city":"CDMX","state":"CDMX","postal_code":"01000","references":"Recepción"}',
-    false,'6e000000-0000-4000-8000-000000000001','bank_transfer');
+    false,'6e000000-0000-4000-8000-000000000001','card');
   perform set_config('test.checkout_order',o.order_id::text,true);
   if (select count(*) from public.get_customer_order_fulfillment_summary(o.order_id))<>3 then
     raise exception 'Mixed order did not create exactly three fulfillment groups'; end if;
   select * into o from public.create_marketplace_checkout_order(
     current_setting('test.checkout_cart_a')::uuid,current_setting('test.checkout_cart_a_version')::integer,
     method_id,null,'{"recipient_name":"Buyer A","phone":"5512345678","street":"Golf","exterior_number":"1","interior_number":"","neighborhood":"Centro","city":"CDMX","state":"CDMX","postal_code":"01000","references":"Recepción"}',
-    false,'6e000000-0000-4000-8000-000000000001','bank_transfer');
+    false,'6e000000-0000-4000-8000-000000000001','card');
   if not o.replayed then raise exception 'Checkout retry created a new order'; end if;
+end $$;
+
+-- Mixed First Party + Partner reservations follow the Checkout Session, not a
+-- retryable card attempt. Linking also extends all three reservation expiries.
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000003',true);
+set local role authenticated;
+do $$ declare attempt record; begin
+  select * into attempt from public.prepare_stripe_checkout_session(
+    current_setting('test.checkout_order')::uuid,
+    '6e000000-0000-4000-8000-000000000010');
+  perform public.link_stripe_checkout_session(
+    attempt.checkout_attempt_id,'6e000000-0000-4000-8000-000000000010',
+    'cs_test_pr88_mixed_retry',now()+interval '30 minutes');
+  perform set_config('test.checkout_mixed_attempt',attempt.checkout_attempt_id::text,true);
+  perform set_config('test.checkout_mixed_payment',attempt.payment_id::text,true);
+end $$;
+reset role;
+set local role service_role;
+do $$ begin
+  perform public.process_stripe_webhook_event(
+    'evt_pr88_mixed_decline','payment_intent.payment_failed',now(),
+    '2026-07-29.dahlia',false,repeat('a',64),null,
+    current_setting('test.checkout_mixed_attempt')::uuid,
+    current_setting('test.checkout_mixed_payment')::uuid,
+    'pi_pr88_mixed_retry',null,null,null,null,null,null,null);
+end $$;
+reset role;
+do $$ begin
+  if (select status from public.order_payments
+      where id=current_setting('test.checkout_mixed_payment')::uuid)<>'pending'
+    or (select status from public.stripe_checkout_sessions
+      where id=current_setting('test.checkout_mixed_attempt')::uuid)<>'open'
+    or (select count(*) from public.inventory_reservations
+      where order_id=current_setting('test.checkout_order')::uuid and status='ACTIVE')<>3
+    or exists (
+      select 1 from public.inventory_reservations r
+      join public.stripe_checkout_sessions s
+        on s.id=current_setting('test.checkout_mixed_attempt')::uuid
+      where r.order_id=current_setting('test.checkout_order')::uuid
+        and r.expires_at<s.expires_at
+    )
+    or exists(select 1 from public.marketplace_partner_payables
+      where order_id=current_setting('test.checkout_order')::uuid)
+  then raise exception 'Mixed decline changed reservations, payment, Session, or economics'; end if;
 end $$;
 reset role;
 
@@ -179,6 +275,20 @@ do $$ begin
   then raise exception 'Marketplace economics snapshot did not match approved quotes'; end if;
 end $$;
 
+-- The legacy order confirmation action remains unavailable for Marketplace
+-- and mixed orders; fulfillment groups retain their dedicated transitions.
+select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000005',true);
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.confirm_operational_order(
+      current_setting('test.checkout_order')::uuid,1,
+      '6e000000-0000-4000-8000-000000000003');
+    raise exception 'Mixed Marketplace order used legacy operational confirmation';
+  exception when invalid_parameter_value then null; end;
+end $$;
+reset role;
+
 select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000004',true);
 set local role authenticated;
 do $$ declare method_id uuid; begin
@@ -193,10 +303,32 @@ do $$ declare method_id uuid; begin
 end $$;
 reset role;
 
--- A paid event commits inventory and activates Partner fulfillments once.
-update public.order_payments set status='paid',paid_at=now(),version=version+1
-where order_id=current_setting('test.checkout_order')::uuid;
-update public.order_payments set status='paid' where order_id=current_setting('test.checkout_order')::uuid;
+-- Completion after the decline commits both inventory domains and creates
+-- Partner economics exactly once.
+do $$ declare expected_amount bigint; begin
+  select p.expected_amount into strict expected_amount
+  from public.order_payments p
+  where p.id=current_setting('test.checkout_mixed_payment')::uuid;
+  perform set_config('test.checkout_mixed_amount',expected_amount::text,true);
+end $$;
+set local role service_role;
+do $$ begin
+  perform public.process_stripe_webhook_event(
+    'evt_pr88_mixed_completed','checkout.session.completed',now()+interval '1 second',
+    '2026-07-29.dahlia',false,repeat('b',64),'cs_test_pr88_mixed_retry',
+    current_setting('test.checkout_mixed_attempt')::uuid,
+    current_setting('test.checkout_mixed_payment')::uuid,
+    'pi_pr88_mixed_retry',current_setting('test.checkout_mixed_amount')::bigint,
+    'MXN','paid',null,null,null,null);
+  perform public.process_stripe_webhook_event(
+    'evt_pr88_mixed_completed','checkout.session.completed',now()+interval '1 second',
+    '2026-07-29.dahlia',false,repeat('b',64),'cs_test_pr88_mixed_retry',
+    current_setting('test.checkout_mixed_attempt')::uuid,
+    current_setting('test.checkout_mixed_payment')::uuid,
+    'pi_pr88_mixed_retry',current_setting('test.checkout_mixed_amount')::bigint,
+    'MXN','paid',null,null,null,null);
+end $$;
+reset role;
 do $$ begin
   if exists(select 1 from public.inventory_reservations
     where order_id=current_setting('test.checkout_order')::uuid and status<>'COMMITTED')
@@ -461,24 +593,67 @@ do $$ declare method_id uuid; o record; begin
   select * into o from public.create_marketplace_checkout_order(
     current_setting('test.checkout_cart_b')::uuid,current_setting('test.checkout_cart_b_version')::integer,
     method_id,null,'{"recipient_name":"Buyer B","phone":"5512345678","street":"Golf","exterior_number":"2","interior_number":"","neighborhood":"Centro","city":"CDMX","state":"CDMX","postal_code":"01000","references":"Recepción"}',
-    false,'6e000000-0000-4000-8000-000000000003','bank_transfer');
+    false,'6e000000-0000-4000-8000-000000000003','card');
   perform set_config('test.checkout_expiring_order',o.order_id::text,true);
 end $$;
-reset role;
-select set_config('peter_golf.marketplace_order_write','enabled',true);
-update public.inventory_reservations set reserved_at=now()-interval '1 hour',expires_at=now()-interval '1 minute'
-where order_id=current_setting('test.checkout_expiring_order')::uuid;
-select set_config('peter_golf.marketplace_order_write','disabled',true);
-select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000005',true);
-set local role authenticated;
-do $$ begin
-  if public.release_expired_marketplace_reservations(10)<>1 then
-    raise exception 'Expired reservation release count was incorrect'; end if;
-  if exists(select 1 from public.inventory_reservations
-    where order_id=current_setting('test.checkout_expiring_order')::uuid and status<>'EXPIRED')
-  then raise exception 'Expired reservation was not released'; end if;
+do $$ declare attempt record; begin
+  select * into attempt from public.prepare_stripe_checkout_session(
+    current_setting('test.checkout_expiring_order')::uuid,
+    '6e000000-0000-4000-8000-000000000011');
+  perform public.link_stripe_checkout_session(
+    attempt.checkout_attempt_id,'6e000000-0000-4000-8000-000000000011',
+    'cs_test_pr88_partner_expiry',now()+interval '30 minutes');
+  perform set_config('test.checkout_partner_attempt',attempt.checkout_attempt_id::text,true);
+  perform set_config('test.checkout_partner_payment',attempt.payment_id::text,true);
 end $$;
 reset role;
+
+set local role service_role;
+do $$ begin
+  perform public.process_stripe_webhook_event(
+    'evt_pr88_partner_decline','payment_intent.payment_failed',now(),
+    '2026-07-29.dahlia',false,repeat('c',64),null,
+    current_setting('test.checkout_partner_attempt')::uuid,
+    current_setting('test.checkout_partner_payment')::uuid,
+    'pi_pr88_partner_expiry',null,null,null,null,null,null,null);
+end $$;
+reset role;
+do $$ begin
+  if exists(select 1 from public.inventory_reservations
+      where order_id=current_setting('test.checkout_expiring_order')::uuid
+        and status<>'ACTIVE')
+    or (select status from public.order_payments
+      where id=current_setting('test.checkout_partner_payment')::uuid)<>'pending'
+    or (select status from public.stripe_checkout_sessions
+      where id=current_setting('test.checkout_partner_attempt')::uuid)<>'open'
+    or exists(select 1 from public.marketplace_partner_payables
+      where order_id=current_setting('test.checkout_expiring_order')::uuid)
+    or exists (
+      select 1 from public.inventory_reservations r
+      join public.stripe_checkout_sessions s
+        on s.id=current_setting('test.checkout_partner_attempt')::uuid
+      where r.order_id=current_setting('test.checkout_expiring_order')::uuid
+        and r.expires_at<s.expires_at
+    )
+  then raise exception 'Partner decline changed reservation or economics'; end if;
+end $$;
+
+set local role service_role;
+do $$ begin
+  perform public.process_stripe_webhook_event(
+    'evt_pr88_partner_expired','checkout.session.expired',now()+interval '30 minutes',
+    '2026-07-29.dahlia',false,repeat('d',64),
+    'cs_test_pr88_partner_expiry',null,null,null,null,null,null,null,null,null,null);
+end $$;
+reset role;
+do $$ begin
+  if exists(select 1 from public.inventory_reservations
+    where order_id=current_setting('test.checkout_expiring_order')::uuid
+      and status<>'EXPIRED')
+    or exists(select 1 from public.marketplace_partner_payables
+      where order_id=current_setting('test.checkout_expiring_order')::uuid)
+  then raise exception 'Partner decline then expiry did not release exactly once'; end if;
+end $$;
 
 -- PR10 deactivation stops only new Marketplace commerce. The paid mixed order,
 -- fulfillment groups and downstream PR7-PR9 records remain readable/manageable.

@@ -28,5 +28,7 @@ export function runPricingPrecheck(input: { importType: BulkImportType; row: Nor
     viability: marketReferenceMinor === null ? "Requiere revisión de precio" : "Precheck listo",
     researchRequestKey: key,
     reusedResearch: marketReferenceMinor !== null,
+    calculatedPublicPriceMinor: resolution?.calculatedPublicPriceMinor ?? proposed,
+    economics: resolution?.economics ?? null,
   };
 }

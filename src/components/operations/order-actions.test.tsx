@@ -85,6 +85,7 @@ describe("OrderStateActions", () => {
   it("waits for Stripe payment before offering confirmation", () => {
     renderActions({
       ...baseOrder,
+      origin: "web",
       paymentProvider: "stripe",
       payment: {
         ...baseOrder.payment!,
@@ -96,7 +97,7 @@ describe("OrderStateActions", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: "Confirmar y descontar inventario",
+        name: "Confirmar pedido",
       }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -119,7 +120,7 @@ describe("OrderStateActions", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Confirmar y descontar inventario",
+        name: "Confirmar pedido",
       }),
     ).toBeEnabled();
   });
@@ -129,8 +130,28 @@ describe("OrderStateActions", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Confirmar y descontar inventario",
+        name: "Confirmar pedido",
       }),
     ).toBeEnabled();
+  });
+
+  it("waits for First Party checkout bank-transfer payment before confirmation", () => {
+    renderActions({
+      ...baseOrder,
+      origin: "web",
+      payment: {
+        ...baseOrder.payment!,
+        provider: "manual",
+        method: "bank_transfer",
+        status: "pending",
+      },
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Confirmar pedido" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Confirma el pago antes de preparar el pedido. El inventario reservado se descontará cuando el pago quede registrado.",
+    );
   });
 });
