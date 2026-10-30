@@ -48,6 +48,7 @@ const baseOrder: ManualOrderDetail = {
     paidAt: null,
     rejectedAt: null,
     refundedAt: null,
+    refunds: [],
     stripeCheckoutStatus: null,
     submissions: [],
     history: [],
@@ -68,6 +69,7 @@ const baseOrder: ManualOrderDetail = {
     references: null,
   },
   items: [],
+  recoveryCases: [],
   history: [],
 };
 

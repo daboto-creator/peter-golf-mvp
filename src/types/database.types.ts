@@ -7720,6 +7720,64 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      get_order_inventory_recovery_cases: {
+        Args: { requested_order_id: string };
+        Returns: {
+          case_id: string;
+          order_item_id: string;
+          product_name: string;
+          quantity: number;
+          fulfillment_id: string | null;
+          fulfillment_status: string | null;
+          payment_status: string;
+          refunded_amount: number;
+          status: string;
+          disposition: string | null;
+          reason: string | null;
+          version: number;
+          created_at: string;
+          resolved_at: string | null;
+        }[];
+      };
+      get_partner_marketplace_refund_visibility: {
+        Args: { requested_fulfillment_id?: string | null };
+        Returns: {
+          order_id: string;
+          order_item_id: string;
+          fulfillment_id: string;
+          item_title: string;
+          fulfillment_status: string;
+          payment_status: string;
+          refund_status: string;
+          payable_status: string | null;
+        }[];
+      };
+      resolve_first_party_inventory_recovery: {
+        Args: {
+          expected_version: number;
+          requested_case_id: string;
+          requested_disposition: string;
+          requested_idempotency_key: string;
+          requested_reason: string;
+        };
+        Returns: {
+          created_at: string;
+          disposition: string | null;
+          fulfillment_id: string | null;
+          id: string;
+          inventory_id: string;
+          order_id: string;
+          order_item_id: string;
+          quantity: number;
+          reason: string | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          status: string;
+          updated_at: string;
+          variant_id: string;
+          version: number;
+        };
+      };
       accept_marketplace_delivery: {
         Args: {
           requested_fulfillment_id: string;
