@@ -293,9 +293,70 @@ do $$ begin
  then raise exception 'Pending-confirmation refund did not recover stock exactly once'; end if;
 end $$;
 
+-- A real First Party handoff is recorded only through the Ops RPC. Once the
+-- order crosses to shipped, a successful refund must queue disposition and
+-- leave sellable stock untouched.
+insert into public.orders(id,order_number,user_id,status,subtotal,total,shipping_address_snapshot,
+  confirmed_at,confirmed_by,origin)
+values('79000000-0000-4000-8000-000000000006','PG-W-RECOVERY-0006',
+ '19000000-0000-4000-8000-000000000001','preparing',10000,10000,
+ '{"recipient_name":"Buyer","street":"Test"}',now(),'19000000-0000-4000-8000-000000000002','web');
+insert into public.order_items(id,order_id,product_id,variant_id,sku_snapshot,product_name_snapshot,
+ variant_name_snapshot,condition_snapshot,unit_price_snapshot,quantity,line_total,item_source)
+values('99000000-0000-4000-8000-000000000006','79000000-0000-4000-8000-000000000006',
+ '49000000-0000-4000-8000-000000000001','59000000-0000-4000-8000-000000000001',
+ 'REC-V1','Recovery Product','Recovery Variant','new',10000,1,10000,'FIRST_PARTY');
+insert into public.order_payments(id,order_id,provider,method,status,expected_amount,refunded_amount,currency,paid_at)
+values('a9000000-0000-4000-8000-000000000006','79000000-0000-4000-8000-000000000006',
+ 'stripe','card','paid',10000,0,'MXN',now());
+select set_config('peter_golf.marketplace_order_write','enabled',true);
+insert into public.inventory_reservations(order_id,order_item_id,source,inventory_id,quantity,status,
+ idempotency_key,expires_at,committed_at)
+values('79000000-0000-4000-8000-000000000006','99000000-0000-4000-8000-000000000006',
+ 'FIRST_PARTY','69000000-0000-4000-8000-000000000001',1,'COMMITTED','recovery-test:order-6',now()+interval '30 minutes',now());
+select set_config('peter_golf.marketplace_order_write','disabled',true);
+select set_config('request.jwt.claim.sub','19000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $$ begin
+  begin perform public.record_first_party_order_handoff('79000000-0000-4000-8000-000000000006',1,'Test Carrier','TEST-TRACK-0006',
+    'c9000000-0000-4000-8000-000000000007');
+    raise exception 'Buyer unexpectedly recorded First Party handoff';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','19000000-0000-4000-8000-000000000002',true);
+set local role authenticated;
+do $$ declare o public.orders%rowtype; begin
+  select * into strict o from public.orders where id='79000000-0000-4000-8000-000000000006';
+  perform public.record_first_party_order_handoff(o.id,o.version,'Test Carrier','TEST-TRACK-0006',
+    'c9000000-0000-4000-8000-000000000007');
+  perform public.record_first_party_order_handoff(o.id,o.version,'Test Carrier','TEST-TRACK-0006',
+    'c9000000-0000-4000-8000-000000000007');
+end $$;
+reset role;
+do $$ begin
+  if (select status from public.orders where id='79000000-0000-4000-8000-000000000006')<>'shipped'
+    or not exists(select 1 from public.order_status_history where order_id='79000000-0000-4000-8000-000000000006'
+      and from_status='preparing' and to_status='shipped' and changed_by='19000000-0000-4000-8000-000000000002')
+    or (select count(*) from public.order_idempotency_keys where idempotency_key='c9000000-0000-4000-8000-000000000007')<>1
+  then raise exception 'Authorized First Party handoff or replay was not recorded'; end if;
+end $$;
+insert into public.stripe_refunds(payment_id,stripe_refund_id,stripe_payment_intent_id,amount,currency,status,
+ stripe_created_at,last_event_created_at)
+values('a9000000-0000-4000-8000-000000000006','re_recovery_handoff','pi_recovery_handoff',10000,'MXN','succeeded',now(),now());
+select set_config('peter_golf.payment_rpc_write','enabled',true);
+update public.order_payments set status='refunded',refunded_amount=expected_amount,refunded_at=now(),version=version+1
+where id='a9000000-0000-4000-8000-000000000006';
+select set_config('peter_golf.payment_rpc_write','disabled',true);
+do $$ begin
+  if (select status from public.inventory_recovery_cases where order_item_id='99000000-0000-4000-8000-000000000006')<>'PENDING'
+    or (select quantity_on_hand from public.inventory where id='69000000-0000-4000-8000-000000000001')<>18
+  then raise exception 'Post-handoff refund auto-restocked First Party inventory'; end if;
+end $$;
+
 do $$ begin
  if (select status from public.order_payments where id='a9000000-0000-4000-8000-000000000004')<>'paid'
-   or (select count(*) from public.inventory_recovery_case_history)<>8
+   or (select count(*) from public.inventory_recovery_case_history)<>9
  then raise exception 'Financial or recovery audit history is incoherent'; end if;
 end $$;
 

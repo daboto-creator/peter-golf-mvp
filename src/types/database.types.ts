@@ -7720,6 +7720,21 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      record_first_party_order_handoff: {
+        Args: {
+          expected_version: number;
+          requested_carrier: string;
+          requested_idempotency_key: string;
+          requested_order_id: string;
+          requested_tracking_number: string;
+        };
+        Returns: {
+          order_id: string;
+          replayed: boolean;
+          status: Database["public"]["Enums"]["order_status"];
+          version: number;
+        }[];
+      };
       get_order_inventory_recovery_cases: {
         Args: { requested_order_id: string };
         Returns: {

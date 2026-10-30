@@ -7,6 +7,7 @@ import type { ManualOrderDetail } from "@/lib/orders/operational-orders";
 vi.mock("@/lib/orders/order-actions", () => ({
   cancelManualOrderAction: vi.fn(),
   confirmManualOrderAction: vi.fn(),
+  recordFirstPartyOrderHandoffAction: vi.fn(),
 }));
 
 afterEach(cleanup);

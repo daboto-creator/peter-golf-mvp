@@ -225,6 +225,7 @@ export default async function OrderDetailPage({
         order={order}
         confirmKey={randomUUID()}
         cancelKey={randomUUID()}
+        handoffKey={randomUUID()}
       />
       {order.status === "pending_confirmation" && order.origin === "manual" ? (
         <section id="editar" className="scroll-mt-4 space-y-5">
