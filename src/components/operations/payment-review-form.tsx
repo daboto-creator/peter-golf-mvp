@@ -36,6 +36,9 @@ export function PaymentReviewForm({
   const [stripeRefundState, stripeRefundAction, stripeRefundPending] =
     useActionState(refundStripePaymentAction, initialPaymentActionResult);
   const payment = order.payment;
+  const refundInFlightOrSucceeded = payment?.refunds.some((refund) =>
+    ["pending", "requires_action", "succeeded"].includes(refund.status),
+  );
   if (!payment) {
     return (
       <section className="rounded-xl border bg-white p-5 sm:p-6">
@@ -70,8 +73,22 @@ export function PaymentReviewForm({
             Los reembolsos se solicitan a Stripe y se confirman posteriormente
             mediante webhook.
           </p>
+          {payment.refunds.length ? (
+            <ul className="space-y-1">
+              {payment.refunds.map((refund) => (
+                <li key={`${refund.status}-${refund.updatedAt}`}>
+                  Reembolso {refund.status} · {refund.amount} MXN
+                  {refund.failureReason ? ` · motivo: ${refund.failureReason}` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>Sin una solicitud de reembolso registrada.</p>
+          )}
 
-          {payment.status === "paid" && payment.refundedAmount === 0 ? (
+          {payment.status === "paid" &&
+          payment.refundedAmount === 0 &&
+          !refundInFlightOrSucceeded ? (
             <form action={stripeRefundAction}>
               <input type="hidden" name="orderId" value={order.id} />
               <input

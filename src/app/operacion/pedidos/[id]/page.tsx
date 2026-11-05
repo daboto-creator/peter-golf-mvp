@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { OrderStateActions } from "@/components/operations/order-actions";
+import { InventoryRecoveryPanel } from "@/components/operations/inventory-recovery-panel";
 import { PaymentReviewForm } from "@/components/operations/payment-review-form";
 import { OrderForm } from "@/components/operations/order-form";
 import { Button } from "@/components/ui/button";
@@ -214,10 +215,17 @@ export default async function OrderDetailPage({
           refund: randomUUID(),
         }}
       />
+      <InventoryRecoveryPanel
+        order={order}
+        idempotencyKeys={Object.fromEntries(
+          order.recoveryCases.map((recoveryCase) => [recoveryCase.id, randomUUID()]),
+        )}
+      />
       <OrderStateActions
         order={order}
         confirmKey={randomUUID()}
         cancelKey={randomUUID()}
+        handoffKey={randomUUID()}
       />
       {order.status === "pending_confirmation" && order.origin === "manual" ? (
         <section id="editar" className="scroll-mt-4 space-y-5">

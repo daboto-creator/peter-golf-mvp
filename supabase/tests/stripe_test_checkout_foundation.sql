@@ -296,7 +296,8 @@ do $$ begin
   then raise exception 'Retry completion or late event regressed state'; end if;
 end $$;
 
--- Partial, failed and total refunds are auditable and do not restock.
+-- Partial, failed and total refunds are auditable. With no committed sale
+-- evidence on this legacy fixture, a financial refund alone creates no stock.
 set local role service_role;
 do $$ begin
   perform public.process_stripe_webhook_event(
@@ -318,7 +319,17 @@ do $$ begin
     or (select refunded_amount from public.order_payments where id='96000000-0000-4000-8000-000000000001')<>12500
     or (select quantity_on_hand from public.inventory where id='66000000-0000-4000-8000-000000000001')<>8
     or not exists (select 1 from public.stripe_refunds where stripe_refund_id='re_failed' and status='failed')
-  then raise exception 'Refund audit or inventory isolation failed'; end if;
+    or exists (select 1 from public.inventory_recovery_cases
+        where order_id='76000000-0000-4000-8000-000000000001')
+    or exists (select 1 from public.inventory_movements
+        where reference_type='inventory_recovery')
+  then raise exception 'Refund audit or inventory isolation failed: payment %, stock %, cases %, linked %, movements %',
+    (select status from public.order_payments where id='96000000-0000-4000-8000-000000000001'),
+    (select quantity_on_hand from public.inventory where id='66000000-0000-4000-8000-000000000001'),
+    (select count(*) from public.inventory_recovery_cases where order_id='76000000-0000-4000-8000-000000000001'),
+    (select count(*) from public.inventory_recovery_cases c join public.stripe_refunds r on r.id=c.refund_id where c.order_id='76000000-0000-4000-8000-000000000001' and c.status='RESTOCKED' and r.status='succeeded'),
+    (select count(*) from public.inventory_movements where reference_type='inventory_recovery' and reference_id in (select id from public.inventory_recovery_cases where order_id='76000000-0000-4000-8000-000000000001'));
+ end if;
 end $$;
 
 -- A realistic MXN 1,149.00 card completion links all identities, leaves the

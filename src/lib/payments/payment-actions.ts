@@ -196,7 +196,7 @@ export async function refundStripePaymentAction(
         },
       },
       {
-        idempotencyKey: `pg_full_refund_${payment.id}`,
+        idempotencyKey: `pg_full_refund_${payment.id}_${key.data}`,
       },
     );
 

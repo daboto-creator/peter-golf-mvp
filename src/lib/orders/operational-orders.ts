@@ -77,6 +77,12 @@ export type ManualOrderDetail = ManualOrderSummary & {
     paidAt: string | null;
     rejectedAt: string | null;
     refundedAt: string | null;
+    refunds: {
+      status: Database["public"]["Enums"]["stripe_refund_status"];
+      amount: number;
+      failureReason: string | null;
+      updatedAt: string;
+    }[];
     stripeCheckoutStatus:
       Database["public"]["Enums"]["stripe_checkout_status"] | null;
     submissions: {
@@ -102,6 +108,7 @@ export type ManualOrderDetail = ManualOrderSummary & {
   address: ManualOrderAddress;
   items: {
     id: string;
+    source: Database["public"]["Enums"]["order_item_source"];
     productId: string;
     variantId: string;
     sku: string;
@@ -110,6 +117,21 @@ export type ManualOrderDetail = ManualOrderSummary & {
     unitPrice: number;
     quantity: number;
     lineTotal: number;
+  }[];
+  recoveryCases: {
+    id: string;
+    orderItemId: string;
+    productName: string;
+    quantity: number;
+    fulfillmentStatus: string | null;
+    paymentStatus: string;
+    refundedAmount: number;
+    status: string;
+    disposition: string | null;
+    reason: string | null;
+    version: number;
+    createdAt: string;
+    resolvedAt: string | null;
   }[];
   history: {
     id: string;
@@ -244,7 +266,7 @@ export async function getManualOrder(
     const { data, error } = await client
       .from("orders")
       .select(
-        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, origin_channel_detail, status, subtotal, discount_total, discount_reason, shipping_total, total, currency, internal_note, shipping_address_snapshot, confirmed_at, cancelled_at, cancellation_reason, version, created_at, updated_at, order_items(id, product_id, variant_id, sku_snapshot, product_name_snapshot, variant_name_snapshot, unit_price_snapshot, quantity, line_total), order_status_history(id, from_status, to_status, created_at), order_payments(id, provider, method, status, expected_amount, refunded_amount, currency, version, submitted_at, under_review_at, paid_at, rejected_at, refunded_at, stripe_checkout_sessions(status, expires_at, created_at), payment_submissions(id, attempt_number, transfer_reference, transferred_at, sender_name, sender_bank, created_at), payment_status_history(id, from_status, to_status, note, created_at))",
+        "id, order_number, customer_name, customer_email, customer_phone, origin, origin_channel, origin_channel_detail, status, subtotal, discount_total, discount_reason, shipping_total, total, currency, internal_note, shipping_address_snapshot, confirmed_at, cancelled_at, cancellation_reason, version, created_at, updated_at, order_items(id, item_source, product_id, variant_id, sku_snapshot, product_name_snapshot, variant_name_snapshot, unit_price_snapshot, quantity, line_total), order_status_history(id, from_status, to_status, created_at), order_payments(id, provider, method, status, expected_amount, refunded_amount, currency, version, submitted_at, under_review_at, paid_at, rejected_at, refunded_at, stripe_checkout_sessions(status, expires_at, created_at), stripe_refunds(status, amount, failure_reason, updated_at), payment_submissions(id, attempt_number, transfer_reference, transferred_at, sender_name, sender_bank, created_at), payment_status_history(id, from_status, to_status, note, created_at))",
       )
       .eq("id", id)
       .maybeSingle();
@@ -252,6 +274,11 @@ export async function getManualOrder(
     if (!data) return { data: null, error: null };
     if (!data.customer_name || !data.customer_phone)
       return { data: null, error: "unavailable" };
+    const { data: recoveryData, error: recoveryError } = await client.rpc(
+      "get_order_inventory_recovery_cases",
+      { requested_order_id: id },
+    );
+    if (recoveryError) return { data: null, error: "unavailable" };
     return {
       data: {
         id: data.id,
@@ -279,6 +306,12 @@ export async function getManualOrder(
               paidAt: data.order_payments.paid_at,
               rejectedAt: data.order_payments.rejected_at,
               refundedAt: data.order_payments.refunded_at,
+              refunds: data.order_payments.stripe_refunds.map((refund) => ({
+                status: refund.status,
+                amount: refund.amount,
+                failureReason: refund.failure_reason,
+                updatedAt: refund.updated_at,
+              })),
               stripeCheckoutStatus: (() => {
                 const latest =
                   data.order_payments.stripe_checkout_sessions.toSorted(
@@ -332,6 +365,7 @@ export async function getManualOrder(
         address: normalizeManualOrderAddress(data.shipping_address_snapshot),
         items: data.order_items.map((item) => ({
           id: item.id,
+          source: item.item_source,
           productId: item.product_id ?? "",
           variantId: item.variant_id ?? "",
           sku: item.sku_snapshot,
@@ -340,6 +374,21 @@ export async function getManualOrder(
           unitPrice: item.unit_price_snapshot,
           quantity: item.quantity,
           lineTotal: item.line_total,
+        })),
+        recoveryCases: recoveryData.map((item) => ({
+          id: item.case_id,
+          orderItemId: item.order_item_id,
+          productName: item.product_name,
+          quantity: item.quantity,
+          fulfillmentStatus: item.fulfillment_status,
+          paymentStatus: item.payment_status,
+          refundedAmount: item.refunded_amount,
+          status: item.status,
+          disposition: item.disposition,
+          reason: item.reason,
+          version: item.version,
+          createdAt: item.created_at,
+          resolvedAt: item.resolved_at,
         })),
         history: data.order_status_history
           .map((entry) => ({

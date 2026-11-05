@@ -359,14 +359,23 @@ do $$ begin
 end $$;
 
 -- Partner A sees only its safe fulfillment DTO and cannot mutate economics.
+select set_config('test.checkout_partner_b_fulfillment',
+  (select id::text from public.order_fulfillments
+    where order_id=current_setting('test.checkout_order')::uuid
+      and partner_id='6b000000-0000-4000-8000-000000000002' limit 1),true);
 select set_config('request.jwt.claim.sub','6a000000-0000-4000-8000-000000000001',true);
 set local role authenticated;
-do $$ declare f public.order_fulfillments; replay public.order_fulfillments; begin
+do $$ declare f public.order_fulfillments; replay public.order_fulfillments; visible_count integer; begin
   if (select count(distinct fulfillment_id) from public.get_partner_marketplace_sales())<>1
     or exists(select 1 from public.marketplace_order_item_snapshots)
     or (select count(*) from public.marketplace_partner_payables)<>1
     or (select count(*) from public.marketplace_partner_ledger_entries)<>1
   then raise exception 'Partner fulfillment/economics isolation failed'; end if;
+  select count(*) into visible_count from public.get_partner_marketplace_refund_visibility();
+  if visible_count<>1 then raise exception 'Partner refund visibility did not return only its own item'; end if;
+  select count(*) into visible_count from public.get_partner_marketplace_refund_visibility(
+    current_setting('test.checkout_partner_b_fulfillment')::uuid);
+  if visible_count<>0 then raise exception 'Partner refund visibility exposed another Partner fulfillment'; end if;
   select * into strict f from public.order_fulfillments where partner_id='6b000000-0000-4000-8000-000000000001';
   f:=public.transition_partner_fulfillment(f.id,f.version,'CONFIRM_AVAILABILITY','Disponibilidad confirmada',
     '6f000000-0000-4000-8000-000000000001');
