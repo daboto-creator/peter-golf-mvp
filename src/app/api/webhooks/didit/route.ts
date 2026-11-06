@@ -16,11 +16,20 @@ export async function POST(request: Request) {
     );
   }
   const rawBody = await request.text();
+  let normalized: ReturnType<typeof provider.verifyAndNormalizeWebhook>;
   try {
-    const normalized = provider.verifyAndNormalizeWebhook({
+    normalized = provider.verifyAndNormalizeWebhook({
       rawBody,
       headers: request.headers,
     });
+  } catch {
+    return NextResponse.json(
+      { received: false, code: "rejected" },
+      { status: 400 },
+    );
+  }
+
+  try {
     const processed = await processPartnerIdentityWebhook({
       provider: provider.name,
       ...normalized,
@@ -30,11 +39,11 @@ export async function POST(request: Request) {
   } catch {
     console.error("identity_webhook", {
       provider: provider.name,
-      code: "rejected",
+      code: "database_processing_failed",
     });
     return NextResponse.json(
-      { received: false, code: "rejected" },
-      { status: 400 },
+      { received: false, code: "retry" },
+      { status: 500 },
     );
   }
 }

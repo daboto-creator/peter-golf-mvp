@@ -4,6 +4,20 @@
 begin;
 
 do $$
+declare processor regprocedure := to_regprocedure(
+  'public.process_partner_identity_webhook(text,uuid,text,public.identity_verification_result,jsonb,text[],timestamptz,text)'
+);
+begin
+  if processor is null
+    or has_function_privilege('anon', processor, 'EXECUTE')
+    or has_function_privilege('authenticated', processor, 'EXECUTE')
+    or not has_function_privilege('service_role', processor, 'EXECUTE') then
+    raise exception 'Identity webhook processor grants are not server-only';
+  end if;
+end;
+$$;
+
+do $$
 declare
   allowed_mimes text[];
 begin
@@ -143,6 +157,79 @@ begin
 end;
 $$;
 
+-- The identity processor is strictly server-internal. Each exposed actor must
+-- fail at the EXECUTE boundary before any identity evidence can be persisted.
+reset role;
+set local role anon;
+do $$
+begin
+  begin
+    perform public.process_partner_identity_webhook(
+      'DIDIT', '3e000000-0000-4000-8000-000000000011',
+      'onboarding-test-session', 'PASSED',
+      '{"livenessPassed":true,"faceMatchPassed":true}'::jsonb,
+      '{}'::text[], now(), repeat('d', 64)
+    );
+    raise exception 'Anonymous execution unexpectedly succeeded';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '3a000000-0000-4000-8000-000000000003', true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform public.process_partner_identity_webhook(
+      'DIDIT', '3e000000-0000-4000-8000-000000000012',
+      'onboarding-test-session', 'PASSED',
+      '{"livenessPassed":true,"faceMatchPassed":true}'::jsonb,
+      '{}'::text[], now(), repeat('e', 64)
+    );
+    raise exception 'Customer execution unexpectedly succeeded';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '3a000000-0000-4000-8000-000000000001', true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform public.process_partner_identity_webhook(
+      'DIDIT', '3e000000-0000-4000-8000-000000000013',
+      'onboarding-test-session', 'PASSED',
+      '{"livenessPassed":true,"faceMatchPassed":true}'::jsonb,
+      '{}'::text[], now(), repeat('f', 64)
+    );
+    raise exception 'Partner execution unexpectedly succeeded';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '3a000000-0000-4000-8000-000000000004', true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform public.process_partner_identity_webhook(
+      'DIDIT', '3e000000-0000-4000-8000-000000000014',
+      'onboarding-test-session', 'PASSED',
+      '{"livenessPassed":true,"faceMatchPassed":true}'::jsonb,
+      '{}'::text[], now(), repeat('a', 64)
+    );
+    raise exception 'Operator execution unexpectedly succeeded';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+
 reset role;
 set local role service_role;
 select public.process_partner_identity_webhook(
@@ -151,6 +238,52 @@ select public.process_partner_identity_webhook(
   '{"documentType":"PASSPORT","livenessPassed":true,"faceMatchPassed":true}'::jsonb,
   '{}'::text[],now(),repeat('c',64)
 );
+
+-- The internal role may process the event, and duplicate delivery remains
+-- idempotent. The function rejects a privileged database owner context that is
+-- not the expected service_role, even though the owner can execute the RPC.
+do $$
+declare processed boolean;
+begin
+  select public.process_partner_identity_webhook(
+    'DIDIT','3e000000-0000-4000-8000-000000000001',
+    'onboarding-test-session','PASSED',
+    '{"documentType":"PASSPORT","livenessPassed":true,"faceMatchPassed":true}'::jsonb,
+    '{}'::text[],now(),repeat('c',64)
+  ) into processed;
+  if processed is distinct from false then
+    raise exception 'Identity webhook replay was not acknowledged as a duplicate';
+  end if;
+end;
+$$;
+reset role;
+do $$
+declare event_count integer;
+begin
+  select count(*) into event_count
+  from public.partner_identity_webhook_events
+  where event_id = '3e000000-0000-4000-8000-000000000001';
+  if event_count <> 1 then
+    raise exception 'Identity webhook replay duplicated event evidence';
+  end if;
+end;
+$$;
+
+reset role;
+do $$
+begin
+  begin
+    perform public.process_partner_identity_webhook(
+      'DIDIT', '3e000000-0000-4000-8000-000000000015',
+      'onboarding-test-session', 'PASSED',
+      '{"livenessPassed":true,"faceMatchPassed":true}'::jsonb,
+      '{}'::text[], now(), repeat('b', 64)
+    );
+    raise exception 'Non-service database role unexpectedly succeeded';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
 
 reset role;
 select set_config('request.jwt.claim.sub','3a000000-0000-4000-8000-000000000001',true);
