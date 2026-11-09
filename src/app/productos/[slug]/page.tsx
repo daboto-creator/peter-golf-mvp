@@ -198,23 +198,34 @@ export default async function ProductDetailPage({
               <div className="mt-6">
                 <ProductAvailability
                   fulfillmentType={product.fulfillmentType}
+                  availableQuantity={product.availableQuantity}
                   leadTimeMinDays={product.leadTimeMinDays}
                   leadTimeMaxDays={product.leadTimeMaxDays}
                   showDetail
                 />
               </div>
 
-              {product.source === "MARKETPLACE_PARTNER" &&
-              product.marketplaceListingId &&
-              product.marketplacePricingQuoteId &&
-              product.availableQuantity ? (
-                <AddMarketplaceToCartForm
-                  listingId={product.marketplaceListingId}
-                  pricingQuoteId={product.marketplacePricingQuoteId}
-                  slug={product.slug}
-                  availableQuantity={product.availableQuantity}
-                  idempotencyKey={randomUUID()}
-                />
+              {product.source === "MARKETPLACE_PARTNER" ? (
+                product.marketplaceListingId &&
+                product.marketplacePricingQuoteId &&
+                (product.availableQuantity ?? 0) > 0 ? (
+                  <AddMarketplaceToCartForm
+                    listingId={product.marketplaceListingId}
+                    pricingQuoteId={product.marketplacePricingQuoteId}
+                    slug={product.slug}
+                    availableQuantity={product.availableQuantity!}
+                    idempotencyKey={randomUUID()}
+                  />
+                ) : (
+                  <p className="bg-pg-warm-white border-border text-pg-charcoal mt-8 rounded-xl border p-4 text-sm">
+                    Este producto no está disponible para agregar a la bolsa.
+                  </p>
+                )
+              ) : product.fulfillmentType === "in_stock" &&
+                (product.availableQuantity ?? 0) <= 0 ? (
+                <p className="bg-pg-warm-white border-border text-pg-charcoal mt-8 rounded-xl border p-4 text-sm">
+                  Este producto está agotado actualmente.
+                </p>
               ) : (
                 <AddToCartForm
                   productId={product.id}

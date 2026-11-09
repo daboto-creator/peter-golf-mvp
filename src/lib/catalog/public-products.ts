@@ -5,6 +5,7 @@ import { cache } from "react";
 import { serverEnv } from "@/env/server";
 import type { ProductSource } from "@/lib/marketplace/publication-rules";
 import { createClient } from "@/lib/supabase/server";
+import { loadPublicFirstPartySellableInventory } from "@/lib/catalog/first-party-availability";
 import type { Database } from "@/types/database.types";
 
 type ProductCondition = Database["public"]["Enums"]["product_condition"];
@@ -153,6 +154,7 @@ function normalizeProductImages(
 
 function normalizeProductSummary(
   product: PublicProductListQueryRow,
+  availableQuantity: number,
 ): PublicProductSummary {
   return {
     id: product.id,
@@ -196,7 +198,7 @@ function normalizeProductSummary(
       .filter((value): value is NonNullable<typeof value> => value !== null),
     images: normalizeProductImages(product.images),
     source: "FIRST_PARTY",
-    availableQuantity: null,
+    availableQuantity,
     marketplaceListingId: null,
     marketplacePricingQuoteId: null,
   };
@@ -208,9 +210,10 @@ type PublicProductDetailQueryRow = NonNullable<
 
 function normalizeProductDetail(
   product: PublicProductDetailQueryRow,
+  availableQuantity: number,
 ): PublicProduct {
   return {
-    ...normalizeProductSummary(product),
+    ...normalizeProductSummary(product, availableQuantity),
     shortDescription: product.short_description,
     description: product.description,
     conditionNotes: product.condition_notes,
@@ -442,7 +445,7 @@ function filterProducts(
           ? product.condition === "new"
           : product.condition === "used" &&
             product.conditionGrade === filters.condition)) &&
-      (!filters.available || product.fulfillmentType === "in_stock") &&
+      (!filters.available || (product.availableQuantity ?? 0) > 0) &&
       (!filters.family || product.productFamily === filters.family) &&
       (!filters.clubType || product.clubType === filters.clubType) &&
       (!filters.bagType || product.bagType === filters.bagType) &&
@@ -502,19 +505,23 @@ export async function listPublicProducts(
   filters: PublicProductFilters = {},
 ): Promise<PublicCatalogResult<PublicProductSummary[]>> {
   try {
-    const [{ data, error }, marketplace] = await Promise.all([
+    const [{ data, error }, firstPartyAvailability, marketplace] = await Promise.all([
       queryPublicProducts(),
+      loadPublicFirstPartySellableInventory(),
       queryPublicMarketplaceProducts(),
     ]);
 
-    if (error || marketplace.error) {
+    if (error || firstPartyAvailability.error || marketplace.error) {
       return { data: null, error: "unavailable" };
     }
+    const availableByProduct = new Map(
+      (firstPartyAvailability.data ?? []).map((row) => [row.product_id, row.available_quantity]),
+    );
 
     return {
       data: filterProducts(
         [
-          ...data.map(normalizeProductSummary),
+          ...data.map((product) => normalizeProductSummary(product, availableByProduct.get(product.id) ?? 0)),
           ...(marketplace.data ?? []).map(normalizeMarketplaceSummary),
         ],
         filters,
@@ -530,15 +537,21 @@ export async function getPublicCatalogFacets(): Promise<
   PublicCatalogResult<PublicCatalogFacets>
 > {
   try {
-    const [{ data, error }, marketplace] = await Promise.all([
+    const [{ data, error }, firstPartyAvailability, marketplace] = await Promise.all([
       queryPublicProducts(),
+      loadPublicFirstPartySellableInventory(),
       queryPublicMarketplaceProducts(),
     ]);
+    if (error || firstPartyAvailability.error || marketplace.error)
+      return { data: null, error: "unavailable" };
+    const availableByProduct = new Map(
+      (firstPartyAvailability.data ?? []).map((row) => [row.product_id, row.available_quantity]),
+    );
     return error || marketplace.error
       ? { data: null, error: "unavailable" }
       : {
           data: catalogFacets([
-            ...data.map(normalizeProductSummary),
+            ...data.map((product) => normalizeProductSummary(product, availableByProduct.get(product.id) ?? 0)),
             ...(marketplace.data ?? []).map(normalizeMarketplaceSummary),
           ]),
           error: null,
@@ -557,13 +570,17 @@ export async function listPublicCatalog(
   }>
 > {
   try {
-    const [{ data, error }, marketplace] = await Promise.all([
+    const [{ data, error }, firstPartyAvailability, marketplace] = await Promise.all([
       queryPublicProducts(),
+      loadPublicFirstPartySellableInventory(),
       queryPublicMarketplaceProducts(),
     ]);
-    if (error || marketplace.error) return { data: null, error: "unavailable" };
+    if (error || firstPartyAvailability.error || marketplace.error) return { data: null, error: "unavailable" };
+    const availableByProduct = new Map(
+      (firstPartyAvailability.data ?? []).map((row) => [row.product_id, row.available_quantity]),
+    );
     const products = [
-      ...data.map(normalizeProductSummary),
+      ...data.map((product) => normalizeProductSummary(product, availableByProduct.get(product.id) ?? 0)),
       ...(marketplace.data ?? []).map(normalizeMarketplaceSummary),
     ];
     return {
@@ -591,13 +608,17 @@ export const getPublicProductBySlug = cache(
           error: null,
         };
       }
-      const { data, error } = await queryPublicProductBySlug(slug);
+      const [{ data, error }, firstPartyAvailability] = await Promise.all([
+        queryPublicProductBySlug(slug),
+        loadPublicFirstPartySellableInventory(),
+      ]);
 
-      if (error) {
+      if (error || firstPartyAvailability.error) {
         return { data: null, error: "unavailable" };
       }
 
-      return { data: data ? normalizeProductDetail(data) : null, error: null };
+      const availableQuantity = firstPartyAvailability.data?.find((row) => row.product_id === data?.id)?.available_quantity ?? 0;
+      return { data: data ? normalizeProductDetail(data, availableQuantity) : null, error: null };
     } catch {
       return { data: null, error: "unavailable" };
     }

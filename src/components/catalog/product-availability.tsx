@@ -11,21 +11,25 @@ const toneClasses: Record<AvailabilityPresentation["tone"], string> = {
   available: "border-emerald-700/20 bg-emerald-50 text-emerald-800",
   order: "border-amber-700/20 bg-amber-50 text-amber-900",
   preorder: "border-blue-700/20 bg-blue-50 text-blue-900",
+  unavailable: "border-slate-700/20 bg-slate-50 text-slate-700",
 };
 
 export function ProductAvailability({
   fulfillmentType,
+  availableQuantity,
   leadTimeMinDays,
   leadTimeMaxDays,
   showDetail = false,
 }: {
   fulfillmentType: FulfillmentType;
+  availableQuantity?: number | null;
   leadTimeMinDays: number | null;
   leadTimeMaxDays: number | null;
   showDetail?: boolean;
 }) {
   const availability = getAvailabilityPresentation({
     fulfillmentType,
+    availableQuantity,
     leadTimeMinDays,
     leadTimeMaxDays,
   });

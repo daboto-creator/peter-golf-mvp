@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { initialConversationState, type CatalogProductReference } from "./conversation";
 import {
-  BEST_ROUND_PRO_CURRENT_PRODUCT_KEY,
-  BEST_ROUND_PRO_SESSION_KEY,
+  activateBestRoundProIdentity,
+  bestRoundProStorageKey,
   persistProductCardClick,
+  resolveBestRoundProIdentity,
 } from "./client-session";
 
 const clickedProduct: CatalogProductReference = {
@@ -29,11 +30,14 @@ describe("Best Round Pro client session persistence", () => {
       },
     };
 
-    const nextState = persistProductCardClick(storage, initialConversationState(), clickedProduct);
-    const persistedState = JSON.parse(writes.find(([key]) => key === BEST_ROUND_PRO_SESSION_KEY)?.[1] ?? "null");
-    const persistedContext = JSON.parse(writes.find(([key]) => key === BEST_ROUND_PRO_CURRENT_PRODUCT_KEY)?.[1] ?? "null");
+    const identity = { scope: "anonymous:anon-test" };
+    const nextState = persistProductCardClick(storage, initialConversationState(), clickedProduct, identity);
+    const sessionKey = bestRoundProStorageKey(identity, "session");
+    const productKey = bestRoundProStorageKey(identity, "current-product");
+    const persistedState = JSON.parse(writes.find(([key]) => key === sessionKey)?.[1] ?? "null");
+    const persistedContext = JSON.parse(writes.find(([key]) => key === productKey)?.[1] ?? "null");
 
-    expect(writes[0]?.[0]).toBe(BEST_ROUND_PRO_SESSION_KEY);
+    expect(writes[0]?.[0]).toBe(sessionKey);
     expect(nextState.lastInteractedProduct?.id).toBe("B");
     expect(nextState.lastFocusedProduct?.id).toBe("B");
     expect(nextState.focusedProductSource).toBe("PRODUCT_CARD_CLICK");
@@ -47,5 +51,57 @@ describe("Best Round Pro client session persistence", () => {
       productFamily: "club",
       source: "PRODUCT_CARD_CLICK",
     });
+  });
+
+  it("restores an anonymous conversation only in its anonymous namespace", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    };
+    const identity = resolveBestRoundProIdentity(storage as Storage, null, () => "anon-1");
+    const saved = initialConversationState();
+    saved.messages = [{ role: "user", content: "anonymous conversation" }];
+    values.set(bestRoundProStorageKey(identity, "session"), JSON.stringify(saved));
+
+    expect(activateBestRoundProIdentity(storage as Storage, identity).state.messages).toEqual(saved.messages);
+    expect(identity.scope).toBe("anonymous:anon-1");
+  });
+
+  it("resets when identity changes and never reads another user's namespace", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    };
+    const anonymous = resolveBestRoundProIdentity(storage as Storage, null, () => "anon-2");
+    activateBestRoundProIdentity(storage as Storage, anonymous);
+    const userA = resolveBestRoundProIdentity(storage as Storage, "auth-a", () => "unused");
+    const privateState = initialConversationState();
+    privateState.messages = [{ role: "user", content: "A only" }];
+    values.set(bestRoundProStorageKey(userA, "session"), JSON.stringify(privateState));
+    expect(activateBestRoundProIdentity(storage as Storage, userA).state.messages).toEqual([]);
+
+    const userB = resolveBestRoundProIdentity(storage as Storage, "auth-b", () => "unused");
+    expect(activateBestRoundProIdentity(storage as Storage, userB).state.messages).toEqual([]);
+    expect(values.get(bestRoundProStorageKey(userA, "session"))).toContain("A only");
+  });
+
+  it("restores an authenticated user's own saved conversation on reload", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    };
+    const userA = resolveBestRoundProIdentity(storage as Storage, "auth-a", () => "unused");
+    activateBestRoundProIdentity(storage as Storage, userA);
+    const saved = initialConversationState();
+    saved.messages = [{ role: "user", content: "A's own conversation" }];
+    values.set(bestRoundProStorageKey(userA, "session"), JSON.stringify(saved));
+
+    expect(activateBestRoundProIdentity(storage as Storage, userA).state.messages).toEqual(saved.messages);
   });
 });
