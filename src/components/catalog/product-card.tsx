@@ -73,6 +73,7 @@ export function ProductCard({ product }: { product: PublicProductSummary }) {
         <div className="mt-auto flex items-center justify-between gap-3 border-t pt-5">
           <ProductAvailability
             fulfillmentType={product.fulfillmentType}
+            availableQuantity={product.availableQuantity}
             leadTimeMinDays={product.leadTimeMinDays}
             leadTimeMaxDays={product.leadTimeMaxDays}
           />

@@ -8,7 +8,7 @@ type ProductConditionGrade =
 export type AvailabilityPresentation = {
   label: string;
   detail: string;
-  tone: "available" | "order" | "preorder";
+  tone: "available" | "order" | "preorder" | "unavailable";
 };
 
 const conditionGradeLabels: Record<ProductConditionGrade, string> = {
@@ -45,10 +45,12 @@ export function getConditionLabel(
 
 export function getAvailabilityPresentation({
   fulfillmentType,
+  availableQuantity,
   leadTimeMinDays,
   leadTimeMaxDays,
 }: {
   fulfillmentType: FulfillmentType;
+  availableQuantity?: number | null;
   leadTimeMinDays: number | null;
   leadTimeMaxDays: number | null;
 }): AvailabilityPresentation {
@@ -70,6 +72,14 @@ export function getAvailabilityPresentation({
       label: "Preventa",
       detail: leadTime,
       tone: "preorder",
+    };
+  }
+
+  if (fulfillmentType === "in_stock" && availableQuantity !== null && availableQuantity !== undefined && availableQuantity <= 0) {
+    return {
+      label: "Agotado",
+      detail: "No hay unidades disponibles actualmente.",
+      tone: "unavailable",
     };
   }
 

@@ -10,6 +10,7 @@ import {
   type RankingPreferences,
 } from "@/lib/recommendations/commercial-ranking";
 import { createClient } from "@/lib/supabase/server";
+import { loadPublicFirstPartySellableInventory } from "@/lib/catalog/first-party-availability";
 import type {
   EquipmentUnitSpecifications,
   InventoryUnit,
@@ -96,7 +97,7 @@ export async function loadInventoryUnits(): Promise<InventoryCandidateLoadResult
   try {
     const client = await createClient();
     const [firstParty, marketplace] = await Promise.all([
-      client.rpc("get_best_round_first_party_inventory"),
+      loadPublicFirstPartySellableInventory(),
       serverEnv.MARKETPLACE_ENABLED
         ? client.rpc("get_public_marketplace_catalog", {
             requested_slug: undefined,
@@ -106,25 +107,30 @@ export async function loadInventoryUnits(): Promise<InventoryCandidateLoadResult
     if (firstParty.error || marketplace.error)
       return { data: null, error: "UNAVAILABLE" };
 
-    const firstPartyUnits: InventoryUnit[] = (firstParty.data ?? []).map(
-      (row) => ({
-        productId: row.product_id,
-        productHref:
-          typeof (row as Record<string, unknown>).product_slug === "string"
-            ? `/productos/${encodeURIComponent((row as Record<string, unknown>).product_slug as string)}`
-            : null,
-        unitId: row.unit_id,
-        canonicalModelId: row.canonical_model_id,
-        source: "FIRST_PARTY",
-        category: normalizeMatchCategory(row.match_category),
-        brand: row.brand_name,
-        model: row.model_name,
-        condition: row.condition,
-        priceMxnMinor: finiteNumber(row.price),
-        availability: "AVAILABLE",
-        stock: row.available_quantity,
-        technicalSpecs: specifications(row.technical_specs),
-      }),
+    const firstPartyUnits: InventoryUnit[] = (firstParty.data ?? []).flatMap(
+      (row) => {
+        let category: MatchCategory;
+        try {
+          category = normalizeMatchCategory(row.set_type === "iron_set" ? "iron" : row.club_type ?? row.category_name);
+        } catch {
+          return [];
+        }
+        return [{
+          productId: row.product_id,
+          productHref: `/productos/${encodeURIComponent(row.slug)}`,
+          unitId: row.product_id,
+          canonicalModelId: null,
+          source: "FIRST_PARTY",
+          category,
+          brand: row.brand_name,
+          model: row.model_name,
+          condition: row.condition,
+          priceMxnMinor: finiteNumber(row.price),
+          availability: "AVAILABLE",
+          stock: finiteNumber(row.available_quantity),
+          technicalSpecs: specifications(row.technical_specs),
+        }];
+      },
     );
     const marketplaceUnits: InventoryUnit[] = (marketplace.data ?? []).flatMap(
       (row) => {
@@ -153,27 +159,14 @@ export async function loadInventoryUnits(): Promise<InventoryCandidateLoadResult
         ];
       },
     );
-    const firstPartyIds = firstPartyUnits.map((unit) => unit.productId);
-    if (firstPartyIds.length) {
-      const { data: products } = await client
-        .from("products" as never)
-        .select("id,slug")
-        .in("id", firstPartyIds);
-      const hrefById = new Map(
-        ((products ?? []) as unknown as Array<{ id: string; slug: string }>).map(
-          (product) => [product.id, `/productos/${encodeURIComponent(product.slug)}`],
-        ),
-      );
-      for (const unit of firstPartyUnits)
-        unit.productHref = hrefById.get(unit.productId) ?? unit.productHref ?? null;
-    }
     return {
       data: [...firstPartyUnits, ...marketplaceUnits].filter(
         (unit) =>
           unit.availability === "AVAILABLE" &&
           unit.stock !== null &&
           unit.stock > 0 &&
-          unit.priceMxnMinor !== null,
+          unit.priceMxnMinor !== null &&
+          unit.priceMxnMinor > 0,
       ),
       error: null,
     };

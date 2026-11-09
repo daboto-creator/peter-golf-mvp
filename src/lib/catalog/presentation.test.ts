@@ -38,6 +38,28 @@ describe("catalog presentation", () => {
     ).toBe("Existencia sujeta a confirmación.");
   });
 
+  it("marks an in-stock product exhausted when sellable quantity is zero", () => {
+    expect(getAvailabilityPresentation({
+      fulfillmentType: "in_stock",
+      availableQuantity: 0,
+      leadTimeMinDays: null,
+      leadTimeMaxDays: null,
+    })).toEqual({
+      label: "Agotado",
+      detail: "No hay unidades disponibles actualmente.",
+      tone: "unavailable",
+    });
+  });
+
+  it("reports available First Party stock quantity without trusting fulfillment type", () => {
+    expect(getAvailabilityPresentation({
+      fulfillmentType: "in_stock",
+      availableQuantity: 2,
+      leadTimeMinDays: null,
+      leadTimeMaxDays: null,
+    }).label).toBe("Disponible");
+  });
+
   it("describes used product condition grades", () => {
     expect(getConditionLabel("used", "very_good")).toBe(
       "Seminuevo · Muy bueno",

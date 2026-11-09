@@ -4,10 +4,24 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BestRoundProChat } from "./best-round-pro-chat";
 import { initialConversationState } from "@/lib/best-round-pro/conversation";
 
+const auth = vi.hoisted(() => ({ listener: null as ((event: string, session: { user: { id: string } } | null) => void) | null }));
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    auth: {
+      onAuthStateChange: (listener: typeof auth.listener) => {
+        auth.listener = listener;
+        listener?.("INITIAL_SESSION", { user: { id: "buyer-a" } });
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      },
+    },
+  }),
+}));
+
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
   vi.restoreAllMocks();
+  auth.listener = null;
 });
 
 describe("Best Round Pro request page context", () => {
@@ -35,5 +49,18 @@ describe("Best Round Pro request page context", () => {
     const body = JSON.parse(String(request.body));
     expect(body.currentPageProduct).toEqual(currentPageProduct);
     expect(body.message).toBe("este equipo me sirve?");
+  });
+
+  it("resets visible conversation on an authenticated identity change", async () => {
+    const state = initialConversationState();
+    state.messages = [{ role: "user", content: "A private fact: handicap 8" }];
+    sessionStorage.setItem("best-round-pro:v2:user:buyer-a:session", JSON.stringify(state));
+    sessionStorage.setItem("best-round-pro:v2:active-identity", "user:buyer-a");
+    const { rerender } = render(<BestRoundProChat embedded />);
+    expect(await screen.findByText("A private fact: handicap 8")).toBeInTheDocument();
+
+    auth.listener?.("SIGNED_IN", { user: { id: "buyer-b" } });
+    rerender(<BestRoundProChat embedded />);
+    await waitFor(() => expect(screen.queryByText("A private fact: handicap 8")).not.toBeInTheDocument());
   });
 });

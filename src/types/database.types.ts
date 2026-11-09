@@ -9183,6 +9183,25 @@ export type Database = {
           unit_id: string;
         }[];
       };
+      get_public_first_party_sellable_inventory: {
+        Args: never;
+        Returns: {
+          available_quantity: number;
+          brand_name: string;
+          category_name: string;
+          club_type: string | null;
+          condition: Database["public"]["Enums"]["product_condition"];
+          currency: unknown;
+          model_name: string;
+          name: string;
+          price: unknown;
+          product_family: string | null;
+          product_id: string;
+          set_type: string | null;
+          slug: string;
+          technical_specs: Json;
+        }[];
+      };
       get_public_marketplace_catalog: {
         Args: { requested_slug?: string };
         Returns: {

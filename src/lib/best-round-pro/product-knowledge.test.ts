@@ -14,10 +14,23 @@ import {
   evaluatePlayerLevelFit,
   interpretCategoryRecommendation,
   normalizeCustomerPunctuation,
+  toProductKnowledge,
 } from "./product-knowledge";
 import type { ProductKnowledgeDTO } from "./product-knowledge";
 
 describe("Best Round product knowledge", () => {
+  it("uses projected sellable stock instead of fulfillment label for availability", () => {
+    const product = {
+      id: "driver", slug: "driver", name: "Driver", productFamily: "club",
+      clubType: "driver", price: 100, currency: "MXN", fulfillmentType: "in_stock",
+      source: "FIRST_PARTY", condition: "new", handedness: "right", brandName: "Brand",
+      availableQuantity: 0, images: [], clubSpecs: null, setSpecs: null,
+      components: [], accessoriesIncluded: [],
+    };
+    expect(toProductKnowledge(product as never).availability).toBe("UNAVAILABLE");
+    expect(toProductKnowledge({ ...product, availableQuantity: 2 } as never).availability).toBe("AVAILABLE");
+  });
+
   it.each([
     ["¿cuánto cuesta?", "PRODUCT_PRICE"],
     ["¿está disponible?", "PRODUCT_AVAILABILITY"],

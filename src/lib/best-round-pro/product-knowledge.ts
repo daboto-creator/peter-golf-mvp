@@ -237,11 +237,17 @@ export function productReadiness(input: {
 
 export function toProductKnowledge(product: PublicProduct): ProductKnowledgeDTO {
   const family = product.productFamily === "set" ? "SET" : product.clubType?.toUpperCase() ?? product.productFamily?.toUpperCase() ?? null;
-  const availability = product.fulfillmentType === "in_stock"
-    ? "AVAILABLE"
-    : product.fulfillmentType
-      ? "UNAVAILABLE"
-      : "UNKNOWN";
+  const availability = product.source === "FIRST_PARTY"
+    ? product.availableQuantity === null
+      ? "UNKNOWN"
+      : product.availableQuantity > 0
+        ? "AVAILABLE"
+        : "UNAVAILABLE"
+    : product.availableQuantity === null
+      ? "UNKNOWN"
+      : product.availableQuantity > 0
+        ? "AVAILABLE"
+        : "UNAVAILABLE";
   const specs: ProductKnowledgeDTO["specs"] = family === "SET"
     ? {
         handedness: product.handedness,

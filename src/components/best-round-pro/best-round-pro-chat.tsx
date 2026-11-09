@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -11,13 +11,20 @@ import {
   type ConversationProductContext,
   type ConversationState,
 } from "@/lib/best-round-pro/conversation";
-import { persistProductCardClick } from "@/lib/best-round-pro/client-session";
+import {
+  activateBestRoundProIdentity,
+  bestRoundProStorageKey,
+  persistProductCardClick,
+  resolveBestRoundProIdentity,
+  type BestRoundProIdentity,
+} from "@/lib/best-round-pro/client-session";
 import type { ConversationOutcomeResult } from "@/lib/best-round-pro/conversation";
 import type { CommercialRankingResult } from "@/lib/recommendations/commercial-ranking";
 import type { PublicProductSummary } from "@/lib/catalog/public-products";
 import { formatMoneyMinorUnits, getConditionLabel, resolvePublicImagePath } from "@/lib/catalog/presentation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/client";
 
 const starts = [
   "Quiero un Driver",
@@ -75,66 +82,93 @@ export function BestRoundProChat({
   embedded?: boolean;
   currentPageProduct?: ConversationProductContext | null;
 }) {
-  const [state, setState] = useState<ConversationState>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = window.sessionStorage.getItem("best-round-pro-session");
-        if (saved) {
-          const parsed = JSON.parse(saved) as ConversationState;
-          if (parsed?.session && Array.isArray(parsed.messages)) {
-            return {
-              ...initialConversationState(),
-              ...parsed,
-              lastCatalogResults: parsed.lastCatalogResults ?? [],
-              lastFocusedProduct: parsed.lastFocusedProduct ?? null,
-              lastInteractedProduct: parsed.lastInteractedProduct ?? null,
-              focusedProductSource: parsed.focusedProductSource ?? null,
-            };
-          }
-        }
-      } catch { /* optional storage */ }
-    }
-    return initialConversationState();
-  });
+  const [state, setState] = useState<ConversationState>(() => initialConversationState());
   const [input, setInput] = useState("");
   const [reply, setReply] = useState(
     "Soy Best Round Pro Agent. Puedo ayudarte a elegir equipo, resolver dudas sobre productos, revisar inventario real y acompañarte durante tu compra. Si quieres, también te asesoro según tu juego.",
   );
-  const [recommendation, setRecommendation] = useState<CommercialRankingResult | null>(() => {
-    if (typeof window !== "undefined") {
-      try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-recommendation") ?? "null") as CommercialRankingResult | null; } catch { /* optional storage */ }
-    }
-    return null;
-  });
-  const [catalogProducts, setCatalogProducts] = useState<PublicProductSummary[]>(() => {
-    if (typeof window !== "undefined") {
-      try { return JSON.parse(window.sessionStorage.getItem("best-round-pro-catalog-products") ?? "[]") as PublicProductSummary[]; } catch { /* optional storage */ }
-    }
-    return [];
-  });
+  const [recommendation, setRecommendation] = useState<CommercialRankingResult | null>(null);
+  const [catalogProducts, setCatalogProducts] = useState<PublicProductSummary[]>([]);
+  const [identityReady, setIdentityReady] = useState(false);
+  const identityRef = useRef<BestRoundProIdentity | null>(null);
+  const identityGeneration = useRef(0);
   const [productsExpanded, setProductsExpanded] = useState(true);
   const [outcome, setOutcome] = useState<ConversationOutcomeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const client = createClient();
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+      let identity: BestRoundProIdentity;
+      try {
+        identity = resolveBestRoundProIdentity(
+          window.sessionStorage,
+          session?.user.id ?? null,
+          () => window.crypto.randomUUID(),
+        );
+      } catch {
+        identity = { scope: session?.user.id ? `user:${session.user.id}` : "anonymous:ephemeral" };
+      }
+      const previous = identityRef.current;
+      if (previous?.scope === identity.scope) {
+        setIdentityReady(true);
+        return;
+      }
+      identityGeneration.current += 1;
+      identityRef.current = identity;
+      try {
+        const restored = activateBestRoundProIdentity(window.sessionStorage, identity);
+        setState(restored.state);
+        setRecommendation(restored.recommendation as CommercialRankingResult | null);
+        setCatalogProducts(restored.catalogProducts as PublicProductSummary[]);
+      } catch {
+        setState(initialConversationState());
+        setRecommendation(null);
+        setCatalogProducts([]);
+      }
+      setOutcome(null);
+      setError(null);
+      setBusy(false);
+      setReply("Soy Best Round Pro Agent. Puedo ayudarte a elegir equipo, resolver dudas sobre productos, revisar inventario real y acompañarte durante tu compra. Si quieres, también te asesoro según tu juego.");
+      setIdentityReady(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
   const persistCardSelection = (selected: CatalogProductReference) => {
     let nextState = applyProductCardSelection(state, selected);
+    const identity = identityRef.current;
+    if (!identity) return;
     try {
-      nextState = persistProductCardClick(window.sessionStorage, state, selected);
+      nextState = persistProductCardClick(window.sessionStorage, state, selected, identity);
     } catch {
       // Storage is optional; retain the interaction for the mounted session.
     }
     setState(nextState);
   };
   useEffect(() => {
+    const identity = identityRef.current;
+    if (!identityReady || !identity) return;
     try {
-      window.sessionStorage.setItem("best-round-pro-session", JSON.stringify(state));
+      window.sessionStorage.setItem(bestRoundProStorageKey(identity, "session"), JSON.stringify(state));
     } catch {
       // Storage is optional.
     }
-  }, [state]);
+  }, [identityReady, state]);
+  useEffect(() => {
+    const identity = identityRef.current;
+    if (!identityReady || !identity) return;
+    try { window.sessionStorage.setItem(bestRoundProStorageKey(identity, "recommendation"), JSON.stringify(recommendation)); } catch { /* optional storage */ }
+  }, [identityReady, recommendation]);
+  useEffect(() => {
+    const identity = identityRef.current;
+    if (!identityReady || !identity) return;
+    try { window.sessionStorage.setItem(bestRoundProStorageKey(identity, "catalog-products"), JSON.stringify(catalogProducts)); } catch { /* optional storage */ }
+  }, [identityReady, catalogProducts]);
   const send = async (message = input) => {
     const text = message.trim();
-    if (!text || busy) return;
+    const identity = identityRef.current;
+    if (!text || busy || !identityReady || !identity) return;
+    const generation = identityGeneration.current;
     setBusy(true);
     setError(null);
     if (catalogProducts.length) setProductsExpanded(false);
@@ -152,23 +186,21 @@ export function BestRoundProChat({
         outcome?: ConversationOutcomeResult | null;
       };
       if (!response.ok || !payload.state) throw new Error("request");
+      if (identityGeneration.current !== generation) return;
       setState(payload.state);
       setReply(payload.reply ?? "");
       setRecommendation(payload.recommendation ?? null);
       const products = payload.catalogProducts;
       if (products) setCatalogProducts(products);
-      try { window.sessionStorage.setItem("best-round-pro-recommendation", JSON.stringify(payload.recommendation ?? null)); } catch { /* optional storage */ }
-      if (products) {
-        try { window.sessionStorage.setItem("best-round-pro-catalog-products", JSON.stringify(products)); } catch { /* optional storage */ }
-      }
       setOutcome(payload.outcome ?? null);
       setInput("");
     } catch {
+      if (identityGeneration.current !== generation) return;
       setError(
         "No pude completar la consulta. Tu mensaje se conservó; intenta nuevamente.",
       );
     } finally {
-      setBusy(false);
+      if (identityGeneration.current === generation) setBusy(false);
     }
   };
   return (
@@ -193,6 +225,7 @@ export function BestRoundProChat({
                 key={start}
                 variant="outline"
                 className="w-full justify-start border-white/20 bg-white/5 text-white hover:bg-white/10"
+                disabled={!identityReady || busy}
                 onClick={() => void send(start)}
               >
                 {start}
@@ -361,11 +394,11 @@ export function BestRoundProChat({
               }}
               placeholder="Pregúntame por drivers, sets, wedges, inventario, productos o tu juego…"
               className="border-input bg-background min-h-11 flex-1 rounded-xl border px-4 text-sm"
-              disabled={busy}
+              disabled={busy || !identityReady}
             />
             <Button
               onClick={() => void send()}
-              disabled={busy || !input.trim()}
+              disabled={!identityReady || busy || !input.trim()}
             >
               {busy ? "Pensando…" : "Enviar"}
             </Button>
