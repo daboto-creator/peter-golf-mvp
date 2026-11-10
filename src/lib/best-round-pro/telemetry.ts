@@ -42,7 +42,10 @@ export function safeBestRoundTelemetry(input: {
       source.recipientContext === "THIRD_PARTY"
         ? source.recipientContext
         : "UNKNOWN",
-    explanationGrounded: source.explanationGrounded === true,
+    explanationGrounded:
+      typeof source.explanationGrounded === "boolean"
+        ? source.explanationGrounded
+        : null,
     groundingIssueCount: Array.isArray(source.groundingIssues)
       ? source.groundingIssues.length
       : 0,

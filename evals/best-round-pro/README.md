@@ -23,8 +23,13 @@ Run the real provider subset against a candidate Preview only:
 
 ```sh
 BRP_PROVIDER_EVAL_BASE_URL=https://<candidate-preview>.vercel.app \
+BRP_PROVIDER_EVAL_CURL_BIN=/path/to/vercel \
   npx vitest run src/lib/best-round-pro/provider-eval.test.ts
 ```
+
+Set `BRP_PROVIDER_EVAL_CURL_BIN` to use `vercel curl` for a Preview protected
+by Vercel Deployment Protection. This reuses the local Vercel login and does
+not place a bypass token in the test command or output.
 
 The provider subset has 21 labeled scenarios and at most 25 turn requests. It
 requires an HTTPS Vercel Preview URL, evaluates dialogue-act and recipient

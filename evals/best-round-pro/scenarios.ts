@@ -72,16 +72,7 @@ function group(seed: GroupSeed): BrpScenario[] {
       "unavailable item recommended",
     ],
     notes: `Curated synthetic case for ${seed.category}; no production product identifiers or personal data.`,
-    providerEval:
-      [
-        "beginner",
-        "driver",
-        "objections",
-        "product-context",
-        "difficult",
-      ].includes(seed.key) &&
-      ([0, 3, 6, 9].includes(index) ||
-        (["product-context", "difficult"].includes(seed.key) && index === 2)),
+    providerEval: false,
   }));
 }
 
@@ -337,13 +328,15 @@ for (const scenario of bestRoundProScenarios) {
 
 const providerActExpectations: Record<string, string[]> = {
   "brp-v1-beginner-01": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
-  "brp-v1-beginner-04": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
-  "brp-v1-beginner-07": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
-  "brp-v1-beginner-10": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
+  "brp-v1-level-01": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
+  "brp-v1-level-04": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
+  "brp-v1-handedness-01": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
   "brp-v1-driver-01": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
   "brp-v1-driver-04": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
   "brp-v1-driver-07": ["ASK_PRODUCT_FIT"],
   "brp-v1-driver-10": ["ASK_PRODUCT_FIT", "PRODUCT_ADVICE"],
+  "brp-v1-wedges-01": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
+  "brp-v1-stock-02": ["CATALOG_SEARCH"],
   "brp-v1-objections-01": [
     "SALES_OBJECTION",
     "CATALOG_SEARCH",
@@ -358,18 +351,14 @@ const providerActExpectations: Record<string, string[]> = {
   "brp-v1-product-context-07": ["ASK_PRODUCT_DETAILS", "ASK_PRODUCT_FIT"],
   "brp-v1-difficult-01": ["CHANGE_TOPIC"],
   "brp-v1-difficult-03": ["ANSWER_PENDING_QUESTION"],
-  "brp-v1-difficult-04": ["CORRECTION"],
-  "brp-v1-difficult-07": ["ASK_COMPARISON"],
   "brp-v1-mi-golf-08": ["FITTING_REQUEST", "PRODUCT_ADVICE"],
 };
 for (const scenario of bestRoundProScenarios) {
-  if (providerActExpectations[scenario.id])
+  if (providerActExpectations[scenario.id]) {
     scenario.expectedDialogueActs = providerActExpectations[scenario.id];
+    scenario.providerEval = true;
+  }
 }
-const thirdPartyEval = bestRoundProScenarios.find(
-  (scenario) => scenario.id === "brp-v1-mi-golf-08",
-);
-if (thirdPartyEval) thirdPartyEval.providerEval = true;
 
 const multiTurnSequences: Record<string, string[]> = {
   "brp-v1-difficult-02": ["¿Eres diestro o zurdo?", "Sí."],
