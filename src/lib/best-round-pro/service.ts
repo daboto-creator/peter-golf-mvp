@@ -44,8 +44,10 @@ import { loadInventoryUnits } from "@/lib/recommendations/inventory-candidates";
 import { createClient } from "@/lib/supabase/server";
 import {
   getConversationProvider,
+  getConfiguredConversationModel,
   safeRecommendationPayload,
 } from "@/lib/best-round-pro/provider";
+import { buildGroundedFacts, groundedExplanationOrFallback } from "@/lib/best-round-pro/grounding";
 import {
   isCatalogIntent,
   routeConversationIntent,
@@ -304,6 +306,11 @@ export type ConversationInterpreterTelemetry = {
   currentWedgesLoaded?: string | null;
   goalFactsLoaded?: string[];
   recommendationSnapshotSaved?: boolean;
+  explanationGrounded?: boolean | null;
+  groundingIssues?: string[];
+  explanationLatencyMs?: number | null;
+  lowConfidenceDisclosed?: boolean;
+  providerModel?: string | null;
 };
 
 let lastInterpreterTelemetry: ConversationInterpreterTelemetry = {
@@ -772,6 +779,7 @@ export async function processConversationTurn(input: {
     providerErrorType: null,
     interpretationSource: "FALLBACK",
     interpretationConfidence: null,
+    providerModel: getConfiguredConversationModel(),
   };
   if (provider) {
     try {
@@ -1953,9 +1961,22 @@ export async function processConversationTurn(input: {
     if (
       provider &&
       outcomeType === "RECOMMENDATIONS_AVAILABLE" &&
-      turn.objection !== "PRICE"
+      turn.objection !== "PRICE" &&
+      recommendation.status === "RECOMMENDATIONS" &&
+      recommendation.recommendations[0]?.equipmentMatch.confidence !== "LOW"
     ) {
       try {
+        const groundedFacts = buildGroundedFacts({
+          recommendations: safeRecommendation.status === "RECOMMENDATIONS" ? safeRecommendation.recommendations : [],
+          availableUnits: inventory.data,
+          playerFacts: turn.state.participants.player.relationToBuyer === "SELF"
+            ? { ...durableAnswers, ...turn.state.session.diagnosticAnswers }
+            : turn.state.session.diagnosticAnswers,
+          targetPlayer: turn.state.participants.player.relationToBuyer === "SELF"
+            ? "SELF"
+            : turn.state.participants.player.relationToBuyer === "UNKNOWN" ? "UNKNOWN" : "THIRD_PARTY",
+        });
+        const explanationStartedAt = Date.now();
         const generated = await provider.explainRecommendation({
           productFamilyContext: (turn.state.session.requestedCategory as "SET" | "DRIVER" | "FAIRWAY_WOOD" | "HYBRID" | "IRON" | "WEDGE" | "PUTTER" | null) ?? null,
           session: {
@@ -1980,11 +2001,25 @@ export async function processConversationTurn(input: {
             priceChoice && priceChoice.length > 1,
           ),
           recommendation: safeRecommendationPayload(safeRecommendation),
+          groundedFacts,
         });
-        if (generated.trim()) reply = generated.trim();
+        lastInterpreterTelemetry.explanationLatencyMs = Date.now() - explanationStartedAt;
+        const validated = groundedExplanationOrFallback({
+          generated,
+          fallback: reply,
+          facts: groundedFacts,
+          knownCatalogModels: inventory.data.map((unit) => unit.model).filter((model): model is string => Boolean(model)),
+        });
+        lastInterpreterTelemetry.explanationGrounded = validated.grounded;
+        lastInterpreterTelemetry.groundingIssues = validated.issues;
+        reply = validated.text;
       } catch {
+        lastInterpreterTelemetry.explanationGrounded = false;
+        lastInterpreterTelemetry.groundingIssues = ["PROVIDER_EXPLANATION_FAILURE"];
         // Keep the deterministic response if the conversational provider fails.
       }
+    } else if (recommendation.status === "RECOMMENDATIONS" && recommendation.recommendations[0]?.equipmentMatch.confidence === "LOW") {
+      lastInterpreterTelemetry.lowConfidenceDisclosed = true;
     }
     const outcome: ConversationOutcomeResult = {
       type: outcomeType,

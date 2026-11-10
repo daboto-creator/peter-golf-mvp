@@ -7,6 +7,7 @@ import type {
 } from "@/lib/mi-golf/domain";
 import { nextBestQuestion } from "@/lib/mi-golf/domain";
 import type { CommercialRankingResult } from "@/lib/recommendations/commercial-ranking";
+import { lowConfidenceCaveat } from "@/lib/best-round-pro/grounding";
 import {
   detectGolfCategory,
   interpretGolfCategory,
@@ -1036,6 +1037,15 @@ export function recommendationReply(result: CommercialRankingResult): string {
     return "Hoy no tengo un match responsable disponible en inventario real. Puedo dejar definido el perfil que buscamos y avisarte cuando aparezca una opción adecuada.";
   }
   const best = result.recommendations[0];
+  if (best?.equipmentMatch.confidence === "LOW") {
+    const missingData = best.equipmentMatch.missingData
+      .filter((item) => item.importance === "CRITICAL" || item.importance === "MATERIAL")
+      .map((item) => ({ handedness: "mano de juego", swingSpeed: "velocidad de swing", skill: "nivel de juego", handicapIndex: "handicap", shotTendency: "tendencia del tiro", loft: "loft actual" } as Record<string, string>)[item.field] ?? item.field);
+    const caveat = lowConfidenceCaveat({ confidence: "LOW", missingData });
+    return best
+      ? `Encontré una opción provisional disponible: ${[best.candidate.brand, best.candidate.model].filter(Boolean).join(" ")}. Match ${best.equipmentMatch.matchScore}. ${caveat} Si quieres, confirmamos ese dato antes de afinar la recomendación.`
+      : "No encontré una opción responsable disponible por ahora.";
+  }
   return best
     ? `Encontré una opción disponible: ${best.candidate.brand ?? ""} ${best.candidate.model ?? ""}. Match ${best.equipmentMatch.matchScore} y confianza ${best.equipmentMatch.confidence.toLowerCase()}.`
     : "No encontré una opción responsable disponible por ahora.";

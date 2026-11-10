@@ -12,6 +12,7 @@ import {
   SEARCH_SCOPE_MODES,
 } from "@/lib/best-round-pro/contract";
 import type { CommercialRankingResult } from "@/lib/recommendations/commercial-ranking";
+import type { GroundedFacts } from "@/lib/best-round-pro/grounding";
 
 const factSchema = z.object({
   field: z.enum([
@@ -245,6 +246,7 @@ export type SafeConversationPayload = {
         confidence: string;
         reasons: string[];
       }[];
+  groundedFacts: GroundedFacts;
 };
 
 export interface BestRoundConversationProvider {
@@ -332,7 +334,7 @@ class OpenAICompatibleProvider implements BestRoundConversationProvider {
   }
   async explainRecommendation(payload: SafeConversationPayload) {
     const system =
-      "Redacta una respuesta breve en español basada exclusivamente en el DTO. Respeta productFamilyContext: nunca uses vocabulario de otra familia (un WEDGE no es un SET, un PUTTER no es un DRIVER). No inventes productos, precios, stock ni descuentos. No menciones costes, margen, comisión ni vendedor. No calcules Match ni ranking. Nunca atribuyas confianza baja a inventario o disponibilidad: sólo usa confidenceReasons entregadas por backend. Respeta targetPlayer y, si no es SELF, no describas sus hechos con tú/tu. Devuelve JSON {text:string}.";
+      "Redacta una respuesta breve y natural en español. groundedFacts es la única fuente autorizada para afirmaciones de catálogo, jugador, precio, disponibilidad, Match, confianza y compatibilidad. No afirmes specs ni rendimiento físico que no aparezcan ahí: no inventes perdón, lanzamiento, spin, distancia, estabilidad o feel. Si falta un dato, dilo con naturalidad (por ejemplo: ‘con los datos disponibles’ o ‘no puedo confirmarlo’) y ofrece una pregunta útil. No afirmes un precio, condición, mano, loft, flex, categoría, modelo o stock distinto al valor estructurado. No inventes productos, descuentos, recomendaciones ni ranking. No menciones costes, margen, comisión, supplier ni vendedor. No calcules Match. Respeta targetPlayer; si es THIRD_PARTY, habla de esa persona en tercera persona y no uses tú/tu para sus hechos. Si confidence=LOW, presenta la opción como provisional e indica el dato faltante. Mantén tono de Pro de golf, claro y conversacional. Devuelve JSON {text:string}.";
     const result = z
       .object({ text: z.string().max(1200) })
       .parse(JSON.parse(extractJson(await this.complete(system, payload))));
@@ -344,6 +346,10 @@ export function getConversationProvider(): BestRoundConversationProvider | null 
   return serverEnv.BEST_ROUND_PRO_LLM_API_KEY
     ? new OpenAICompatibleProvider()
     : null;
+}
+
+export function getConfiguredConversationModel(): string | null {
+  return serverEnv.BEST_ROUND_PRO_LLM_API_KEY ? serverEnv.BEST_ROUND_PRO_LLM_MODEL : null;
 }
 
 export function safeRecommendationPayload(

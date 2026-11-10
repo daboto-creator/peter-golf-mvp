@@ -56,6 +56,7 @@ describe("Mi Golf foundation contracts", () => {
 
   it("isolates third-party recipient language and supports returning to self", () => {
     expect(resolveRecipientContext("Estoy buscando un driver para mi esposa", "SELF")).toBe("THIRD_PARTY");
+    expect(resolveRecipientContext("Estoy comprando un driver para mi hijo, no para mí", "SELF")).toBe("THIRD_PARTY");
     expect(resolveRecipientContext("ella es zurda y está empezando", "THIRD_PARTY")).toBe("THIRD_PARTY");
     expect(resolveRecipientContext("ahora volvamos a buscar para mí", "THIRD_PARTY")).toBe("SELF");
   });

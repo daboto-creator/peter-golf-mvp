@@ -20,10 +20,21 @@ import {
   deriveSkillFromHandicap,
   questionPromptFor,
   getPlayerPerspective,
+  recommendationReply,
 } from "./conversation";
 import { interpretGolfCategory } from "./category-normalization";
 
 describe("Best Round Pro conversation", () => {
+  it("labels LOW confidence candidates as provisional and names a material missing fact", () => {
+    const result = {
+      status: "RECOMMENDATIONS",
+      recommendations: [{
+        candidate: { brand: "Demo", model: "Driver A" },
+        equipmentMatch: { confidence: "LOW", matchScore: 70, missingData: [{ field: "handedness", importance: "CRITICAL" }] },
+      }],
+    } as unknown as Parameters<typeof recommendationReply>[0];
+    expect(recommendationReply(result)).toMatch(/opción provisional.*mano de juego/i);
+  });
   it.each([[8, "ADVANCED"], [18.4, "INTERMEDIATE"], [31, "BEGINNER"]] as const)(
     "derives internal skill from handicap %s",
     (handicap, expected) => expect(deriveSkillFromHandicap(handicap)).toBe(expected),

@@ -16,8 +16,9 @@ export type RecipientContext = "SELF" | "THIRD_PARTY" | "UNKNOWN";
 
 export function resolveRecipientContext(message: string, current: RecipientContext = "UNKNOWN"): RecipientContext {
   const value = message.toLocaleLowerCase("es-MX");
-  if (/(?:\bpara\s+m[ií](?!\s+(?:esposa|esposo|hija|hijo))|\bpara\s+nosotros|\bvolvamos\s+a\s+buscar\s+para\s+m[ií])/.test(value)) return "SELF";
+  if (/\bvolvamos\s+a\s+buscar\s+para\s+m[ií](?:\s|$)/.test(value)) return "SELF";
   if (/\b(?:mi\s+esposa|mi\s+esposo|mi\s+hija|mi\s+hijo|mi\s+amiga?|para\s+(?:ella|él|el)|es\s+un\s+regalo)\b/.test(value)) return "THIRD_PARTY";
+  if (/(?:\bpara\s+m[ií]\b|\bpara\s+nosotros\b)/.test(value)) return "SELF";
   return current;
 }
 

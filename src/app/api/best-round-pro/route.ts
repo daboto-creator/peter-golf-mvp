@@ -4,6 +4,38 @@ import { z } from "zod";
 import { initialConversationState, type ConversationProductContext } from "@/lib/best-round-pro/conversation";
 import { SEARCH_SCOPE_MODES } from "@/lib/best-round-pro/contract";
 import { getLastInterpreterTelemetry, processConversationTurn } from "@/lib/best-round-pro/service";
+import { clientBestRoundTelemetry, safeBestRoundTelemetry } from "@/lib/best-round-pro/telemetry";
+
+const MAX_REQUEST_BODY_BYTES = 96 * 1024;
+
+class RequestBodyTooLargeError extends Error {}
+
+async function readBoundedJson(request: Request): Promise<unknown> {
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES)
+    throw new RequestBodyTooLargeError();
+  if (!request.body) throw new SyntaxError("Missing JSON body");
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    byteLength += value.byteLength;
+    if (byteLength > MAX_REQUEST_BODY_BYTES) {
+      await reader.cancel();
+      throw new RequestBodyTooLargeError();
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+}
 
 const requestSchema = z.object({
   message: z.string().trim().min(1).max(800),
@@ -25,9 +57,16 @@ const requestSchema = z.object({
         productsConsidered: z.array(z.string()).max(20),
         diagnosticAnswers: z
           .record(
-            z.string(),
-            z.union([z.string(), z.number(), z.boolean(), z.array(z.number()), z.null()]),
+            z.string().max(40),
+            z.union([
+              z.string().max(120),
+              z.number().finite(),
+              z.boolean(),
+              z.array(z.number().finite()).max(10),
+              z.null(),
+            ]),
           )
+          .refine((answers) => Object.keys(answers).length <= 24, "Too many diagnostic answers")
           .default({}),
         unresolvedQuestions: z.array(z.string()).max(10),
         summary: z.string().nullable(),
@@ -138,8 +177,15 @@ const requestSchema = z.object({
 
 export async function POST(request: Request) {
   let rawRequestBody: unknown = null;
+  const requestStartedAt = Date.now();
   try {
-    rawRequestBody = await request.json();
+    rawRequestBody = await readBoundedJson(request);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError)
+      return NextResponse.json({ error: "REQUEST_TOO_LARGE" }, { status: 413 });
+    return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
+  }
+  try {
     const parsedBody = requestSchema.parse(rawRequestBody) as z.infer<typeof requestSchema> & { currentPageProduct: ConversationProductContext | null };
     const body = {
       ...parsedBody,
@@ -174,131 +220,22 @@ export async function POST(request: Request) {
               : result.events.some((event) => event.startsWith("SOCIAL_"))
                 ? "ANSWER_SOCIAL"
                 : "RETURN_TERMINAL_OUTCOME");
+    const recommendationItems = result.recommendation?.status === "RECOMMENDATIONS" ? result.recommendation.recommendations : [];
+    const safeTelemetry = safeBestRoundTelemetry({
+      source: { ...telemetry },
+      durationMs: Date.now() - requestStartedAt,
+      recommendationCount: recommendationItems.length,
+      confidence: recommendationItems[0]?.equipmentMatch.confidence ?? null,
+      outcome: result.outcome?.type ?? null,
+    });
     console.info("best_round_pro_turn_trace", {
-      providerSucceeded: telemetry.providerSucceeded,
-      providerCalled: telemetry.providerCalled,
-      providerHttpStatus: telemetry.providerHttpStatus ?? null,
-      providerTimedOut: telemetry.providerTimedOut ?? false,
-      providerErrorType: telemetry.providerErrorType,
-      providerJsonParsed: telemetry.jsonParsed ?? null,
-      providerValidationSucceeded: telemetry.providerSucceeded && (telemetry.validationIssues?.length ?? 0) === 0,
-      providerValidationIssues: telemetry.validationIssues ?? [],
-      interpretationSource: telemetry.interpretationSource,
-      dialogueAct: telemetry.effectiveDialogueAct ?? telemetry.dialogueAct ?? null,
-      rawDialogueAct: telemetry.rawDialogueAct ?? null,
-      effectiveDialogueAct: telemetry.effectiveDialogueAct ?? telemetry.dialogueAct ?? null,
-      answersPendingQuestion: telemetry.answersPendingQuestion ?? false,
-      declaredFactKeys: telemetry.declaredFactKeys ?? [],
-      declaredFactStatuses: telemetry.declaredFactStatuses ?? [],
-      declaredFacts: telemetry.declaredFacts ?? [],
-      rawDeclaredFacts: telemetry.rawDeclaredFacts ?? [],
-      acceptedCurrentTurnFacts: telemetry.acceptedCurrentTurnFacts ?? [],
-      rejectedContextEchoFacts: telemetry.rejectedContextEchoFacts ?? [],
-      factMutationIntent: telemetry.factMutationIntent ?? "NONE",
-      rawHandednessStatus: telemetry.declaredFactKeys?.includes("handedness")
-        ? telemetry.declaredFactStatuses?.[telemetry.declaredFactKeys.indexOf("handedness")] ?? null
-        : null,
-      canonicalHandedness: telemetry.declaredFacts?.find((fact) => fact.key === "handedness")?.canonicalValue ?? null,
-      playerHandednessAfter: result.state.session.diagnosticAnswers.handedness ?? null,
-      semanticStateChanged: telemetry.semanticStateChanged,
-      playerFactsChanged: telemetry.playerFactsChanged,
-      pendingQuestionChanged: telemetry.pendingQuestionChanged,
+      ...safeTelemetry,
       productFamily: result.state.session.requestedCategory,
-      focusedProductFamily: result.state.lastFocusedProduct?.family ?? result.state.productAdvice.product?.family ?? null,
-      focusedProductId: result.state.lastFocusedProduct?.id ?? result.state.productAdvice.product?.id ?? null,
-      focusedProductSource: result.state.focusedProductSource ?? null,
-      lastInteractedProductId: result.state.lastInteractedProduct?.id ?? null,
-      currentPageProductId: body.currentPageProduct?.id ?? null,
-      recentResultIds: result.state.lastCatalogResults.map((product) => product.id),
-      resolvedReferenceProductId: result.state.referenceResolution.productId,
-      referenceResolutionSource: result.state.referenceResolution.source,
-      previousSearchFamilies: body.state.searchScope?.families ?? [],
-      interpretedRequestedFamilies: telemetry.requestedProductFamilies ?? [],
-      previousSearchOutcome: body.state.catalogSearchOutcome ?? null,
-      lastExecutedAction: result.state.lastExecutedAction,
-      activeSearchFamilies: result.state.searchScope?.families ?? [],
-      searchScopeMode: result.state.searchScope?.mode ?? null,
-      searchScopeSource: result.state.searchScope?.source ?? null,
-      searchContinuationRelation: telemetry.searchContinuationRelation ?? result.state.searchContinuation?.relation ?? null,
-      searchContinuationReason: telemetry.searchContinuationReason ?? result.state.searchContinuation?.reason ?? null,
-      catalogScopeIntent: telemetry.catalogScopeIntent ?? null,
-      playerHandedness: result.state.session.diagnosticAnswers.handedness ?? null,
-      compatibilityOutcome: result.state.compatibilityOutcome ?? null,
-      catalogSearchOutcome: result.state.catalogSearchOutcome ?? null,
-      pendingBefore: telemetry.pendingBefore ?? body.state.pendingQuestionKey,
-      pendingFactKeyMatched: telemetry.pendingFactKeyMatched ?? null,
-      pendingNormalizerUsed: telemetry.pendingNormalizerUsed ?? null,
-      normalizedPendingValue: telemetry.normalizedPendingValue ?? null,
-      pendingConsumed: telemetry.pendingConsumed ?? false,
-      pendingAfter: result.state.pendingQuestionKey,
-      playerFactsBefore: telemetry.playerFactsBefore ?? {},
-      playerFactsAfter: telemetry.playerFactsAfter ?? {},
-      stateChanged: JSON.stringify(body.state.session) !== JSON.stringify(result.state.session),
-      nextQuestionKey: result.nextQuestion?.id ?? result.state.pendingQuestionKey,
-      activeAdviceProductId: result.state.activeAdvice?.productId ?? null,
-      activeAdviceProductFamily: result.state.activeAdvice?.productFamily ?? null,
-      activeAdviceStatus: result.state.activeAdvice?.status ?? null,
-      adviceOutcome: result.state.activeAdvice?.outcome ?? telemetry.adviceOutcome ?? null,
-      adviceEvidenceSufficient: telemetry.adviceEvidenceSufficient ?? false,
-      materialMissingFactKeys: telemetry.materialMissingFactKeys ?? [],
-      resolvedMaterialFactKeys: telemetry.resolvedMaterialFactKeys ?? [],
-      productChangedThisTurn: telemetry.productChangedThisTurn ?? false,
-      previousProductId: telemetry.previousProductId ?? null,
-      compatibilityOutcomeBeforeReset: telemetry.compatibilityOutcomeBeforeReset ?? null,
-      compatibilityOutcomeAfterReset: telemetry.compatibilityOutcomeAfterReset ?? result.state.compatibilityOutcome ?? null,
-      playerFactsCarriedForward: telemetry.playerFactsCarriedForward ?? [],
-      currentProductId: telemetry.currentProductId ?? result.state.activeAdvice?.productId ?? null,
-      comparableAlternativeIds: telemetry.comparableAlternativeIds ?? [],
-      comparableAlternativeCount: telemetry.comparableAlternativeCount ?? 0,
-      comparisonEligible: telemetry.comparisonEligible ?? false,
-      comparisonOffered: telemetry.comparisonOffered ?? false,
-      technicalCompatibility: telemetry.technicalCompatibility ?? null,
-      playerLevelFit: telemetry.playerLevelFit ?? null,
-      targetPlayerLevel: telemetry.targetPlayerLevel ?? null,
-      recommendationStrength: telemetry.recommendationStrength ?? null,
-      recommendationOutcome: telemetry.recommendationOutcome ?? null,
-      customerLanguageLocale: telemetry.customerLanguageLocale ?? "es-MX",
-      customerTermsNormalized: telemetry.customerTermsNormalized ?? false,
-      knowledgeIntent: telemetry.knowledgeIntent ?? null,
-      factsRequested: telemetry.factsRequested ?? [],
-      factsResolved: telemetry.factsResolved ?? [],
-      factsUnavailable: telemetry.factsUnavailable ?? [],
-      productSourceType: telemetry.productSourceType ?? null,
-      availabilityStatus: telemetry.availabilityStatus ?? null,
-      conditionStatus: telemetry.conditionStatus ?? null,
-      policyTopic: telemetry.policyTopic ?? null,
-      policyResolutionStatus: telemetry.policyResolutionStatus ?? null,
-      productReadinessStatus: telemetry.productReadinessStatus ?? null,
-      primarySemanticIntent: telemetry.primarySemanticIntent ?? null,
-      secondarySemanticIntent: telemetry.secondarySemanticIntent ?? null,
-      mixedIntent: telemetry.mixedIntent ?? false,
-      executedFactualActions: telemetry.executedFactualActions ?? [],
-      executedAdviceAction: telemetry.executedAdviceAction ?? null,
-      sameTurnAdviceCompleted: telemetry.sameTurnAdviceCompleted ?? false,
-      sameTurnAdviceQuestionKey: telemetry.sameTurnAdviceQuestionKey ?? null,
-      priceAmountCents: telemetry.priceAmountCents ?? null,
-      priceCurrency: telemetry.priceCurrency ?? null,
-      priceFormatted: telemetry.priceFormatted ?? null,
-      shippingPolicySource: telemetry.shippingPolicySource ?? null,
-      recommendationFactsUsed: telemetry.recommendationFactsUsed ?? [],
-      currentEquipmentFactsUsed: telemetry.currentEquipmentFactsUsed ?? [],
-      categoryInterpretations: telemetry.categoryInterpretations ?? [],
-      categoryCaveats: telemetry.categoryCaveats ?? [],
-      nextMaterialFact: telemetry.nextMaterialFact ?? null,
+      catalogSearchOutcome: result.state.catalogSearchOutcome,
+      compatibilityOutcome: result.state.compatibilityOutcome,
       plannedAction,
       executedAction,
       stallDetected: (result.state.conversationLoop?.consecutiveSameQuestionCount ?? 0) >= 2,
-      recipientContext: telemetry.recipientContext ?? "UNKNOWN",
-      miGolfLoaded: telemetry.miGolfLoaded ?? false,
-      durableFactsLoaded: telemetry.durableFactsLoaded ?? [],
-      durableFactsSaved: telemetry.durableFactsSaved ?? [],
-      durableFactsRejected: telemetry.durableFactsRejected ?? [],
-      factSource: telemetry.factSource ?? null,
-      factConflictDetected: telemetry.factConflictDetected ?? false,
-      manualEditAuthorityApplied: telemetry.manualEditAuthorityApplied ?? false,
-      equipmentFactsLoaded: telemetry.equipmentFactsLoaded ?? [],
-      goalFactsLoaded: telemetry.goalFactsLoaded ?? [],
-      recommendationSnapshotSaved: telemetry.recommendationSnapshotSaved ?? false,
     });
     return NextResponse.json({
       state: result.state,
@@ -309,77 +246,7 @@ export async function POST(request: Request) {
       intent: "intent" in result ? result.intent : null,
       outcome: result.outcome ?? null,
       error: "error" in result ? result.error : null,
-      telemetry: {
-        ...telemetry,
-        providerValidationSucceeded: telemetry.providerSucceeded && (telemetry.validationIssues?.length ?? 0) === 0,
-        recentResultIds: result.state.lastCatalogResults.map((product) => product.id),
-        lastInteractedProductId: result.state.lastInteractedProduct?.id ?? null,
-        focusedProductId: result.state.lastFocusedProduct?.id ?? result.state.productAdvice.product?.id ?? null,
-        focusedProductSource: result.state.focusedProductSource ?? null,
-        currentPageProductId: body.currentPageProduct?.id ?? null,
-        resolvedReferenceProductId: result.state.referenceResolution.productId,
-        referenceResolutionSource: result.state.referenceResolution.source,
-        pendingBefore: telemetry.pendingBefore ?? body.state.pendingQuestionKey,
-        pendingFactKeyMatched: telemetry.pendingFactKeyMatched ?? null,
-        pendingNormalizerUsed: telemetry.pendingNormalizerUsed ?? null,
-        normalizedPendingValue: telemetry.normalizedPendingValue ?? null,
-        pendingConsumed: telemetry.pendingConsumed ?? false,
-        pendingAfter: result.state.pendingQuestionKey,
-        playerFactsBefore: telemetry.playerFactsBefore ?? {},
-        playerFactsAfter: telemetry.playerFactsAfter ?? {},
-        nextQuestionKey: result.nextQuestion?.id ?? result.state.pendingQuestionKey,
-        activeAdviceProductId: result.state.activeAdvice?.productId ?? null,
-        activeAdviceProductFamily: result.state.activeAdvice?.productFamily ?? null,
-        activeAdviceStatus: result.state.activeAdvice?.status ?? null,
-        adviceOutcome: result.state.activeAdvice?.outcome ?? telemetry.adviceOutcome ?? null,
-        adviceEvidenceSufficient: telemetry.adviceEvidenceSufficient ?? false,
-        materialMissingFactKeys: telemetry.materialMissingFactKeys ?? [],
-        resolvedMaterialFactKeys: telemetry.resolvedMaterialFactKeys ?? [],
-        currentProductId: telemetry.currentProductId ?? result.state.activeAdvice?.productId ?? null,
-        comparableAlternativeIds: telemetry.comparableAlternativeIds ?? [],
-        comparableAlternativeCount: telemetry.comparableAlternativeCount ?? 0,
-        comparisonEligible: telemetry.comparisonEligible ?? false,
-        comparisonOffered: telemetry.comparisonOffered ?? false,
-        technicalCompatibility: telemetry.technicalCompatibility ?? null,
-        playerLevelFit: telemetry.playerLevelFit ?? null,
-        targetPlayerLevel: telemetry.targetPlayerLevel ?? null,
-        recommendationStrength: telemetry.recommendationStrength ?? null,
-        recommendationOutcome: telemetry.recommendationOutcome ?? null,
-        customerLanguageLocale: telemetry.customerLanguageLocale ?? "es-MX",
-        customerTermsNormalized: telemetry.customerTermsNormalized ?? false,
-        knowledgeIntent: telemetry.knowledgeIntent ?? null,
-        factsRequested: telemetry.factsRequested ?? [],
-        factsResolved: telemetry.factsResolved ?? [],
-        factsUnavailable: telemetry.factsUnavailable ?? [],
-        productSourceType: telemetry.productSourceType ?? null,
-        availabilityStatus: telemetry.availabilityStatus ?? null,
-        conditionStatus: telemetry.conditionStatus ?? null,
-        policyTopic: telemetry.policyTopic ?? null,
-        policyResolutionStatus: telemetry.policyResolutionStatus ?? null,
-        productReadinessStatus: telemetry.productReadinessStatus ?? null,
-        productChangedThisTurn: telemetry.productChangedThisTurn ?? false,
-        previousProductId: telemetry.previousProductId ?? null,
-        compatibilityOutcomeBeforeReset: telemetry.compatibilityOutcomeBeforeReset ?? null,
-        compatibilityOutcomeAfterReset: telemetry.compatibilityOutcomeAfterReset ?? result.state.compatibilityOutcome ?? null,
-        playerFactsCarriedForward: telemetry.playerFactsCarriedForward ?? [],
-        stallDetected: (result.state.conversationLoop?.consecutiveSameQuestionCount ?? 0) >= 2,
-        recipientContext: telemetry.recipientContext ?? "UNKNOWN",
-        miGolfLoaded: telemetry.miGolfLoaded ?? false,
-        durableFactsLoaded: telemetry.durableFactsLoaded ?? [],
-        durableFactsSaved: telemetry.durableFactsSaved ?? [],
-        durableFactsRejected: telemetry.durableFactsRejected ?? [],
-        factSource: telemetry.factSource ?? null,
-        factConflictDetected: telemetry.factConflictDetected ?? false,
-        manualEditAuthorityApplied: telemetry.manualEditAuthorityApplied ?? false,
-        equipmentFactsLoaded: telemetry.equipmentFactsLoaded ?? [],
-        goalFactsLoaded: telemetry.goalFactsLoaded ?? [],
-        recommendationSnapshotSaved: telemetry.recommendationSnapshotSaved ?? false,
-        plannedAction,
-        executedAction,
-        inputTokens: 0,
-        outputTokens: 0,
-        researchCalls: 0,
-      },
+      telemetry: clientBestRoundTelemetry(safeTelemetry),
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -395,7 +262,7 @@ export async function POST(request: Request) {
     console.error("best_round_pro_runtime_error", {
       stage: "SERIALIZE_RESPONSE",
       errorCode: error instanceof Error ? error.name : "UNKNOWN_ERROR",
-      provider: getLastInterpreterTelemetry(),
+      provider: safeBestRoundTelemetry({ source: { ...getLastInterpreterTelemetry() }, durationMs: Date.now() - requestStartedAt, recommendationCount: 0, confidence: null, outcome: null }),
     });
     return NextResponse.json(
       { error: "CONVERSATION_UNAVAILABLE" },

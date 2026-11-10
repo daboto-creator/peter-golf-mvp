@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/user", () => ({ getAuthenticatedUser: mocks.authenticatedUser }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.supabaseClient }));
 vi.mock("@/lib/best-round-pro/provider", () => ({
+  getConfiguredConversationModel: () => "test-model",
   getConversationProvider: () => ({
     interpretTurn: mocks.interpretation,
     explainRecommendation: vi.fn(async () => ""),
